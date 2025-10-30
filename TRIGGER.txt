@@ -1,0 +1,5 @@
+# Deployment Trigger
+
+Dieser Commit triggert das automatische Deployment.
+
+Zeitstempel: 2025-10-30 21:52:00
