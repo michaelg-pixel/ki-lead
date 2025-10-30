@@ -6,7 +6,7 @@
  */
 
 // Base URLs (ANPASSEN!)
-define('BASE_URL', 'app.mehr-infos-jetzt.de');
+define('BASE_URL', 'https://app.mehr-infos-jetzt.de');
 define('ADMIN_URL', BASE_URL . '/admin');
 define('CUSTOMER_URL', BASE_URL . '/customer');
 define('FREEBIE_URL', BASE_URL . '/freebie');
@@ -35,7 +35,7 @@ define('SMTP_FROM_NAME', 'KI Lead-System');
 
 // System-Status
 define('MAINTENANCE_MODE', false);
-define('DEBUG_MODE', false); // Im Produktiv-Betrieb auf FALSE!
+define('DEBUG_MODE', true); // Temporär auf true für Debugging
 
 // Timezone
 date_default_timezone_set('Europe/Berlin');
