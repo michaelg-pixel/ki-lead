@@ -50,6 +50,57 @@ if ($page === 'overview') {
             overflow: hidden;
         }
         
+        /* Mobile Header */
+        .mobile-header {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            z-index: 1000;
+            padding: 0 16px;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .mobile-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .mobile-logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        
+        .mobile-logo-text {
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+        }
+        
+        .mobile-menu-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
         /* Sidebar */
         .sidebar {
             width: 260px;
@@ -58,6 +109,18 @@ if ($page === 'overview') {
             display: flex;
             flex-direction: column;
             padding: 24px 0;
+            transition: transform 0.3s ease;
+        }
+        
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 998;
         }
         
         .logo {
@@ -94,6 +157,7 @@ if ($page === 'overview') {
         .nav-menu {
             flex: 1;
             padding: 0 16px;
+            overflow-y: auto;
         }
         
         .nav-item {
@@ -143,21 +207,29 @@ if ($page === 'overview') {
             justify-content: center;
             color: white;
             font-weight: 600;
+            flex-shrink: 0;
         }
         
         .user-info {
             flex: 1;
+            min-width: 0;
         }
         
         .user-name {
             font-size: 14px;
             font-weight: 600;
             color: white;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
         .user-email {
             font-size: 12px;
             color: #888;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
         .logout-btn {
@@ -165,6 +237,7 @@ if ($page === 'overview') {
             cursor: pointer;
             font-size: 20px;
             text-decoration: none;
+            flex-shrink: 0;
         }
         
         /* Main Content */
@@ -178,6 +251,7 @@ if ($page === 'overview') {
         .content-area {
             flex: 1;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
         
         /* Stats Cards */
@@ -229,11 +303,128 @@ if ($page === 'overview') {
             font-size: 14px;
             color: #888;
         }
+        
+        /* Responsive Styles */
+        @media (max-width: 1024px) {
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 16px;
+                padding: 24px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            
+            .mobile-header {
+                display: flex;
+            }
+            
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                z-index: 999;
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .sidebar-overlay.active {
+                display: block;
+            }
+            
+            .main-content {
+                margin-top: 60px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+                padding: 16px;
+            }
+            
+            .stat-card {
+                padding: 20px;
+            }
+            
+            .stat-value {
+                font-size: 28px;
+            }
+            
+            .stat-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .mobile-logo-text {
+                font-size: 14px;
+            }
+            
+            .stats-grid {
+                padding: 12px;
+                gap: 12px;
+            }
+            
+            .stat-card {
+                padding: 16px;
+            }
+            
+            .stat-value {
+                font-size: 24px;
+            }
+            
+            .logo-text h1 {
+                font-size: 16px;
+            }
+            
+            .logo-text p {
+                font-size: 11px;
+            }
+            
+            .nav-item {
+                padding: 10px 14px;
+            }
+            
+            .user-section {
+                padding: 12px 16px;
+            }
+        }
+        
+        @media (hover: none) and (pointer: coarse) {
+            .stat-card:hover {
+                transform: none;
+            }
+            
+            .nav-item:active {
+                background: rgba(102, 126, 234, 0.2);
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- Mobile Header -->
+    <div class="mobile-header">
+        <div class="mobile-logo">
+            <div class="mobile-logo-icon">🌟</div>
+            <div class="mobile-logo-text">KI Leadsystem</div>
+        </div>
+        <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+    </div>
+    
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    
     <!-- Sidebar -->
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
         <div class="logo">
             <div class="logo-icon">🌟</div>
             <div class="logo-text">
@@ -243,23 +434,23 @@ if ($page === 'overview') {
         </div>
         
         <nav class="nav-menu">
-            <a href="?page=overview" class="nav-item <?php echo $page === 'overview' ? 'active' : ''; ?>">
+            <a href="?page=overview" class="nav-item <?php echo $page === 'overview' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
                 <span class="nav-icon">📊</span>
                 <span>Übersicht</span>
             </a>
-            <a href="?page=kurse" class="nav-item <?php echo $page === 'kurse' ? 'active' : ''; ?>">
+            <a href="?page=kurse" class="nav-item <?php echo $page === 'kurse' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
                 <span class="nav-icon">🎓</span>
                 <span>Meine Kurse</span>
             </a>
-            <a href="?page=freebies" class="nav-item <?php echo $page === 'freebies' ? 'active' : ''; ?>">
+            <a href="?page=freebies" class="nav-item <?php echo $page === 'freebies' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
                 <span class="nav-icon">🎁</span>
                 <span>Freebies</span>
             </a>
-            <a href="?page=fortschritt" class="nav-item <?php echo $page === 'fortschritt' ? 'active' : ''; ?>">
+            <a href="?page=fortschritt" class="nav-item <?php echo $page === 'fortschritt' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
                 <span class="nav-icon">📈</span>
                 <span>Fortschritt</span>
             </a>
-            <a href="?page=einstellungen" class="nav-item <?php echo $page === 'einstellungen' ? 'active' : ''; ?>">
+            <a href="?page=einstellungen" class="nav-item <?php echo $page === 'einstellungen' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
                 <span class="nav-icon">⚙️</span>
                 <span>Einstellungen</span>
             </a>
@@ -321,5 +512,36 @@ if ($page === 'overview') {
             <?php endif; ?>
         </div>
     </div>
+    
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.querySelector('.sidebar-overlay');
+            
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        }
+        
+        function closeSidebarOnMobile() {
+            if (window.innerWidth <= 768) {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.querySelector('.sidebar-overlay');
+                
+                sidebar.classList.remove('open');
+                overlay.classList.remove('active');
+            }
+        }
+        
+        // Close sidebar on window resize if it's open
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 768) {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.querySelector('.sidebar-overlay');
+                
+                sidebar.classList.remove('open');
+                overlay.classList.remove('active');
+            }
+        });
+    </script>
 </body>
 </html>
