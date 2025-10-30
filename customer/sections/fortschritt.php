@@ -84,6 +84,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
         justify-content: space-between;
         align-items: center;
         margin-bottom: 12px;
+        flex-wrap: wrap;
+        gap: 8px;
     }
     
     .progress-name {
@@ -133,6 +135,114 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
     .empty-text {
         font-size: 14px;
         color: #888;
+    }
+    
+    /* Responsive Styles */
+    @media (max-width: 1024px) {
+        .stat-grid {
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .progress-container {
+            padding: 24px 16px;
+        }
+        
+        .page-title {
+            font-size: 24px;
+        }
+        
+        .progress-card {
+            padding: 24px 20px;
+        }
+        
+        .stat-grid {
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-item {
+            padding: 16px;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+        }
+        
+        .progress-section {
+            margin-bottom: 24px;
+        }
+        
+        .empty-state {
+            padding: 40px 16px;
+        }
+        
+        .empty-icon {
+            font-size: 48px;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .progress-container {
+            padding: 16px 12px;
+        }
+        
+        .page-header {
+            margin-bottom: 24px;
+        }
+        
+        .page-title {
+            font-size: 20px;
+        }
+        
+        .page-subtitle {
+            font-size: 13px;
+        }
+        
+        .progress-card {
+            padding: 20px 16px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .stat-item {
+            padding: 12px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+        }
+        
+        .section-title {
+            font-size: 16px;
+        }
+        
+        .progress-item {
+            padding: 16px;
+        }
+        
+        .progress-name {
+            font-size: 14px;
+        }
+        
+        .progress-percent {
+            font-size: 13px;
+        }
+        
+        .empty-title {
+            font-size: 18px;
+        }
+        
+        .empty-text {
+            font-size: 13px;
+        }
     }
 </style>
 
