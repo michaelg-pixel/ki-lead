@@ -2,4 +2,6 @@
 
 Dieser Commit triggert das automatische Deployment.
 
-Zeitstempel: 2025-10-30 21:52:00
+Zeitstempel: 2025-10-30 21:55:00
+
+Fix: Git ownership und Permission-Probleme behoben
