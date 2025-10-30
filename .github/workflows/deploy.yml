@@ -17,9 +17,9 @@ jobs:
       - name: 🚀 Deploy to Server
         uses: appleboy/ssh-action@v1.0.0
         with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
+          host: 31.97.39.234
+          username: mehr-infos-jetzt-app
+          key: ${{ secrets.HOSTINGER_SSH_KEY }}
           port: 22
           script_stop: false
           script: |
