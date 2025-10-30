@@ -1,11 +1,12 @@
 <?php
 session_start();
 
-// AGGRESSIVE VERSION CHECK - CACHE BUSTER!
-define('DASHBOARD_VERSION', 'v2.2-LIVE-TEST-' . time());
+// 🚨 SUPER AGGRESSIVE VERSION CHECK 🚨
+define('DASHBOARD_VERSION', '🔴 v3.0-FORCED-DEPLOY 🔴');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Cache-Control: post-check=0, pre-check=0', false);
 header('Pragma: no-cache');
-header('Expires: 0');
+header('Expires: Sat, 26 Jul 1997 05:00:00 GMT');
 
 // Login-Check
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
@@ -46,30 +47,39 @@ if ($page === 'overview') {
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>KI Leadsystem - Kunden Portal <?php echo DASHBOARD_VERSION; ?></title>
+    <title>🔴 KI LEADSYSTEM V3.0 🔴 - <?php echo DASHBOARD_VERSION; ?></title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
-        /* VERSION INDICATOR - SEHR AUFFÄLLIG! */
+        /* 🔥 SUPER AUFFÄLLIGER VERSION INDICATOR 🔥 */
         .version-indicator {
             position: fixed;
-            bottom: 10px;
-            right: 10px;
-            background: linear-gradient(135deg, #ff0080 0%, #ff8c00 100%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #ff0000 0%, #ff6600 50%, #ffcc00 100%);
             color: white;
-            padding: 12px 16px;
-            border-radius: 12px;
-            font-size: 14px;
+            padding: 30px 50px;
+            border-radius: 20px;
+            font-size: 28px;
             font-weight: bold;
-            z-index: 9999;
+            z-index: 99999;
             font-family: monospace;
-            box-shadow: 0 4px 15px rgba(255, 0, 128, 0.5);
-            animation: pulse 2s infinite;
+            box-shadow: 0 10px 50px rgba(255, 0, 0, 0.8);
+            animation: megaPulse 1s infinite, rotate 3s infinite;
+            text-align: center;
+            border: 5px solid white;
         }
         
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+        @keyframes megaPulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+        }
+        
+        @keyframes rotate {
+            0%, 100% { transform: translate(-50%, -50%) rotate(0deg); }
+            25% { transform: translate(-50%, -50%) rotate(-5deg); }
+            75% { transform: translate(-50%, -50%) rotate(5deg); }
         }
         
         body {
@@ -89,8 +99,8 @@ if ($page === 'overview') {
             left: 0;
             right: 0;
             height: 60px;
-            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            background: linear-gradient(180deg, #ff0000 0%, #ff6600 100%);
+            border-bottom: 3px solid #ffcc00;
             z-index: 1000;
             padding: 0 16px;
             align-items: center;
@@ -121,15 +131,17 @@ if ($page === 'overview') {
         }
         
         .mobile-menu-btn {
-            background: none;
-            border: none;
-            color: white;
+            background: white;
+            border: 2px solid #ffcc00;
+            color: #ff0000;
             font-size: 24px;
             cursor: pointer;
             padding: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
+            border-radius: 8px;
+            font-weight: bold;
         }
         
         /* Sidebar */
@@ -393,6 +405,11 @@ if ($page === 'overview') {
                 height: 40px;
                 font-size: 20px;
             }
+            
+            .version-indicator {
+                font-size: 18px;
+                padding: 20px 30px;
+            }
         }
         
         @media (max-width: 480px) {
@@ -428,6 +445,11 @@ if ($page === 'overview') {
             .user-section {
                 padding: 12px 16px;
             }
+            
+            .version-indicator {
+                font-size: 14px;
+                padding: 15px 20px;
+            }
         }
         
         @media (hover: none) and (pointer: coarse) {
@@ -442,14 +464,18 @@ if ($page === 'overview') {
     </style>
 </head>
 <body>
-    <!-- VERSION INDICATOR - SEHR AUFFÄLLIG -->
-    <div class="version-indicator">🔄 <?php echo DASHBOARD_VERSION; ?></div>
+    <!-- 🔥 MEGA AUFFÄLLIGER VERSION INDICATOR 🔥 -->
+    <div class="version-indicator">
+        🔴 VERSION 3.0<br>
+        FORCED DEPLOY<br>
+        ACTIVE! 🔴
+    </div>
     
     <!-- Mobile Header -->
     <div class="mobile-header">
         <div class="mobile-logo">
             <div class="mobile-logo-icon">🌟</div>
-            <div class="mobile-logo-text">KI Leadsystem</div>
+            <div class="mobile-logo-text">🔴 V3.0 🔴</div>
         </div>
         <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
     </div>
@@ -463,7 +489,7 @@ if ($page === 'overview') {
             <div class="logo-icon">🌟</div>
             <div class="logo-text">
                 <h1>KI Leadsystem</h1>
-                <p>Kunden Portal</p>
+                <p>Kunden Portal V3.0</p>
             </div>
         </div>
         
@@ -537,7 +563,7 @@ if ($page === 'overview') {
                 if (file_exists($section_file)) {
                     include $section_file;
                 } else {
-                    echo '<div style="padding: 32px; color: red;">FEHLER: Datei nicht gefunden: ' . $section_file . '</div>';
+                    echo '<div style="padding: 32px; color: red; font-size: 20px; background: yellow;">🔴 FEHLER: Datei nicht gefunden: ' . $section_file . '</div>';
                 }
                 ?>
             
@@ -547,7 +573,7 @@ if ($page === 'overview') {
                 if (file_exists($section_file)) {
                     include $section_file;
                 } else {
-                    echo '<div style="padding: 32px; color: red;">FEHLER: Datei nicht gefunden: ' . $section_file . '</div>';
+                    echo '<div style="padding: 32px; color: red; font-size: 20px; background: yellow;">🔴 FEHLER: Datei nicht gefunden: ' . $section_file . '</div>';
                 }
                 ?>
             
@@ -557,7 +583,7 @@ if ($page === 'overview') {
                 if (file_exists($section_file)) {
                     include $section_file;
                 } else {
-                    echo '<div style="padding: 32px; color: red;">FEHLER: Datei nicht gefunden: ' . $section_file . '</div>';
+                    echo '<div style="padding: 32px; color: red; font-size: 20px; background: yellow;">🔴 FEHLER: Datei nicht gefunden: ' . $section_file . '</div>';
                 }
                 ?>
             
@@ -567,7 +593,7 @@ if ($page === 'overview') {
                 if (file_exists($section_file)) {
                     include $section_file;
                 } else {
-                    echo '<div style="padding: 32px; color: red;">FEHLER: Datei nicht gefunden: ' . $section_file . '</div>';
+                    echo '<div style="padding: 32px; color: red; font-size: 20px; background: yellow;">🔴 FEHLER: Datei nicht gefunden: ' . $section_file . '</div>';
                 }
                 ?>
             
@@ -576,8 +602,10 @@ if ($page === 'overview') {
     </div>
     
     <script>
-        // Cache-Buster - Force reload bei neuem Timestamp
-        console.log('Dashboard Version: <?php echo DASHBOARD_VERSION; ?>');
+        // AGGRESSIVE CONSOLE OUTPUT
+        console.log('%c🔴 DASHBOARD VERSION 3.0 LOADED! 🔴', 'color: red; font-size: 30px; font-weight: bold;');
+        console.log('Version:', '<?php echo DASHBOARD_VERSION; ?>');
+        console.log('Timestamp:', new Date().toISOString());
         
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
