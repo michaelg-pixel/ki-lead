@@ -1,0 +1,1 @@
+DEPLOYMENT TEST - <?php echo date('Y-m-d H:i:s'); ?> - Wenn Sie das sehen, funktioniert das Deployment!
