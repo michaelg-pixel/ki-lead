@@ -38,7 +38,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
         border: 1px solid rgba(102, 126, 234, 0.2);
         border-radius: 16px;
         padding: 24px;
-        transition: transform 0.2s;
+        transition: transform 0.2s, border-color 0.2s;
         cursor: pointer;
     }
     
@@ -78,6 +78,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
         gap: 16px;
         font-size: 12px;
         color: #888;
+        flex-wrap: wrap;
     }
     
     .empty-state {
@@ -101,6 +102,102 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
     .empty-text {
         font-size: 14px;
         color: #888;
+    }
+    
+    /* Responsive Styles */
+    @media (max-width: 1024px) {
+        .courses-grid {
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .courses-container {
+            padding: 24px 16px;
+        }
+        
+        .page-title {
+            font-size: 24px;
+        }
+        
+        .courses-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+        
+        .course-card {
+            padding: 20px;
+        }
+        
+        .course-icon {
+            width: 50px;
+            height: 50px;
+            font-size: 28px;
+        }
+        
+        .empty-state {
+            padding: 40px 16px;
+        }
+        
+        .empty-icon {
+            font-size: 48px;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .courses-container {
+            padding: 16px 12px;
+        }
+        
+        .page-header {
+            margin-bottom: 24px;
+        }
+        
+        .page-title {
+            font-size: 20px;
+        }
+        
+        .page-subtitle {
+            font-size: 13px;
+        }
+        
+        .course-card {
+            padding: 16px;
+            border-radius: 12px;
+        }
+        
+        .course-title {
+            font-size: 16px;
+        }
+        
+        .course-description {
+            font-size: 13px;
+        }
+        
+        .course-meta {
+            font-size: 11px;
+            gap: 12px;
+        }
+        
+        .empty-title {
+            font-size: 18px;
+        }
+        
+        .empty-text {
+            font-size: 13px;
+        }
+    }
+    
+    @media (hover: none) and (pointer: coarse) {
+        .course-card:hover {
+            transform: none;
+        }
+        
+        .course-card:active {
+            transform: scale(0.98);
+            border-color: rgba(102, 126, 234, 0.4);
+        }
     }
 </style>
 
