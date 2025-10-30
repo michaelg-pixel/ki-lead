@@ -23,5 +23,20 @@ jobs:
           script: |
             echo "🚀 Verbinde mit Hostinger und aktualisiere App..."
             cd /home/mehr-infos-jetzt-app/htdocs/app.mehr-infos-jetzt.de
-            git pull origin main
+            
+            # Prüfe ob Verzeichnis existiert
+            if [ ! -d "customer/sections" ]; then
+              echo "⚠️ Erstelle sections-Verzeichnis..."
+              mkdir -p customer/sections
+            fi
+            
+            # Aktualisiere Code vom Repository
+            git fetch origin main
+            git reset --hard origin/main
+            
+            # Setze Dateirechte
+            chmod -R 755 customer/sections/
+            
             echo "✅ Deployment abgeschlossen."
+            echo "📂 Dateien im sections-Ordner:"
+            ls -la customer/sections/
