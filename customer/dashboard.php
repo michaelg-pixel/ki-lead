@@ -2,7 +2,7 @@
 session_start();
 
 // VERSION CHECK - Wenn Sie diesen Text sehen, ist die neue Version geladen!
-define('DASHBOARD_VERSION', 'v2.0-RESPONSIVE-2025-10-30-22:00');
+define('DASHBOARD_VERSION', 'v2.1-RESPONSIVE-FIXED-2025-10-30-23:00');
 
 // Login-Check
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
@@ -10,7 +10,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
     exit;
 }
 
-require_once '../config/database.php';
+require_once __DIR__ . '/../config/database.php';
 $pdo = getDBConnection();
 
 $customer_id = $_SESSION['user_id'];
@@ -518,16 +518,16 @@ if ($page === 'overview') {
                 </div>
             
             <?php elseif ($page === 'kurse'): ?>
-                <?php include 'sections/kurse.php'; ?>
+                <?php include __DIR__ . '/sections/kurse.php'; ?>
             
             <?php elseif ($page === 'freebies'): ?>
-                <?php include 'sections/freebies.php'; ?>
+                <?php include __DIR__ . '/sections/freebies.php'; ?>
             
             <?php elseif ($page === 'fortschritt'): ?>
-                <?php include 'sections/fortschritt.php'; ?>
+                <?php include __DIR__ . '/sections/fortschritt.php'; ?>
             
             <?php elseif ($page === 'einstellungen'): ?>
-                <?php include 'sections/einstellungen.php'; ?>
+                <?php include __DIR__ . '/sections/einstellungen.php'; ?>
             
             <?php endif; ?>
         </div>
