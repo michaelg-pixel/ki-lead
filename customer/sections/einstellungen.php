@@ -5,7 +5,10 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
     exit;
 }
 
-require_once '../includes/auth.php';
+// Auth-Funktionen werden benötigt
+if (!function_exists('getCurrentUser')) {
+    require_once __DIR__ . '/../../includes/auth.php';
+}
 
 $message = '';
 $error = '';
@@ -52,17 +55,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         if (!empty($password_errors)) {
             $error = 'Das Passwort erfüllt nicht alle Anforderungen: ' . implode(', ', $password_errors);
         } else {
-            // Aktuelles Passwort prüfen
-            $user = getCurrentUser();
-            if (!password_verify($current_password, $user['password'])) {
-                $error = 'Das aktuelle Passwort ist falsch.';
-            } else {
-                // Passwort ändern
-                if (resetPassword($_SESSION['user_id'], $new_password)) {
-                    $message = 'Passwort erfolgreich geändert!';
+            try {
+                // Aktuelles Passwort prüfen
+                $user = getCurrentUser();
+                if (!$user) {
+                    $error = 'Benutzer nicht gefunden.';
+                } elseif (!password_verify($current_password, $user['password'])) {
+                    $error = 'Das aktuelle Passwort ist falsch.';
                 } else {
-                    $error = 'Fehler beim Ändern des Passworts.';
+                    // Passwort ändern
+                    if (resetPassword($_SESSION['user_id'], $new_password)) {
+                        $message = 'Passwort erfolgreich geändert!';
+                    } else {
+                        $error = 'Fehler beim Ändern des Passworts.';
+                    }
                 }
+            } catch (Exception $e) {
+                $error = 'Ein Fehler ist aufgetreten: ' . $e->getMessage();
             }
         }
     }
