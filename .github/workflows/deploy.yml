@@ -1,124 +1,22 @@
-name: 🚀 Auto Deploy to Hostinger VPS
+name: Deploy
 
 on:
   push:
-    branches:
-      - main
-  workflow_dispatch:
+    branches: [main]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-
-      - name: 🚀 Deploy to Server
-        uses: appleboy/ssh-action@v1.0.0
+      - uses: actions/checkout@v4
+      
+      - uses: appleboy/ssh-action@v1.0.0
         with:
           host: 31.97.39.234
           username: mehr-infos-jetzt-app
           key: ${{ secrets.HOSTINGER_SSH_KEY }}
-          port: 22
-          script_stop: false
           script: |
-            set -e
-            
-            echo "========================================="
-            echo "🚀 DEPLOYMENT GESTARTET"
-            echo "========================================="
-            echo ""
-            
-            # Zum Projekt-Verzeichnis
-            echo "📂 Wechsle zum Projekt-Verzeichnis..."
-            cd /home/mehr-infos-jetzt-app/htdocs/app.mehr-infos-jetzt.de || exit 1
-            echo "✅ Bin in: $(pwd)"
-            echo ""
-            
-            # Git Status
-            echo "📊 Git Status vor Update:"
-            git status || true
-            echo ""
-            
-            # Stash lokale Änderungen (falls vorhanden)
-            echo "💾 Sichere lokale Änderungen..."
-            git stash || true
-            echo ""
-            
-            # Fetch neueste Änderungen
-            echo "⬇️  Hole neueste Änderungen..."
-            git fetch origin main || exit 1
-            echo ""
-            
-            # Reset auf origin/main
-            echo "🔄 Aktualisiere Code..."
-            git reset --hard origin/main || exit 1
-            echo ""
-            
-            # Verzeichnisse erstellen
-            echo "📁 Erstelle Verzeichnisse..."
+            cd /home/mehr-infos-jetzt-app/htdocs/app.mehr-infos-jetzt.de
+            git pull origin main
             mkdir -p customer/sections
-            mkdir -p admin/sections
-            mkdir -p uploads
-            mkdir -p logs
-            echo "✅ Verzeichnisse erstellt"
-            echo ""
-            
-            # Berechtigungen
-            echo "🔐 Setze Berechtigungen..."
-            chmod -R 755 customer/ || true
-            chmod -R 755 admin/ || true
-            chmod -R 755 config/ || true
-            chmod -R 755 includes/ || true
-            chmod -R 777 uploads/ || true
-            chmod -R 777 logs/ || true
-            echo "✅ Berechtigungen gesetzt"
-            echo ""
-            
-            # Prüfe wichtige Dateien
-            echo "🔍 Prüfe Dateien..."
-            if [ -f "customer/dashboard.php" ]; then
-              echo "✅ customer/dashboard.php vorhanden"
-            else
-              echo "❌ customer/dashboard.php FEHLT!"
-            fi
-            
-            if [ -f "customer/sections/einstellungen.php" ]; then
-              echo "✅ customer/sections/einstellungen.php vorhanden"
-            else
-              echo "❌ customer/sections/einstellungen.php FEHLT!"
-            fi
-            
-            if [ -f "customer/sections/kurse.php" ]; then
-              echo "✅ customer/sections/kurse.php vorhanden"
-            else
-              echo "❌ customer/sections/kurse.php FEHLT!"
-            fi
-            
-            if [ -f "customer/sections/fortschritt.php" ]; then
-              echo "✅ customer/sections/fortschritt.php vorhanden"
-            else
-              echo "❌ customer/sections/fortschritt.php FEHLT!"
-            fi
-            
-            if [ -f "customer/sections/freebies.php" ]; then
-              echo "✅ customer/sections/freebies.php vorhanden"
-            else
-              echo "❌ customer/sections/freebies.php FEHLT!"
-            fi
-            echo ""
-            
-            # Liste Dateien
-            echo "📂 Dateien in customer/sections/:"
-            ls -lah customer/sections/ || echo "Verzeichnis nicht gefunden!"
-            echo ""
-            
-            # Letzter Commit
-            echo "📝 Aktueller Commit:"
-            git log -1 --oneline
-            echo ""
-            
-            echo "========================================="
-            echo "✅ DEPLOYMENT ERFOLGREICH ABGESCHLOSSEN"
-            echo "========================================="
+            chmod -R 755 customer/
