@@ -21,6 +21,9 @@
                 <a href="tutorials.php" class="text-gray-600 hover:text-purple-600 <?php echo basename($_SERVER['PHP_SELF']) == 'tutorials.php' ? 'text-purple-600 font-semibold' : ''; ?>">
                     <i class="fas fa-question-circle mr-2"></i> Anleitungen
                 </a>
+                <a href="dashboard.php?page=einstellungen" class="text-gray-600 hover:text-purple-600 <?php echo isset($_GET['page']) && $_GET['page'] == 'einstellungen' ? 'text-purple-600 font-semibold' : ''; ?>">
+                    <i class="fas fa-cog mr-2"></i> Einstellungen
+                </a>
                 <a href="logout.php" class="text-red-600 hover:text-red-700">
                     <i class="fas fa-sign-out-alt mr-2"></i> Abmelden
                 </a>
