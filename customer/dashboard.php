@@ -1,6 +1,9 @@
 <?php
 session_start();
 
+// VERSION CHECK - Wenn Sie diesen Text sehen, ist die neue Version geladen!
+define('DASHBOARD_VERSION', 'v2.0-RESPONSIVE-2025-10-30-22:00');
+
 // Login-Check
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
     header('Location: /public/login.php');
@@ -37,9 +40,23 @@ if ($page === 'overview') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KI Leadsystem - Kunden Portal</title>
+    <title>KI Leadsystem - Kunden Portal <?php echo DASHBOARD_VERSION; ?></title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        /* VERSION INDICATOR - Zum Testen */
+        .version-indicator {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: #667eea;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            z-index: 9999;
+            font-family: monospace;
+        }
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -411,6 +428,9 @@ if ($page === 'overview') {
     </style>
 </head>
 <body>
+    <!-- VERSION INDICATOR -->
+    <div class="version-indicator"><?php echo DASHBOARD_VERSION; ?></div>
+    
     <!-- Mobile Header -->
     <div class="mobile-header">
         <div class="mobile-logo">
