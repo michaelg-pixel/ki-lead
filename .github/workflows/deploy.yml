@@ -17,6 +17,6 @@ jobs:
           key: ${{ secrets.HOSTINGER_SSH_KEY }}
           script: |
             cd /home/mehr-infos-jetzt-app/htdocs/app.mehr-infos-jetzt.de
+            git config --global --add safe.directory /home/mehr-infos-jetzt-app/htdocs/app.mehr-infos-jetzt.de
             git pull origin main
             mkdir -p customer/sections
-            chmod -R 755 customer/
