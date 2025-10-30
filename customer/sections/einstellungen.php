@@ -83,6 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         max-width: 800px;
         margin: 0 auto;
         padding: 32px;
+        width: 100%;
     }
     
     .settings-header {
@@ -94,6 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         font-weight: 700;
         color: white;
         margin-bottom: 8px;
+        word-wrap: break-word;
     }
     
     .settings-subtitle {
@@ -107,6 +109,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         border-radius: 16px;
         padding: 32px;
         margin-bottom: 24px;
+        width: 100%;
+        box-sizing: border-box;
     }
     
     .card-title {
@@ -118,6 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         align-items: center;
         gap: 12px;
         flex-wrap: wrap;
+        word-wrap: break-word;
     }
     
     .form-group {
@@ -142,6 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         font-size: 14px;
         transition: all 0.2s;
         -webkit-appearance: none;
+        box-sizing: border-box;
     }
     
     .form-input:focus {
@@ -154,6 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         font-size: 12px;
         color: #888;
         margin-top: 6px;
+        line-height: 1.5;
     }
     
     .btn-primary {
@@ -167,6 +174,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         cursor: pointer;
         transition: all 0.2s;
         width: 100%;
+        box-sizing: border-box;
+        min-height: 48px;
     }
     
     .btn-primary:hover {
@@ -189,6 +198,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         align-items: flex-start;
         gap: 12px;
         line-height: 1.5;
+        word-wrap: break-word;
     }
     
     .alert-success {
@@ -231,6 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         padding-left: 24px;
         position: relative;
         transition: color 0.2s;
+        line-height: 1.5;
     }
     
     .password-requirements li:before {
@@ -254,12 +265,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
         gap: 16px;
+        width: 100%;
     }
     
     .info-item {
         background: rgba(0, 0, 0, 0.3);
         padding: 16px;
         border-radius: 8px;
+        box-sizing: border-box;
     }
     
     .info-label {
@@ -273,6 +286,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         color: white;
         font-weight: 500;
         word-break: break-word;
+        overflow-wrap: break-word;
     }
     
     /* Passwort-Stärke-Anzeige */
@@ -333,34 +347,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         color: #34d399;
     }
     
-    /* Responsive Styles */
-    @media (max-width: 768px) {
+    /* Tablet Styles */
+    @media (max-width: 1024px) {
         .settings-container {
-            padding: 24px 16px;
-        }
-        
-        .settings-title {
-            font-size: 24px;
-        }
-        
-        .settings-card {
             padding: 24px 20px;
-            border-radius: 12px;
-        }
-        
-        .card-title {
-            font-size: 18px;
         }
         
         .user-info-card {
-            grid-template-columns: 1fr;
-            gap: 12px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         }
     }
     
-    @media (max-width: 480px) {
+    /* Mobile Landscape & Small Tablets */
+    @media (max-width: 768px) {
         .settings-container {
-            padding: 16px 12px;
+            padding: 20px 16px;
+            max-width: 100%;
         }
         
         .settings-header {
@@ -368,7 +370,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         }
         
         .settings-title {
-            font-size: 20px;
+            font-size: 24px;
         }
         
         .settings-subtitle {
@@ -376,13 +378,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         }
         
         .settings-card {
-            padding: 20px 16px;
-            margin-bottom: 16px;
+            padding: 24px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
         }
         
         .card-title {
-            font-size: 16px;
+            font-size: 18px;
             margin-bottom: 20px;
+        }
+        
+        .user-info-card {
+            grid-template-columns: 1fr;
+            gap: 12px;
         }
         
         .form-group {
@@ -390,30 +398,157 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         }
         
         .form-input {
-            padding: 10px 14px;
-            font-size: 16px; /* Verhindert Zoom auf iOS */
+            padding: 14px 16px;
+            min-height: 48px;
         }
         
         .btn-primary {
-            padding: 14px 20px;
+            padding: 14px 24px;
+            min-height: 50px;
+        }
+        
+        .password-requirements {
+            padding: 14px;
+        }
+    }
+    
+    /* Mobile Portrait */
+    @media (max-width: 480px) {
+        .settings-container {
+            padding: 16px 12px;
+        }
+        
+        .settings-header {
+            margin-bottom: 20px;
+        }
+        
+        .settings-title {
+            font-size: 22px;
+            line-height: 1.3;
+        }
+        
+        .settings-subtitle {
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .settings-card {
+            padding: 20px 16px;
+            margin-bottom: 16px;
+            border-radius: 10px;
+        }
+        
+        .card-title {
+            font-size: 17px;
+            margin-bottom: 18px;
+            gap: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 18px;
+        }
+        
+        .form-label {
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+        
+        .form-input {
+            padding: 14px 14px;
+            font-size: 16px; /* Verhindert Zoom auf iOS */
+            min-height: 50px;
+            border-radius: 6px;
+        }
+        
+        .btn-primary {
+            padding: 16px 20px;
             font-size: 15px;
+            min-height: 52px;
+            border-radius: 6px;
         }
         
         .password-requirements {
             padding: 12px;
+            margin-top: 20px;
+        }
+        
+        .password-requirements h4 {
+            font-size: 13px;
+            margin-bottom: 10px;
         }
         
         .password-requirements li {
             font-size: 12px;
-            padding: 4px 0;
+            padding: 5px 0;
+            padding-left: 22px;
         }
         
         .alert {
-            padding: 12px 16px;
+            padding: 12px 14px;
             font-size: 13px;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .info-item {
+            padding: 14px;
+        }
+        
+        .info-label {
+            font-size: 11px;
+            margin-bottom: 5px;
+        }
+        
+        .info-value {
+            font-size: 13px;
+        }
+        
+        .password-strength {
+            margin-top: 10px;
+        }
+        
+        .strength-label {
+            font-size: 11px;
+            margin-bottom: 5px;
+        }
+        
+        .strength-bar {
+            height: 5px;
+            margin-bottom: 5px;
+        }
+        
+        .strength-text {
+            font-size: 11px;
         }
     }
     
+    /* Extra Small Devices */
+    @media (max-width: 360px) {
+        .settings-container {
+            padding: 12px 10px;
+        }
+        
+        .settings-card {
+            padding: 16px 12px;
+        }
+        
+        .card-title {
+            font-size: 16px;
+            gap: 8px;
+        }
+        
+        .form-input {
+            padding: 12px;
+            min-height: 48px;
+        }
+        
+        .btn-primary {
+            padding: 14px 16px;
+            min-height: 50px;
+        }
+    }
+    
+    /* Touch Device Optimizations */
     @media (hover: none) and (pointer: coarse) {
         .btn-primary:hover {
             transform: none;
@@ -422,6 +557,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         
         .btn-primary:active {
             transform: scale(0.98);
+            box-shadow: 0 5px 10px rgba(102, 126, 234, 0.2);
+        }
+        
+        .form-input:focus {
+            /* Bessere Touch-Feedback */
+            border-width: 2px;
+            padding: 11px 15px;
+        }
+        
+        /* Größere Touch-Targets */
+        .form-input,
+        .btn-primary {
+            min-height: 48px;
+        }
+    }
+    
+    /* Landscape Mobile */
+    @media (max-width: 768px) and (orientation: landscape) {
+        .settings-container {
+            padding: 16px 20px;
+        }
+        
+        .settings-card {
+            padding: 20px;
+        }
+        
+        .user-info-card {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
+    /* Prevent horizontal scroll */
+    @media (max-width: 768px) {
+        * {
+            max-width: 100%;
+        }
+        
+        .settings-container,
+        .settings-card,
+        .form-group,
+        .form-input,
+        .btn-primary,
+        .user-info-card,
+        .password-requirements {
+            overflow-wrap: break-word;
+            word-wrap: break-word;
         }
     }
 </style>
