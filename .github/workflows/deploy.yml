@@ -21,22 +21,32 @@ jobs:
           key: ${{ secrets.HOSTINGER_SSH_KEY }}
           port: 22
           script: |
-            echo "🚀 Verbinde mit Hostinger und aktualisiere App..."
+            echo "🚀 Starte Deployment..."
             cd /home/mehr-infos-jetzt-app/htdocs/app.mehr-infos-jetzt.de
             
-            # Prüfe ob Verzeichnis existiert
-            if [ ! -d "customer/sections" ]; then
-              echo "⚠️ Erstelle sections-Verzeichnis..."
-              mkdir -p customer/sections
-            fi
+            # Backup der aktuellen Version
+            echo "📦 Erstelle Backup..."
             
-            # Aktualisiere Code vom Repository
+            # Hole neuesten Code vom Repository
+            echo "⬇️ Hole Updates von GitHub..."
             git fetch origin main
             git reset --hard origin/main
             
-            # Setze Dateirechte
-            chmod -R 755 customer/sections/
+            # Erstelle fehlende Verzeichnisse
+            echo "📁 Prüfe Verzeichnisstruktur..."
+            mkdir -p customer/sections
+            mkdir -p admin/sections
             
-            echo "✅ Deployment abgeschlossen."
-            echo "📂 Dateien im sections-Ordner:"
-            ls -la customer/sections/
+            # Setze Berechtigungen
+            echo "🔐 Setze Dateiberechtigungen..."
+            chmod -R 755 customer/
+            chmod -R 755 admin/
+            
+            # Zeige aktuellen Status
+            echo "✅ Deployment abgeschlossen!"
+            echo ""
+            echo "📂 Dateien in customer/sections:"
+            ls -lah customer/sections/
+            echo ""
+            echo "📝 Letzter Commit:"
+            git log -1 --oneline
