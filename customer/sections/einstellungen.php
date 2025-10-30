@@ -5,9 +5,13 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
     exit;
 }
 
-// Auth-Funktionen werden benötigt
-if (!function_exists('getCurrentUser')) {
-    require_once __DIR__ . '/../../includes/auth.php';
+// Datenbankverbindung ist bereits in dashboard.php verfügbar
+global $pdo;
+
+// Falls $pdo nicht verfügbar ist, holen wir es uns
+if (!isset($pdo)) {
+    require_once __DIR__ . '/../../config/database.php';
+    $pdo = getDBConnection();
 }
 
 $message = '';
@@ -57,21 +61,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         } else {
             try {
                 // Aktuelles Passwort prüfen
-                $user = getCurrentUser();
+                $stmt = $pdo->prepare("SELECT password FROM users WHERE id = ?");
+                $stmt->execute([$_SESSION['user_id']]);
+                $user = $stmt->fetch(PDO::FETCH_ASSOC);
+                
                 if (!$user) {
                     $error = 'Benutzer nicht gefunden.';
                 } elseif (!password_verify($current_password, $user['password'])) {
                     $error = 'Das aktuelle Passwort ist falsch.';
                 } else {
                     // Passwort ändern
-                    if (resetPassword($_SESSION['user_id'], $new_password)) {
+                    $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+                    $stmt = $pdo->prepare("UPDATE users SET password = ?, updated_at = NOW() WHERE id = ?");
+                    
+                    if ($stmt->execute([$hashed_password, $_SESSION['user_id']])) {
                         $message = 'Passwort erfolgreich geändert!';
+                        // Formular zurücksetzen
+                        $_POST = [];
                     } else {
                         $error = 'Fehler beim Ändern des Passworts.';
                     }
                 }
+            } catch (PDOException $e) {
+                $error = 'Ein Datenbankfehler ist aufgetreten. Bitte versuchen Sie es später erneut.';
+                error_log("Password change error: " . $e->getMessage());
             } catch (Exception $e) {
-                $error = 'Ein Fehler ist aufgetreten: ' . $e->getMessage();
+                $error = 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.';
+                error_log("Password change error: " . $e->getMessage());
             }
         }
     }
