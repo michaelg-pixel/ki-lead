@@ -1,8 +1,11 @@
 <?php
 session_start();
 
-// VERSION CHECK - Wenn Sie diesen Text sehen, ist die neue Version geladen!
-define('DASHBOARD_VERSION', 'v2.1-RESPONSIVE-FIXED-2025-10-30-23:00');
+// AGGRESSIVE VERSION CHECK - CACHE BUSTER!
+define('DASHBOARD_VERSION', 'v2.2-LIVE-TEST-' . time());
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 
 // Login-Check
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
@@ -40,22 +43,33 @@ if ($page === 'overview') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>KI Leadsystem - Kunden Portal <?php echo DASHBOARD_VERSION; ?></title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
-        /* VERSION INDICATOR - Zum Testen */
+        /* VERSION INDICATOR - SEHR AUFFÄLLIG! */
         .version-indicator {
             position: fixed;
             bottom: 10px;
             right: 10px;
-            background: #667eea;
+            background: linear-gradient(135deg, #ff0080 0%, #ff8c00 100%);
             color: white;
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 11px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: bold;
             z-index: 9999;
             font-family: monospace;
+            box-shadow: 0 4px 15px rgba(255, 0, 128, 0.5);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
         }
         
         body {
@@ -428,8 +442,8 @@ if ($page === 'overview') {
     </style>
 </head>
 <body>
-    <!-- VERSION INDICATOR -->
-    <div class="version-indicator"><?php echo DASHBOARD_VERSION; ?></div>
+    <!-- VERSION INDICATOR - SEHR AUFFÄLLIG -->
+    <div class="version-indicator">🔄 <?php echo DASHBOARD_VERSION; ?></div>
     
     <!-- Mobile Header -->
     <div class="mobile-header">
@@ -518,22 +532,53 @@ if ($page === 'overview') {
                 </div>
             
             <?php elseif ($page === 'kurse'): ?>
-                <?php include __DIR__ . '/sections/kurse.php'; ?>
+                <?php 
+                $section_file = __DIR__ . '/sections/kurse.php';
+                if (file_exists($section_file)) {
+                    include $section_file;
+                } else {
+                    echo '<div style="padding: 32px; color: red;">FEHLER: Datei nicht gefunden: ' . $section_file . '</div>';
+                }
+                ?>
             
             <?php elseif ($page === 'freebies'): ?>
-                <?php include __DIR__ . '/sections/freebies.php'; ?>
+                <?php 
+                $section_file = __DIR__ . '/sections/freebies.php';
+                if (file_exists($section_file)) {
+                    include $section_file;
+                } else {
+                    echo '<div style="padding: 32px; color: red;">FEHLER: Datei nicht gefunden: ' . $section_file . '</div>';
+                }
+                ?>
             
             <?php elseif ($page === 'fortschritt'): ?>
-                <?php include __DIR__ . '/sections/fortschritt.php'; ?>
+                <?php 
+                $section_file = __DIR__ . '/sections/fortschritt.php';
+                if (file_exists($section_file)) {
+                    include $section_file;
+                } else {
+                    echo '<div style="padding: 32px; color: red;">FEHLER: Datei nicht gefunden: ' . $section_file . '</div>';
+                }
+                ?>
             
             <?php elseif ($page === 'einstellungen'): ?>
-                <?php include __DIR__ . '/sections/einstellungen.php'; ?>
+                <?php 
+                $section_file = __DIR__ . '/sections/einstellungen.php';
+                if (file_exists($section_file)) {
+                    include $section_file;
+                } else {
+                    echo '<div style="padding: 32px; color: red;">FEHLER: Datei nicht gefunden: ' . $section_file . '</div>';
+                }
+                ?>
             
             <?php endif; ?>
         </div>
     </div>
     
     <script>
+        // Cache-Buster - Force reload bei neuem Timestamp
+        console.log('Dashboard Version: <?php echo DASHBOARD_VERSION; ?>');
+        
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.querySelector('.sidebar-overlay');
