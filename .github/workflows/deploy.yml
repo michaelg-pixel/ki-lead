@@ -1,4 +1,4 @@
-name: Deploy
+name: Deploy to Hostinger
 
 on:
   push:
@@ -10,13 +10,40 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - uses: appleboy/ssh-action@v1.0.0
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v1.0.0
         with:
           host: 31.97.39.234
           username: mehr-infos-jetzt-app
           key: ${{ secrets.HOSTINGER_SSH_KEY }}
           script: |
             cd /home/mehr-infos-jetzt-app/htdocs/app.mehr-infos-jetzt.de
+            
+            # Git sicher machen
             git config --global --add safe.directory /home/mehr-infos-jetzt-app/htdocs/app.mehr-infos-jetzt.de
-            git pull origin main
+            
+            # Alle lokalen Änderungen verwerfen und FORCE update
+            git fetch origin
+            git reset --hard origin/main
+            
+            # Sicherstellen dass Verzeichnisse existieren
             mkdir -p customer/sections
+            mkdir -p admin/sections
+            mkdir -p public
+            mkdir -p config
+            mkdir -p includes
+            
+            # Permissions setzen
+            find . -type f -exec chmod 644 {} \;
+            find . -type d -exec chmod 755 {} \;
+            chmod 600 config/database.php 2>/dev/null || true
+            
+            # PHP OPcache clearen (falls vorhanden)
+            echo "<?php opcache_reset(); echo 'Cache cleared'; ?>" > /tmp/clear_cache.php
+            php /tmp/clear_cache.php 2>/dev/null || true
+            rm /tmp/clear_cache.php 2>/dev/null || true
+            
+            # Timestamp für Verifizierung
+            echo "Deployment completed at: $(date)" > .last_deploy
+            
+            echo "✅ Deployment abgeschlossen!"
