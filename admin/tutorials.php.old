@@ -1,0 +1,194 @@
+<?php
+session_start();
+require_once '../config/database.php';
+require_once '../includes/auth.php';
+
+if (!isLoggedIn() || !isAdmin()) {
+    header('Location: ../public/admin-login.php');
+    exit;
+}
+
+$conn = getDBConnection();
+
+// Tutorial hinzufügen
+if (isset($_POST['add_tutorial'])) {
+    $title = $_POST['title'];
+    $description = $_POST['description'];
+    $vimeo_url = $_POST['vimeo_url'];
+    $category = $_POST['category'];
+    $sort_order = (int)$_POST['sort_order'];
+    
+    $stmt = $conn->prepare("
+        INSERT INTO tutorials (title, description, vimeo_url, category, sort_order) 
+        VALUES (?, ?, ?, ?, ?)
+    ");
+    $stmt->execute([$title, $description, $vimeo_url, $category, $sort_order]);
+    
+    $success = "Tutorial erfolgreich hinzugefügt!";
+}
+
+// Tutorial löschen
+if (isset($_POST['delete_tutorial'])) {
+    $tutorial_id = (int)$_POST['tutorial_id'];
+    $stmt = $conn->prepare("DELETE FROM tutorials WHERE id = ?");
+    $stmt->execute([$tutorial_id]);
+    
+    $success = "Tutorial gelöscht!";
+}
+
+// Alle Tutorials laden
+$stmt = $conn->query("SELECT * FROM tutorials ORDER BY category, sort_order");
+$tutorials = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$categories = [
+    'getting_started' => 'Erste Schritte',
+    'freebie_editor' => 'Freebie-Editor',
+    'courses' => 'Kurse verwenden',
+    'legal' => 'Rechtstexte',
+    'advanced' => 'Fortgeschritten'
+];
+?>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anleitungen - Lumi Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white">
+
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-gray-800 min-h-screen p-6">
+            <div class="mb-8">
+                <h1 class="text-2xl font-bold text-purple-500">🚀 Lumi Admin</h1>
+            </div>
+            <nav class="space-y-2">
+                <a href="index.php" class="block px-4 py-2 rounded hover:bg-gray-700">
+                    <i class="fas fa-home mr-2"></i> Dashboard
+                </a>
+                <a href="customers.php" class="block px-4 py-2 rounded hover:bg-gray-700">
+                    <i class="fas fa-users mr-2"></i> Kunden
+                </a>
+                <a href="courses.php" class="block px-4 py-2 rounded hover:bg-gray-700">
+                    <i class="fas fa-graduation-cap mr-2"></i> Kurse
+                </a>
+                <a href="tutorials.php" class="block px-4 py-2 rounded bg-purple-600">
+                    <i class="fas fa-video mr-2"></i> Anleitungen
+                </a>
+                <a href="settings.php" class="block px-4 py-2 rounded hover:bg-gray-700">
+                    <i class="fas fa-cog mr-2"></i> Einstellungen
+                </a>
+                <a href="logout.php" class="block px-4 py-2 rounded hover:bg-red-600 mt-8">
+                    <i class="fas fa-sign-out-alt mr-2"></i> Abmelden
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-8">
+            <?php if (isset($success)): ?>
+                <div class="bg-green-600 text-white px-4 py-3 rounded mb-6">
+                    <?= $success ?>
+                </div>
+            <?php endif; ?>
+
+            <div class="flex justify-between items-center mb-8">
+                <div>
+                    <h2 class="text-3xl font-bold">Tutorial-Videos</h2>
+                    <p class="text-gray-400 mt-2">Erstelle Anleitungen für deine Kunden</p>
+                </div>
+            </div>
+
+            <!-- Neues Tutorial hinzufügen -->
+            <div class="bg-gray-800 rounded-lg p-8 mb-8">
+                <h3 class="text-2xl font-bold mb-6">
+                    <i class="fas fa-plus-circle mr-2 text-green-500"></i> Neues Tutorial
+                </h3>
+                <form method="POST">
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="col-span-2">
+                            <label class="block mb-2 font-semibold">Titel *</label>
+                            <input type="text" name="title" class="w-full bg-gray-700 px-4 py-3 rounded-lg" required>
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block mb-2 font-semibold">Beschreibung</label>
+                            <textarea name="description" rows="3" class="w-full bg-gray-700 px-4 py-3 rounded-lg"></textarea>
+                        </div>
+                        <div>
+                            <label class="block mb-2 font-semibold">Vimeo URL *</label>
+                            <input type="url" name="vimeo_url" class="w-full bg-gray-700 px-4 py-3 rounded-lg" required>
+                        </div>
+                        <div>
+                            <label class="block mb-2 font-semibold">Kategorie *</label>
+                            <select name="category" class="w-full bg-gray-700 px-4 py-3 rounded-lg" required>
+                                <?php foreach ($categories as $key => $label): ?>
+                                    <option value="<?= $key ?>"><?= $label ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block mb-2 font-semibold">Sortierung</label>
+                            <input type="number" name="sort_order" value="0" class="w-full bg-gray-700 px-4 py-3 rounded-lg">
+                        </div>
+                    </div>
+                    <div class="mt-6">
+                        <button type="submit" name="add_tutorial" 
+                                class="bg-green-600 hover:bg-green-700 px-8 py-3 rounded-lg font-semibold">
+                            <i class="fas fa-plus mr-2"></i> Tutorial hinzufügen
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Tutorials anzeigen -->
+            <?php 
+            $grouped = [];
+            foreach ($tutorials as $tutorial) {
+                $grouped[$tutorial['category']][] = $tutorial;
+            }
+            ?>
+            
+            <?php foreach ($categories as $cat_key => $cat_label): ?>
+                <?php if (isset($grouped[$cat_key])): ?>
+                    <div class="bg-gray-800 rounded-lg p-8 mb-6">
+                        <h3 class="text-2xl font-bold mb-6"><?= $cat_label ?></h3>
+                        <div class="space-y-4">
+                            <?php foreach ($grouped[$cat_key] as $tutorial): ?>
+                                <div class="bg-gray-700 p-6 rounded-lg flex justify-between items-center">
+                                    <div class="flex-1">
+                                        <h4 class="text-xl font-bold"><?= htmlspecialchars($tutorial['title']) ?></h4>
+                                        <?php if ($tutorial['description']): ?>
+                                            <p class="text-gray-400 mt-2"><?= htmlspecialchars($tutorial['description']) ?></p>
+                                        <?php endif; ?>
+                                        <div class="text-sm text-purple-400 mt-2">
+                                            <i class="fas fa-video mr-1"></i> <?= htmlspecialchars($tutorial['vimeo_url']) ?>
+                                        </div>
+                                    </div>
+                                    <form method="POST" onsubmit="return confirm('Tutorial löschen?')" class="ml-6">
+                                        <input type="hidden" name="tutorial_id" value="<?= $tutorial['id'] ?>">
+                                        <button type="submit" name="delete_tutorial" 
+                                                class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            <?php endforeach; ?>
+
+            <?php if (empty($tutorials)): ?>
+                <div class="bg-gray-800 rounded-lg p-12 text-center text-gray-400">
+                    <i class="fas fa-video text-6xl mb-4 opacity-20"></i>
+                    <p class="text-xl">Noch keine Tutorials erstellt</p>
+                </div>
+            <?php endif; ?>
+        </main>
+    </div>
+
+</body>
+</html>

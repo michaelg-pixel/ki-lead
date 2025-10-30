@@ -1,0 +1,244 @@
+<?php
+session_start();
+require_once '../config/database.php';
+require_once '../includes/auth.php';
+
+// Admin-Check
+if (!isLoggedIn() || !isAdmin()) {
+    header('Location: ../public/admin-login.php');
+    exit;
+}
+
+$conn = getDBConnection();
+$admin_id = $_SESSION['user_id'];
+
+// Kurs löschen
+if (isset($_POST['delete_course'])) {
+    $course_id = (int)$_POST['course_id'];
+    
+    // Erst alle Module und Lektionen löschen
+    $stmt = $conn->prepare("DELETE FROM lessons WHERE module_id IN (SELECT id FROM modules WHERE course_id = ?)");
+    $stmt->execute([$course_id]);
+    
+    $stmt = $conn->prepare("DELETE FROM modules WHERE course_id = ?");
+    $stmt->execute([$course_id]);
+    
+    $stmt = $conn->prepare("DELETE FROM courses WHERE id = ?");
+    $stmt->execute([$course_id]);
+    
+    $success = "Kurs erfolgreich gelöscht!";
+}
+
+// Alle Kurse laden
+$stmt = $conn->query("
+    SELECT c.*, 
+           COUNT(DISTINCT m.id) as module_count,
+           COUNT(DISTINCT l.id) as lesson_count
+    FROM courses c
+    LEFT JOIN modules m ON c.id = m.course_id
+    LEFT JOIN lessons l ON m.id = l.module_id
+    GROUP BY c.id
+    ORDER BY c.created_at DESC
+");
+$courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Nischen für Filter
+$niches = [
+    'business_coaching' => 'Business Coaching',
+    'fitness' => 'Fitness & Gesundheit',
+    'real_estate' => 'Immobilien',
+    'consulting' => 'Unternehmensberatung',
+    'online_marketing' => 'Online Marketing',
+    'finance' => 'Finanzen & Versicherungen',
+    'wellness' => 'Wellness & Beauty',
+    'handwerk' => 'Handwerk',
+    'law' => 'Recht',
+    'tech' => 'IT & Software',
+    'education' => 'Bildung',
+    'hospitality' => 'Gastronomie',
+    'automotive' => 'Automotive',
+    'photography' => 'Fotografie',
+    'personal_development' => 'Persönlichkeitsentwicklung',
+    'other' => 'Sonstiges'
+];
+?>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kurse verwalten - Lumi Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white">
+
+    <!-- Sidebar -->
+    <div class="flex">
+        <aside class="w-64 bg-gray-800 min-h-screen p-6">
+            <div class="mb-8">
+                <h1 class="text-2xl font-bold text-purple-500">🚀 Lumi Admin</h1>
+            </div>
+            <nav class="space-y-2">
+                <a href="index.php" class="block px-4 py-2 rounded hover:bg-gray-700">
+                    <i class="fas fa-home mr-2"></i> Dashboard
+                </a>
+                <a href="customers.php" class="block px-4 py-2 rounded hover:bg-gray-700">
+                    <i class="fas fa-users mr-2"></i> Kunden
+                </a>
+                <a href="courses.php" class="block px-4 py-2 rounded bg-purple-600">
+                    <i class="fas fa-graduation-cap mr-2"></i> Kurse
+                </a>
+                <a href="tutorials.php" class="block px-4 py-2 rounded hover:bg-gray-700">
+                    <i class="fas fa-video mr-2"></i> Anleitungen
+                </a>
+                <a href="settings.php" class="block px-4 py-2 rounded hover:bg-gray-700">
+                    <i class="fas fa-cog mr-2"></i> Einstellungen
+                </a>
+                <a href="logout.php" class="block px-4 py-2 rounded hover:bg-red-600 mt-8">
+                    <i class="fas fa-sign-out-alt mr-2"></i> Abmelden
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-8">
+            <?php if (isset($success)): ?>
+                <div class="bg-green-600 text-white px-4 py-3 rounded mb-6">
+                    <?= $success ?>
+                </div>
+            <?php endif; ?>
+
+            <!-- Header -->
+            <div class="flex justify-between items-center mb-8">
+                <div>
+                    <h2 class="text-3xl font-bold">Videokurse verwalten</h2>
+                    <p class="text-gray-400 mt-2">Erstelle und verwalte deine Videokurse mit Modulen und Lektionen</p>
+                </div>
+                <a href="course-edit.php" class="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg font-semibold">
+                    <i class="fas fa-plus mr-2"></i> Neuer Kurs
+                </a>
+            </div>
+
+            <!-- Stats -->
+            <div class="grid grid-cols-3 gap-6 mb-8">
+                <div class="bg-gray-800 p-6 rounded-lg">
+                    <div class="text-gray-400 mb-2">Gesamt Kurse</div>
+                    <div class="text-3xl font-bold"><?= count($courses) ?></div>
+                </div>
+                <div class="bg-gray-800 p-6 rounded-lg">
+                    <div class="text-gray-400 mb-2">Kostenlose Kurse</div>
+                    <div class="text-3xl font-bold text-green-500">
+                        <?= count(array_filter($courses, fn($c) => !$c['is_premium'])) ?>
+                    </div>
+                </div>
+                <div class="bg-gray-800 p-6 rounded-lg">
+                    <div class="text-gray-400 mb-2">Premium Kurse</div>
+                    <div class="text-3xl font-bold text-purple-500">
+                        <?= count(array_filter($courses, fn($c) => $c['is_premium'])) ?>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kursliste -->
+            <div class="bg-gray-800 rounded-lg overflow-hidden">
+                <?php if (empty($courses)): ?>
+                    <div class="p-12 text-center text-gray-400">
+                        <i class="fas fa-graduation-cap text-6xl mb-4 opacity-20"></i>
+                        <p class="text-xl mb-4">Noch keine Kurse erstellt</p>
+                        <a href="course-edit.php" class="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg inline-block">
+                            Ersten Kurs erstellen
+                        </a>
+                    </div>
+                <?php else: ?>
+                    <table class="w-full">
+                        <thead class="bg-gray-700">
+                            <tr>
+                                <th class="px-6 py-4 text-left">Thumbnail</th>
+                                <th class="px-6 py-4 text-left">Kurs</th>
+                                <th class="px-6 py-4 text-left">Nische</th>
+                                <th class="px-6 py-4 text-left">Module</th>
+                                <th class="px-6 py-4 text-left">Lektionen</th>
+                                <th class="px-6 py-4 text-left">Typ</th>
+                                <th class="px-6 py-4 text-left">Status</th>
+                                <th class="px-6 py-4 text-left">Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-700">
+                            <?php foreach ($courses as $course): ?>
+                                <tr class="hover:bg-gray-700">
+                                    <td class="px-6 py-4">
+                                        <?php if ($course['thumbnail']): ?>
+                                            <img src="../uploads/thumbnails/<?= htmlspecialchars($course['thumbnail']) ?>" 
+                                                 alt="Thumbnail" class="w-24 h-16 object-cover rounded">
+                                        <?php else: ?>
+                                            <div class="w-24 h-16 bg-gray-600 rounded flex items-center justify-center">
+                                                <i class="fas fa-image text-gray-400"></i>
+                                            </div>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="font-semibold"><?= htmlspecialchars($course['title']) ?></div>
+                                        <div class="text-sm text-gray-400 mt-1">
+                                            <?= substr(htmlspecialchars($course['description']), 0, 80) ?>...
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <span class="px-3 py-1 bg-purple-600 rounded-full text-sm">
+                                            <?= $niches[$course['niche']] ?? 'Unbekannt' ?>
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 text-center">
+                                        <span class="text-xl font-bold"><?= $course['module_count'] ?></span>
+                                    </td>
+                                    <td class="px-6 py-4 text-center">
+                                        <span class="text-xl font-bold"><?= $course['lesson_count'] ?></span>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <?php if ($course['is_premium']): ?>
+                                            <span class="px-3 py-1 bg-yellow-600 rounded-full text-sm">
+                                                <i class="fas fa-crown mr-1"></i> Premium
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="px-3 py-1 bg-green-600 rounded-full text-sm">
+                                                <i class="fas fa-gift mr-1"></i> Kostenlos
+                                            </span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <?php if ($course['is_active']): ?>
+                                            <span class="px-3 py-1 bg-green-600 rounded-full text-sm">
+                                                <i class="fas fa-check-circle mr-1"></i> Aktiv
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="px-3 py-1 bg-red-600 rounded-full text-sm">
+                                                <i class="fas fa-times-circle mr-1"></i> Inaktiv
+                                            </span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex gap-2">
+                                            <a href="course-edit.php?id=<?= $course['id'] ?>" 
+                                               class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded text-sm">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <form method="POST" onsubmit="return confirm('Kurs wirklich löschen?')" class="inline">
+                                                <input type="hidden" name="course_id" value="<?= $course['id'] ?>">
+                                                <button type="submit" name="delete_course" 
+                                                        class="bg-red-600 hover:bg-red-700 px-3 py-2 rounded text-sm">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php endif; ?>
+            </div>
+        </main>
+    </div>
+
+</body>
+</html>
