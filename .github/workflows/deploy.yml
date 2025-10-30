@@ -13,17 +13,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Prepare SSH key
-        run: |
-          echo "${{ secrets.HOSTINGER_SSH_KEY }}" > private_key.pem
-          chmod 600 private_key.pem
-
       - name: Deploy via SSH to Hostinger VPS
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: 31.97.39.234
           username: mehr-infos-jetzt-app
-          key_path: private_key.pem
+          key: ${{ secrets.HOSTINGER_SSH_KEY }}
           port: 22
           script: |
             echo "🚀 Verbinde mit Hostinger und aktualisiere App..."
