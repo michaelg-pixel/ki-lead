@@ -10,6 +10,31 @@ require_once '../includes/auth.php';
 $message = '';
 $error = '';
 
+/**
+ * Passwort-Stärke validieren
+ */
+function validatePasswordStrength($password) {
+    $errors = [];
+    
+    if (strlen($password) < 8) {
+        $errors[] = 'Mindestens 8 Zeichen';
+    }
+    if (!preg_match('/[A-Z]/', $password)) {
+        $errors[] = 'Mindestens 1 Großbuchstabe';
+    }
+    if (!preg_match('/[a-z]/', $password)) {
+        $errors[] = 'Mindestens 1 Kleinbuchstabe';
+    }
+    if (!preg_match('/[0-9]/', $password)) {
+        $errors[] = 'Mindestens 1 Zahl';
+    }
+    if (!preg_match('/[^A-Za-z0-9]/', $password)) {
+        $errors[] = 'Mindestens 1 Sonderzeichen (!@#$%^&*)';
+    }
+    
+    return $errors;
+}
+
 // Passwort ändern
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
     $current_password = $_POST['current_password'] ?? '';
@@ -21,19 +46,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         $error = 'Bitte füllen Sie alle Felder aus.';
     } elseif ($new_password !== $confirm_password) {
         $error = 'Die neuen Passwörter stimmen nicht überein.';
-    } elseif (strlen($new_password) < 8) {
-        $error = 'Das neue Passwort muss mindestens 8 Zeichen lang sein.';
     } else {
-        // Aktuelles Passwort prüfen
-        $user = getCurrentUser();
-        if (!password_verify($current_password, $user['password'])) {
-            $error = 'Das aktuelle Passwort ist falsch.';
+        // Passwort-Stärke prüfen
+        $password_errors = validatePasswordStrength($new_password);
+        if (!empty($password_errors)) {
+            $error = 'Das Passwort erfüllt nicht alle Anforderungen: ' . implode(', ', $password_errors);
         } else {
-            // Passwort ändern
-            if (resetPassword($_SESSION['user_id'], $new_password)) {
-                $message = 'Passwort erfolgreich geändert!';
+            // Aktuelles Passwort prüfen
+            $user = getCurrentUser();
+            if (!password_verify($current_password, $user['password'])) {
+                $error = 'Das aktuelle Passwort ist falsch.';
             } else {
-                $error = 'Fehler beim Ändern des Passworts.';
+                // Passwort ändern
+                if (resetPassword($_SESSION['user_id'], $new_password)) {
+                    $message = 'Passwort erfolgreich geändert!';
+                } else {
+                    $error = 'Fehler beim Ändern des Passworts.';
+                }
             }
         }
     }
@@ -133,6 +162,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
     }
     
+    .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
     .alert {
         padding: 16px 20px;
         border-radius: 8px;
@@ -182,14 +217,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         padding: 6px 0;
         padding-left: 24px;
         position: relative;
+        transition: color 0.2s;
     }
     
     .password-requirements li:before {
-        content: "✓";
+        content: "○";
         position: absolute;
         left: 0;
         color: #667eea;
         font-weight: bold;
+    }
+    
+    .password-requirements li.valid {
+        color: #34d399;
+    }
+    
+    .password-requirements li.valid:before {
+        content: "✓";
+        color: #34d399;
     }
     
     .user-info-card {
@@ -214,6 +259,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         font-size: 14px;
         color: white;
         font-weight: 500;
+    }
+    
+    /* Passwort-Stärke-Anzeige */
+    .password-strength {
+        margin-top: 12px;
+    }
+    
+    .strength-label {
+        font-size: 12px;
+        color: #888;
+        margin-bottom: 6px;
+    }
+    
+    .strength-bar {
+        height: 6px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
+        overflow: hidden;
+        margin-bottom: 6px;
+    }
+    
+    .strength-fill {
+        height: 100%;
+        width: 0%;
+        transition: all 0.3s;
+        border-radius: 3px;
+    }
+    
+    .strength-text {
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .strength-weak .strength-fill {
+        width: 33%;
+        background: #ef4444;
+    }
+    
+    .strength-weak .strength-text {
+        color: #ef4444;
+    }
+    
+    .strength-medium .strength-fill {
+        width: 66%;
+        background: #f59e0b;
+    }
+    
+    .strength-medium .strength-text {
+        color: #f59e0b;
+    }
+    
+    .strength-strong .strength-fill {
+        width: 100%;
+        background: #34d399;
+    }
+    
+    .strength-strong .strength-text {
+        color: #34d399;
     }
 </style>
 
@@ -271,7 +374,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
             <span>Passwort ändern</span>
         </h2>
         
-        <form method="POST">
+        <form method="POST" id="passwordForm">
             <div class="form-group">
                 <label class="form-label" for="current_password">Aktuelles Passwort</label>
                 <input 
@@ -295,7 +398,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
                     minlength="8"
                     autocomplete="new-password"
                 >
-                <p class="form-help">Mindestens 8 Zeichen</p>
+                
+                <!-- Passwort-Stärke-Anzeige -->
+                <div class="password-strength" id="passwordStrength" style="display:none;">
+                    <div class="strength-label">Passwort-Stärke:</div>
+                    <div class="strength-bar">
+                        <div class="strength-fill"></div>
+                    </div>
+                    <div class="strength-text"></div>
+                </div>
             </div>
             
             <div class="form-group">
@@ -311,18 +422,100 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
                 >
             </div>
             
-            <button type="submit" name="change_password" class="btn-primary">
+            <button type="submit" name="change_password" class="btn-primary" id="submitBtn">
                 Passwort ändern
             </button>
             
             <div class="password-requirements">
                 <h4>Passwort-Anforderungen:</h4>
-                <ul>
-                    <li>Mindestens 8 Zeichen lang</li>
-                    <li>Verwenden Sie eine Kombination aus Buchstaben und Zahlen</li>
-                    <li>Vermeiden Sie einfache Passwörter wie "12345678"</li>
+                <ul id="requirements">
+                    <li id="req-length">Mindestens 8 Zeichen</li>
+                    <li id="req-uppercase">Mindestens 1 Großbuchstabe (A-Z)</li>
+                    <li id="req-lowercase">Mindestens 1 Kleinbuchstabe (a-z)</li>
+                    <li id="req-number">Mindestens 1 Zahl (0-9)</li>
+                    <li id="req-special">Mindestens 1 Sonderzeichen (!@#$%^&*)</li>
                 </ul>
             </div>
         </form>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const newPassword = document.getElementById('new_password');
+    const confirmPassword = document.getElementById('confirm_password');
+    const submitBtn = document.getElementById('submitBtn');
+    const strengthIndicator = document.getElementById('passwordStrength');
+    
+    // Anforderungen
+    const requirements = {
+        length: { regex: /.{8,}/, element: document.getElementById('req-length') },
+        uppercase: { regex: /[A-Z]/, element: document.getElementById('req-uppercase') },
+        lowercase: { regex: /[a-z]/, element: document.getElementById('req-lowercase') },
+        number: { regex: /[0-9]/, element: document.getElementById('req-number') },
+        special: { regex: /[^A-Za-z0-9]/, element: document.getElementById('req-special') }
+    };
+    
+    // Passwort-Stärke berechnen
+    function checkPasswordStrength(password) {
+        if (!password) {
+            strengthIndicator.style.display = 'none';
+            return 0;
+        }
+        
+        strengthIndicator.style.display = 'block';
+        let strength = 0;
+        
+        // Prüfe jede Anforderung
+        for (let key in requirements) {
+            const req = requirements[key];
+            if (req.regex.test(password)) {
+                req.element.classList.add('valid');
+                strength++;
+            } else {
+                req.element.classList.remove('valid');
+            }
+        }
+        
+        // Stärke-Anzeige aktualisieren
+        strengthIndicator.className = 'password-strength';
+        const strengthText = strengthIndicator.querySelector('.strength-text');
+        
+        if (strength <= 2) {
+            strengthIndicator.classList.add('strength-weak');
+            strengthText.textContent = 'Schwach';
+        } else if (strength <= 4) {
+            strengthIndicator.classList.add('strength-medium');
+            strengthText.textContent = 'Mittel';
+        } else {
+            strengthIndicator.classList.add('strength-strong');
+            strengthText.textContent = 'Stark';
+        }
+        
+        return strength;
+    }
+    
+    // Live-Validierung
+    newPassword.addEventListener('input', function() {
+        const strength = checkPasswordStrength(this.value);
+        
+        // Button nur aktivieren, wenn alle Anforderungen erfüllt sind
+        if (strength === 5 && confirmPassword.value && this.value === confirmPassword.value) {
+            submitBtn.disabled = false;
+        } else {
+            submitBtn.disabled = true;
+        }
+    });
+    
+    confirmPassword.addEventListener('input', function() {
+        if (newPassword.value === this.value && checkPasswordStrength(newPassword.value) === 5) {
+            submitBtn.disabled = false;
+        } else {
+            submitBtn.disabled = true;
+        }
+    });
+    
+    // Initial Button deaktivieren
+    submitBtn.disabled = true;
+});
+</script>
