@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - LUMI Academy</title>
+    <title>Login - KI Leadsystem</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -194,7 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
     <div class="login-container">
         <div class="logo">
-            <h1>🎓 LUMI Academy</h1>
+            <h1>🎓 KI Leadsystem</h1>
             <p>Willkommen zurück!</p>
         </div>
         
