@@ -108,6 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         display: flex;
         align-items: center;
         gap: 12px;
+        flex-wrap: wrap;
     }
     
     .form-group {
@@ -131,6 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         color: white;
         font-size: 14px;
         transition: all 0.2s;
+        -webkit-appearance: none;
     }
     
     .form-input:focus {
@@ -155,6 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         font-weight: 600;
         cursor: pointer;
         transition: all 0.2s;
+        width: 100%;
     }
     
     .btn-primary:hover {
@@ -174,8 +177,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         margin-bottom: 24px;
         font-size: 14px;
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         gap: 12px;
+        line-height: 1.5;
     }
     
     .alert-success {
@@ -259,6 +263,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         font-size: 14px;
         color: white;
         font-weight: 500;
+        word-break: break-word;
     }
     
     /* Passwort-Stärke-Anzeige */
@@ -317,6 +322,98 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
     
     .strength-strong .strength-text {
         color: #34d399;
+    }
+    
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+        .settings-container {
+            padding: 24px 16px;
+        }
+        
+        .settings-title {
+            font-size: 24px;
+        }
+        
+        .settings-card {
+            padding: 24px 20px;
+            border-radius: 12px;
+        }
+        
+        .card-title {
+            font-size: 18px;
+        }
+        
+        .user-info-card {
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .settings-container {
+            padding: 16px 12px;
+        }
+        
+        .settings-header {
+            margin-bottom: 24px;
+        }
+        
+        .settings-title {
+            font-size: 20px;
+        }
+        
+        .settings-subtitle {
+            font-size: 13px;
+        }
+        
+        .settings-card {
+            padding: 20px 16px;
+            margin-bottom: 16px;
+        }
+        
+        .card-title {
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-input {
+            padding: 10px 14px;
+            font-size: 16px; /* Verhindert Zoom auf iOS */
+        }
+        
+        .btn-primary {
+            padding: 14px 20px;
+            font-size: 15px;
+        }
+        
+        .password-requirements {
+            padding: 12px;
+        }
+        
+        .password-requirements li {
+            font-size: 12px;
+            padding: 4px 0;
+        }
+        
+        .alert {
+            padding: 12px 16px;
+            font-size: 13px;
+        }
+    }
+    
+    @media (hover: none) and (pointer: coarse) {
+        .btn-primary:hover {
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
     }
 </style>
 
