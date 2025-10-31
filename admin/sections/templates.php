@@ -10,7 +10,7 @@ $courses = $pdo->query("
            (SELECT COUNT(*) FROM course_modules WHERE course_id = c.id) as module_count,
            (SELECT COUNT(*) FROM course_access WHERE course_id = c.id) as enrolled_users
     FROM courses c 
-    ORDER BY c.sort_order ASC, c.created_at DESC
+    ORDER BY c.created_at DESC
 ")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
