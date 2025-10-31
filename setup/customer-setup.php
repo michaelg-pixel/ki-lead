@@ -18,29 +18,14 @@ $errors = [];
 /**
  * Prüft ob eine Spalte in einer Tabelle existiert
  */
-if (!function_exists('columnExists')) {
-    function columnExists($pdo, $table, $column) {
-        try {
-            $stmt = $pdo->prepare("SHOW COLUMNS FROM `$table` LIKE ?");
-            $stmt->execute([$column]);
-            return $stmt->rowCount() > 0;
-        } catch (Exception $e) {
-            return false;
-        }
-    }
-}
-
-/**
- * Prüft ob eine Tabelle existiert (falls nicht in database.php)
- */
-if (!function_exists('tableExists')) {
-    function tableExists($pdo, $table) {
-        try {
-            $stmt = $pdo->query("SHOW TABLES LIKE '$table'");
-            return $stmt->rowCount() > 0;
-        } catch (Exception $e) {
-            return false;
-        }
+function columnExists($table, $column) {
+    global $pdo;
+    try {
+        $stmt = $pdo->prepare("SHOW COLUMNS FROM `$table` LIKE ?");
+        $stmt->execute([$column]);
+        return $stmt->rowCount() > 0;
+    } catch (Exception $e) {
+        return false;
     }
 }
 
@@ -208,7 +193,7 @@ if (!function_exists('tableExists')) {
                 foreach ($columns as $col) {
                     list($name, $type, $after) = $col;
                     
-                    if (!columnExists($pdo, 'users', $name)) {
+                    if (!columnExists('users', $name)) {
                         try {
                             $pdo->exec("ALTER TABLE users ADD COLUMN `$name` $type AFTER `$after`");
                             $addedColumns++;
@@ -251,7 +236,7 @@ if (!function_exists('tableExists')) {
                 // 3. Freebie Templates Tabelle erstellen
                 $messages[] = "🔄 Erstelle freebie_templates Tabelle...";
                 
-                if (!tableExists($pdo, 'freebie_templates')) {
+                if (!tableExists('freebie_templates')) {
                     $pdo->exec("
                         CREATE TABLE freebie_templates (
                             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -277,7 +262,7 @@ if (!function_exists('tableExists')) {
                 // 4. user_freebies Tabelle erstellen
                 $messages[] = "🔄 Erstelle user_freebies Tabelle...";
                 
-                if (!tableExists($pdo, 'user_freebies')) {
+                if (!tableExists('user_freebies')) {
                     $pdo->exec("
                         CREATE TABLE user_freebies (
                             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -304,7 +289,7 @@ if (!function_exists('tableExists')) {
                 // 5. user_progress Tabelle erstellen
                 $messages[] = "🔄 Erstelle user_progress Tabelle...";
                 
-                if (!tableExists($pdo, 'user_progress')) {
+                if (!tableExists('user_progress')) {
                     $pdo->exec("
                         CREATE TABLE user_progress (
                             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -329,7 +314,7 @@ if (!function_exists('tableExists')) {
                 // 6. Webhook-Logs Tabelle
                 $messages[] = "🔄 Erstelle webhook_logs Tabelle...";
                 
-                if (!tableExists($pdo, 'webhook_logs')) {
+                if (!tableExists('webhook_logs')) {
                     $pdo->exec("
                         CREATE TABLE webhook_logs (
                             id INT AUTO_INCREMENT PRIMARY KEY,
