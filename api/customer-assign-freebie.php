@@ -34,8 +34,8 @@ try {
         throw new Exception('Kunde nicht gefunden');
     }
     
-    // Prüfen ob Freebie existiert
-    $stmt = $pdo->prepare("SELECT id, title FROM freebie_templates WHERE id = ?");
+    // Prüfen ob Freebie existiert (aus der richtigen Tabelle!)
+    $stmt = $pdo->prepare("SELECT id, name FROM freebies WHERE id = ?");
     $stmt->execute([$freebieId]);
     $freebie = $stmt->fetch();
     
@@ -59,7 +59,7 @@ try {
     $stmt->execute([$userId, $freebieId, $_SESSION['user_id']]);
     
     // Benachrichtigungs-E-Mail senden
-    sendAssignmentEmail($user['email'], $user['name'], $freebie['title']);
+    sendAssignmentEmail($user['email'], $user['name'], $freebie['name']);
     
     echo json_encode([
         'success' => true,
