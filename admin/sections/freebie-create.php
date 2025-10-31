@@ -1,4 +1,7 @@
 <?php
+// Font-Konfiguration laden
+$fontConfig = require __DIR__ . '/../../config/fonts.php';
+
 // Kurse für Dropdown holen
 $courses_stmt = $pdo->query("SELECT id, title FROM courses WHERE is_active = 1 ORDER BY title");
 $courses = $courses_stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -8,7 +11,7 @@ $editing = false;
 $template = [];
 if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     $editing = true;
-    $stmt = $pdo->prepare("SELECT * FROM customer_freebies WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT * FROM freebies WHERE id = ?");
     $stmt->execute([$_GET['id']]);
     $template = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -18,8 +21,8 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     }
 }
 
-// Defaults
-$defaults = [
+// Defaults zusammenführen
+$defaults = array_merge([
     'name' => '',
     'headline' => 'Dein kostenloser KI-Kurs wartet auf dich!',
     'subheadline' => 'Lerne in 7 Tagen die Grundlagen',
@@ -35,10 +38,13 @@ $defaults = [
     'custom_raw_code' => '',
     'show_mockup' => 1,
     'is_master_template' => 1
-];
+], $fontConfig['defaults']);
 
 $template = array_merge($defaults, $template);
 ?>
+
+<!-- Google Fonts laden -->
+<link href="<?php echo $fontConfig['google_fonts_url']; ?>" rel="stylesheet">
 
 <style>
     .editor-container {
@@ -199,6 +205,12 @@ $template = array_merge($defaults, $template);
         min-height: 200px;
     }
     
+    .form-row {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 12px;
+    }
+    
     .color-input {
         width: 100%;
         height: 44px;
@@ -270,6 +282,15 @@ $template = array_merge($defaults, $template);
         margin-top: 6px;
     }
     
+    /* Font Select Styles */
+    .form-select {
+        font-family: inherit;
+    }
+    
+    .form-select option {
+        padding: 8px;
+    }
+    
     /* Upload Area Styles */
     .upload-area {
         border: 2px dashed #cbd5e0;
@@ -318,6 +339,9 @@ $template = array_merge($defaults, $template);
     
     @media (max-width: 1200px) {
         .editor-grid {
+            grid-template-columns: 1fr;
+        }
+        .form-row {
             grid-template-columns: 1fr;
         }
     }
@@ -369,12 +393,12 @@ $template = array_merge($defaults, $template);
                     </div>
                 </div>
                 
-                <!-- Inhalte -->
+                <!-- Pre-Headline -->
                 <div class="card">
-                    <h3 class="card-title">Inhalte</h3>
+                    <h3 class="card-title">Pre-Headline</h3>
                     
                     <div class="form-group">
-                        <label class="form-label">Pre-Headline</label>
+                        <label class="form-label">Text</label>
                         <input type="text" name="preheadline" id="preheadline" class="form-input" 
                                placeholder="z.B. NUR FÜR KURZE ZEIT"
                                value="<?php echo htmlspecialchars($template['preheadline']); ?>"
@@ -382,20 +406,108 @@ $template = array_merge($defaults, $template);
                         <p class="help-text">Kleiner Text über der Hauptüberschrift (optional)</p>
                     </div>
                     
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Schriftart</label>
+                            <select name="preheadline_font" id="preheadline_font" class="form-select" onchange="updatePreview()">
+                                <?php foreach ($fontConfig['fonts'] as $font => $category): ?>
+                                <option value="<?php echo htmlspecialchars($font); ?>" 
+                                        <?php echo ($template['preheadline_font'] ?? 'Poppins') === $font ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($font); ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Größe (px)</label>
+                            <select name="preheadline_size" id="preheadline_size" class="form-select" onchange="updatePreview()">
+                                <?php foreach ($fontConfig['sizes']['preheadline'] as $size): ?>
+                                <option value="<?php echo $size; ?>" 
+                                        <?php echo (int)($template['preheadline_size'] ?? 14) === $size ? 'selected' : ''; ?>>
+                                    <?php echo $size; ?>px
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Headline -->
+                <div class="card">
+                    <h3 class="card-title">Headline</h3>
+                    
                     <div class="form-group">
-                        <label class="form-label required">Headline</label>
+                        <label class="form-label required">Text</label>
                         <input type="text" name="headline" id="headline" class="form-input" 
                                placeholder="z.B. Dein kostenloser KI-Kurs wartet auf dich!"
                                value="<?php echo htmlspecialchars($template['headline']); ?>" 
                                oninput="updatePreview()" required>
                     </div>
                     
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Schriftart</label>
+                            <select name="headline_font" id="headline_font" class="form-select" onchange="updatePreview()">
+                                <?php foreach ($fontConfig['fonts'] as $font => $category): ?>
+                                <option value="<?php echo htmlspecialchars($font); ?>" 
+                                        <?php echo ($template['headline_font'] ?? 'Poppins') === $font ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($font); ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Größe (px)</label>
+                            <select name="headline_size" id="headline_size" class="form-select" onchange="updatePreview()">
+                                <?php foreach ($fontConfig['sizes']['headline'] as $size): ?>
+                                <option value="<?php echo $size; ?>" 
+                                        <?php echo (int)($template['headline_size'] ?? 48) === $size ? 'selected' : ''; ?>>
+                                    <?php echo $size; ?>px
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Subheadline -->
+                <div class="card">
+                    <h3 class="card-title">Subheadline</h3>
+                    
                     <div class="form-group">
-                        <label class="form-label">Subheadline</label>
+                        <label class="form-label">Text</label>
                         <input type="text" name="subheadline" id="subheadline" class="form-input" 
                                placeholder="z.B. Lerne in 7 Tagen die Grundlagen"
                                value="<?php echo htmlspecialchars($template['subheadline']); ?>"
                                oninput="updatePreview()">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Schriftart</label>
+                            <select name="subheadline_font" id="subheadline_font" class="form-select" onchange="updatePreview()">
+                                <?php foreach ($fontConfig['fonts'] as $font => $category): ?>
+                                <option value="<?php echo htmlspecialchars($font); ?>" 
+                                        <?php echo ($template['subheadline_font'] ?? 'Poppins') === $font ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($font); ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Größe (px)</label>
+                            <select name="subheadline_size" id="subheadline_size" class="form-select" onchange="updatePreview()">
+                                <?php foreach ($fontConfig['sizes']['subheadline'] as $size): ?>
+                                <option value="<?php echo $size; ?>" 
+                                        <?php echo (int)($template['subheadline_size'] ?? 20) === $size ? 'selected' : ''; ?>>
+                                    <?php echo $size; ?>px
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
                     </div>
                 </div>
                 
@@ -408,6 +520,32 @@ $template = array_merge($defaults, $template);
                         <textarea name="bulletpoints" id="bulletpoints" class="form-textarea large" 
                                   placeholder="✓ Erster Vorteil&#10;✓ Zweiter Vorteil&#10;✓ Dritter Vorteil&#10;✓ Vierter Vorteil"><?php echo htmlspecialchars($template['bulletpoints']); ?></textarea>
                         <p class="help-text">Ein Bulletpoint pro Zeile</p>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Schriftart</label>
+                            <select name="bulletpoints_font" id="bulletpoints_font" class="form-select" onchange="updatePreview()">
+                                <?php foreach ($fontConfig['fonts'] as $font => $category): ?>
+                                <option value="<?php echo htmlspecialchars($font); ?>" 
+                                        <?php echo ($template['bulletpoints_font'] ?? 'Poppins') === $font ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($font); ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Größe (px)</label>
+                            <select name="bulletpoints_size" id="bulletpoints_size" class="form-select" onchange="updatePreview()">
+                                <?php foreach ($fontConfig['sizes']['bulletpoints'] as $size): ?>
+                                <option value="<?php echo $size; ?>" 
+                                        <?php echo (int)($template['bulletpoints_size'] ?? 16) === $size ? 'selected' : ''; ?>>
+                                    <?php echo $size; ?>px
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
                     </div>
                 </div>
                 
@@ -570,9 +708,7 @@ $template = array_merge($defaults, $template);
     </form>
 </div>
 
-<!-- ============================================ -->
 <!-- VORSCHAU MODAL -->
-<!-- ============================================ -->
 <div id="previewModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; align-items: center; justify-content: center;">
     <div style="background: white; border-radius: 12px; width: 90%; max-width: 1200px; max-height: 90vh; overflow-y: auto; position: relative;">
         <div style="position: sticky; top: 0; background: white; border-bottom: 1px solid #e5e7eb; padding: 20px; display: flex; justify-content: space-between; align-items: center; z-index: 10;">
@@ -640,7 +776,6 @@ function handleFileSelect(event) {
 
 // File Handler
 function handleFile(file) {
-    // Validierung
     if (!file.type.startsWith('image/')) {
         alert('Bitte nur Bilddateien hochladen!');
         return;
@@ -651,21 +786,17 @@ function handleFile(file) {
         return;
     }
     
-    // File lesen und Preview anzeigen
     const reader = new FileReader();
     reader.onload = function(e) {
         const base64 = e.target.result;
         
-        // Vorschau anzeigen
         document.getElementById('uploadPlaceholder').style.display = 'none';
         const preview = document.getElementById('imagePreview');
         preview.src = base64;
         preview.style.display = 'block';
         
-        // Base64 in hidden field speichern
         document.getElementById('mockup_image_base64').value = base64;
         
-        // Aktuelles Mockup ausblenden
         const currentMockup = document.getElementById('current-mockup');
         if (currentMockup) {
             currentMockup.style.display = 'none';
@@ -682,29 +813,45 @@ function setLayout(layout) {
     updatePreview();
 }
 
-// Live-Vorschau Update (für Debug)
+// Live-Vorschau Update
 function updatePreview() {
     console.log('Preview updated');
 }
 
 // Vorschau-Modal öffnen
 function previewTemplate() {
-    const form = document.getElementById('freebieForm');
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData);
-    
-    // Checkbox-Werte korrigieren
-    data.show_mockup = document.getElementById('show_mockup').checked ? '1' : '0';
+    const data = {
+        layout: getInputValue('layout', 'hybrid'),
+        background_color: getInputValue('background_color', '#FFF9E6'),
+        primary_color: getInputValue('primary_color', '#FF8C00'),
+        show_mockup: getCheckboxValue('show_mockup', 1),
+        mockup_image_url: getInputValue('mockup_image_url', ''),
+        
+        // Texte
+        preheadline: getInputValue('preheadline', ''),
+        headline: getInputValue('headline', ''),
+        subheadline: getInputValue('subheadline', ''),
+        bulletpoints: getInputValue('bulletpoints', ''),
+        cta_button_text: getInputValue('cta_button_text', ''),
+        
+        // Fonts & Sizes
+        preheadline_font: getInputValue('preheadline_font', 'Poppins'),
+        preheadline_size: getInputValue('preheadline_size', '14'),
+        headline_font: getInputValue('headline_font', 'Poppins'),
+        headline_size: getInputValue('headline_size', '48'),
+        subheadline_font: getInputValue('subheadline_font', 'Poppins'),
+        subheadline_size: getInputValue('subheadline_size', '20'),
+        bulletpoints_font: getInputValue('bulletpoints_font', 'Poppins'),
+        bulletpoints_size: getInputValue('bulletpoints_size', '16'),
+    };
     
     // Mockup URL oder Preview verwenden
     if (document.getElementById('imagePreview').style.display === 'block') {
         data.mockup_image_url = document.getElementById('imagePreview').src;
     }
     
-    // Vorschau-HTML generieren
     const previewHTML = generatePreviewHTML(data);
     
-    // Modal anzeigen
     const modal = document.getElementById('previewModal');
     const content = document.getElementById('previewContent');
     
@@ -714,8 +861,7 @@ function previewTemplate() {
 
 // Vorschau-Modal schließen
 function closePreview() {
-    const modal = document.getElementById('previewModal');
-    modal.style.display = 'none';
+    document.getElementById('previewModal').style.display = 'none';
 }
 
 // HTML für Vorschau generieren
@@ -723,7 +869,7 @@ function generatePreviewHTML(data) {
     const layout = data.layout || 'hybrid';
     const bgColor = data.background_color || '#FFF9E6';
     const primaryColor = data.primary_color || '#FF8C00';
-    const showMockup = data.show_mockup === '1';
+    const showMockup = data.show_mockup === 1;
     const mockupUrl = data.mockup_image_url || '';
     
     // Bulletpoints verarbeiten
@@ -733,7 +879,7 @@ function generatePreviewHTML(data) {
         bulletpointsHTML = bullets.map(bullet => 
             `<div style="display: flex; align-items: start; gap: 12px; margin-bottom: 16px;">
                 <span style="color: ${primaryColor}; font-size: 20px; flex-shrink: 0;">✓</span>
-                <span style="color: #374151; font-size: 16px;">${escapeHtml(bullet.replace(/^[✓✔︎•-]\s*/, ''))}</span>
+                <span style="color: #374151; font-size: ${data.bulletpoints_size}px; font-family: '${data.bulletpoints_font}', sans-serif;">${escapeHtml(bullet.replace(/^[✓✔︎•-]\s*/, ''))}</span>
             </div>`
         ).join('');
     }
@@ -742,7 +888,6 @@ function generatePreviewHTML(data) {
     let layoutHTML = '';
     
     if (layout === 'hybrid' || layout === 'sidebar') {
-        // Zwei-Spalten Layout
         layoutHTML = `
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">
                 <div style="order: ${layout === 'sidebar' ? '2' : '1'};">
@@ -755,13 +900,13 @@ function generatePreviewHTML(data) {
                     `}
                 </div>
                 <div style="order: ${layout === 'sidebar' ? '1' : '2'};">
-                    ${data.preheadline ? `<div style="color: ${primaryColor}; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">${escapeHtml(data.preheadline)}</div>` : ''}
+                    ${data.preheadline ? `<div style="color: ${primaryColor}; font-size: ${data.preheadline_size}px; font-family: '${data.preheadline_font}', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">${escapeHtml(data.preheadline)}</div>` : ''}
                     
-                    <h1 style="font-size: 48px; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px;">
+                    <h1 style="font-size: ${data.headline_size}px; font-family: '${data.headline_font}', sans-serif; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px;">
                         ${escapeHtml(data.headline || 'Dein kostenloser Kurs')}
                     </h1>
                     
-                    ${data.subheadline ? `<p style="font-size: 20px; color: #6b7280; margin-bottom: 32px;">${escapeHtml(data.subheadline)}</p>` : ''}
+                    ${data.subheadline ? `<p style="font-size: ${data.subheadline_size}px; font-family: '${data.subheadline_font}', sans-serif; color: #6b7280; margin-bottom: 32px;">${escapeHtml(data.subheadline)}</p>` : ''}
                     
                     ${bulletpointsHTML ? `<div style="margin-bottom: 32px;">${bulletpointsHTML}</div>` : ''}
                     
@@ -772,16 +917,15 @@ function generatePreviewHTML(data) {
             </div>
         `;
     } else {
-        // Zentriertes Layout
         layoutHTML = `
             <div style="max-width: 800px; margin: 0 auto; text-align: center;">
-                ${data.preheadline ? `<div style="color: ${primaryColor}; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">${escapeHtml(data.preheadline)}</div>` : ''}
+                ${data.preheadline ? `<div style="color: ${primaryColor}; font-size: ${data.preheadline_size}px; font-family: '${data.preheadline_font}', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">${escapeHtml(data.preheadline)}</div>` : ''}
                 
-                <h1 style="font-size: 56px; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px;">
+                <h1 style="font-size: ${data.headline_size}px; font-family: '${data.headline_font}', sans-serif; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px;">
                     ${escapeHtml(data.headline || 'Dein kostenloser Kurs')}
                 </h1>
                 
-                ${data.subheadline ? `<p style="font-size: 22px; color: #6b7280; margin-bottom: 40px;">${escapeHtml(data.subheadline)}</p>` : ''}
+                ${data.subheadline ? `<p style="font-size: ${data.subheadline_size}px; font-family: '${data.subheadline_font}', sans-serif; color: #6b7280; margin-bottom: 40px;">${escapeHtml(data.subheadline)}</p>` : ''}
                 
                 ${showMockup && mockupUrl ? `
                     <img src="${escapeHtml(mockupUrl)}" alt="Mockup" style="width: 100%; max-width: 500px; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); margin-bottom: 40px;">
@@ -814,7 +958,7 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// ROBUSTE Speichern-Funktion - Sammelt Daten explizit nach ID
+// ROBUSTE Speichern-Funktion
 async function saveFreebie() {
     const btn = event.target;
     const originalText = btn.innerHTML;
@@ -822,7 +966,6 @@ async function saveFreebie() {
     btn.disabled = true;
     
     try {
-        // WICHTIG: Daten explizit nach ID sammeln statt FormData
         const data = {
             template_id: getInputValue('template_id', ''),
             name: getInputValue('template_name', ''),
@@ -845,27 +988,29 @@ async function saveFreebie() {
             email_optin_code: getInputValue('email_optin_code', ''),
             course_id: getInputValue('course_id', ''),
             is_master_template: getCheckboxValue('is_master', 1),
-            show_mockup: getCheckboxValue('show_mockup', 1)
+            show_mockup: getCheckboxValue('show_mockup', 1),
+            
+            // Font-Einstellungen
+            preheadline_font: getInputValue('preheadline_font', 'Poppins'),
+            preheadline_size: parseInt(getInputValue('preheadline_size', '14')),
+            headline_font: getInputValue('headline_font', 'Poppins'),
+            headline_size: parseInt(getInputValue('headline_size', '48')),
+            subheadline_font: getInputValue('subheadline_font', 'Poppins'),
+            subheadline_size: parseInt(getInputValue('subheadline_size', '20')),
+            bulletpoints_font: getInputValue('bulletpoints_font', 'Poppins'),
+            bulletpoints_size: parseInt(getInputValue('bulletpoints_size', '16')),
         };
         
-        // Debug: Daten ausgeben
-        console.log('=== FRONTEND DEBUG ===');
-        console.log('Collected data:', data);
-        console.log('Name field value:', data.name);
-        console.log('Name field length:', data.name.length);
-        console.log('Headline field value:', data.headline);
+        console.log('Sending data:', data);
         
-        // Validierung im Frontend
+        // Validierung
         if (!data.name || data.name.trim() === '') {
-            throw new Error('Template-Name ist erforderlich. Bitte gib einen Namen ein.');
+            throw new Error('Template-Name ist erforderlich');
         }
         
         if (!data.headline || data.headline.trim() === '') {
-            throw new Error('Headline ist erforderlich. Bitte gib eine Headline ein.');
+            throw new Error('Headline ist erforderlich');
         }
-        
-        console.log('Frontend validation passed');
-        console.log('Sending to API...');
         
         const response = await fetch('/api/save-freebie.php', {
             method: 'POST',
@@ -876,32 +1021,24 @@ async function saveFreebie() {
             body: JSON.stringify(data)
         });
         
-        console.log('Response status:', response.status);
-        
-        // Response-Text holen für bessere Fehleranalyse
         const responseText = await response.text();
-        console.log('Raw response:', responseText);
+        console.log('Response:', responseText);
         
         let result;
         try {
             result = JSON.parse(responseText);
-            console.log('Parsed response:', result);
         } catch (e) {
-            console.error('JSON parse error:', e);
             throw new Error('Ungültige Server-Antwort: ' + responseText.substring(0, 200));
         }
         
         if (result.success) {
-            console.log('Success! Redirecting...');
             alert('✅ Template erfolgreich gespeichert!');
             window.location.href = '?page=freebies';
         } else {
-            console.error('Server error:', result.error);
             throw new Error(result.error || 'Unbekannter Fehler beim Speichern');
         }
     } catch (error) {
-        console.error('=== SAVE ERROR ===');
-        console.error('Error details:', error);
+        console.error('Save error:', error);
         alert('❌ Fehler: ' + error.message);
         btn.innerHTML = originalText;
         btn.disabled = false;
@@ -909,7 +1046,6 @@ async function saveFreebie() {
 }
 
 // Event Listeners
-// Modal bei ESC schließen
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         const modal = document.getElementById('previewModal');
@@ -919,7 +1055,6 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// Modal bei Klick außerhalb schließen
 document.addEventListener('DOMContentLoaded', function() {
     const modal = document.getElementById('previewModal');
     if (modal) {
@@ -929,11 +1064,5 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
-    // Debug: Zeige alle Form-Elemente beim Laden
-    console.log('=== FORM ELEMENTS ON LOAD ===');
-    console.log('template_name:', document.getElementById('template_name'));
-    console.log('headline:', document.getElementById('headline'));
-    console.log('layout:', document.getElementById('layout'));
 });
 </script>
