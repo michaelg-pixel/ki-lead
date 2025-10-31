@@ -270,6 +270,52 @@ $template = array_merge($defaults, $template);
         margin-top: 6px;
     }
     
+    /* Upload Area Styles */
+    .upload-area {
+        border: 2px dashed #cbd5e0;
+        background: #f9fafb;
+        border-radius: 8px;
+        padding: 32px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .upload-area:hover {
+        border-color: #667eea;
+        background: #f3f4f6;
+    }
+    
+    .upload-area.dragover {
+        border-color: #667eea;
+        background: #eef2ff;
+    }
+    
+    .upload-icon {
+        font-size: 48px;
+        color: #9ca3af;
+        margin-bottom: 12px;
+    }
+    
+    .upload-text {
+        color: #6b7280;
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+    
+    .upload-hint {
+        color: #9ca3af;
+        font-size: 12px;
+    }
+    
+    .preview-image {
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+        margin-top: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
     @media (max-width: 1200px) {
         .editor-grid {
             grid-template-columns: 1fr;
@@ -297,6 +343,7 @@ $template = array_merge($defaults, $template);
     
     <form id="freebieForm" onsubmit="return false;">
         <input type="hidden" name="template_id" value="<?php echo $template['id'] ?? ''; ?>">
+        <input type="hidden" name="mockup_image_base64" id="mockup_image_base64">
         
         <div class="editor-grid">
             <!-- Linke Spalte: Hauptfelder -->
@@ -394,6 +441,50 @@ $template = array_merge($defaults, $template);
             <!-- Rechte Spalte: Design & Einstellungen -->
             <div class="editor-sidebar">
                 
+                <!-- Mockup Upload -->
+                <div class="card">
+                    <h3 class="card-title">📸 Mockup-Bild</h3>
+                    
+                    <?php if (!empty($template['mockup_image_url'])): ?>
+                    <div class="form-group">
+                        <p class="help-text" style="margin-bottom: 8px;">Aktuelles Mockup:</p>
+                        <img src="<?php echo htmlspecialchars($template['mockup_image_url']); ?>" 
+                             alt="Current Mockup" 
+                             class="preview-image"
+                             id="current-mockup">
+                    </div>
+                    <?php endif; ?>
+                    
+                    <div class="form-group">
+                        <div class="upload-area" id="uploadArea" onclick="document.getElementById('mockupFileInput').click()">
+                            <input type="file" 
+                                   id="mockupFileInput" 
+                                   accept="image/*" 
+                                   style="display: none;"
+                                   onchange="handleFileSelect(event)">
+                            
+                            <div id="uploadPlaceholder">
+                                <div class="upload-icon">☁️</div>
+                                <div class="upload-text">
+                                    <strong>Klicke zum Hochladen</strong> oder ziehe eine Datei hierher
+                                </div>
+                                <div class="upload-hint">PNG, JPG, GIF, WEBP (Max. 5MB)</div>
+                            </div>
+                            
+                            <img id="imagePreview" class="preview-image" style="display: none;" alt="Preview">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Oder Mockup-URL</label>
+                        <input type="url" name="mockup_image_url" id="mockup_image_url" class="form-input" 
+                               placeholder="https://example.com/mockup.png"
+                               value="<?php echo htmlspecialchars($template['mockup_image_url']); ?>"
+                               oninput="updatePreview()">
+                        <p class="help-text">Alternativ: Direkte URL zum Mockup-Bild</p>
+                    </div>
+                </div>
+                
                 <!-- Design -->
                 <div class="card">
                     <h3 class="card-title">Design</h3>
@@ -422,14 +513,6 @@ $template = array_merge($defaults, $template);
                         <label class="form-label">Primärfarbe</label>
                         <input type="color" name="primary_color" id="primary_color" class="color-input"
                                value="<?php echo $template['primary_color']; ?>" 
-                               oninput="updatePreview()">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Mockup URL</label>
-                        <input type="url" name="mockup_image_url" id="mockup_image_url" class="form-input" 
-                               placeholder="https://example.com/mockup.png"
-                               value="<?php echo htmlspecialchars($template['mockup_image_url']); ?>"
                                oninput="updatePreview()">
                     </div>
                     
@@ -505,6 +588,72 @@ $template = array_merge($defaults, $template);
 </div>
 
 <script>
+// Drag & Drop Funktionalität
+const uploadArea = document.getElementById('uploadArea');
+
+uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+});
+
+uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('dragover');
+});
+
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        handleFile(files[0]);
+    }
+});
+
+// File Select Handler
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (file) {
+        handleFile(file);
+    }
+}
+
+// File Handler
+function handleFile(file) {
+    // Validierung
+    if (!file.type.startsWith('image/')) {
+        alert('Bitte nur Bilddateien hochladen!');
+        return;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) {
+        alert('Datei ist zu groß! Maximale Größe: 5MB');
+        return;
+    }
+    
+    // File lesen und Preview anzeigen
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const base64 = e.target.result;
+        
+        // Vorschau anzeigen
+        document.getElementById('uploadPlaceholder').style.display = 'none';
+        const preview = document.getElementById('imagePreview');
+        preview.src = base64;
+        preview.style.display = 'block';
+        
+        // Base64 in hidden field speichern
+        document.getElementById('mockup_image_base64').value = base64;
+        
+        // Aktuelles Mockup ausblenden
+        const currentMockup = document.getElementById('current-mockup');
+        if (currentMockup) {
+            currentMockup.style.display = 'none';
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
 // Layout setzen
 function setLayout(layout) {
     document.getElementById('layout').value = layout;
@@ -526,6 +675,11 @@ function previewTemplate() {
     
     // Checkbox-Werte korrigieren
     data.show_mockup = document.getElementById('show_mockup').checked ? '1' : '0';
+    
+    // Mockup URL oder Preview verwenden
+    if (document.getElementById('imagePreview').style.display === 'block') {
+        data.mockup_image_url = document.getElementById('imagePreview').src;
+    }
     
     // Vorschau-HTML generieren
     const previewHTML = generatePreviewHTML(data);
