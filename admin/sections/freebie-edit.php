@@ -285,10 +285,10 @@ try {
                 </div>
                 
                 <div class="mb-4">
-                    <label class="form-label">Mockup Bild hochladen</label>
+                    <label class="form-label">Mockup Bild</label>
                     <div class="file-upload-area" id="fileUploadArea" onclick="document.getElementById('mockupImageInput').click()">
                         <input type="file" id="mockupImageInput" accept="image/*" style="display: none;" onchange="handleFileSelect(event)">
-                        <div id="uploadPrompt">
+                        <div id="uploadPrompt" style="<?php echo !empty($template['mockup_image_url']) ? 'display: none;' : ''; ?>">
                             <p style="color: #6b7280; font-size: 14px; margin-bottom: 8px;">📷 Bild hochladen</p>
                             <p style="color: #9ca3af; font-size: 12px;">Klicken oder Bild hierher ziehen</p>
                         </div>
@@ -296,20 +296,14 @@ try {
                         <div id="currentImage">
                             <img src="<?php echo htmlspecialchars($template['mockup_image_url']); ?>" class="mockup-preview" alt="Aktuelles Mockup">
                             <p style="color: #6b7280; font-size: 12px; margin-top: 8px;">Aktuelles Bild</p>
+                            <button type="button" onclick="removeImage(event)" style="margin-top: 8px; padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer;">
+                                🗑️ Entfernen
+                            </button>
                         </div>
                         <?php endif; ?>
                     </div>
                     <p class="helper-text">PNG, JPG oder GIF (max. 5MB)</p>
                     <input type="hidden" name="mockup_image_url" id="mockup_image_url" value="<?php echo htmlspecialchars($template['mockup_image_url'] ?? ''); ?>">
-                </div>
-                
-                <div>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" name="show_mockup" id="show_mockup" value="1" 
-                               <?php echo (!empty($template['mockup_image_url'])) ? 'checked' : ''; ?>
-                               class="w-4 h-4">
-                        <span class="form-label mb-0">Mockup anzeigen</span>
-                    </label>
                 </div>
             </div>
 
@@ -433,7 +427,7 @@ function handleFile(file) {
             <div id="imagePreview">
                 <img src="${e.target.result}" class="mockup-preview" alt="Vorschau">
                 <p style="color: #10b981; font-size: 12px; margin-top: 8px;">✓ Neues Bild ausgewählt (wird beim Speichern hochgeladen)</p>
-                <button type="button" onclick="removeImage()" style="margin-top: 8px; padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer;">
+                <button type="button" onclick="removeImage(event)" style="margin-top: 8px; padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer;">
                     🗑️ Entfernen
                 </button>
             </div>
@@ -442,7 +436,8 @@ function handleFile(file) {
     reader.readAsDataURL(file);
 }
 
-function removeImage() {
+function removeImage(event) {
+    event.stopPropagation();
     uploadedImageFile = null;
     document.getElementById('mockup_image_url').value = '';
     const uploadArea = document.getElementById('fileUploadArea');
@@ -469,7 +464,7 @@ function selectLayout(layout) {
     document.getElementById('layoutInput').value = layout;
 }
 
-// VORSCHAU-FUNKTION (NEUE VERSION MIT MODAL)
+// VORSCHAU-FUNKTION
 function previewTemplate() {
     const form = document.getElementById('editTemplateForm');
     const formData = new FormData(form);
@@ -478,18 +473,19 @@ function previewTemplate() {
     // Layout hinzufügen
     data.layout = document.getElementById('layoutInput').value;
     
-    // Checkbox-Werte korrigieren
-    data.show_mockup = document.getElementById('show_mockup').checked ? '1' : '0';
-    
-    // Wenn neues Bild hochgeladen wurde, Vorschau nutzen
+    // Mockup URL - prüfe ob neues Bild hochgeladen wurde
     if (uploadedImageFile) {
         const reader = new FileReader();
         reader.onload = function(e) {
             data.mockup_image_url = e.target.result;
+            data.show_mockup = '1'; // Immer anzeigen wenn Bild vorhanden
             showPreview(data);
         };
         reader.readAsDataURL(uploadedImageFile);
     } else {
+        // Nutze existierende URL oder leeren String
+        data.mockup_image_url = document.getElementById('mockup_image_url').value || '';
+        data.show_mockup = data.mockup_image_url ? '1' : '0';
         showPreview(data);
     }
 }
@@ -517,7 +513,7 @@ function generatePreviewHTML(data) {
     const layout = data.layout || 'hybrid';
     const bgColor = data.background_color || '#FFFFFF';
     const primaryColor = data.primary_color || '#7C3AED';
-    const showMockup = data.show_mockup === '1';
+    const showMockup = data.show_mockup === '1' && data.mockup_image_url;
     const mockupUrl = data.mockup_image_url || '';
     
     // Bulletpoints verarbeiten
@@ -541,7 +537,7 @@ function generatePreviewHTML(data) {
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">
                 <div style="order: ${layout === 'sidebar' ? '2' : '1'};">
                     ${showMockup && mockupUrl ? `
-                        <img src="${escapeHtml(mockupUrl)}" alt="Mockup" style="width: 100%; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+                        <img src="${escapeHtml(mockupUrl)}" alt="Mockup" style="width: 100%; height: auto; border-radius: 12px;">
                     ` : `
                         <div style="width: 100%; aspect-ratio: 4/3; background: linear-gradient(135deg, ${primaryColor}20, ${primaryColor}40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ${primaryColor}; font-size: 48px;">
                             🎁
@@ -559,7 +555,7 @@ function generatePreviewHTML(data) {
                     
                     ${bulletpointsHTML ? `<div style="margin-bottom: 32px;">${bulletpointsHTML}</div>` : ''}
                     
-                    <button style="background: ${primaryColor}; color: white; padding: 16px 40px; border: none; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px ${primaryColor}40;">
+                    <button style="background: ${primaryColor}; color: white; padding: 16px 40px; border: none; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer;">
                         ${escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern')}
                     </button>
                 </div>
@@ -578,7 +574,7 @@ function generatePreviewHTML(data) {
                 ${data.subheadline ? `<p style="font-size: 22px; color: #6b7280; margin-bottom: 40px;">${escapeHtml(data.subheadline)}</p>` : ''}
                 
                 ${showMockup && mockupUrl ? `
-                    <img src="${escapeHtml(mockupUrl)}" alt="Mockup" style="width: 100%; max-width: 500px; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); margin-bottom: 40px;">
+                    <img src="${escapeHtml(mockupUrl)}" alt="Mockup" style="width: 100%; max-width: 500px; height: auto; border-radius: 12px; margin-bottom: 40px;">
                 ` : `
                     <div style="width: 100%; max-width: 500px; aspect-ratio: 4/3; background: linear-gradient(135deg, ${primaryColor}20, ${primaryColor}40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ${primaryColor}; font-size: 64px; margin: 0 auto 40px;">
                         🎁
@@ -587,7 +583,7 @@ function generatePreviewHTML(data) {
                 
                 ${bulletpointsHTML ? `<div style="text-align: left; max-width: 500px; margin: 0 auto 40px;">${bulletpointsHTML}</div>` : ''}
                 
-                <button style="background: ${primaryColor}; color: white; padding: 18px 48px; border: none; border-radius: 8px; font-size: 20px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px ${primaryColor}40;">
+                <button style="background: ${primaryColor}; color: white; padding: 18px 48px; border: none; border-radius: 8px; font-size: 20px; font-weight: 600; cursor: pointer;">
                     ${escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern')}
                 </button>
             </div>
@@ -603,6 +599,7 @@ function generatePreviewHTML(data) {
 
 // HTML escapen
 function escapeHtml(text) {
+    if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
@@ -629,7 +626,7 @@ async function saveTemplate() {
     try {
         const response = await fetch('/api/save-freebie.php', {
             method: 'POST',
-            body: formData // FormData statt JSON
+            body: formData
         });
         
         const result = await response.json();
@@ -653,7 +650,6 @@ async function saveTemplate() {
 }
 
 // Event Listeners
-// Modal bei ESC schließen
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         const modal = document.getElementById('previewModal');
@@ -663,7 +659,6 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// Modal bei Klick außerhalb schließen
 document.addEventListener('DOMContentLoaded', function() {
     const modal = document.getElementById('previewModal');
     if (modal) {
