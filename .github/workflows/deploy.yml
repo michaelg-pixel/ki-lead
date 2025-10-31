@@ -10,114 +10,57 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Deploy to Server with VERBOSE logging
+      - name: Deploy to Server
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: 31.97.39.234
           username: mehr-infos-jetzt-app
           key: ${{ secrets.HOSTINGER_SSH_KEY }}
           script: |
-            set -x  # Verbose mode
-            
             echo "======================================="
-            echo "STARTING DEPLOYMENT"
+            echo "🚀 DEPLOYMENT STARTED"
             echo "Time: $(date)"
             echo "======================================="
             
-            # Prüfe aktuelles Verzeichnis
-            echo "Current directory:"
-            pwd
+            # Ins Zielverzeichnis wechseln
+            cd /home/mehr-infos-jetzt-app/htdocs/app.mehr-infos-jetzt.de || exit 1
             
-            echo "Home directory contents:"
-            ls -la /home/mehr-infos-jetzt-app/
-            
-            echo "Checking htdocs..."
-            ls -la /home/mehr-infos-jetzt-app/htdocs/ || echo "htdocs not found!"
-            
-            # Gehe ins richtige Verzeichnis
-            cd /home/mehr-infos-jetzt-app/htdocs/app.mehr-infos-jetzt.de || {
-              echo "ERROR: Cannot change to target directory!"
-              echo "Trying to list parent directory:"
-              ls -la /home/mehr-infos-jetzt-app/htdocs/
-              exit 1
-            }
-            
-            echo "Now in directory:"
-            pwd
-            
-            echo "Current directory contents:"
-            ls -la
+            echo "📂 Current directory: $(pwd)"
             
             # Git-Konfiguration
-            echo "Configuring Git..."
             git config --global --add safe.directory /home/mehr-infos-jetzt-app/htdocs/app.mehr-infos-jetzt.de
             
-            # Git-Status VOR dem Pull
-            echo "Git status BEFORE pull:"
-            git status
-            
-            echo "Current Git commit:"
+            # Aktueller Status
+            echo "📊 Current commit:"
             git log -1 --oneline
             
-            echo "Git remote:"
-            git remote -v
+            # Vom Remote holen
+            echo "⬇️ Fetching from origin..."
+            git fetch origin
             
-            # Git-Fetch
-            echo "Fetching from origin..."
-            git fetch origin 2>&1 || echo "Fetch failed!"
+            # Auf neuesten Stand bringen
+            echo "🔄 Resetting to origin/main..."
+            git reset --hard origin/main
             
-            # Reset hart zum Remote
-            echo "Resetting to origin/main..."
-            git reset --hard origin/main 2>&1 || echo "Reset failed!"
-            
-            # Git-Status NACH dem Reset
-            echo "Git status AFTER reset:"
-            git status
-            
-            echo "New Git commit:"
+            # Neuer Status
+            echo "✅ New commit:"
             git log -1 --oneline
             
-            # Erstelle Test-Datei direkt
-            echo "Creating direct test file..."
-            echo "DIRECT_DEPLOY_TEST - $(date)" > DIRECT_TEST.txt
+            # Verzeichnisse erstellen (falls nötig)
+            mkdir -p customer/sections admin/sections
             
-            # Prüfe ob Test-Datei existiert
-            echo "Checking if test file exists:"
-            ls -la DIRECT_TEST.txt
-            
-            # Verzeichnisse erstellen
-            echo "Creating necessary directories..."
-            mkdir -p customer/sections
-            mkdir -p admin/sections
-            
-            # Prüfe customer Verzeichnis
-            echo "Customer directory contents:"
-            ls -la customer/ || echo "customer dir not found!"
-            
-            # Prüfe customer/sections
-            echo "Customer sections directory:"
-            ls -la customer/sections/ || echo "customer/sections not found!"
-            
-            # Setze Permissions
-            echo "Setting permissions..."
-            find . -type f -exec chmod 644 {} \; 2>&1
-            find . -type d -exec chmod 755 {} \; 2>&1
+            # Permissions setzen (OHNE .git zu ändern!)
+            echo "🔒 Setting permissions (excluding .git)..."
+            find . -path ./.git -prune -o -type f -exec chmod 644 {} \;
+            find . -path ./.git -prune -o -type d -exec chmod 755 {} \;
             
             # PHP Cache löschen
-            echo "Clearing PHP cache..."
-            echo "<?php if(function_exists('opcache_reset')) { opcache_reset(); echo 'Cache cleared'; } else { echo 'No opcache'; } ?>" > /tmp/clear_cache.php
-            php /tmp/clear_cache.php 2>&1 || echo "Cache clear failed"
-            rm /tmp/clear_cache.php 2>/dev/null
+            echo "🧹 Clearing PHP cache..."
+            php -r "if(function_exists('opcache_reset')) { opcache_reset(); echo 'Cache cleared'; }" 2>/dev/null || echo "OPcache not available"
             
             # Deployment-Timestamp
-            echo "Writing deployment timestamp..."
             echo "Last deployment: $(date)" > .last_deploy
-            cat .last_deploy
             
             echo "======================================="
-            echo "DEPLOYMENT COMPLETED"
+            echo "✅ DEPLOYMENT COMPLETED"
             echo "======================================="
-            
-            # Final status
-            echo "Final directory listing:"
-            ls -la | head -20
