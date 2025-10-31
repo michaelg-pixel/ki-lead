@@ -47,7 +47,7 @@ try {
 }
 ?>
 
-<script src="https://cdn.tailwindcss.com"></script>
+<!-- Tailwind wird jetzt im dashboard.php Head geladen -->
 
 <style>
     body {
