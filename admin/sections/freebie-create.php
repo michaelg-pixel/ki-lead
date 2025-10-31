@@ -355,7 +355,7 @@ $template = array_merge($defaults, $template);
                     
                     <div class="form-group">
                         <label class="form-label required">Template Name</label>
-                        <input type="text" name="name" class="form-input" 
+                        <input type="text" name="name" id="template_name" class="form-input" 
                                placeholder="z.B. KI-Kurs Lead-Magnet"
                                value="<?php echo htmlspecialchars($template['name']); ?>" required>
                     </div>
@@ -794,34 +794,87 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Speichern-Funktion
+// VERBESSERTE Speichern-Funktion mit besserem Fehler-Handling
 async function saveFreebie() {
-    const form = document.getElementById('freebieForm');
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData);
-    
-    // Checkboxes korrekt verarbeiten
-    data.is_master_template = document.getElementById('is_master').checked ? 1 : 0;
-    data.show_mockup = document.getElementById('show_mockup').checked ? 1 : 0;
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '⏳ Speichere...';
+    btn.disabled = true;
     
     try {
+        // Form-Daten sammeln
+        const form = document.getElementById('freebieForm');
+        const formData = new FormData(form);
+        
+        // WICHTIG: Alle Werte explizit setzen
+        const data = {
+            template_id: formData.get('template_id') || '',
+            name: formData.get('name') || '',
+            url_slug: formData.get('url_slug') || '',
+            headline: formData.get('headline') || '',
+            subheadline: formData.get('subheadline') || '',
+            preheadline: formData.get('preheadline') || '',
+            bulletpoints: formData.get('bulletpoints') || '',
+            cta_button_text: formData.get('cta_button_text') || '',
+            layout: formData.get('layout') || 'hybrid',
+            primary_color: formData.get('primary_color') || '#FF8C00',
+            secondary_color: formData.get('secondary_color') || '#EC4899',
+            background_color: formData.get('background_color') || '#FFF9E6',
+            text_color: formData.get('text_color') || '#1F2937',
+            cta_button_color: formData.get('cta_button_color') || '#5B8DEF',
+            mockup_image_url: formData.get('mockup_image_url') || '',
+            mockup_image_base64: formData.get('mockup_image_base64') || '',
+            custom_raw_code: formData.get('custom_raw_code') || '',
+            custom_css: formData.get('custom_css') || '',
+            email_optin_code: formData.get('email_optin_code') || '',
+            course_id: formData.get('course_id') || '',
+            is_master_template: document.getElementById('is_master').checked ? 1 : 0,
+            show_mockup: document.getElementById('show_mockup').checked ? 1 : 0
+        };
+        
+        // Debug: Daten ausgeben
+        console.log('Sending data:', data);
+        
+        // Validierung im Frontend
+        if (!data.name || data.name.trim() === '') {
+            throw new Error('Template-Name ist erforderlich');
+        }
+        
+        if (!data.headline || data.headline.trim() === '') {
+            throw new Error('Headline ist erforderlich');
+        }
+        
         const response = await fetch('/api/save-freebie.php', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
             body: JSON.stringify(data)
         });
         
-        const result = await response.json();
+        // Response-Text holen für bessere Fehleranalyse
+        const responseText = await response.text();
+        console.log('Response:', responseText);
+        
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (e) {
+            throw new Error('Ungültige Server-Antwort: ' + responseText.substring(0, 200));
+        }
         
         if (result.success) {
             alert('✅ Template erfolgreich gespeichert!');
             window.location.href = '?page=freebies';
         } else {
-            alert('❌ Fehler: ' + (result.error || 'Unbekannter Fehler'));
+            throw new Error(result.error || 'Unbekannter Fehler beim Speichern');
         }
     } catch (error) {
-        alert('❌ Netzwerkfehler: ' + error.message);
         console.error('Save error:', error);
+        alert('❌ Fehler: ' + error.message);
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     }
 }
 
