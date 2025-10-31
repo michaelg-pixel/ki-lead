@@ -361,13 +361,28 @@ $current_datetime = date('d.m.Y H:i');
                                 
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Vorüberschrift (Preheadline)
+                                    </label>
+                                    <input type="text" 
+                                           id="preheadline"
+                                           name="preheadline"
+                                           value="<?php echo htmlspecialchars($template['preheadline'] ?? ''); ?>"
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                                           placeholder="NUR FÜR KURZE ZEIT"
+                                           oninput="updatePreview()">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
                                         Hauptüberschrift (Headline)
                                     </label>
                                     <input type="text" 
+                                           id="headline"
                                            name="headline"
                                            value="<?php echo htmlspecialchars($template['headline'] ?? ''); ?>"
                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                                           placeholder="Wie du eigene KI Kurse verkaufst...">
+                                           placeholder="Wie du eigene KI Kurse verkaufst..."
+                                           oninput="updatePreview()">
                                 </div>
                                 
                                 <div>
@@ -375,21 +390,12 @@ $current_datetime = date('d.m.Y H:i');
                                         Unterüberschrift (Subheadline)
                                     </label>
                                     <input type="text" 
+                                           id="subheadline"
                                            name="subheadline"
                                            value="<?php echo htmlspecialchars($template['subheadline'] ?? ''); ?>"
                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                                           placeholder="ohne diese selbst erstellen zu müssen">
-                                </div>
-                                
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                                        Vorüberschrift (Preheadline)
-                                    </label>
-                                    <input type="text" 
-                                           name="preheadline"
-                                           value="<?php echo htmlspecialchars($template['preheadline'] ?? ''); ?>"
-                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                                           placeholder="NUR FÜR KURZE ZEIT">
+                                           placeholder="ohne diese selbst erstellen zu müssen"
+                                           oninput="updatePreview()">
                                 </div>
                             </div>
                         </div>
@@ -618,10 +624,10 @@ $current_datetime = date('d.m.Y H:i');
                                 <i class="fas fa-eye text-purple-600 mr-2"></i>
                                 Vorschau
                             </h3>
-                            <div id="previewBox" class="preview-box p-6 flex items-center justify-center">
+                            <div id="previewBox" class="preview-box p-6">
                                 <div class="text-center">
                                     <i class="fas fa-file-image text-6xl text-gray-400 mb-4"></i>
-                                    <p class="text-gray-500">Vorschau wird hier angezeigt</p>
+                                    <p class="text-gray-500">Vorschau wird geladen...</p>
                                 </div>
                             </div>
                         </div>
@@ -707,97 +713,26 @@ $current_datetime = date('d.m.Y H:i');
         }
         
         function updatePreview() {
-            const templateType = document.querySelector('input[name="template_type"]:checked').value;
-            const primaryColor = document.querySelector('input[name="color_primary"]').value;
-            const secondaryColor = document.querySelector('input[name="color_secondary"]').value;
-            const textColor = document.querySelector('input[name="color_text"]').value;
-            const bgColor = document.querySelector('input[name="color_background"]').value;
-            const headingFont = document.querySelector('select[name="font_heading"]').value;
-            const bodyFont = document.querySelector('select[name="font_body"]').value;
+            const preheadline = document.getElementById('preheadline')?.value || '';
+            const headline = document.getElementById('headline')?.value || '';
+            const subheadline = document.getElementById('subheadline')?.value || '';
+            const primaryColor = document.querySelector('input[name="color_primary"]')?.value || '#8B5CF6';
+            const secondaryColor = document.querySelector('input[name="color_secondary"]')?.value || '#6D28D9';
+            const textColor = document.querySelector('input[name="color_text"]')?.value || '#1F2937';
+            const bgColor = document.querySelector('input[name="color_background"]')?.value || '#FFFFFF';
+            const headingFont = document.querySelector('select[name="font_heading"]')?.value || 'Inter';
+            const bodyFont = document.querySelector('select[name="font_body"]')?.value || 'Inter';
             
             const previewBox = document.getElementById('previewBox');
-            let previewContent = '';
             
-            switch(templateType) {
-                case 'checklist':
-                    previewContent = `
-                        <div style="background: ${bgColor}; color: ${textColor}; padding: 20px; border-radius: 8px; width: 100%; font-family: ${bodyFont};">
-                            <h3 style="font-family: ${headingFont}; color: ${primaryColor}; margin-bottom: 15px; font-size: 20px; font-weight: bold;">✓ Deine Checkliste</h3>
-                            <div style="space-y: 8px;">
-                                <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                                    <span style="color: ${secondaryColor}; margin-right: 8px;">☐</span>
-                                    <span style="font-size: 14px;">Aufgabe 1</span>
-                                </div>
-                                <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                                    <span style="color: ${secondaryColor}; margin-right: 8px;">☐</span>
-                                    <span style="font-size: 14px;">Aufgabe 2</span>
-                                </div>
-                                <div style="display: flex; align-items: center;">
-                                    <span style="color: ${secondaryColor}; margin-right: 8px;">☐</span>
-                                    <span style="font-size: 14px;">Aufgabe 3</span>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    break;
-                case 'ebook':
-                    previewContent = `
-                        <div style="background: linear-gradient(135deg, ${primaryColor}, ${secondaryColor}); color: white; padding: 30px; border-radius: 8px; width: 100%; text-align: center; font-family: ${bodyFont};">
-                            <h2 style="font-family: ${headingFont}; font-size: 24px; font-weight: bold; margin-bottom: 10px;">E-Book Titel</h2>
-                            <p style="font-size: 14px; opacity: 0.9;">Dein Untertitel hier</p>
-                        </div>
-                    `;
-                    break;
-                case 'worksheet':
-                    previewContent = `
-                        <div style="background: ${bgColor}; color: ${textColor}; padding: 20px; border-radius: 8px; width: 100%; border: 2px solid ${primaryColor}; font-family: ${bodyFont};">
-                            <h3 style="font-family: ${headingFont}; color: ${primaryColor}; margin-bottom: 15px; font-size: 20px; font-weight: bold;">📝 Arbeitsblatt</h3>
-                            <div style="border-bottom: 1px solid ${primaryColor}; margin-bottom: 10px; padding-bottom: 5px;"></div>
-                            <div style="border-bottom: 1px solid ${primaryColor}; margin-bottom: 10px; padding-bottom: 5px;"></div>
-                            <div style="border-bottom: 1px solid ${primaryColor}; padding-bottom: 5px;"></div>
-                        </div>
-                    `;
-                    break;
-                case 'infographic':
-                    previewContent = `
-                        <div style="background: ${bgColor}; color: ${textColor}; padding: 20px; border-radius: 8px; width: 100%; font-family: ${bodyFont};">
-                            <h3 style="font-family: ${headingFont}; color: ${primaryColor}; margin-bottom: 15px; font-size: 18px; font-weight: bold; text-align: center;">📊 Infografik</h3>
-                            <div style="display: flex; justify-content: space-around; margin-top: 15px;">
-                                <div style="text-align: center;">
-                                    <div style="width: 40px; height: 40px; background: ${primaryColor}; border-radius: 50%; margin: 0 auto;"></div>
-                                    <p style="font-size: 12px; margin-top: 5px;">70%</p>
-                                </div>
-                                <div style="text-align: center;">
-                                    <div style="width: 40px; height: 40px; background: ${secondaryColor}; border-radius: 50%; margin: 0 auto;"></div>
-                                    <p style="font-size: 12px; margin-top: 5px;">30%</p>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    break;
-                case 'social':
-                    previewContent = `
-                        <div style="background: linear-gradient(135deg, ${primaryColor}, ${secondaryColor}); color: white; padding: 20px; border-radius: 8px; width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; text-align: center; font-family: ${bodyFont};">
-                            <div>
-                                <h3 style="font-family: ${headingFont}; font-size: 22px; font-weight: bold;">Social Post</h3>
-                                <p style="font-size: 12px; opacity: 0.9; margin-top: 8px;">@dein_handle</p>
-                            </div>
-                        </div>
-                    `;
-                    break;
-                case 'guide':
-                    previewContent = `
-                        <div style="background: ${bgColor}; color: ${textColor}; padding: 20px; border-radius: 8px; width: 100%; border-left: 4px solid ${primaryColor}; font-family: ${bodyFont};">
-                            <h3 style="font-family: ${headingFont}; color: ${primaryColor}; margin-bottom: 15px; font-size: 20px; font-weight: bold;">🗺️ Guide</h3>
-                            <ol style="margin-left: 20px; font-size: 14px;">
-                                <li style="margin-bottom: 8px;">Schritt 1</li>
-                                <li style="margin-bottom: 8px;">Schritt 2</li>
-                                <li>Schritt 3</li>
-                            </ol>
-                        </div>
-                    `;
-                    break;
-            }
+            // ZENTRIERTE VORSCHAU mit allen Headlines
+            const previewContent = `
+                <div style="background: ${bgColor}; color: ${textColor}; padding: 30px; border-radius: 12px; width: 100%; text-align: center; font-family: ${bodyFont};">
+                    ${preheadline ? `<p style="font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: ${secondaryColor}; margin-bottom: 10px; font-weight: bold;">${preheadline}</p>` : ''}
+                    ${headline ? `<h2 style="font-family: ${headingFont}; color: ${primaryColor}; font-size: 24px; font-weight: bold; margin-bottom: 12px; line-height: 1.3;">${headline}</h2>` : '<h2 style="font-family: ' + headingFont + '; color: ' + primaryColor + '; font-size: 24px; font-weight: bold; margin-bottom: 12px;">Deine Hauptüberschrift</h2>'}
+                    ${subheadline ? `<p style="font-size: 16px; color: ${textColor}; opacity: 0.8; line-height: 1.5;">${subheadline}</p>` : '<p style="font-size: 16px; color: ' + textColor + '; opacity: 0.8;">Deine Unterüberschrift</p>'}
+                </div>
+            `;
             
             previewBox.innerHTML = previewContent;
         }
@@ -808,6 +743,7 @@ $current_datetime = date('d.m.Y H:i');
             }
         }
         
+        // Initial preview on page load
         document.addEventListener('DOMContentLoaded', function() {
             updatePreview();
         });
