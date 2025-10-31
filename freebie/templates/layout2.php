@@ -16,6 +16,49 @@
             padding: 40px 20px;
         }
         
+        /* E-Mail Optin Styling */
+        .email-optin-wrapper {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .email-optin-wrapper input[type="text"],
+        .email-optin-wrapper input[type="email"] {
+            width: 100%;
+            padding: 14px 20px;
+            margin-bottom: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        .email-optin-wrapper input[type="text"]:focus,
+        .email-optin-wrapper input[type="email"]:focus {
+            outline: none;
+            border-color: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>;
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+        }
+        
+        .email-optin-wrapper button[type="submit"] {
+            width: 100%;
+            padding: 16px 24px;
+            background: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4);
+        }
+        
+        .email-optin-wrapper button[type="submit"]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
+        }
+        
         /* Cookie Modal */
         #cookie-settings-modal {
             backdrop-filter: blur(5px);
@@ -103,7 +146,7 @@
         
         if (!empty($bullets)): 
         ?>
-            <div class="max-w-2xl mx-auto mb-12">
+            <div class="max-w-2xl mx-auto mb-8">
                 <ul class="space-y-4 text-left">
                     <?php foreach ($bullets as $bullet): ?>
                         <?php 
@@ -122,8 +165,8 @@
             </div>
         <?php endif; ?>
         
-        <!-- E-Mail Optin -->
-        <div class="max-w-2xl mx-auto mb-12">
+        <!-- E-Mail Optin unter den Bulletpoints -->
+        <div class="email-optin-wrapper mb-12">
             <?php if (!empty($freebie['raw_code'])): ?>
                 <div class="bg-white rounded-2xl shadow-xl p-8">
                     <?= $freebie['raw_code'] ?>
@@ -131,14 +174,17 @@
             <?php else: ?>
                 <div class="bg-white rounded-2xl shadow-xl p-8">
                     <form class="space-y-4">
+                        <input type="text" 
+                               name="first_name"
+                               placeholder="Vorname" 
+                               class="w-full">
                         <input type="email" 
-                               placeholder="Deine E-Mail-Adresse" 
+                               name="email"
+                               placeholder="E-Mail-Adresse" 
                                required
-                               class="w-full px-6 py-4 border-2 border-gray-200 rounded-xl text-lg focus:border-purple-500 focus:outline-none">
-                        <button type="submit" 
-                                class="w-full text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition"
-                                style="background-color: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>">
-                            <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt für 0€ statt 27€ kostenlos downloaden') ?>
+                               class="w-full">
+                        <button type="submit">
+                            <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt kostenlos bestellen') ?>
                         </button>
                     </form>
                     <p class="text-sm text-gray-500 mt-4">
