@@ -336,24 +336,24 @@ function generatePreviewHTML(data) {
         '<div style="width: 100%; max-width: 380px; aspect-ratio: 3/4; background: linear-gradient(135deg, ' + primaryColor + '20, ' + primaryColor + '40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ' + primaryColor + '; font-size: 64px;">🎁</div>';
     
     const preheadlineHTML = data.preheadline ? 
-        '<div style="color: ' + primaryColor + '; font-size: ' + preheadlineSize + 'px; font-family: \'' + preheadlineFont + '\', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">' + escapeHtml(data.preheadline) + '</div>' : '';
+        '<div style="color: ' + primaryColor + '; font-size: ' + preheadlineSize + 'px; font-family: \'' + preheadlineFont + '\', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; text-align: center;">' + escapeHtml(data.preheadline) + '</div>' : '';
     
-    const headlineHTML = '<h1 style="font-size: ' + headlineSize + 'px; font-family: \'' + headlineFont + '\', sans-serif; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px;">' +
+    const headlineHTML = '<h1 style="font-size: ' + headlineSize + 'px; font-family: \'' + headlineFont + '\', sans-serif; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px; text-align: center;">' +
         escapeHtml(data.headline || 'Dein kostenloser Kurs') + '</h1>';
     
     const subheadlineHTML = data.subheadline ? 
-        '<p style="font-size: ' + subheadlineSize + 'px; font-family: \'' + subheadlineFont + '\', sans-serif; color: #6b7280; margin-bottom: 32px; line-height: 1.6;">' + escapeHtml(data.subheadline) + '</p>' : '';
+        '<p style="font-size: ' + subheadlineSize + 'px; font-family: \'' + subheadlineFont + '\', sans-serif; color: #6b7280; margin-bottom: 32px; line-height: 1.6; text-align: center;">' + escapeHtml(data.subheadline) + '</p>' : '';
     
     const bulletpointsWrapHTML = bulletpointsHTML ? 
         '<div style="margin-bottom: 32px;">' + bulletpointsHTML + '</div>' : '';
     
-    const ctaHTML = '<button style="background: ' + primaryColor + '; color: white; padding: 16px 40px; border: none; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px ' + primaryColor + '40; transition: transform 0.2s;">' +
-        escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern') + '</button>';
+    const ctaHTML = '<div style="text-align: center;"><button style="background: ' + primaryColor + '; color: white; padding: 16px 40px; border: none; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px ' + primaryColor + '40; transition: transform 0.2s;">' +
+        escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern') + '</button></div>';
     
     let layoutHTML = '';
     
     if (layout === 'centered') {
-        // CENTERED LAYOUT - Zentriert alles
+        // CENTERED LAYOUT - Alles komplett zentriert
         const mockupCenteredHTML = showMockup && mockupUrl ?
             '<img src="' + escapeHtml(mockupUrl) + '" alt="Mockup" style="width: 100%; max-width: 380px; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); margin: 0 auto 40px;">' :
             '<div style="width: 100%; max-width: 380px; aspect-ratio: 3/4; background: linear-gradient(135deg, ' + primaryColor + '20, ' + primaryColor + '40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ' + primaryColor + '; font-size: 64px; margin: 0 auto 40px;">🎁</div>';
@@ -361,32 +361,23 @@ function generatePreviewHTML(data) {
         const bulletpointsCenteredHTML = bulletpointsHTML ?
             '<div style="text-align: left; max-width: 500px; margin: 0 auto 40px;">' + bulletpointsHTML + '</div>' : '';
         
-        const preheadlineCenteredHTML = data.preheadline ? 
-            '<div style="color: ' + primaryColor + '; font-size: ' + preheadlineSize + 'px; font-family: \'' + preheadlineFont + '\', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; text-align: center;">' + escapeHtml(data.preheadline) + '</div>' : '';
-        
-        const headlineCenteredHTML = '<h1 style="font-size: ' + headlineSize + 'px; font-family: \'' + headlineFont + '\', sans-serif; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px; text-align: center;">' + 
-            escapeHtml(data.headline || 'Dein kostenloser Kurs') + '</h1>';
-        
-        const subheadlineCenteredHTML = data.subheadline ? 
-            '<p style="font-size: ' + subheadlineSize + 'px; font-family: \'' + subheadlineFont + '\', sans-serif; color: #6b7280; margin-bottom: 40px; line-height: 1.6; text-align: center;">' + escapeHtml(data.subheadline) + '</p>' : '';
-        
         layoutHTML = '<div style="max-width: 800px; margin: 0 auto; text-align: center;">' +
-            preheadlineCenteredHTML +
-            headlineCenteredHTML +
-            subheadlineCenteredHTML +
+            preheadlineHTML +
+            headlineHTML +
+            subheadlineHTML +
             mockupCenteredHTML +
             bulletpointsCenteredHTML +
             '<button style="background: ' + primaryColor + '; color: white; padding: 18px 48px; border: none; border-radius: 8px; font-size: 20px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px ' + primaryColor + '40; transition: transform 0.2s;">' +
             escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern') + '</button>' +
             '</div>';
     } else if (layout === 'hybrid') {
-        // Hybrid: 40% Bild, 60% Text
+        // Hybrid: 40% Bild, 60% Text (mit zentrierten Headlines)
         layoutHTML = '<div style="display: grid; grid-template-columns: 2fr 3fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">' +
             '<div style="display: flex; justify-content: center;">' + mockupHTML + '</div>' +
             '<div>' + preheadlineHTML + headlineHTML + subheadlineHTML + bulletpointsWrapHTML + ctaHTML + '</div>' +
             '</div>';
     } else {
-        // Sidebar: 60% Text, 40% Bild
+        // Sidebar: 60% Text, 40% Bild (mit zentrierten Headlines)
         layoutHTML = '<div style="display: grid; grid-template-columns: 3fr 2fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">' +
             '<div>' + preheadlineHTML + headlineHTML + subheadlineHTML + bulletpointsWrapHTML + ctaHTML + '</div>' +
             '<div style="display: flex; justify-content: center;">' + mockupHTML + '</div>' +
