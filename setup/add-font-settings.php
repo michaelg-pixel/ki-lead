@@ -31,12 +31,14 @@ header('Content-Type: text/html; charset=utf-8');
         h1 { color: #333; }
         .success { color: #22c55e; font-weight: bold; }
         .error { color: #ef4444; font-weight: bold; }
+        .warning { color: #f59e0b; font-weight: bold; }
         .info { color: #3b82f6; }
         pre {
             background: #f9fafb;
             padding: 15px;
             border-radius: 6px;
             overflow-x: auto;
+            font-size: 12px;
         }
     </style>
 </head>
@@ -50,70 +52,114 @@ header('Content-Type: text/html; charset=utf-8');
         <h2>Ausführung...</h2>
         <?php
         try {
-            // SQL-Statements ausführen
-            $statements = [
-                // Preheadline Font & Size
-                "ALTER TABLE freebies ADD COLUMN IF NOT EXISTS preheadline_font VARCHAR(100) DEFAULT 'Poppins' AFTER body_font",
-                "ALTER TABLE freebies ADD COLUMN IF NOT EXISTS preheadline_size INT DEFAULT 14 AFTER preheadline_font",
-                
-                // Headline Font & Size
-                "ALTER TABLE freebies ADD COLUMN IF NOT EXISTS headline_font VARCHAR(100) DEFAULT 'Poppins' AFTER preheadline_size",
-                "ALTER TABLE freebies ADD COLUMN IF NOT EXISTS headline_size INT DEFAULT 48 AFTER headline_font",
-                
-                // Subheadline Font & Size
-                "ALTER TABLE freebies ADD COLUMN IF NOT EXISTS subheadline_font VARCHAR(100) DEFAULT 'Poppins' AFTER headline_size",
-                "ALTER TABLE freebies ADD COLUMN IF NOT EXISTS subheadline_size INT DEFAULT 20 AFTER subheadline_font",
-                
-                // Bulletpoints Font & Size
-                "ALTER TABLE freebies ADD COLUMN IF NOT EXISTS bulletpoints_font VARCHAR(100) DEFAULT 'Poppins' AFTER subheadline_size",
-                "ALTER TABLE freebies ADD COLUMN IF NOT EXISTS bulletpoints_size INT DEFAULT 16 AFTER bulletpoints_font",
+            // Erst prüfen welche Spalten bereits existieren
+            echo "<h3 class='info'>📋 Prüfe existierende Spalten...</h3>";
+            
+            $stmt = $pdo->query("DESCRIBE freebies");
+            $existingColumns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            
+            $columnsToAdd = [
+                'preheadline_font' => "VARCHAR(100) DEFAULT 'Poppins' AFTER body_font",
+                'preheadline_size' => "INT DEFAULT 14 AFTER preheadline_font",
+                'headline_font' => "VARCHAR(100) DEFAULT 'Poppins' AFTER preheadline_size",
+                'headline_size' => "INT DEFAULT 48 AFTER headline_font",
+                'subheadline_font' => "VARCHAR(100) DEFAULT 'Poppins' AFTER headline_size",
+                'subheadline_size' => "INT DEFAULT 20 AFTER subheadline_font",
+                'bulletpoints_font' => "VARCHAR(100) DEFAULT 'Poppins' AFTER subheadline_size",
+                'bulletpoints_size' => "INT DEFAULT 16 AFTER bulletpoints_font",
             ];
 
-            foreach ($statements as $sql) {
-                $pdo->exec($sql);
-                echo "<p class='success'>✅ " . htmlspecialchars(substr($sql, 0, 80)) . "...</p>";
+            $added = 0;
+            $skipped = 0;
+
+            foreach ($columnsToAdd as $column => $definition) {
+                if (in_array($column, $existingColumns)) {
+                    echo "<p class='warning'>⏭️ Spalte '{$column}' existiert bereits - übersprungen</p>";
+                    $skipped++;
+                } else {
+                    $sql = "ALTER TABLE freebies ADD COLUMN {$column} {$definition}";
+                    try {
+                        $pdo->exec($sql);
+                        echo "<p class='success'>✅ Spalte '{$column}' erfolgreich hinzugefügt</p>";
+                        $added++;
+                    } catch (PDOException $e) {
+                        echo "<p class='error'>❌ Fehler bei '{$column}': " . htmlspecialchars($e->getMessage()) . "</p>";
+                    }
+                }
             }
 
-            // Bestehende Einträge aktualisieren
-            $updateSql = "UPDATE freebies 
-                SET 
-                    preheadline_font = COALESCE(preheadline_font, 'Poppins'),
-                    preheadline_size = COALESCE(preheadline_size, 14),
-                    headline_font = COALESCE(headline_font, 'Poppins'),
-                    headline_size = COALESCE(headline_size, 48),
-                    subheadline_font = COALESCE(subheadline_font, 'Poppins'),
-                    subheadline_size = COALESCE(subheadline_size, 20),
-                    bulletpoints_font = COALESCE(bulletpoints_font, 'Poppins'),
-                    bulletpoints_size = COALESCE(bulletpoints_size, 16)";
+            echo "<hr>";
+            echo "<p class='info'><strong>Zusammenfassung:</strong></p>";
+            echo "<p>✅ Hinzugefügt: {$added} Spalten</p>";
+            echo "<p>⏭️ Übersprungen: {$skipped} Spalten</p>";
+
+            // Bestehende Einträge aktualisieren (nur wenn es welche gibt)
+            $stmt = $pdo->query("SELECT COUNT(*) FROM freebies");
+            $count = $stmt->fetchColumn();
             
-            $pdo->exec($updateSql);
-            echo "<p class='success'>✅ Bestehende Einträge wurden aktualisiert</p>";
+            if ($count > 0) {
+                echo "<hr>";
+                echo "<h3 class='info'>🔄 Aktualisiere bestehende Einträge...</h3>";
+                
+                $updateSql = "UPDATE freebies 
+                    SET 
+                        preheadline_font = COALESCE(preheadline_font, 'Poppins'),
+                        preheadline_size = COALESCE(preheadline_size, 14),
+                        headline_font = COALESCE(headline_font, 'Poppins'),
+                        headline_size = COALESCE(headline_size, 48),
+                        subheadline_font = COALESCE(subheadline_font, 'Poppins'),
+                        subheadline_size = COALESCE(subheadline_size, 20),
+                        bulletpoints_font = COALESCE(bulletpoints_font, 'Poppins'),
+                        bulletpoints_size = COALESCE(bulletpoints_size, 16)
+                    WHERE preheadline_font IS NULL 
+                       OR headline_font IS NULL 
+                       OR subheadline_font IS NULL 
+                       OR bulletpoints_font IS NULL";
+                
+                $pdo->exec($updateSql);
+                echo "<p class='success'>✅ {$count} Einträge wurden aktualisiert</p>";
+            }
 
             // Tabellen-Info anzeigen
+            echo "<hr>";
             echo "<h3 class='info'>📊 Tabellen-Status:</h3>";
             $stmt = $pdo->query("DESCRIBE freebies");
             $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
             echo "<pre>";
             $fontColumns = array_filter($columns, function($col) {
-                return strpos($col['Field'], 'font') !== false || strpos($col['Field'], 'size') !== false;
+                return strpos($col['Field'], 'font') !== false || 
+                       strpos($col['Field'], 'size') !== false ||
+                       strpos($col['Field'], 'heading') !== false ||
+                       strpos($col['Field'], 'body_font') !== false;
             });
             
-            echo "Font-Spalten in der Freebies-Tabelle:\n\n";
+            echo "Font-relevante Spalten in der Freebies-Tabelle:\n\n";
+            echo str_pad("Spaltenname", 30) . str_pad("Typ", 20) . "Standard\n";
+            echo str_repeat("-", 70) . "\n";
+            
             foreach ($fontColumns as $col) {
-                echo sprintf("%-25s %-20s %s\n", 
+                echo sprintf("%-30s %-20s %s\n", 
                     $col['Field'], 
                     $col['Type'], 
-                    $col['Default'] ? "Default: {$col['Default']}" : ''
+                    $col['Default'] ? $col['Default'] : '(NULL)'
                 );
             }
             echo "</pre>";
 
+            echo "<hr>";
             echo "<h2 class='success'>✅ Setup erfolgreich abgeschlossen!</h2>";
-            echo "<p>Du kannst jetzt im Freebie-Editor Schriftarten und -größen auswählen.</p>";
+            echo "<p><strong>Du kannst jetzt:</strong></p>";
+            echo "<ul>";
+            echo "<li>Im Freebie-Editor Schriftarten und -größen auswählen</li>";
+            echo "<li>Diese Datei umbenennen oder löschen (z.B. in add-font-settings-DONE.php)</li>";
+            echo "</ul>";
 
         } catch (PDOException $e) {
-            echo "<p class='error'>❌ Fehler: " . htmlspecialchars($e->getMessage()) . "</p>";
+            echo "<p class='error'>❌ Datenbank-Fehler: " . htmlspecialchars($e->getMessage()) . "</p>";
+            echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
+        } catch (Exception $e) {
+            echo "<p class='error'>❌ Allgemeiner Fehler: " . htmlspecialchars($e->getMessage()) . "</p>";
         }
         ?>
     </div>
@@ -122,6 +168,7 @@ header('Content-Type: text/html; charset=utf-8');
         <h3>⚠️ Hinweis</h3>
         <p>Dieses Script sollte nur <strong>einmal</strong> ausgeführt werden.</p>
         <p>Nach erfolgreicher Ausführung kannst du diese Datei löschen oder umbenennen.</p>
+        <p><strong>Tipp:</strong> Benenne die Datei um in <code>add-font-settings-DONE.php</code></p>
     </div>
 </body>
 </html>
