@@ -188,6 +188,14 @@ try {
             }
         }
         
+        // Links generieren falls nicht vorhanden
+        $stmt = $pdo->prepare("SELECT public_link, thank_you_link FROM freebies WHERE id = ?");
+        $stmt->execute([$template_id]);
+        $existing_links = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        $public_link = $existing_links['public_link'] ?: '/freebie/view.php?id=' . $template_id;
+        $thank_you_link = $existing_links['thank_you_link'] ?: '/freebie/thankyou.php?id=' . $template_id;
+        
         $sql = "UPDATE freebies SET
             name = ?,
             headline = ?,
@@ -204,6 +212,8 @@ try {
             cta_button_color = ?,
             mockup_image_url = ?,
             url_slug = ?,
+            public_link = ?,
+            thank_you_link = ?,
             raw_code = ?,
             custom_css = ?,
             course_id = ?,
@@ -248,6 +258,8 @@ try {
             $cta_button_color,
             $mockup_image_url,
             $url_slug,
+            $public_link,
+            $thank_you_link,
             $raw_code,
             $custom_css,
             $course_id,
@@ -283,7 +295,7 @@ try {
         ];
         
     } else {
-        // INSERT
+        // INSERT - Zuerst einfügen um ID zu bekommen
         $sql = "INSERT INTO freebies (
             customer_id,
             course_id,
@@ -378,12 +390,22 @@ try {
         
         $template_id = $pdo->lastInsertId();
         
+        // Jetzt Links generieren mit der neuen ID
+        $public_link = '/freebie/view.php?id=' . $template_id;
+        $thank_you_link = '/freebie/thankyou.php?id=' . $template_id;
+        
+        // Links in Datenbank aktualisieren
+        $update = $pdo->prepare("UPDATE freebies SET public_link = ?, thank_you_link = ? WHERE id = ?");
+        $update->execute([$public_link, $thank_you_link, $template_id]);
+        
         $response = [
             'success' => true,
             'message' => 'Template erfolgreich erstellt',
             'template_id' => $template_id,
             'unique_id' => $unique_id,
-            'mockup_image_url' => $mockup_image_url
+            'mockup_image_url' => $mockup_image_url,
+            'public_link' => $public_link,
+            'thank_you_link' => $thank_you_link
         ];
     }
     
