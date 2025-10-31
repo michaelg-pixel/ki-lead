@@ -117,8 +117,8 @@ $page = $_GET['page'] ?? 'overview';
                 <span>Kurs-Freebies</span>
             </a>
             <a href="?page=templates" class="nav-item <?php echo $page === 'templates' ? 'active' : ''; ?>">
-                <span class="nav-icon">📄</span>
-                <span>Freebie Kurs</span>
+                <span class="nav-icon">📚</span>
+                <span>Kursverwaltung</span>
             </a>
             <a href="?page=social" class="nav-item <?php echo $page === 'social' ? 'active' : ''; ?>">
                 <span class="nav-icon">📱</span>
@@ -160,7 +160,8 @@ $page = $_GET['page'] ?? 'overview';
                         'freebies' => 'Freebie Templates',
                         'freebie-create' => 'Neues Freebie Template',
                         'freebie-edit' => 'Template bearbeiten',
-                        'templates' => 'Freebie Kurs',
+                        'templates' => 'Kursverwaltung',
+                        'course-edit' => 'Kurs bearbeiten',
                         'tutorials' => 'Tutorials verwalten',
                         'settings' => 'Einstellungen'
                     ];
@@ -274,6 +275,12 @@ $page = $_GET['page'] ?? 'overview';
             
             <?php elseif ($page === 'freebie-edit'): ?>
                 <?php include 'sections/freebie-edit.php'; ?>
+            
+            <?php elseif ($page === 'templates'): ?>
+                <?php include 'sections/templates.php'; ?>
+            
+            <?php elseif ($page === 'course-edit'): ?>
+                <?php include 'sections/course-edit.php'; ?>
             
             <?php elseif ($page === 'tutorials'): ?>
                 <?php include 'sections/tutorials.php'; ?>
