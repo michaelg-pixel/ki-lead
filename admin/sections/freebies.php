@@ -4,6 +4,10 @@ $fontConfig = require __DIR__ . '/../../config/fonts.php';
 
 // Freebie Templates aus Datenbank holen
 $freebies = $pdo->query("SELECT * FROM freebies ORDER BY created_at DESC")->fetchAll(PDO::FETCH_ASSOC);
+
+// Domain für vollständige URLs
+$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+$domain = $_SERVER['HTTP_HOST'];
 ?>
 
 <!-- Google Fonts laden -->
@@ -16,7 +20,7 @@ $freebies = $pdo->query("SELECT * FROM freebies ORDER BY created_at DESC")->fetc
     </div>
     
     <?php if (count($freebies) > 0): ?>
-    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px; margin-top: 24px;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 24px; margin-top: 24px;">
         <?php foreach ($freebies as $freebie): ?>
         <div class="freebie-card">
             <div class="freebie-mockup">
@@ -29,12 +33,84 @@ $freebies = $pdo->query("SELECT * FROM freebies ORDER BY created_at DESC")->fetc
             <div class="freebie-content">
                 <h4><?php echo htmlspecialchars($freebie['name']); ?></h4>
                 <p><?php echo htmlspecialchars($freebie['headline'] ?? 'Keine Headline'); ?></p>
+                
                 <div class="freebie-meta">
                     <span class="badge badge-admin">Master Template</span>
                     <span style="color: #888; font-size: 12px;">
                         <?php echo date('d.m.Y', strtotime($freebie['created_at'])); ?>
                     </span>
                 </div>
+                
+                <!-- TRACKING STATS -->
+                <div class="tracking-stats">
+                    <div class="stat">
+                        <span class="stat-icon">👁️</span>
+                        <span class="stat-value"><?php echo $freebie['freebie_clicks'] ?? 0; ?></span>
+                        <span class="stat-label">Freebie-Klicks</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-icon">✓</span>
+                        <span class="stat-value"><?php echo $freebie['thank_you_clicks'] ?? 0; ?></span>
+                        <span class="stat-label">Danke-Klicks</span>
+                    </div>
+                </div>
+                
+                <!-- FREEBIE LINK -->
+                <div class="link-section">
+                    <div class="link-header">
+                        <span class="link-icon">🔗</span>
+                        <span>Freebie-Link</span>
+                    </div>
+                    <?php 
+                    $freebieLink = $freebie['public_link'] ?? '/freebie/view.php?id=' . $freebie['id'];
+                    $fullFreebieLink = $protocol . '://' . $domain . $freebieLink;
+                    $shortFreebieLink = $freebie['short_link'] ? ($protocol . '://' . $domain . $freebie['short_link']) : null;
+                    ?>
+                    
+                    <?php if ($shortFreebieLink): ?>
+                        <div class="link-item">
+                            <input type="text" readonly value="<?php echo htmlspecialchars($shortFreebieLink); ?>" class="link-input" id="short-freebie-<?php echo $freebie['id']; ?>">
+                            <button onclick="copyLink('short-freebie-<?php echo $freebie['id']; ?>')" class="btn-copy" title="Link kopieren">📋</button>
+                        </div>
+                    <?php else: ?>
+                        <div class="link-item">
+                            <input type="text" readonly value="<?php echo htmlspecialchars($fullFreebieLink); ?>" class="link-input" id="freebie-<?php echo $freebie['id']; ?>">
+                            <button onclick="copyLink('freebie-<?php echo $freebie['id']; ?>')" class="btn-copy" title="Link kopieren">📋</button>
+                        </div>
+                        <button onclick="shortenLink(<?php echo $freebie['id']; ?>, 'freebie')" class="btn-shorten">
+                            🔗 Link kürzen
+                        </button>
+                    <?php endif; ?>
+                </div>
+                
+                <!-- THANK YOU LINK -->
+                <div class="link-section">
+                    <div class="link-header">
+                        <span class="link-icon">🎉</span>
+                        <span>Danke-Seite</span>
+                    </div>
+                    <?php 
+                    $thankYouLink = $freebie['thank_you_link'] ?? '/freebie/thankyou.php?id=' . $freebie['id'];
+                    $fullThankYouLink = $protocol . '://' . $domain . $thankYouLink;
+                    $shortThankYouLink = $freebie['thank_you_short_link'] ? ($protocol . '://' . $domain . $freebie['thank_you_short_link']) : null;
+                    ?>
+                    
+                    <?php if ($shortThankYouLink): ?>
+                        <div class="link-item">
+                            <input type="text" readonly value="<?php echo htmlspecialchars($shortThankYouLink); ?>" class="link-input" id="short-thankyou-<?php echo $freebie['id']; ?>">
+                            <button onclick="copyLink('short-thankyou-<?php echo $freebie['id']; ?>')" class="btn-copy" title="Link kopieren">📋</button>
+                        </div>
+                    <?php else: ?>
+                        <div class="link-item">
+                            <input type="text" readonly value="<?php echo htmlspecialchars($fullThankYouLink); ?>" class="link-input" id="thankyou-<?php echo $freebie['id']; ?>">
+                            <button onclick="copyLink('thankyou-<?php echo $freebie['id']; ?>')" class="btn-copy" title="Link kopieren">📋</button>
+                        </div>
+                        <button onclick="shortenLink(<?php echo $freebie['id']; ?>, 'thankyou')" class="btn-shorten">
+                            🔗 Link kürzen
+                        </button>
+                    <?php endif; ?>
+                </div>
+                
                 <div class="freebie-actions">
                     <button onclick='previewTemplate(<?php echo json_encode($freebie); ?>)' 
                             class="btn-preview" 
@@ -68,63 +144,6 @@ $freebies = $pdo->query("SELECT * FROM freebies ORDER BY created_at DESC")->fetc
         </div>
         <div id="previewContent" style="padding: 40px; position: relative;">
             <!-- Preview wird hier geladen -->
-        </div>
-    </div>
-</div>
-
-<!-- COOKIE EINSTELLUNGEN MODAL -->
-<div id="cookieSettingsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10001; align-items: center; justify-content: center;">
-    <div style="background: white; border-radius: 16px; width: 90%; max-width: 600px; max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
-        <div style="padding: 32px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                <h3 style="font-size: 24px; font-weight: 700; color: #1f2937; margin: 0;">Cookie-Einstellungen</h3>
-                <button onclick="closeCookieSettings()" style="width: 32px; height: 32px; border-radius: 50%; background: #f3f4f6; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #6b7280;">×</button>
-            </div>
-            
-            <p style="color: #6b7280; margin-bottom: 32px; line-height: 1.6;">Wir verwenden Cookies und ähnliche Technologien, um Ihnen ein optimales Erlebnis zu bieten. Wählen Sie, welche Cookies Sie zulassen möchten.</p>
-            
-            <div style="margin-bottom: 24px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: #f9fafb; border-radius: 8px; margin-bottom: 16px;">
-                    <div>
-                        <h4 style="font-size: 16px; font-weight: 600; color: #1f2937; margin: 0 0 4px 0;">Notwendige Cookies</h4>
-                        <p style="font-size: 14px; color: #6b7280; margin: 0;">Erforderlich für die Grundfunktionen der Website</p>
-                    </div>
-                    <div style="padding: 8px 16px; background: #e5e7eb; border-radius: 6px; font-size: 12px; font-weight: 600; color: #6b7280;">Immer aktiv</div>
-                </div>
-                
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: #f9fafb; border-radius: 8px; margin-bottom: 16px;">
-                    <div style="flex: 1;">
-                        <h4 style="font-size: 16px; font-weight: 600; color: #1f2937; margin: 0 0 4px 0;">Analyse & Statistik</h4>
-                        <p style="font-size: 14px; color: #6b7280; margin: 0;">Helfen uns, die Nutzung zu verstehen und zu verbessern</p>
-                    </div>
-                    <label style="position: relative; display: inline-block; width: 48px; height: 24px; cursor: pointer;">
-                        <input type="checkbox" id="analyticsCookie" style="opacity: 0; width: 0; height: 0;">
-                        <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #e5e7eb; transition: .3s; border-radius: 24px;"></span>
-                        <span style="position: absolute; content: ''; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%;"></span>
-                    </label>
-                </div>
-                
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: #f9fafb; border-radius: 8px;">
-                    <div style="flex: 1;">
-                        <h4 style="font-size: 16px; font-weight: 600; color: #1f2937; margin: 0 0 4px 0;">Marketing</h4>
-                        <p style="font-size: 14px; color: #6b7280; margin: 0;">Ermöglichen personalisierte Werbung und Inhalte</p>
-                    </div>
-                    <label style="position: relative; display: inline-block; width: 48px; height: 24px; cursor: pointer;">
-                        <input type="checkbox" id="marketingCookie" style="opacity: 0; width: 0; height: 0;">
-                        <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #e5e7eb; transition: .3s; border-radius: 24px;"></span>
-                        <span style="position: absolute; content: ''; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%;"></span>
-                    </label>
-                </div>
-            </div>
-            
-            <div style="display: flex; gap: 12px;">
-                <button onclick="saveSelectedCookies()" style="flex: 1; padding: 14px; background: var(--primary-color, #7C3AED); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
-                    Auswahl speichern
-                </button>
-                <button onclick="acceptAllCookiesFromSettings()" style="flex: 1; padding: 14px; background: transparent; color: var(--primary-color, #7C3AED); border: 2px solid var(--primary-color, #7C3AED); border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
-                    Alle akzeptieren
-                </button>
-            </div>
         </div>
     </div>
 </div>
@@ -190,10 +209,121 @@ $freebies = $pdo->query("SELECT * FROM freebies ORDER BY created_at DESC")->fetc
         margin-bottom: 16px;
     }
     
+    /* TRACKING STATS */
+    .tracking-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    
+    .stat {
+        background: rgba(102, 126, 234, 0.1);
+        border: 1px solid rgba(102, 126, 234, 0.3);
+        border-radius: 8px;
+        padding: 12px;
+        text-align: center;
+    }
+    
+    .stat-icon {
+        font-size: 20px;
+        display: block;
+        margin-bottom: 4px;
+    }
+    
+    .stat-value {
+        display: block;
+        color: white;
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 4px;
+    }
+    
+    .stat-label {
+        display: block;
+        color: #888;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* LINK SECTIONS */
+    .link-section {
+        background: rgba(102, 126, 234, 0.05);
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .link-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #667eea;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+    
+    .link-icon {
+        font-size: 16px;
+    }
+    
+    .link-item {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+    
+    .link-input {
+        flex: 1;
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        color: white;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-family: 'Courier New', monospace;
+    }
+    
+    .btn-copy {
+        padding: 8px 12px;
+        background: rgba(102, 126, 234, 0.3);
+        border: 1px solid #667eea;
+        border-radius: 6px;
+        color: white;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+    
+    .btn-copy:hover {
+        background: rgba(102, 126, 234, 0.5);
+    }
+    
+    .btn-shorten {
+        width: 100%;
+        padding: 8px;
+        background: rgba(102, 126, 234, 0.2);
+        border: 1px solid rgba(102, 126, 234, 0.4);
+        border-radius: 6px;
+        color: #667eea;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .btn-shorten:hover {
+        background: rgba(102, 126, 234, 0.3);
+    }
+    
     .freebie-actions {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 8px;
+        margin-top: 16px;
     }
     
     .btn-preview {
@@ -246,18 +376,58 @@ $freebies = $pdo->query("SELECT * FROM freebies ORDER BY created_at DESC")->fetc
     .btn-danger:hover {
         background: rgba(255, 107, 107, 0.2);
     }
-    
-    /* Toggle Switch Styles */
-    input[type="checkbox"]:checked + span {
-        background-color: var(--primary-color, #7C3AED);
-    }
-    
-    input[type="checkbox"]:checked + span + span {
-        transform: translateX(24px);
-    }
 </style>
 
 <script>
+// Link kopieren
+function copyLink(inputId) {
+    const input = document.getElementById(inputId);
+    input.select();
+    input.setSelectionRange(0, 99999);
+    
+    try {
+        document.execCommand('copy');
+        
+        // Button-Feedback
+        const button = input.nextElementSibling;
+        const originalText = button.innerHTML;
+        button.innerHTML = '✓';
+        button.style.background = 'rgba(34, 197, 94, 0.3)';
+        
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.style.background = '';
+        }, 2000);
+    } catch (err) {
+        alert('Fehler beim Kopieren');
+    }
+}
+
+// Link kürzen
+async function shortenLink(freebieId, type) {
+    try {
+        const response = await fetch('/api/shorten-link.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                freebie_id: freebieId,
+                type: type
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Link erfolgreich gekürzt!\n\n' + result.full_url);
+            location.reload();
+        } else {
+            alert('❌ Fehler: ' + (result.error || 'Unbekannter Fehler'));
+        }
+    } catch (error) {
+        alert('❌ Netzwerkfehler: ' + error.message);
+    }
+}
+
 function previewTemplate(template) {
     const layoutMapping = {
         'layout1': 'hybrid',
@@ -353,7 +523,6 @@ function generatePreviewHTML(data) {
     let layoutHTML = '';
     
     if (layout === 'centered') {
-        // CENTERED LAYOUT - Alles komplett zentriert
         const mockupCenteredHTML = showMockup && mockupUrl ?
             '<img src="' + escapeHtml(mockupUrl) + '" alt="Mockup" style="width: 100%; max-width: 380px; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); margin: 0 auto 40px;">' :
             '<div style="width: 100%; max-width: 380px; aspect-ratio: 3/4; background: linear-gradient(135deg, ' + primaryColor + '20, ' + primaryColor + '40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ' + primaryColor + '; font-size: 64px; margin: 0 auto 40px;">🎁</div>';
@@ -371,82 +540,20 @@ function generatePreviewHTML(data) {
             escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern') + '</button>' +
             '</div>';
     } else if (layout === 'hybrid') {
-        // Hybrid: 40% Bild, 60% Text (mit zentrierten Headlines)
         layoutHTML = '<div style="display: grid; grid-template-columns: 2fr 3fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">' +
             '<div style="display: flex; justify-content: center;">' + mockupHTML + '</div>' +
             '<div>' + preheadlineHTML + headlineHTML + subheadlineHTML + bulletpointsWrapHTML + ctaHTML + '</div>' +
             '</div>';
     } else {
-        // Sidebar: 60% Text, 40% Bild (mit zentrierten Headlines)
         layoutHTML = '<div style="display: grid; grid-template-columns: 3fr 2fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">' +
             '<div>' + preheadlineHTML + headlineHTML + subheadlineHTML + bulletpointsWrapHTML + ctaHTML + '</div>' +
             '<div style="display: flex; justify-content: center;">' + mockupHTML + '</div>' +
             '</div>';
     }
     
-    // Moderner Cookie Banner
-    const cookieBanner = '<div id="cookieBanner" style="position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); max-width: 600px; width: calc(100% - 48px); background: white; box-shadow: 0 8px 32px rgba(0,0,0,0.12); padding: 24px; z-index: 1000; border-radius: 16px; border: 1px solid #e5e7eb;">' +
-        '<div style="display: flex; align-items: start; gap: 16px; margin-bottom: 20px;">' +
-        '<div style="width: 48px; height: 48px; background: linear-gradient(135deg, ' + primaryColor + ', ' + primaryColor + 'dd); border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">' +
-        '<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="2"/><path d="M12 8v4M12 16h.01" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>' +
-        '</div>' +
-        '<div style="flex: 1;">' +
-        '<h3 style="font-size: 16px; font-weight: 700; color: #1f2937; margin: 0 0 8px 0;">🍪 Cookies & Datenschutz</h3>' +
-        '<p style="font-size: 14px; color: #6b7280; line-height: 1.5; margin: 0;">Wir nutzen Cookies für ein besseres Erlebnis. Mit "Akzeptieren" stimmst du der Nutzung zu. <a href="#" style="color: ' + primaryColor + '; text-decoration: underline;">Mehr Info</a></p>' +
-        '</div>' +
-        '</div>' +
-        '<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">' +
-        '<button onclick="showCookieSettings()" style="padding: 10px 16px; background: white; color: #6b7280; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;">⚙️ Einstellungen</button>' +
-        '<button onclick="declineCookies()" style="padding: 10px 16px; background: #f3f4f6; color: #6b7280; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Ablehnen</button>' +
-        '<button onclick="acceptCookies()" style="padding: 10px 16px; background: ' + primaryColor + '; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px ' + primaryColor + '40;">Akzeptieren</button>' +
-        '</div>' +
-        '</div>';
-    
     return '<div style="background: ' + bgColor + '; padding: 80px 40px; min-height: 600px; border-radius: 8px; position: relative;">' +
         layoutHTML +
-        '</div>' +
-        cookieBanner +
-        '<style>' +
-        '#cookieBanner button:hover { opacity: 0.9; transform: translateY(-1px); }' +
-        '@media (max-width: 768px) {' +
-        '#cookieBanner { bottom: 16px; width: calc(100% - 32px); padding: 20px; }' +
-        '#cookieBanner > div:last-child { grid-template-columns: 1fr; }' +
-        '}' +
-        '</style>';
-}
-
-function acceptCookies() {
-    document.getElementById('cookieBanner').style.display = 'none';
-    console.log('Alle Cookies akzeptiert');
-}
-
-function declineCookies() {
-    document.getElementById('cookieBanner').style.display = 'none';
-    console.log('Nur notwendige Cookies');
-}
-
-function showCookieSettings() {
-    document.getElementById('cookieSettingsModal').style.display = 'flex';
-}
-
-function closeCookieSettings() {
-    document.getElementById('cookieSettingsModal').style.display = 'none';
-}
-
-function saveSelectedCookies() {
-    const analytics = document.getElementById('analyticsCookie').checked;
-    const marketing = document.getElementById('marketingCookie').checked;
-    console.log('Cookies gespeichert:', { analytics, marketing });
-    document.getElementById('cookieSettingsModal').style.display = 'none';
-    document.getElementById('cookieBanner').style.display = 'none';
-}
-
-function acceptAllCookiesFromSettings() {
-    document.getElementById('analyticsCookie').checked = true;
-    document.getElementById('marketingCookie').checked = true;
-    console.log('Alle Cookies aus Einstellungen akzeptiert');
-    document.getElementById('cookieSettingsModal').style.display = 'none';
-    document.getElementById('cookieBanner').style.display = 'none';
+        '</div>';
 }
 
 function escapeHtml(text) {
@@ -463,10 +570,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (modal && modal.style.display === 'flex') {
                 closePreview();
             }
-            const settingsModal = document.getElementById('cookieSettingsModal');
-            if (settingsModal && settingsModal.style.display === 'flex') {
-                closeCookieSettings();
-            }
         }
     });
     
@@ -475,15 +578,6 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.addEventListener('click', function(e) {
             if (e.target === this) {
                 closePreview();
-            }
-        });
-    }
-    
-    const settingsModal = document.getElementById('cookieSettingsModal');
-    if (settingsModal) {
-        settingsModal.addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeCookieSettings();
             }
         });
     }
