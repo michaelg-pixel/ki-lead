@@ -53,14 +53,14 @@ $freebies = $pdo->query("SELECT * FROM freebies ORDER BY created_at DESC")->fetc
 
 <!-- VORSCHAU MODAL -->
 <div id="previewModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; align-items: center; justify-content: center;">
-    <div style="background: white; border-radius: 12px; width: 90%; max-width: 1200px; max-height: 90vh; overflow-y: auto; position: relative;">
+    <div style="background: white; border-radius: 12px; width: 90%; max-width: 1400px; max-height: 90vh; overflow-y: auto; position: relative;">
         <div style="position: sticky; top: 0; background: white; border-bottom: 1px solid #e5e7eb; padding: 20px; display: flex; justify-content: space-between; align-items: center; z-index: 10;">
             <h3 style="color: #1f2937; font-size: 20px; margin: 0;">Template Vorschau</h3>
             <button onclick="closePreview()" style="padding: 8px 16px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; transition: background 0.2s;">
                 ✕ Schließen
             </button>
         </div>
-        <div id="previewContent" style="padding: 40px;">
+        <div id="previewContent" style="padding: 40px; position: relative;">
             <!-- Preview wird hier geladen -->
         </div>
     </div>
@@ -241,7 +241,7 @@ function generatePreviewHTML(data) {
         bulletpointsHTML = bullets.map(bullet => 
             `<div style="display: flex; align-items: start; gap: 12px; margin-bottom: 16px;">
                 <span style="color: ${primaryColor}; font-size: 20px; flex-shrink: 0;">✓</span>
-                <span style="color: #374151; font-size: 16px;">${escapeHtml(bullet.replace(/^[✓✔︎•-]\s*/, ''))}</span>
+                <span style="color: #374151; font-size: 16px; line-height: 1.5;">${escapeHtml(bullet.replace(/^[✓✔︎•-]\s*/, ''))}</span>
             </div>`
         ).join('');
     }
@@ -249,38 +249,68 @@ function generatePreviewHTML(data) {
     // Layout-spezifisches HTML
     let layoutHTML = '';
     
-    if (layout === 'hybrid' || layout === 'sidebar') {
-        // Zwei-Spalten Layout
+    if (layout === 'hybrid') {
+        // Hybrid Layout: Bild links, Text rechts
         layoutHTML = `
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">
-                <div style="order: ${layout === 'sidebar' ? '2' : '1'};">
+                <div>
                     ${showMockup && mockupUrl ? `
                         <img src="${escapeHtml(mockupUrl)}" alt="Mockup" style="width: 100%; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
                     ` : `
-                        <div style="width: 100%; aspect-ratio: 4/3; background: linear-gradient(135deg, ${primaryColor}20, ${primaryColor}40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ${primaryColor}; font-size: 48px;">
+                        <div style="width: 100%; aspect-ratio: 4/3; background: linear-gradient(135deg, ${primaryColor}20, ${primaryColor}40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ${primaryColor}; font-size: 64px;">
                             🎁
                         </div>
                     `}
                 </div>
-                <div style="order: ${layout === 'sidebar' ? '1' : '2'};">
+                <div>
                     ${data.preheadline ? `<div style="color: ${primaryColor}; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">${escapeHtml(data.preheadline)}</div>` : ''}
                     
                     <h1 style="font-size: 48px; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px;">
                         ${escapeHtml(data.headline || 'Dein kostenloser Kurs')}
                     </h1>
                     
-                    ${data.subheadline ? `<p style="font-size: 20px; color: #6b7280; margin-bottom: 32px;">${escapeHtml(data.subheadline)}</p>` : ''}
+                    ${data.subheadline ? `<p style="font-size: 20px; color: #6b7280; margin-bottom: 32px; line-height: 1.6;">${escapeHtml(data.subheadline)}</p>` : ''}
                     
                     ${bulletpointsHTML ? `<div style="margin-bottom: 32px;">${bulletpointsHTML}</div>` : ''}
                     
-                    <button style="background: ${primaryColor}; color: white; padding: 16px 40px; border: none; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px ${primaryColor}40;">
+                    <button style="background: ${primaryColor}; color: white; padding: 16px 40px; border: none; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px ${primaryColor}40; transition: transform 0.2s;">
                         ${escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern')}
                     </button>
                 </div>
             </div>
         `;
+    } else if (layout === 'sidebar') {
+        // Sidebar Layout: Text links, Bild rechts
+        layoutHTML = `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">
+                <div>
+                    ${data.preheadline ? `<div style="color: ${primaryColor}; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">${escapeHtml(data.preheadline)}</div>` : ''}
+                    
+                    <h1 style="font-size: 48px; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px;">
+                        ${escapeHtml(data.headline || 'Dein kostenloser Kurs')}
+                    </h1>
+                    
+                    ${data.subheadline ? `<p style="font-size: 20px; color: #6b7280; margin-bottom: 32px; line-height: 1.6;">${escapeHtml(data.subheadline)}</p>` : ''}
+                    
+                    ${bulletpointsHTML ? `<div style="margin-bottom: 32px;">${bulletpointsHTML}</div>` : ''}
+                    
+                    <button style="background: ${primaryColor}; color: white; padding: 16px 40px; border: none; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px ${primaryColor}40; transition: transform 0.2s;">
+                        ${escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern')}
+                    </button>
+                </div>
+                <div>
+                    ${showMockup && mockupUrl ? `
+                        <img src="${escapeHtml(mockupUrl)}" alt="Mockup" style="width: 100%; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+                    ` : `
+                        <div style="width: 100%; aspect-ratio: 4/3; background: linear-gradient(135deg, ${primaryColor}20, ${primaryColor}40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ${primaryColor}; font-size: 64px;">
+                            🎁
+                        </div>
+                    `}
+                </div>
+            </div>
+        `;
     } else {
-        // Zentriertes Layout
+        // Centered Layout: Alles zentriert
         layoutHTML = `
             <div style="max-width: 800px; margin: 0 auto; text-align: center;">
                 ${data.preheadline ? `<div style="color: ${primaryColor}; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">${escapeHtml(data.preheadline)}</div>` : ''}
@@ -289,7 +319,7 @@ function generatePreviewHTML(data) {
                     ${escapeHtml(data.headline || 'Dein kostenloser Kurs')}
                 </h1>
                 
-                ${data.subheadline ? `<p style="font-size: 22px; color: #6b7280; margin-bottom: 40px;">${escapeHtml(data.subheadline)}</p>` : ''}
+                ${data.subheadline ? `<p style="font-size: 22px; color: #6b7280; margin-bottom: 40px; line-height: 1.6;">${escapeHtml(data.subheadline)}</p>` : ''}
                 
                 ${showMockup && mockupUrl ? `
                     <img src="${escapeHtml(mockupUrl)}" alt="Mockup" style="width: 100%; max-width: 500px; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); margin-bottom: 40px;">
@@ -301,17 +331,87 @@ function generatePreviewHTML(data) {
                 
                 ${bulletpointsHTML ? `<div style="text-align: left; max-width: 500px; margin: 0 auto 40px;">${bulletpointsHTML}</div>` : ''}
                 
-                <button style="background: ${primaryColor}; color: white; padding: 18px 48px; border: none; border-radius: 8px; font-size: 20px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px ${primaryColor}40;">
+                <button style="background: ${primaryColor}; color: white; padding: 18px 48px; border: none; border-radius: 8px; font-size: 20px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px ${primaryColor}40; transition: transform 0.2s;">
                     ${escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern')}
                 </button>
             </div>
         `;
     }
     
+    // Cookie Banner im Borlabs-Design
+    const cookieBanner = `
+        <div id="cookieBanner" style="position: fixed; bottom: 0; left: 0; right: 0; background: #ffffff; box-shadow: 0 -2px 20px rgba(0,0,0,0.1); padding: 24px 32px; z-index: 1000; border-top: 3px solid ${primaryColor};">
+            <div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 32px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 300px;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="flex-shrink: 0;">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" fill="${primaryColor}"/>
+                            <circle cx="12" cy="8" r="1.5" fill="${primaryColor}"/>
+                            <rect x="11" y="11" width="2" height="6" rx="1" fill="${primaryColor}"/>
+                        </svg>
+                        <h3 style="font-size: 18px; font-weight: 700; color: #1f2937; margin: 0;">Wir verwenden Cookies</h3>
+                    </div>
+                    <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin: 0;">
+                        Wir verwenden Cookies, um Inhalte und Anzeigen zu personalisieren und die Zugriffe auf unsere Website zu analysieren. 
+                        <a href="#" style="color: ${primaryColor}; text-decoration: underline;">Mehr erfahren</a>
+                    </p>
+                </div>
+                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                    <button onclick="acceptCookies()" style="padding: 12px 24px; background: ${primaryColor}; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: opacity 0.2s;">
+                        Alle akzeptieren
+                    </button>
+                    <button onclick="declineCookies()" style="padding: 12px 24px; background: transparent; color: #6b7280; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s;">
+                        Nur notwendige
+                    </button>
+                    <button onclick="showCookieSettings()" style="padding: 12px 24px; background: transparent; color: #6b7280; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s;">
+                        ⚙️ Einstellungen
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
     return `
-        <div style="background: ${bgColor}; padding: 80px 40px; min-height: 600px; border-radius: 8px;">
+        <div style="background: ${bgColor}; padding: 80px 40px; min-height: 600px; border-radius: 8px; position: relative;">
             ${layoutHTML}
         </div>
+        ${cookieBanner}
+        
+        <style>
+            #cookieBanner button:hover {
+                opacity: 0.9;
+                transform: translateY(-1px);
+            }
+            
+            @media (max-width: 768px) {
+                #cookieBanner {
+                    padding: 20px 16px;
+                }
+                #cookieBanner > div {
+                    flex-direction: column;
+                    align-items: flex-start;
+                }
+                #cookieBanner button {
+                    width: 100%;
+                }
+            }
+        </style>
+        
+        <script>
+            function acceptCookies() {
+                document.getElementById('cookieBanner').style.display = 'none';
+                console.log('Cookies akzeptiert');
+            }
+            
+            function declineCookies() {
+                document.getElementById('cookieBanner').style.display = 'none';
+                console.log('Nur notwendige Cookies akzeptiert');
+            }
+            
+            function showCookieSettings() {
+                alert('Cookie-Einstellungen würden hier geöffnet werden');
+            }
+        </script>
     `;
 }
 
