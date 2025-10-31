@@ -182,13 +182,36 @@ $errors = [];
                 $messages[] = "✅ Erstelle Indexes...";
                 
                 try {
-                    $pdo->exec("ALTER TABLE users ADD INDEX IF NOT EXISTS idx_raw_code (raw_code)");
-                    $pdo->exec("ALTER TABLE users ADD INDEX IF NOT EXISTS idx_digistore_order (digistore_order_id)");
+                    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_raw_code ON users(raw_code)");
+                    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_digistore_order ON users(digistore_order_id)");
                 } catch (PDOException $e) {
                     // Index existiert bereits - OK
                 }
                 
-                // 3. user_freebies Tabelle erstellen
+                // 3. Freebie Templates Tabelle erstellen (falls nicht vorhanden)
+                $messages[] = "✅ Erstelle freebie_templates Tabelle (falls nicht vorhanden)...";
+                
+                $pdo->exec("
+                    CREATE TABLE IF NOT EXISTS freebie_templates (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        title VARCHAR(255) NOT NULL,
+                        description TEXT NULL,
+                        content LONGTEXT NULL,
+                        thumbnail VARCHAR(500) NULL,
+                        category VARCHAR(100) NULL,
+                        is_active TINYINT(1) DEFAULT 1,
+                        created_by INT NULL,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
+                        INDEX idx_category (category),
+                        INDEX idx_active (is_active),
+                        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ");
+                
+                $messages[] = "✅ freebie_templates Tabelle erstellt!";
+                
+                // 4. user_freebies Tabelle erstellen
                 $messages[] = "✅ Erstelle user_freebies Tabelle...";
                 
                 $pdo->exec("
@@ -212,7 +235,7 @@ $errors = [];
                 
                 $messages[] = "✅ user_freebies Tabelle erstellt!";
                 
-                // 4. user_progress Tabelle erstellen
+                // 5. user_progress Tabelle erstellen
                 $messages[] = "✅ Erstelle user_progress Tabelle...";
                 
                 $pdo->exec("
@@ -234,7 +257,7 @@ $errors = [];
                 
                 $messages[] = "✅ user_progress Tabelle erstellt!";
                 
-                // 5. Webhook-Logs Tabelle
+                // 6. Webhook-Logs Tabelle
                 $messages[] = "✅ Erstelle webhook_logs Tabelle...";
                 
                 $pdo->exec("
@@ -255,24 +278,45 @@ $errors = [];
                 
                 $messages[] = "✅ webhook_logs Tabelle erstellt!";
                 
-                // 6. RAW-Codes für existierende Kunden
+                // 7. RAW-Codes für existierende Kunden
                 $messages[] = "✅ Generiere RAW-Codes für existierende Kunden...";
                 
                 $stmt = $pdo->query("SELECT id FROM users WHERE role = 'customer' AND (raw_code IS NULL OR raw_code = '')");
                 $usersWithoutCode = $stmt->fetchAll();
                 
+                $generatedCodes = 0;
                 foreach ($usersWithoutCode as $user) {
-                    $rawCode = 'RAW-' . date('Y') . '-' . str_pad(rand(1, 999), 3, '0', STR_PAD_LEFT);
-                    $stmt = $pdo->prepare("UPDATE users SET raw_code = ? WHERE id = ?");
-                    $stmt->execute([$rawCode, $user['id']]);
+                    // Sicherstellen dass der RAW-Code einzigartig ist
+                    $attempts = 0;
+                    while ($attempts < 10) {
+                        $rawCode = 'RAW-' . date('Y') . '-' . str_pad(rand(1, 999), 3, '0', STR_PAD_LEFT);
+                        
+                        // Prüfen ob Code bereits existiert
+                        $checkStmt = $pdo->prepare("SELECT id FROM users WHERE raw_code = ?");
+                        $checkStmt->execute([$rawCode]);
+                        
+                        if (!$checkStmt->fetch()) {
+                            // Code ist einzigartig, verwenden
+                            $updateStmt = $pdo->prepare("UPDATE users SET raw_code = ? WHERE id = ?");
+                            $updateStmt->execute([$rawCode, $user['id']]);
+                            $generatedCodes++;
+                            break;
+                        }
+                        $attempts++;
+                    }
                 }
                 
-                $messages[] = "✅ " . count($usersWithoutCode) . " RAW-Codes generiert!";
+                $messages[] = "✅ " . $generatedCodes . " RAW-Codes generiert!";
                 
-                // 7. Source setzen
+                // 8. Source setzen
                 $pdo->exec("UPDATE users SET source = 'manual' WHERE role = 'customer' AND (source IS NULL OR source = '')");
                 
                 $messages[] = "✅ Source für existierende Kunden gesetzt!";
+                
+                // 9. is_active auf 1 setzen für alle die NULL haben
+                $pdo->exec("UPDATE users SET is_active = 1 WHERE is_active IS NULL");
+                
+                $messages[] = "✅ is_active Status aktualisiert!";
                 
                 $messages[] = "🎉 Setup erfolgreich abgeschlossen!";
                 
@@ -280,15 +324,36 @@ $errors = [];
                 $errors[] = "❌ Fehler: " . $e->getMessage();
             }
             
-            // Statistiken abrufen
+            // Statistiken abrufen (mit Try-Catch für robustheit)
             $stats = [
-                'total_users' => $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn(),
-                'customers' => $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'customer'")->fetchColumn(),
-                'admins' => $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin'")->fetchColumn(),
-                'active' => $pdo->query("SELECT COUNT(*) FROM users WHERE is_active = 1")->fetchColumn(),
-                'freebies' => $pdo->query("SELECT COUNT(*) FROM freebie_templates")->fetchColumn(),
-                'assignments' => $pdo->query("SELECT COUNT(*) FROM user_freebies")->fetchColumn(),
+                'total_users' => 0,
+                'customers' => 0,
+                'admins' => 0,
+                'active' => 0,
+                'freebies' => 0,
+                'assignments' => 0,
             ];
+            
+            try {
+                $stats['total_users'] = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
+                $stats['customers'] = $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'customer'")->fetchColumn();
+                $stats['admins'] = $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin'")->fetchColumn();
+                $stats['active'] = $pdo->query("SELECT COUNT(*) FROM users WHERE is_active = 1")->fetchColumn();
+            } catch (Exception $e) {
+                // Tabelle existiert nicht
+            }
+            
+            try {
+                $stats['freebies'] = $pdo->query("SELECT COUNT(*) FROM freebie_templates")->fetchColumn();
+            } catch (Exception $e) {
+                // Tabelle existiert nicht
+            }
+            
+            try {
+                $stats['assignments'] = $pdo->query("SELECT COUNT(*) FROM user_freebies")->fetchColumn();
+            } catch (Exception $e) {
+                // Tabelle existiert nicht
+            }
             
             ?>
             
@@ -365,6 +430,7 @@ $errors = [];
                 <h3>📋 Was wird gemacht?</h3>
                 <ul style="margin-left: 20px; margin-top: 10px;">
                     <li>✅ Erweitert die <code>users</code> Tabelle um Digistore24-Felder</li>
+                    <li>✅ Erstellt <code>freebie_templates</code> Tabelle (falls nicht vorhanden)</li>
                     <li>✅ Erstellt <code>user_freebies</code> Tabelle für Zuweisungen</li>
                     <li>✅ Erstellt <code>user_progress</code> Tabelle für Fortschritte</li>
                     <li>✅ Erstellt <code>webhook_logs</code> Tabelle für Debugging</li>
