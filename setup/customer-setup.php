@@ -18,25 +18,29 @@ $errors = [];
 /**
  * Prüft ob eine Spalte in einer Tabelle existiert
  */
-function columnExists($pdo, $table, $column) {
-    try {
-        $stmt = $pdo->prepare("SHOW COLUMNS FROM `$table` LIKE ?");
-        $stmt->execute([$column]);
-        return $stmt->rowCount() > 0;
-    } catch (Exception $e) {
-        return false;
+if (!function_exists('columnExists')) {
+    function columnExists($pdo, $table, $column) {
+        try {
+            $stmt = $pdo->prepare("SHOW COLUMNS FROM `$table` LIKE ?");
+            $stmt->execute([$column]);
+            return $stmt->rowCount() > 0;
+        } catch (Exception $e) {
+            return false;
+        }
     }
 }
 
 /**
- * Prüft ob eine Tabelle existiert
+ * Prüft ob eine Tabelle existiert (falls nicht in database.php)
  */
-function tableExists($pdo, $table) {
-    try {
-        $stmt = $pdo->query("SHOW TABLES LIKE '$table'");
-        return $stmt->rowCount() > 0;
-    } catch (Exception $e) {
-        return false;
+if (!function_exists('tableExists')) {
+    function tableExists($pdo, $table) {
+        try {
+            $stmt = $pdo->query("SHOW TABLES LIKE '$table'");
+            return $stmt->rowCount() > 0;
+        } catch (Exception $e) {
+            return false;
+        }
     }
 }
 
@@ -129,6 +133,8 @@ function tableExists($pdo, $table) {
             font-weight: 600;
             margin-top: 20px;
             transition: transform 0.2s;
+            text-decoration: none;
+            display: inline-block;
         }
         
         .btn:hover {
@@ -468,10 +474,8 @@ function tableExists($pdo, $table) {
                     🗑️ Setup-Datei löschen
                 </button>
                 
-                <a href="/admin/dashboard.php?page=users">
-                    <button class="btn">
-                        ➡️ Zur Kundenverwaltung
-                    </button>
+                <a href="/admin/dashboard.php?page=users" class="btn">
+                    ➡️ Zur Kundenverwaltung
                 </a>
             <?php endif; ?>
             
