@@ -51,13 +51,13 @@ if ($course['type'] === 'video') {
     <div class="editor-header">
         <div>
             <a href="?page=templates" class="back-link">← Zurück zur Übersicht</a>
-            <h2><?php echo htmlspecialchars($course['title']); ?></h2>
+            <h2 style="margin: 10px 0 8px 0; color: white; font-size: 28px;"><?php echo htmlspecialchars($course['title']); ?></h2>
             <span class="course-type-badge-inline">
                 <?php echo $course['type'] === 'pdf' ? '📄 PDF-Kurs' : '🎥 Video-Kurs'; ?>
             </span>
         </div>
-        <button onclick="saveCourse()" class="btn-primary">
-            💾 Speichern
+        <button onclick="saveCourseDetails()" class="btn-primary">
+            💾 Änderungen speichern
         </button>
     </div>
 
@@ -89,10 +89,11 @@ if ($course['type'] === 'video') {
                     <div class="form-group">
                         <label>Mockup/Vorschaubild URL</label>
                         <input type="url" name="mockup_url" value="<?php echo htmlspecialchars($course['mockup_url'] ?? ''); ?>">
+                        <small style="display: block; margin-top: 4px;">Oder lade ein neues Bild hoch:</small>
                         <input type="file" name="mockup_file" accept="image/*" style="margin-top: 8px;">
                         <?php if ($course['mockup_url']): ?>
                             <img src="<?php echo htmlspecialchars($course['mockup_url']); ?>" 
-                                 style="width: 100%; max-width: 200px; margin-top: 12px; border-radius: 8px;">
+                                 style="width: 100%; max-width: 200px; margin-top: 12px; border-radius: 8px; border: 1px solid rgba(168, 85, 247, 0.2);">
                         <?php endif; ?>
                     </div>
                     
@@ -103,7 +104,7 @@ if ($course['type'] === 'video') {
                         <?php if ($course['pdf_file']): ?>
                             <a href="<?php echo htmlspecialchars($course['pdf_file']); ?>" 
                                target="_blank" 
-                               style="display: block; margin-top: 8px; color: var(--primary-light);">
+                               style="display: block; margin-top: 8px; color: var(--primary-light); text-decoration: none;">
                                 📄 Aktuelles PDF ansehen
                             </a>
                         <?php endif; ?>
@@ -111,7 +112,7 @@ if ($course['type'] === 'video') {
                     <?php endif; ?>
                     
                     <div class="form-group">
-                        <label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                             <input type="checkbox" name="is_freebie" <?php echo $course['is_freebie'] ? 'checked' : ''; ?>>
                             🎁 Kostenloser Kurs (Freebie)
                         </label>
@@ -122,6 +123,7 @@ if ($course['type'] === 'video') {
                         <input type="text" name="digistore_product_id" 
                                value="<?php echo htmlspecialchars($course['digistore_product_id'] ?? ''); ?>"
                                placeholder="z.B. 12345">
+                        <small>Für automatische Freischaltung</small>
                     </div>
                 </form>
             </div>
@@ -143,13 +145,13 @@ if ($course['type'] === 'video') {
                             <?php foreach ($modules as $module): ?>
                                 <div class="module-card" data-module-id="<?php echo $module['id']; ?>">
                                     <div class="module-header">
-                                        <div class="module-drag-handle">⋮⋮</div>
                                         <div class="module-info">
                                             <h4><?php echo htmlspecialchars($module['title']); ?></h4>
-                                            <p><?php echo htmlspecialchars($module['description'] ?? ''); ?></p>
+                                            <?php if ($module['description']): ?>
+                                                <p><?php echo htmlspecialchars($module['description']); ?></p>
+                                            <?php endif; ?>
                                         </div>
                                         <div class="module-actions">
-                                            <button onclick="editModule(<?php echo $module['id']; ?>)" class="btn-icon" title="Bearbeiten">✏️</button>
                                             <button onclick="deleteModule(<?php echo $module['id']; ?>)" class="btn-icon" title="Löschen">🗑️</button>
                                         </div>
                                     </div>
@@ -158,18 +160,18 @@ if ($course['type'] === 'video') {
                                         <?php if (count($module['lessons']) > 0): ?>
                                             <?php foreach ($module['lessons'] as $lesson): ?>
                                                 <div class="lesson-item" data-lesson-id="<?php echo $lesson['id']; ?>">
-                                                    <div class="lesson-drag-handle">⋮⋮</div>
                                                     <div class="lesson-info">
                                                         <strong><?php echo htmlspecialchars($lesson['title']); ?></strong>
-                                                        <?php if ($lesson['video_url']): ?>
-                                                            <span class="lesson-meta">🎥 Video</span>
-                                                        <?php endif; ?>
-                                                        <?php if ($lesson['pdf_attachment']): ?>
-                                                            <span class="lesson-meta">📄 PDF</span>
-                                                        <?php endif; ?>
+                                                        <div class="lesson-meta-row">
+                                                            <?php if ($lesson['video_url']): ?>
+                                                                <span class="lesson-meta">🎥 Video</span>
+                                                            <?php endif; ?>
+                                                            <?php if ($lesson['pdf_attachment']): ?>
+                                                                <span class="lesson-meta">📄 PDF</span>
+                                                            <?php endif; ?>
+                                                        </div>
                                                     </div>
                                                     <div class="lesson-actions">
-                                                        <button onclick="editLesson(<?php echo $lesson['id']; ?>)" class="btn-icon" title="Bearbeiten">✏️</button>
                                                         <button onclick="deleteLesson(<?php echo $lesson['id']; ?>)" class="btn-icon" title="Löschen">🗑️</button>
                                                     </div>
                                                 </div>
@@ -184,7 +186,7 @@ if ($course['type'] === 'video') {
                             <?php endforeach; ?>
                         <?php else: ?>
                             <div class="empty-state-inline">
-                                <p>Noch keine Module vorhanden</p>
+                                <p style="color: var(--text-secondary); margin-bottom: 16px;">Noch keine Module vorhanden</p>
                                 <button onclick="showAddModuleModal()" class="btn-primary">
                                     + Erstes Modul erstellen
                                 </button>
@@ -208,7 +210,7 @@ if ($course['type'] === 'video') {
 </div>
 
 <!-- Add Module Modal -->
-<div id="addModuleModal" class="modal">
+<div id="addModuleModal" class="modal" style="display: none;">
     <div class="modal-content">
         <div class="modal-header">
             <h3>📚 Modul hinzufügen</h3>
@@ -235,7 +237,7 @@ if ($course['type'] === 'video') {
 </div>
 
 <!-- Add Lesson Modal -->
-<div id="addLessonModal" class="modal">
+<div id="addLessonModal" class="modal" style="display: none;">
     <div class="modal-content">
         <div class="modal-header">
             <h3>🎥 Lektion hinzufügen</h3>
@@ -298,12 +300,6 @@ if ($course['type'] === 'video') {
     color: var(--primary-light);
 }
 
-.editor-header h2 {
-    font-size: 28px;
-    color: white;
-    margin: 0 0 8px 0;
-}
-
 .course-type-badge-inline {
     display: inline-block;
     background: rgba(168, 85, 247, 0.2);
@@ -316,15 +312,15 @@ if ($course['type'] === 'video') {
 
 .editor-content {
     display: grid;
-    grid-template-columns: 350px 1fr;
-    gap: 32px;
+    grid-template-columns: 380px 1fr;
+    gap: 24px;
+    align-items: start;
 }
 
 /* Sidebar */
 .editor-sidebar {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
+    position: sticky;
+    top: 32px;
 }
 
 .sidebar-section {
@@ -340,12 +336,60 @@ if ($course['type'] === 'video') {
     margin: 0 0 20px 0;
 }
 
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="url"],
+.form-group input[type="file"],
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
+}
+
+.form-group small {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.form-group input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+}
+
 /* Main Content */
 .editor-main {
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 24px;
+    min-height: 400px;
 }
 
 /* Modules */
@@ -379,17 +423,11 @@ if ($course['type'] === 'video') {
 .module-header {
     display: flex;
     align-items: flex-start;
+    justify-content: space-between;
     gap: 12px;
     padding: 20px;
     background: rgba(168, 85, 247, 0.05);
     border-bottom: 1px solid var(--border-light);
-}
-
-.module-drag-handle {
-    color: var(--text-muted);
-    cursor: move;
-    font-size: 16px;
-    padding: 4px;
 }
 
 .module-info {
@@ -421,41 +459,33 @@ if ($course['type'] === 'video') {
 .lesson-item {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 12px;
     padding: 12px;
     background: var(--bg-secondary);
     border: 1px solid var(--border-light);
     border-radius: 8px;
     margin-bottom: 8px;
-    transition: all 0.2s;
-}
-
-.lesson-item:hover {
-    background: rgba(168, 85, 247, 0.05);
-    border-color: var(--primary);
-}
-
-.lesson-drag-handle {
-    color: var(--text-muted);
-    cursor: move;
-    font-size: 14px;
 }
 
 .lesson-info {
     flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
 }
 
 .lesson-info strong {
     color: white;
     font-size: 14px;
+    display: block;
+    margin-bottom: 6px;
+}
+
+.lesson-meta-row {
+    display: flex;
+    gap: 8px;
 }
 
 .lesson-meta {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-secondary);
     background: rgba(255, 255, 255, 0.05);
     padding: 3px 8px;
@@ -500,11 +530,113 @@ if ($course['type'] === 'video') {
     border-color: var(--primary);
 }
 
+/* Buttons */
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(168, 85, 247, 0.4);
+}
+
+.btn-secondary {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    padding: 10px 20px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    background: rgba(168, 85, 247, 0.1);
+}
+
 /* Empty State */
 .empty-state-inline {
     text-align: center;
     padding: 60px 20px;
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+    z-index: 10000;
+    padding: 40px 20px;
+    overflow-y: auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+.modal-content {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 600px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    margin-top: 60px;
+}
+
+.modal-header {
+    padding: 24px;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    font-size: 20px;
+    color: white;
+    margin: 0;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 28px;
     color: var(--text-secondary);
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.modal-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.modal-footer {
+    padding: 24px;
+    border-top: 1px solid var(--border-light);
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
 }
 
 /* Responsive */
@@ -512,12 +644,16 @@ if ($course['type'] === 'video') {
     .editor-content {
         grid-template-columns: 1fr;
     }
+    
+    .editor-sidebar {
+        position: static;
+    }
 }
 </style>
 
 <script>
 // Save Course Details
-async function saveCourse() {
+async function saveCourseDetails() {
     const formData = new FormData(document.getElementById('courseDetailsForm'));
     
     try {
@@ -541,11 +677,11 @@ async function saveCourse() {
 
 // Module Functions
 function showAddModuleModal() {
-    document.getElementById('addModuleModal').classList.add('active');
+    document.getElementById('addModuleModal').style.display = 'flex';
 }
 
 function closeAddModuleModal() {
-    document.getElementById('addModuleModal').classList.remove('active');
+    document.getElementById('addModuleModal').style.display = 'none';
     document.getElementById('addModuleForm').reset();
 }
 
@@ -600,11 +736,11 @@ async function deleteModule(moduleId) {
 // Lesson Functions
 function showAddLessonModal(moduleId) {
     document.getElementById('lessonModuleId').value = moduleId;
-    document.getElementById('addLessonModal').classList.add('active');
+    document.getElementById('addLessonModal').style.display = 'flex';
 }
 
 function closeAddLessonModal() {
-    document.getElementById('addLessonModal').classList.remove('active');
+    document.getElementById('addLessonModal').style.display = 'none';
     document.getElementById('addLessonForm').reset();
 }
 
@@ -660,8 +796,17 @@ async function deleteLesson(lessonId) {
 document.querySelectorAll('.modal').forEach(modal => {
     modal.addEventListener('click', function(e) {
         if (e.target === this) {
-            this.classList.remove('active');
+            this.style.display = 'none';
         }
     });
+});
+
+// Close modals on ESC
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.style.display = 'none';
+        });
+    }
 });
 </script>
