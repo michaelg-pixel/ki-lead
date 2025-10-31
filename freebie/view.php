@@ -2,30 +2,44 @@
 /**
  * Öffentliche Freebie-Ansicht
  * Zeigt das Freebie-Template mit vollständigem Layout
+ * WICHTIG: Diese Seite ist ÖFFENTLICH und erfordert KEINE Authentifizierung!
  */
 
+// KEINE Auth-Checks hier!
+// Diese Seite muss für jeden zugänglich sein
+
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../config/fonts.php';
 
 // Freebie-ID aus URL holen
 $freebie_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
 if ($freebie_id <= 0) {
-    die('Ungültige Freebie-ID');
+    http_response_code(400);
+    die('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fehler</title></head><body style="font-family:Arial;padding:50px;text-align:center;"><h1>❌ Ungültige Freebie-ID</h1><p>Bitte überprüfen Sie den Link.</p></body></html>');
 }
 
 // Freebie aus Datenbank laden
-$stmt = $pdo->prepare("SELECT * FROM freebies WHERE id = ?");
-$stmt->execute([$freebie_id]);
-$freebie = $stmt->fetch(PDO::FETCH_ASSOC);
+try {
+    $stmt = $pdo->prepare("SELECT * FROM freebies WHERE id = ?");
+    $stmt->execute([$freebie_id]);
+    $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    http_response_code(500);
+    die('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fehler</title></head><body style="font-family:Arial;padding:50px;text-align:center;"><h1>❌ Datenbankfehler</h1><p>' . htmlspecialchars($e->getMessage()) . '</p></body></html>');
+}
 
 if (!$freebie) {
-    die('Freebie nicht gefunden');
+    http_response_code(404);
+    die('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Nicht gefunden</title></head><body style="font-family:Arial;padding:50px;text-align:center;"><h1>❌ Freebie nicht gefunden</h1><p>Dieses Freebie existiert nicht.</p></body></html>');
 }
 
 // Klick-Tracking
-$update = $pdo->prepare("UPDATE freebies SET freebie_clicks = freebie_clicks + 1 WHERE id = ?");
-$update->execute([$freebie_id]);
+try {
+    $update = $pdo->prepare("UPDATE freebies SET freebie_clicks = COALESCE(freebie_clicks, 0) + 1 WHERE id = ?");
+    $update->execute([$freebie_id]);
+} catch (PDOException $e) {
+    // Fehler beim Tracking ignorieren, Seite trotzdem anzeigen
+}
 
 // Layout-Mapping
 $layoutMapping = [
@@ -53,7 +67,7 @@ $bulletpoints_font = $freebie['bulletpoints_font'] ?? $body_font;
 $bulletpoints_size = $freebie['bulletpoints_size'] ?? $body_size;
 
 // Mockup
-$show_mockup = $freebie['mockup_image_url'] ? true : false;
+$show_mockup = !empty($freebie['mockup_image_url']);
 $mockup_url = $freebie['mockup_image_url'] ?? '';
 
 ?>
@@ -300,7 +314,7 @@ $mockup_url = $freebie['mockup_image_url'] ?? '';
                     </div>
                 <?php endif; ?>
                 
-                <button class="cta-button" onclick="window.location.href='<?php echo $freebie['thank_you_link'] ?? '#'; ?>'">
+                <button class="cta-button" onclick="window.location.href='<?php echo htmlspecialchars($freebie['thank_you_link'] ?? '#'); ?>'">
                     <?php echo htmlspecialchars($freebie['cta_text'] ?? 'Jetzt kostenlos sichern'); ?>
                 </button>
             </div>
@@ -343,7 +357,7 @@ $mockup_url = $freebie['mockup_image_url'] ?? '';
                     <?php endif; ?>
                     
                     <div style="text-align: center;">
-                        <button class="cta-button" onclick="window.location.href='<?php echo $freebie['thank_you_link'] ?? '#'; ?>'">
+                        <button class="cta-button" onclick="window.location.href='<?php echo htmlspecialchars($freebie['thank_you_link'] ?? '#'); ?>'">
                             <?php echo htmlspecialchars($freebie['cta_text'] ?? 'Jetzt kostenlos sichern'); ?>
                         </button>
                     </div>
@@ -382,7 +396,7 @@ $mockup_url = $freebie['mockup_image_url'] ?? '';
                     <?php endif; ?>
                     
                     <div style="text-align: center;">
-                        <button class="cta-button" onclick="window.location.href='<?php echo $freebie['thank_you_link'] ?? '#'; ?>'">
+                        <button class="cta-button" onclick="window.location.href='<?php echo htmlspecialchars($freebie['thank_you_link'] ?? '#'); ?>'">
                             <?php echo htmlspecialchars($freebie['cta_text'] ?? 'Jetzt kostenlos sichern'); ?>
                         </button>
                     </div>
