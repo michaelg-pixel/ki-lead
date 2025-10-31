@@ -1,7 +1,13 @@
 <?php
+// Font-Konfiguration laden
+$fontConfig = require __DIR__ . '/../../config/fonts.php';
+
 // Freebie Templates aus Datenbank holen
 $freebies = $pdo->query("SELECT * FROM freebies ORDER BY created_at DESC")->fetchAll(PDO::FETCH_ASSOC);
 ?>
+
+<!-- Google Fonts laden -->
+<link href="<?php echo $fontConfig['google_fonts_url']; ?>" rel="stylesheet">
 
 <div class="section">
     <div class="section-header">
@@ -270,7 +276,17 @@ function previewTemplate(template) {
         background_color: template.background_color || '#FFFFFF',
         primary_color: template.primary_color || '#7C3AED',
         mockup_image_url: template.mockup_image_url || '',
-        show_mockup: template.mockup_image_url ? '1' : '0'
+        show_mockup: template.mockup_image_url ? '1' : '0',
+        
+        // Font-Einstellungen
+        preheadline_font: template.preheadline_font || 'Poppins',
+        preheadline_size: template.preheadline_size || 14,
+        headline_font: template.headline_font || 'Poppins',
+        headline_size: template.headline_size || 48,
+        subheadline_font: template.subheadline_font || 'Poppins',
+        subheadline_size: template.subheadline_size || 20,
+        bulletpoints_font: template.bulletpoints_font || 'Poppins',
+        bulletpoints_size: template.bulletpoints_size || 16,
     };
     
     document.documentElement.style.setProperty('--primary-color', data.primary_color);
@@ -294,30 +310,39 @@ function generatePreviewHTML(data) {
     const showMockup = data.show_mockup === '1';
     const mockupUrl = data.mockup_image_url || '';
     
+    // Font-Einstellungen
+    const preheadlineFont = data.preheadline_font || 'Poppins';
+    const preheadlineSize = data.preheadline_size || 14;
+    const headlineFont = data.headline_font || 'Poppins';
+    const headlineSize = data.headline_size || 48;
+    const subheadlineFont = data.subheadline_font || 'Poppins';
+    const subheadlineSize = data.subheadline_size || 20;
+    const bulletpointsFont = data.bulletpoints_font || 'Poppins';
+    const bulletpointsSize = data.bulletpoints_size || 16;
+    
     let bulletpointsHTML = '';
     if (data.bulletpoints) {
         const bullets = data.bulletpoints.split('\n').filter(b => b.trim());
         bulletpointsHTML = bullets.map(bullet => {
             return '<div style="display: flex; align-items: start; gap: 12px; margin-bottom: 16px;">' +
                 '<span style="color: ' + primaryColor + '; font-size: 20px; flex-shrink: 0;">✓</span>' +
-                '<span style="color: #374151; font-size: 16px; line-height: 1.5;">' + escapeHtml(bullet.replace(/^[✓✔︎•-]\s*/, '')) + '</span>' +
+                '<span style="color: #374151; font-size: ' + bulletpointsSize + 'px; font-family: \'' + bulletpointsFont + '\', sans-serif; line-height: 1.5;">' + escapeHtml(bullet.replace(/^[✓✔︎•-]\s*/, '')) + '</span>' +
                 '</div>';
         }).join('');
     }
     
-    // Kleineres Mockup (max 380px statt volle Breite)
     const mockupHTML = showMockup && mockupUrl ? 
         '<img src="' + escapeHtml(mockupUrl) + '" alt="Mockup" style="width: 100%; max-width: 380px; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">' :
         '<div style="width: 100%; max-width: 380px; aspect-ratio: 3/4; background: linear-gradient(135deg, ' + primaryColor + '20, ' + primaryColor + '40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ' + primaryColor + '; font-size: 64px;">🎁</div>';
     
     const preheadlineHTML = data.preheadline ? 
-        '<div style="color: ' + primaryColor + '; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">' + escapeHtml(data.preheadline) + '</div>' : '';
+        '<div style="color: ' + primaryColor + '; font-size: ' + preheadlineSize + 'px; font-family: \'' + preheadlineFont + '\', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">' + escapeHtml(data.preheadline) + '</div>' : '';
     
-    const headlineHTML = '<h1 style="font-size: 48px; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px;">' +
+    const headlineHTML = '<h1 style="font-size: ' + headlineSize + 'px; font-family: \'' + headlineFont + '\', sans-serif; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px;">' +
         escapeHtml(data.headline || 'Dein kostenloser Kurs') + '</h1>';
     
     const subheadlineHTML = data.subheadline ? 
-        '<p style="font-size: 20px; color: #6b7280; margin-bottom: 32px; line-height: 1.6;">' + escapeHtml(data.subheadline) + '</p>' : '';
+        '<p style="font-size: ' + subheadlineSize + 'px; font-family: \'' + subheadlineFont + '\', sans-serif; color: #6b7280; margin-bottom: 32px; line-height: 1.6;">' + escapeHtml(data.subheadline) + '</p>' : '';
     
     const bulletpointsWrapHTML = bulletpointsHTML ? 
         '<div style="margin-bottom: 32px;">' + bulletpointsHTML + '</div>' : '';
@@ -327,20 +352,8 @@ function generatePreviewHTML(data) {
     
     let layoutHTML = '';
     
-    if (layout === 'hybrid') {
-        // Hybrid: 40% Bild, 60% Text
-        layoutHTML = '<div style="display: grid; grid-template-columns: 2fr 3fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">' +
-            '<div style="display: flex; justify-content: center;">' + mockupHTML + '</div>' +
-            '<div>' + preheadlineHTML + headlineHTML + subheadlineHTML + bulletpointsWrapHTML + ctaHTML + '</div>' +
-            '</div>';
-    } else if (layout === 'sidebar') {
-        // Sidebar: 60% Text, 40% Bild
-        layoutHTML = '<div style="display: grid; grid-template-columns: 3fr 2fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">' +
-            '<div>' + preheadlineHTML + headlineHTML + subheadlineHTML + bulletpointsWrapHTML + ctaHTML + '</div>' +
-            '<div style="display: flex; justify-content: center;">' + mockupHTML + '</div>' +
-            '</div>';
-    } else {
-        // Centered Layout
+    if (layout === 'centered') {
+        // CENTERED LAYOUT - Zentriert alles
         const mockupCenteredHTML = showMockup && mockupUrl ?
             '<img src="' + escapeHtml(mockupUrl) + '" alt="Mockup" style="width: 100%; max-width: 380px; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); margin: 0 auto 40px;">' :
             '<div style="width: 100%; max-width: 380px; aspect-ratio: 3/4; background: linear-gradient(135deg, ' + primaryColor + '20, ' + primaryColor + '40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ' + primaryColor + '; font-size: 64px; margin: 0 auto 40px;">🎁</div>';
@@ -348,16 +361,35 @@ function generatePreviewHTML(data) {
         const bulletpointsCenteredHTML = bulletpointsHTML ?
             '<div style="text-align: left; max-width: 500px; margin: 0 auto 40px;">' + bulletpointsHTML + '</div>' : '';
         
-        const ctaCenteredHTML = '<button style="background: ' + primaryColor + '; color: white; padding: 18px 48px; border: none; border-radius: 8px; font-size: 20px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px ' + primaryColor + '40; transition: transform 0.2s;">' +
-            escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern') + '</button>';
+        const preheadlineCenteredHTML = data.preheadline ? 
+            '<div style="color: ' + primaryColor + '; font-size: ' + preheadlineSize + 'px; font-family: \'' + preheadlineFont + '\', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; text-align: center;">' + escapeHtml(data.preheadline) + '</div>' : '';
+        
+        const headlineCenteredHTML = '<h1 style="font-size: ' + headlineSize + 'px; font-family: \'' + headlineFont + '\', sans-serif; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px; text-align: center;">' + 
+            escapeHtml(data.headline || 'Dein kostenloser Kurs') + '</h1>';
+        
+        const subheadlineCenteredHTML = data.subheadline ? 
+            '<p style="font-size: ' + subheadlineSize + 'px; font-family: \'' + subheadlineFont + '\', sans-serif; color: #6b7280; margin-bottom: 40px; line-height: 1.6; text-align: center;">' + escapeHtml(data.subheadline) + '</p>' : '';
         
         layoutHTML = '<div style="max-width: 800px; margin: 0 auto; text-align: center;">' +
-            preheadlineHTML +
-            '<h1 style="font-size: 56px; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px;">' + escapeHtml(data.headline || 'Dein kostenloser Kurs') + '</h1>' +
-            (data.subheadline ? '<p style="font-size: 22px; color: #6b7280; margin-bottom: 40px; line-height: 1.6;">' + escapeHtml(data.subheadline) + '</p>' : '') +
+            preheadlineCenteredHTML +
+            headlineCenteredHTML +
+            subheadlineCenteredHTML +
             mockupCenteredHTML +
             bulletpointsCenteredHTML +
-            ctaCenteredHTML +
+            '<button style="background: ' + primaryColor + '; color: white; padding: 18px 48px; border: none; border-radius: 8px; font-size: 20px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px ' + primaryColor + '40; transition: transform 0.2s;">' +
+            escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern') + '</button>' +
+            '</div>';
+    } else if (layout === 'hybrid') {
+        // Hybrid: 40% Bild, 60% Text
+        layoutHTML = '<div style="display: grid; grid-template-columns: 2fr 3fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">' +
+            '<div style="display: flex; justify-content: center;">' + mockupHTML + '</div>' +
+            '<div>' + preheadlineHTML + headlineHTML + subheadlineHTML + bulletpointsWrapHTML + ctaHTML + '</div>' +
+            '</div>';
+    } else {
+        // Sidebar: 60% Text, 40% Bild
+        layoutHTML = '<div style="display: grid; grid-template-columns: 3fr 2fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">' +
+            '<div>' + preheadlineHTML + headlineHTML + subheadlineHTML + bulletpointsWrapHTML + ctaHTML + '</div>' +
+            '<div style="display: flex; justify-content: center;">' + mockupHTML + '</div>' +
             '</div>';
     }
     
