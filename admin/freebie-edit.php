@@ -169,10 +169,8 @@ $current_datetime = date('d.m.Y H:i');
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Google Fonts für Vorschau -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&family=Roboto:wght@300;400;500;700;900&family=Montserrat:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700;800&family=Open+Sans:wght@300;400;500;600;700;800&family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <!-- Lokale Fonts (DSGVO-konform über Bunny Fonts - EU Server) -->
+    <link rel="stylesheet" href="/assets/css/fonts.css">
     
     <style>
         body {
@@ -731,14 +729,14 @@ $current_datetime = date('d.m.Y H:i');
             
             const previewBox = document.getElementById('previewBox');
             
-            // VERBESSERTE VORSCHAU mit korrekten Font-Familien und Größen
+            // VERBESSERTE VORSCHAU mit lokalen Schriftarten und Größen
             const previewContent = `
                 <div style="background: ${bgColor}; color: ${textColor}; padding: 30px; border-radius: 12px; width: 100%; text-align: center; font-family: '${bodyFont}', sans-serif;">
                     ${preheadline ? `<p style="font-family: '${bodyFont}', sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: ${secondaryColor}; margin-bottom: 12px; font-weight: 700;">${preheadline}</p>` : ''}
                     ${headline ? `<h2 style="font-family: '${headingFont}', sans-serif; color: ${primaryColor}; font-size: 22px; font-weight: 700; margin-bottom: 10px; line-height: 1.3;">${headline}</h2>` : `<h2 style="font-family: '${headingFont}', sans-serif; color: ${primaryColor}; font-size: 22px; font-weight: 700; margin-bottom: 10px;">Deine Hauptüberschrift</h2>`}
                     ${subheadline ? `<p style="font-family: '${bodyFont}', sans-serif; font-size: 14px; color: ${textColor}; opacity: 0.8; line-height: 1.6;">${subheadline}</p>` : `<p style="font-family: '${bodyFont}', sans-serif; font-size: 14px; color: ${textColor}; opacity: 0.8;">Deine Unterüberschrift</p>`}
                     <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid ${primaryColor}; opacity: 0.3;"></div>
-                    <p style="font-family: '${bodyFont}', sans-serif; font-size: 10px; color: ${textColor}; opacity: 0.5; margin-top: 10px;">✓ Live-Vorschau mit Schriftarten & Größen</p>
+                    <p style="font-family: '${bodyFont}', sans-serif; font-size: 10px; color: ${textColor}; opacity: 0.5; margin-top: 10px;">✓ Live-Vorschau mit lokalen Schriftarten (DSGVO-konform)</p>
                 </div>
             `;
             
