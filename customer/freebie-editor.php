@@ -280,14 +280,14 @@ if (isset($_POST['save_freebie'])) {
                                     <i class="fas fa-image text-6xl text-white opacity-50"></i>
                                 <?php endif; ?>
                             </div>
-                            <div class="p-6">
+                            <div class="p-6 text-center">
                                 <h2 id="preview-headline" class="text-3xl font-bold mb-3">
                                     Sichere dir jetzt deinen kostenlosen Videokurs!
                                 </h2>
                                 <p id="preview-subheadline" class="text-lg text-gray-600 mb-6">
                                     Starte noch heute und lerne die besten Strategien
                                 </p>
-                                <ul id="preview-bullets" class="space-y-2 mb-6">
+                                <ul id="preview-bullets" class="space-y-2 mb-6 text-left max-w-md mx-auto">
                                     <li>✓ Sofortiger Zugang zum Videokurs</li>
                                     <li>✓ Praxiserprobte Strategien</li>
                                     <li>✓ Schritt-für-Schritt Anleitungen</li>
