@@ -210,7 +210,7 @@ if ($course['type'] === 'video') {
 </div>
 
 <!-- Add Module Modal -->
-<div id="addModuleModal" class="modal" style="display: none;">
+<div id="addModuleModal" class="modal hidden">
     <div class="modal-content">
         <div class="modal-header">
             <h3>📚 Modul hinzufügen</h3>
@@ -237,7 +237,7 @@ if ($course['type'] === 'video') {
 </div>
 
 <!-- Add Lesson Modal -->
-<div id="addLessonModal" class="modal" style="display: none;">
+<div id="addLessonModal" class="modal hidden">
     <div class="modal-content">
         <div class="modal-header">
             <h3>🎥 Lektion hinzufügen</h3>
@@ -570,7 +570,7 @@ if ($course['type'] === 'video') {
     padding: 60px 20px;
 }
 
-/* Modal */
+/* Modal - WICHTIG: Mit .hidden Klasse */
 .modal {
     position: fixed;
     top: 0;
@@ -585,6 +585,11 @@ if ($course['type'] === 'video') {
     display: flex;
     align-items: flex-start;
     justify-content: center;
+}
+
+/* Modal verstecken */
+.modal.hidden {
+    display: none !important;
 }
 
 .modal-content {
@@ -677,11 +682,11 @@ async function saveCourseDetails() {
 
 // Module Functions
 function showAddModuleModal() {
-    document.getElementById('addModuleModal').style.display = 'flex';
+    document.getElementById('addModuleModal').classList.remove('hidden');
 }
 
 function closeAddModuleModal() {
-    document.getElementById('addModuleModal').style.display = 'none';
+    document.getElementById('addModuleModal').classList.add('hidden');
     document.getElementById('addModuleForm').reset();
 }
 
@@ -736,11 +741,11 @@ async function deleteModule(moduleId) {
 // Lesson Functions
 function showAddLessonModal(moduleId) {
     document.getElementById('lessonModuleId').value = moduleId;
-    document.getElementById('addLessonModal').style.display = 'flex';
+    document.getElementById('addLessonModal').classList.remove('hidden');
 }
 
 function closeAddLessonModal() {
-    document.getElementById('addLessonModal').style.display = 'none';
+    document.getElementById('addLessonModal').classList.add('hidden');
     document.getElementById('addLessonForm').reset();
 }
 
@@ -796,7 +801,7 @@ async function deleteLesson(lessonId) {
 document.querySelectorAll('.modal').forEach(modal => {
     modal.addEventListener('click', function(e) {
         if (e.target === this) {
-            this.style.display = 'none';
+            this.classList.add('hidden');
         }
     });
 });
@@ -805,7 +810,7 @@ document.querySelectorAll('.modal').forEach(modal => {
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         document.querySelectorAll('.modal').forEach(modal => {
-            modal.style.display = 'none';
+            modal.classList.add('hidden');
         });
     }
 });
