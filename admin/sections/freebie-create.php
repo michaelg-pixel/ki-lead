@@ -342,7 +342,7 @@ $template = array_merge($defaults, $template);
     </div>
     
     <form id="freebieForm" onsubmit="return false;">
-        <input type="hidden" name="template_id" value="<?php echo $template['id'] ?? ''; ?>">
+        <input type="hidden" name="template_id" id="template_id" value="<?php echo $template['id'] ?? ''; ?>">
         <input type="hidden" name="mockup_image_base64" id="mockup_image_base64">
         
         <div class="editor-grid">
@@ -362,7 +362,7 @@ $template = array_merge($defaults, $template);
                     
                     <div class="form-group">
                         <label class="form-label">URL-Slug</label>
-                        <input type="text" name="url_slug" class="form-input" 
+                        <input type="text" name="url_slug" id="url_slug" class="form-input" 
                                placeholder="ki-kurs-lead-magnet"
                                value="<?php echo htmlspecialchars($template['url_slug'] ?? ''); ?>">
                         <p class="help-text">Optional: Wird automatisch aus dem Namen generiert wenn leer</p>
@@ -417,21 +417,21 @@ $template = array_merge($defaults, $template);
                     
                     <div class="form-group">
                         <label class="form-label">E-Mail Optin Code</label>
-                        <textarea name="email_optin_code" class="form-textarea" 
+                        <textarea name="email_optin_code" id="email_optin_code" class="form-textarea" 
                                   placeholder="<form>...</form> oder Autoresponder-Code"><?php echo htmlspecialchars($template['email_optin_code']); ?></textarea>
                         <p class="help-text">HTML-Code für E-Mail-Eintragung (Quentn, ActiveCampaign, etc.)</p>
                     </div>
                     
                     <div class="form-group">
                         <label class="form-label">Custom Raw Code</label>
-                        <textarea name="custom_raw_code" class="form-textarea" 
+                        <textarea name="custom_raw_code" id="custom_raw_code" class="form-textarea" 
                                   placeholder="<script>...</script> oder zusätzlicher HTML-Code"><?php echo htmlspecialchars($template['custom_raw_code']); ?></textarea>
                         <p class="help-text">Zusätzlicher Code für Tracking, Pixel, etc.</p>
                     </div>
                     
                     <div class="form-group">
                         <label class="form-label">Custom CSS</label>
-                        <textarea name="custom_css" class="form-textarea" 
+                        <textarea name="custom_css" id="custom_css" class="form-textarea" 
                                   placeholder=".custom-class { color: red; }"><?php echo htmlspecialchars($template['custom_css'] ?? ''); ?></textarea>
                         <p class="help-text">Eigenes CSS für individuelle Anpassungen</p>
                     </div>
@@ -542,7 +542,7 @@ $template = array_merge($defaults, $template);
                     
                     <div class="form-group">
                         <label class="form-label">Videokurs</label>
-                        <select name="course_id" class="form-select">
+                        <select name="course_id" id="course_id" class="form-select">
                             <option value="">-- Kein Videokurs --</option>
                             <?php foreach ($courses as $course): ?>
                             <option value="<?php echo $course['id']; ?>" 
@@ -588,6 +588,26 @@ $template = array_merge($defaults, $template);
 </div>
 
 <script>
+// Hilfsfunktion: Wert sicher aus Input holen
+function getInputValue(id, defaultValue = '') {
+    const element = document.getElementById(id);
+    if (!element) {
+        console.warn('Element not found:', id);
+        return defaultValue;
+    }
+    return element.value || defaultValue;
+}
+
+// Hilfsfunktion: Checkbox-Wert holen
+function getCheckboxValue(id, defaultValue = 0) {
+    const element = document.getElementById(id);
+    if (!element) {
+        console.warn('Checkbox not found:', id);
+        return defaultValue;
+    }
+    return element.checked ? 1 : 0;
+}
+
 // Drag & Drop Funktionalität
 const uploadArea = document.getElementById('uploadArea');
 
@@ -794,7 +814,7 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// VERBESSERTE Speichern-Funktion mit besserem Fehler-Handling
+// ROBUSTE Speichern-Funktion - Sammelt Daten explizit nach ID
 async function saveFreebie() {
     const btn = event.target;
     const originalText = btn.innerHTML;
@@ -802,47 +822,50 @@ async function saveFreebie() {
     btn.disabled = true;
     
     try {
-        // Form-Daten sammeln
-        const form = document.getElementById('freebieForm');
-        const formData = new FormData(form);
-        
-        // WICHTIG: Alle Werte explizit setzen
+        // WICHTIG: Daten explizit nach ID sammeln statt FormData
         const data = {
-            template_id: formData.get('template_id') || '',
-            name: formData.get('name') || '',
-            url_slug: formData.get('url_slug') || '',
-            headline: formData.get('headline') || '',
-            subheadline: formData.get('subheadline') || '',
-            preheadline: formData.get('preheadline') || '',
-            bulletpoints: formData.get('bulletpoints') || '',
-            cta_button_text: formData.get('cta_button_text') || '',
-            layout: formData.get('layout') || 'hybrid',
-            primary_color: formData.get('primary_color') || '#FF8C00',
-            secondary_color: formData.get('secondary_color') || '#EC4899',
-            background_color: formData.get('background_color') || '#FFF9E6',
-            text_color: formData.get('text_color') || '#1F2937',
-            cta_button_color: formData.get('cta_button_color') || '#5B8DEF',
-            mockup_image_url: formData.get('mockup_image_url') || '',
-            mockup_image_base64: formData.get('mockup_image_base64') || '',
-            custom_raw_code: formData.get('custom_raw_code') || '',
-            custom_css: formData.get('custom_css') || '',
-            email_optin_code: formData.get('email_optin_code') || '',
-            course_id: formData.get('course_id') || '',
-            is_master_template: document.getElementById('is_master').checked ? 1 : 0,
-            show_mockup: document.getElementById('show_mockup').checked ? 1 : 0
+            template_id: getInputValue('template_id', ''),
+            name: getInputValue('template_name', ''),
+            url_slug: getInputValue('url_slug', ''),
+            headline: getInputValue('headline', ''),
+            subheadline: getInputValue('subheadline', ''),
+            preheadline: getInputValue('preheadline', ''),
+            bulletpoints: getInputValue('bulletpoints', ''),
+            cta_button_text: getInputValue('cta_button_text', 'Jetzt kostenlos sichern'),
+            layout: getInputValue('layout', 'hybrid'),
+            primary_color: getInputValue('primary_color', '#FF8C00'),
+            secondary_color: '#EC4899',
+            background_color: getInputValue('background_color', '#FFF9E6'),
+            text_color: '#1F2937',
+            cta_button_color: '#5B8DEF',
+            mockup_image_url: getInputValue('mockup_image_url', ''),
+            mockup_image_base64: getInputValue('mockup_image_base64', ''),
+            custom_raw_code: getInputValue('custom_raw_code', ''),
+            custom_css: getInputValue('custom_css', ''),
+            email_optin_code: getInputValue('email_optin_code', ''),
+            course_id: getInputValue('course_id', ''),
+            is_master_template: getCheckboxValue('is_master', 1),
+            show_mockup: getCheckboxValue('show_mockup', 1)
         };
         
         // Debug: Daten ausgeben
-        console.log('Sending data:', data);
+        console.log('=== FRONTEND DEBUG ===');
+        console.log('Collected data:', data);
+        console.log('Name field value:', data.name);
+        console.log('Name field length:', data.name.length);
+        console.log('Headline field value:', data.headline);
         
         // Validierung im Frontend
         if (!data.name || data.name.trim() === '') {
-            throw new Error('Template-Name ist erforderlich');
+            throw new Error('Template-Name ist erforderlich. Bitte gib einen Namen ein.');
         }
         
         if (!data.headline || data.headline.trim() === '') {
-            throw new Error('Headline ist erforderlich');
+            throw new Error('Headline ist erforderlich. Bitte gib eine Headline ein.');
         }
+        
+        console.log('Frontend validation passed');
+        console.log('Sending to API...');
         
         const response = await fetch('/api/save-freebie.php', {
             method: 'POST',
@@ -853,25 +876,32 @@ async function saveFreebie() {
             body: JSON.stringify(data)
         });
         
+        console.log('Response status:', response.status);
+        
         // Response-Text holen für bessere Fehleranalyse
         const responseText = await response.text();
-        console.log('Response:', responseText);
+        console.log('Raw response:', responseText);
         
         let result;
         try {
             result = JSON.parse(responseText);
+            console.log('Parsed response:', result);
         } catch (e) {
+            console.error('JSON parse error:', e);
             throw new Error('Ungültige Server-Antwort: ' + responseText.substring(0, 200));
         }
         
         if (result.success) {
+            console.log('Success! Redirecting...');
             alert('✅ Template erfolgreich gespeichert!');
             window.location.href = '?page=freebies';
         } else {
+            console.error('Server error:', result.error);
             throw new Error(result.error || 'Unbekannter Fehler beim Speichern');
         }
     } catch (error) {
-        console.error('Save error:', error);
+        console.error('=== SAVE ERROR ===');
+        console.error('Error details:', error);
         alert('❌ Fehler: ' + error.message);
         btn.innerHTML = originalText;
         btn.disabled = false;
@@ -899,5 +929,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // Debug: Zeige alle Form-Elemente beim Laden
+    console.log('=== FORM ELEMENTS ON LOAD ===');
+    console.log('template_name:', document.getElementById('template_name'));
+    console.log('headline:', document.getElementById('headline'));
+    console.log('layout:', document.getElementById('layout'));
 });
 </script>
