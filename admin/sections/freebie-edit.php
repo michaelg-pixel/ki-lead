@@ -138,6 +138,11 @@ try {
         margin-top: 12px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
 </style>
 
 <div class="max-w-7xl mx-auto">
@@ -307,6 +312,69 @@ try {
                 </div>
             </div>
 
+            <!-- Typografie -->
+            <div class="card">
+                <h2 class="card-title">Typografie</h2>
+                
+                <div class="mb-4">
+                    <label class="form-label">Headline Schriftart</label>
+                    <select name="headline_font" id="headline_font" class="form-select">
+                        <option value="Inter" <?php echo ($template['headline_font'] ?? 'Inter') == 'Inter' ? 'selected' : ''; ?>>Inter (Standard)</option>
+                        <option value="Poppins" <?php echo ($template['headline_font'] ?? '') == 'Poppins' ? 'selected' : ''; ?>>Poppins</option>
+                        <option value="Roboto" <?php echo ($template['headline_font'] ?? '') == 'Roboto' ? 'selected' : ''; ?>>Roboto</option>
+                        <option value="Montserrat" <?php echo ($template['headline_font'] ?? '') == 'Montserrat' ? 'selected' : ''; ?>>Montserrat</option>
+                        <option value="Open Sans" <?php echo ($template['headline_font'] ?? '') == 'Open Sans' ? 'selected' : ''; ?>>Open Sans</option>
+                        <option value="Lato" <?php echo ($template['headline_font'] ?? '') == 'Lato' ? 'selected' : ''; ?>>Lato</option>
+                        <option value="Playfair Display" <?php echo ($template['headline_font'] ?? '') == 'Playfair Display' ? 'selected' : ''; ?>>Playfair Display</option>
+                        <option value="Merriweather" <?php echo ($template['headline_font'] ?? '') == 'Merriweather' ? 'selected' : ''; ?>>Merriweather</option>
+                    </select>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="form-label">Headline Schriftgröße</label>
+                    <div class="form-grid">
+                        <div>
+                            <input type="number" name="headline_size" id="headline_size" value="<?php echo $template['headline_size'] ?? 48; ?>" 
+                                   class="form-input" min="20" max="100">
+                            <p class="helper-text">Desktop (px)</p>
+                        </div>
+                        <div>
+                            <input type="number" name="headline_size_mobile" id="headline_size_mobile" value="<?php echo $template['headline_size_mobile'] ?? 32; ?>" 
+                                   class="form-input" min="16" max="60">
+                            <p class="helper-text">Mobil (px)</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="form-label">Body Schriftart</label>
+                    <select name="body_font" id="body_font" class="form-select">
+                        <option value="Inter" <?php echo ($template['body_font'] ?? 'Inter') == 'Inter' ? 'selected' : ''; ?>>Inter (Standard)</option>
+                        <option value="Poppins" <?php echo ($template['body_font'] ?? '') == 'Poppins' ? 'selected' : ''; ?>>Poppins</option>
+                        <option value="Roboto" <?php echo ($template['body_font'] ?? '') == 'Roboto' ? 'selected' : ''; ?>>Roboto</option>
+                        <option value="Montserrat" <?php echo ($template['body_font'] ?? '') == 'Montserrat' ? 'selected' : ''; ?>>Montserrat</option>
+                        <option value="Open Sans" <?php echo ($template['body_font'] ?? '') == 'Open Sans' ? 'selected' : ''; ?>>Open Sans</option>
+                        <option value="Lato" <?php echo ($template['body_font'] ?? '') == 'Lato' ? 'selected' : ''; ?>>Lato</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="form-label">Body Schriftgröße</label>
+                    <div class="form-grid">
+                        <div>
+                            <input type="number" name="body_size" id="body_size" value="<?php echo $template['body_size'] ?? 16; ?>" 
+                                   class="form-input" min="12" max="24">
+                            <p class="helper-text">Desktop (px)</p>
+                        </div>
+                        <div>
+                            <input type="number" name="body_size_mobile" id="body_size_mobile" value="<?php echo $template['body_size_mobile'] ?? 14; ?>" 
+                                   class="form-input" min="12" max="20">
+                            <p class="helper-text">Mobil (px)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Call-to-Action -->
             <div class="card">
                 <h2 class="card-title">Call-to-Action</h2>
@@ -473,6 +541,14 @@ function previewTemplate() {
     // Layout hinzufügen
     data.layout = document.getElementById('layoutInput').value;
     
+    // Schriftarten und -größen
+    data.headline_font = document.getElementById('headline_font').value;
+    data.headline_size = document.getElementById('headline_size').value;
+    data.headline_size_mobile = document.getElementById('headline_size_mobile').value;
+    data.body_font = document.getElementById('body_font').value;
+    data.body_size = document.getElementById('body_size').value;
+    data.body_size_mobile = document.getElementById('body_size_mobile').value;
+    
     // Mockup URL - prüfe ob neues Bild hochgeladen wurde
     if (uploadedImageFile) {
         const reader = new FileReader();
@@ -516,6 +592,18 @@ function generatePreviewHTML(data) {
     const showMockup = data.show_mockup === '1' && data.mockup_image_url;
     const mockupUrl = data.mockup_image_url || '';
     
+    // Typografie
+    const headlineFont = data.headline_font || 'Inter';
+    const headlineSize = data.headline_size || '48';
+    const bodyFont = data.body_font || 'Inter';
+    const bodySize = data.body_size || '16';
+    
+    // Google Fonts laden
+    const fontsToLoad = new Set([headlineFont, bodyFont]);
+    const fontLinks = Array.from(fontsToLoad).map(font => 
+        `<link href="https://fonts.googleapis.com/css2?family=${font.replace(' ', '+')}:wght@400;600;700;800&display=swap" rel="stylesheet">`
+    ).join('');
+    
     // Bulletpoints verarbeiten
     let bulletpointsHTML = '';
     if (data.bulletpoints) {
@@ -523,7 +611,7 @@ function generatePreviewHTML(data) {
         bulletpointsHTML = bullets.map(bullet => 
             `<div style="display: flex; align-items: start; gap: 12px; margin-bottom: 16px;">
                 <span style="color: ${primaryColor}; font-size: 20px; flex-shrink: 0;">✓</span>
-                <span style="color: #374151; font-size: 16px;">${escapeHtml(bullet.replace(/^[✓✔︎•-]\s*/, ''))}</span>
+                <span style="color: #374151; font-size: ${bodySize}px; font-family: '${bodyFont}', sans-serif;">${escapeHtml(bullet.replace(/^[✓✔︎•-]\s*/, ''))}</span>
             </div>`
         ).join('');
     }
@@ -534,6 +622,7 @@ function generatePreviewHTML(data) {
     if (layout === 'hybrid' || layout === 'sidebar') {
         // Zwei-Spalten Layout
         layoutHTML = `
+            ${fontLinks}
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">
                 <div style="order: ${layout === 'sidebar' ? '2' : '1'};">
                     ${showMockup && mockupUrl ? `
@@ -545,17 +634,17 @@ function generatePreviewHTML(data) {
                     `}
                 </div>
                 <div style="order: ${layout === 'sidebar' ? '1' : '2'};">
-                    ${data.preheadline ? `<div style="color: ${primaryColor}; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">${escapeHtml(data.preheadline)}</div>` : ''}
+                    ${data.preheadline ? `<div style="color: ${primaryColor}; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-family: '${headlineFont}', sans-serif;">${escapeHtml(data.preheadline)}</div>` : ''}
                     
-                    <h1 style="font-size: 48px; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px;">
+                    <h1 style="font-size: ${headlineSize}px; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px; font-family: '${headlineFont}', sans-serif;">
                         ${escapeHtml(data.headline || 'Dein kostenloser Kurs')}
                     </h1>
                     
-                    ${data.subheadline ? `<p style="font-size: 20px; color: #6b7280; margin-bottom: 32px;">${escapeHtml(data.subheadline)}</p>` : ''}
+                    ${data.subheadline ? `<p style="font-size: 20px; color: #6b7280; margin-bottom: 32px; font-family: '${bodyFont}', sans-serif;">${escapeHtml(data.subheadline)}</p>` : ''}
                     
                     ${bulletpointsHTML ? `<div style="margin-bottom: 32px;">${bulletpointsHTML}</div>` : ''}
                     
-                    <button style="background: ${primaryColor}; color: white; padding: 16px 40px; border: none; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer;">
+                    <button style="background: ${primaryColor}; color: white; padding: 16px 40px; border: none; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer; font-family: '${bodyFont}', sans-serif;">
                         ${escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern')}
                     </button>
                 </div>
@@ -564,14 +653,15 @@ function generatePreviewHTML(data) {
     } else {
         // Zentriertes Layout
         layoutHTML = `
+            ${fontLinks}
             <div style="max-width: 800px; margin: 0 auto; text-align: center;">
-                ${data.preheadline ? `<div style="color: ${primaryColor}; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">${escapeHtml(data.preheadline)}</div>` : ''}
+                ${data.preheadline ? `<div style="color: ${primaryColor}; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-family: '${headlineFont}', sans-serif;">${escapeHtml(data.preheadline)}</div>` : ''}
                 
-                <h1 style="font-size: 56px; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px;">
+                <h1 style="font-size: ${headlineSize}px; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px; font-family: '${headlineFont}', sans-serif;">
                     ${escapeHtml(data.headline || 'Dein kostenloser Kurs')}
                 </h1>
                 
-                ${data.subheadline ? `<p style="font-size: 22px; color: #6b7280; margin-bottom: 40px;">${escapeHtml(data.subheadline)}</p>` : ''}
+                ${data.subheadline ? `<p style="font-size: 22px; color: #6b7280; margin-bottom: 40px; font-family: '${bodyFont}', sans-serif;">${escapeHtml(data.subheadline)}</p>` : ''}
                 
                 ${showMockup && mockupUrl ? `
                     <img src="${escapeHtml(mockupUrl)}" alt="Mockup" style="width: 100%; max-width: 500px; height: auto; border-radius: 12px; margin-bottom: 40px;">
@@ -583,7 +673,7 @@ function generatePreviewHTML(data) {
                 
                 ${bulletpointsHTML ? `<div style="text-align: left; max-width: 500px; margin: 0 auto 40px;">${bulletpointsHTML}</div>` : ''}
                 
-                <button style="background: ${primaryColor}; color: white; padding: 18px 48px; border: none; border-radius: 8px; font-size: 20px; font-weight: 600; cursor: pointer;">
+                <button style="background: ${primaryColor}; color: white; padding: 18px 48px; border: none; border-radius: 8px; font-size: 20px; font-weight: 600; cursor: pointer; font-family: '${bodyFont}', sans-serif;">
                     ${escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern')}
                 </button>
             </div>
@@ -612,6 +702,14 @@ async function saveTemplate() {
     
     // Layout aus hidden input hinzufügen
     formData.set('layout', document.getElementById('layoutInput').value);
+    
+    // Typografie Felder hinzufügen
+    formData.set('headline_font', document.getElementById('headline_font').value);
+    formData.set('headline_size', document.getElementById('headline_size').value);
+    formData.set('headline_size_mobile', document.getElementById('headline_size_mobile').value);
+    formData.set('body_font', document.getElementById('body_font').value);
+    formData.set('body_size', document.getElementById('body_size').value);
+    formData.set('body_size_mobile', document.getElementById('body_size_mobile').value);
     
     // Wenn Bild hochgeladen wurde, hinzufügen
     if (uploadedImageFile) {
