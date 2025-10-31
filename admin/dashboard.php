@@ -118,7 +118,7 @@ $page = $_GET['page'] ?? 'overview';
             </a>
             <a href="?page=templates" class="nav-item <?php echo $page === 'templates' ? 'active' : ''; ?>">
                 <span class="nav-icon">📄</span>
-                <span>Templates</span>
+                <span>Freebie Kurs</span>
             </a>
             <a href="?page=social" class="nav-item <?php echo $page === 'social' ? 'active' : ''; ?>">
                 <span class="nav-icon">📱</span>
@@ -160,6 +160,7 @@ $page = $_GET['page'] ?? 'overview';
                         'freebies' => 'Freebie Templates',
                         'freebie-create' => 'Neues Freebie Template',
                         'freebie-edit' => 'Template bearbeiten',
+                        'templates' => 'Freebie Kurs',
                         'tutorials' => 'Tutorials verwalten',
                         'settings' => 'Einstellungen'
                     ];
