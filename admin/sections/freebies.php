@@ -55,7 +55,7 @@ $domain = $_SERVER['HTTP_HOST'];
                     </div>
                 </div>
                 
-                <!-- FREEBIE LINK -->
+                <!-- FREEBIE LINK - DIREKT -->
                 <div class="link-section">
                     <div class="link-header">
                         <span class="link-icon">🔗</span>
@@ -64,26 +64,29 @@ $domain = $_SERVER['HTTP_HOST'];
                     <?php 
                     $freebieLink = $freebie['public_link'] ?? '/freebie/view.php?id=' . $freebie['id'];
                     $fullFreebieLink = $protocol . '://' . $domain . $freebieLink;
-                    $shortFreebieLink = $freebie['short_link'] ? ($protocol . '://' . $domain . $freebie['short_link']) : null;
                     ?>
                     
-                    <?php if ($shortFreebieLink): ?>
-                        <div class="link-item">
-                            <input type="text" readonly value="<?php echo htmlspecialchars($shortFreebieLink); ?>" class="link-input" id="short-freebie-<?php echo $freebie['id']; ?>">
-                            <button onclick="copyLink('short-freebie-<?php echo $freebie['id']; ?>')" class="btn-copy" title="Link kopieren">📋</button>
+                    <div class="link-item">
+                        <input type="text" readonly value="<?php echo htmlspecialchars($fullFreebieLink); ?>" class="link-input" id="freebie-<?php echo $freebie['id']; ?>">
+                        <button onclick="copyLink('freebie-<?php echo $freebie['id']; ?>')" class="btn-copy" title="Link kopieren">📋</button>
+                    </div>
+                    
+                    <?php if (!empty($freebie['short_link'])): ?>
+                        <div class="link-item" style="margin-top: 8px;">
+                            <input type="text" readonly value="<?php echo htmlspecialchars($protocol . '://' . $domain . $freebie['short_link']); ?>" class="link-input link-input-short" id="short-freebie-<?php echo $freebie['id']; ?>">
+                            <button onclick="copyLink('short-freebie-<?php echo $freebie['id']; ?>')" class="btn-copy" title="Short-Link kopieren">📋</button>
+                        </div>
+                        <div style="font-size: 11px; color: #888; margin-top: 4px; padding-left: 8px;">
+                            ⚡ Short-Link (falls Server konfiguriert)
                         </div>
                     <?php else: ?>
-                        <div class="link-item">
-                            <input type="text" readonly value="<?php echo htmlspecialchars($fullFreebieLink); ?>" class="link-input" id="freebie-<?php echo $freebie['id']; ?>">
-                            <button onclick="copyLink('freebie-<?php echo $freebie['id']; ?>')" class="btn-copy" title="Link kopieren">📋</button>
-                        </div>
                         <button onclick="shortenLink(<?php echo $freebie['id']; ?>, 'freebie')" class="btn-shorten">
-                            🔗 Link kürzen
+                            🔗 Short-Link erstellen (optional)
                         </button>
                     <?php endif; ?>
                 </div>
                 
-                <!-- THANK YOU LINK -->
+                <!-- THANK YOU LINK - DIREKT -->
                 <div class="link-section">
                     <div class="link-header">
                         <span class="link-icon">🎉</span>
@@ -92,21 +95,24 @@ $domain = $_SERVER['HTTP_HOST'];
                     <?php 
                     $thankYouLink = $freebie['thank_you_link'] ?? '/freebie/thankyou.php?id=' . $freebie['id'];
                     $fullThankYouLink = $protocol . '://' . $domain . $thankYouLink;
-                    $shortThankYouLink = $freebie['thank_you_short_link'] ? ($protocol . '://' . $domain . $freebie['thank_you_short_link']) : null;
                     ?>
                     
-                    <?php if ($shortThankYouLink): ?>
-                        <div class="link-item">
-                            <input type="text" readonly value="<?php echo htmlspecialchars($shortThankYouLink); ?>" class="link-input" id="short-thankyou-<?php echo $freebie['id']; ?>">
-                            <button onclick="copyLink('short-thankyou-<?php echo $freebie['id']; ?>')" class="btn-copy" title="Link kopieren">📋</button>
+                    <div class="link-item">
+                        <input type="text" readonly value="<?php echo htmlspecialchars($fullThankYouLink); ?>" class="link-input" id="thankyou-<?php echo $freebie['id']; ?>">
+                        <button onclick="copyLink('thankyou-<?php echo $freebie['id']; ?>')" class="btn-copy" title="Link kopieren">📋</button>
+                    </div>
+                    
+                    <?php if (!empty($freebie['thank_you_short_link'])): ?>
+                        <div class="link-item" style="margin-top: 8px;">
+                            <input type="text" readonly value="<?php echo htmlspecialchars($protocol . '://' . $domain . $freebie['thank_you_short_link']); ?>" class="link-input link-input-short" id="short-thankyou-<?php echo $freebie['id']; ?>">
+                            <button onclick="copyLink('short-thankyou-<?php echo $freebie['id']; ?>')" class="btn-copy" title="Short-Link kopieren">📋</button>
+                        </div>
+                        <div style="font-size: 11px; color: #888; margin-top: 4px; padding-left: 8px;">
+                            ⚡ Short-Link (falls Server konfiguriert)
                         </div>
                     <?php else: ?>
-                        <div class="link-item">
-                            <input type="text" readonly value="<?php echo htmlspecialchars($fullThankYouLink); ?>" class="link-input" id="thankyou-<?php echo $freebie['id']; ?>">
-                            <button onclick="copyLink('thankyou-<?php echo $freebie['id']; ?>')" class="btn-copy" title="Link kopieren">📋</button>
-                        </div>
                         <button onclick="shortenLink(<?php echo $freebie['id']; ?>, 'thankyou')" class="btn-shorten">
-                            🔗 Link kürzen
+                            🔗 Short-Link erstellen (optional)
                         </button>
                     <?php endif; ?>
                 </div>
@@ -273,7 +279,6 @@ $domain = $_SERVER['HTTP_HOST'];
     .link-item {
         display: flex;
         gap: 8px;
-        margin-bottom: 8px;
     }
     
     .link-input {
@@ -285,6 +290,11 @@ $domain = $_SERVER['HTTP_HOST'];
         padding: 8px 12px;
         font-size: 12px;
         font-family: 'Courier New', monospace;
+    }
+    
+    .link-input-short {
+        background: rgba(102, 234, 126, 0.1);
+        border: 1px solid rgba(102, 234, 126, 0.3);
     }
     
     .btn-copy {
@@ -313,6 +323,7 @@ $domain = $_SERVER['HTTP_HOST'];
         font-weight: 600;
         cursor: pointer;
         transition: all 0.2s;
+        margin-top: 8px;
     }
     
     .btn-shorten:hover {
@@ -418,7 +429,7 @@ async function shortenLink(freebieId, type) {
         const result = await response.json();
         
         if (result.success) {
-            alert('✅ Link erfolgreich gekürzt!\n\n' + result.full_url);
+            alert('✅ Short-Link erstellt!\n\n' + result.full_url + '\n\n⚠️ Hinweis: Short-Links funktionieren nur, wenn der Server entsprechend konfiguriert ist. Nutze ansonsten die vollen Links oben.');
             location.reload();
         } else {
             alert('❌ Fehler: ' + (result.error || 'Unbekannter Fehler'));
@@ -480,7 +491,6 @@ function generatePreviewHTML(data) {
     const showMockup = data.show_mockup === '1';
     const mockupUrl = data.mockup_image_url || '';
     
-    // Font-Einstellungen
     const preheadlineFont = data.preheadline_font || 'Poppins';
     const preheadlineSize = data.preheadline_size || 14;
     const headlineFont = data.headline_font || 'Poppins';
