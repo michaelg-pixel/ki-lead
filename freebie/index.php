@@ -205,8 +205,8 @@ if (!empty($freebie['bullet_points'])) {
             background: linear-gradient(135deg, <?php echo $primaryColor; ?> 0%, <?php echo $secondaryColor; ?> 100%);
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
             padding: 40px 20px;
         }
         
@@ -221,6 +221,7 @@ if (!empty($freebie['bullet_points'])) {
             border-radius: 24px;
             box-shadow: 0 25px 70px rgba(0, 0, 0, 0.4);
             overflow: hidden;
+            margin-bottom: 40px;
         }
         
         .header {
@@ -386,6 +387,40 @@ if (!empty($freebie['bullet_points'])) {
             line-height: 1.6;
         }
         
+        /* Footer Styles */
+        .footer {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-blur: 10px;
+            padding: 30px 20px;
+            border-radius: 16px;
+            max-width: 650px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .footer-links a {
+            color: #4b5563;
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.3s;
+        }
+        
+        .footer-links a:hover {
+            color: <?php echo $primaryColor; ?>;
+        }
+        
+        .footer-separator {
+            color: #d1d5db;
+        }
+        
         @media (max-width: 768px) {
             h1 {
                 font-size: 32px;
@@ -474,6 +509,15 @@ if (!empty($freebie['bullet_points'])) {
                     </form>
                 </div>
             <?php endif; ?>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <div class="footer">
+        <div class="footer-links">
+            <a href="/impressum.php">Impressum</a>
+            <span class="footer-separator">•</span>
+            <a href="/datenschutz.php">Datenschutzerklärung</a>
         </div>
     </div>
 </body>
