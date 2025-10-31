@@ -1,0 +1,22 @@
+# Nur Bild-Dateien erlauben
+<FilesMatch "\.(jpg|jpeg|png|gif|webp)$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>
+
+# PHP-Ausführung verbieten
+<FilesMatch "\.php$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Directory Listing deaktivieren
+Options -Indexes
+
+# MIME-Types setzen
+<IfModule mod_mime.c>
+    AddType image/jpeg jpg jpeg
+    AddType image/png png
+    AddType image/gif gif
+    AddType image/webp webp
+</IfModule>
