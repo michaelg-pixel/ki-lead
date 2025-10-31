@@ -225,22 +225,35 @@ $page = $_GET['page'] ?? 'overview';
     </div>
     
     <style>
-        /* NEUE FARBEN - Basierend auf Screenshot */
+        /* ANGEPASSTE FARBEN - Basierend auf Screenshot */
         :root {
-            --bg-primary: #0f0f1e;
+            /* Hintergrundfarben - Dunklere violett-blaue Töne */
+            --bg-primary: #0a0a16;
             --bg-secondary: #1a1532;
             --bg-tertiary: #252041;
-            --bg-card: #1e1b3f;
+            --bg-card: #2a2550;
+            
+            /* Primärfarben - Violett/Lila Töne */
             --primary: #a855f7;
-            --primary-dark: #9333ea;
+            --primary-dark: #8b40d1;
             --primary-light: #c084fc;
+            
+            /* Akzentfarben */
             --accent: #f59e0b;
             --success: #4ade80;
-            --danger: #ef4444;
-            --text-primary: #e0e0e0;
-            --text-secondary: #a0a0a0;
-            --text-muted: #666;
+            --success-dark: #22c55e;
+            --danger: #fb7185;
+            --danger-dark: #f43f5e;
+            --warning: #fbbf24;
+            
+            /* Text-Farben */
+            --text-primary: #e5e7eb;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            
+            /* Borders */
             --border: rgba(168, 85, 247, 0.2);
+            --border-light: rgba(255, 255, 255, 0.05);
         }
         
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -258,7 +271,7 @@ $page = $_GET['page'] ?? 'overview';
         .sidebar {
             width: 240px;
             background: var(--bg-secondary);
-            border-right: 1px solid rgba(255,255,255,0.05);
+            border-right: 1px solid var(--border-light);
             display: flex;
             flex-direction: column;
             padding: 24px 0;
@@ -269,7 +282,7 @@ $page = $_GET['page'] ?? 'overview';
             align-items: center;
             gap: 12px;
             padding: 0 20px 24px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid var(--border-light);
             margin-bottom: 24px;
         }
         
@@ -345,7 +358,7 @@ $page = $_GET['page'] ?? 'overview';
         
         .user-section {
             padding: 16px 20px;
-            border-top: 1px solid rgba(255,255,255,0.05);
+            border-top: 1px solid var(--border-light);
             display: flex;
             align-items: center;
             gap: 12px;
@@ -401,7 +414,7 @@ $page = $_GET['page'] ?? 'overview';
         
         .topbar {
             background: var(--bg-secondary);
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid var(--border-light);
             padding: 20px 32px;
             display: flex;
             justify-content: space-between;
@@ -507,6 +520,7 @@ $page = $_GET['page'] ?? 'overview';
         .stat-card:hover {
             transform: translateY(-4px);
             border-color: var(--primary);
+            box-shadow: 0 10px 30px rgba(168, 85, 247, 0.2);
         }
         
         .stat-header {
@@ -583,6 +597,7 @@ $page = $_GET['page'] ?? 'overview';
         
         .btn:hover {
             transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(168, 85, 247, 0.4);
         }
         
         /* TABLES */
@@ -594,7 +609,7 @@ $page = $_GET['page'] ?? 'overview';
         th, td {
             padding: 12px;
             text-align: left;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid var(--border-light);
         }
         
         th {
