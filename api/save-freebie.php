@@ -17,12 +17,44 @@ try {
         throw new Exception('Keine Berechtigung');
     }
     
-    // JSON-Daten einlesen
-    $json = file_get_contents('php://input');
-    $data = json_decode($json, true);
+    // FormData verarbeiten (statt JSON)
+    $data = $_POST;
     
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        throw new Exception('Ungültige JSON-Daten: ' . json_last_error_msg());
+    // File-Upload verarbeiten
+    $mockup_image_url = $data['mockup_image_url'] ?? '';
+    
+    if (isset($_FILES['mockup_image']) && $_FILES['mockup_image']['error'] === UPLOAD_ERR_OK) {
+        // Upload-Verzeichnis erstellen falls nicht vorhanden
+        $upload_dir = __DIR__ . '/../uploads/mockups';
+        if (!file_exists($upload_dir)) {
+            mkdir($upload_dir, 0755, true);
+        }
+        
+        // Datei-Informationen
+        $file = $_FILES['mockup_image'];
+        $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        
+        // Validierung
+        if (!in_array($file_extension, $allowed_extensions)) {
+            throw new Exception('Ungültiges Dateiformat. Erlaubt: JPG, PNG, GIF, WEBP');
+        }
+        
+        if ($file['size'] > 5 * 1024 * 1024) { // 5MB
+            throw new Exception('Datei zu groß. Maximal 5MB erlaubt.');
+        }
+        
+        // Eindeutigen Dateinamen generieren
+        $new_filename = 'mockup_' . time() . '_' . uniqid() . '.' . $file_extension;
+        $target_path = $upload_dir . '/' . $new_filename;
+        
+        // Datei verschieben
+        if (move_uploaded_file($file['tmp_name'], $target_path)) {
+            // URL für Datenbank
+            $mockup_image_url = '/uploads/mockups/' . $new_filename;
+        } else {
+            throw new Exception('Fehler beim Hochladen der Datei');
+        }
     }
     
     // Datenbankverbindung
@@ -74,7 +106,6 @@ try {
     $cta_button_color = $data['cta_button_color'] ?? '#5B8DEF';
     
     // Weitere Felder
-    $mockup_image_url = trim($data['mockup_image_url'] ?? '');
     $url_slug = !empty($data['url_slug']) ? trim($data['url_slug']) : generateSlug($name);
     $raw_code = trim($data['custom_raw_code'] ?? '');
     $custom_css = trim($data['custom_css'] ?? '');
@@ -105,6 +136,14 @@ try {
     
     if ($template_id) {
         // UPDATE
+        // Wenn kein neues Bild hochgeladen wurde, altes behalten
+        if (empty($mockup_image_url)) {
+            $stmt = $pdo->prepare("SELECT mockup_image_url FROM freebies WHERE id = ?");
+            $stmt->execute([$template_id]);
+            $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+            $mockup_image_url = $existing['mockup_image_url'] ?? '';
+        }
+        
         $sql = "UPDATE freebies SET
             name = ?,
             headline = ?,
@@ -173,7 +212,8 @@ try {
         $response = [
             'success' => true,
             'message' => 'Template erfolgreich aktualisiert',
-            'template_id' => $template_id
+            'template_id' => $template_id,
+            'mockup_image_url' => $mockup_image_url
         ];
         
     } else {
@@ -254,7 +294,8 @@ try {
             'success' => true,
             'message' => 'Template erfolgreich erstellt',
             'template_id' => $template_id,
-            'unique_id' => $unique_id
+            'unique_id' => $unique_id,
+            'mockup_image_url' => $mockup_image_url
         ];
     }
     
