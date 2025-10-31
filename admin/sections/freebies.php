@@ -30,12 +30,11 @@ $freebies = $pdo->query("SELECT * FROM freebies ORDER BY created_at DESC")->fetc
                     </span>
                 </div>
                 <div class="freebie-actions">
-                    <a href="/freebie/<?php echo htmlspecialchars($freebie['unique_id']); ?>" 
-                       class="btn-preview" 
-                       target="_blank" 
-                       title="Vorschau öffnen">
+                    <button onclick="previewTemplate(<?php echo htmlspecialchars(json_encode($freebie)); ?>)" 
+                            class="btn-preview" 
+                            title="Vorschau öffnen">
                         👁️ Vorschau
-                    </a>
+                    </button>
                     <a href="?page=freebie-edit&id=<?php echo $freebie['id']; ?>" class="btn-secondary">Bearbeiten</a>
                     <button onclick="deleteTemplate(<?php echo $freebie['id']; ?>, '<?php echo htmlspecialchars($freebie['name'], ENT_QUOTES); ?>')" class="btn-danger">Löschen</button>
                 </div>
@@ -50,6 +49,21 @@ $freebies = $pdo->query("SELECT * FROM freebies ORDER BY created_at DESC")->fetc
         <a href="?page=freebie-create" class="btn" style="margin-top: 16px;">Erstes Template erstellen</a>
     </div>
     <?php endif; ?>
+</div>
+
+<!-- VORSCHAU MODAL -->
+<div id="previewModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 12px; width: 90%; max-width: 1200px; max-height: 90vh; overflow-y: auto; position: relative;">
+        <div style="position: sticky; top: 0; background: white; border-bottom: 1px solid #e5e7eb; padding: 20px; display: flex; justify-content: space-between; align-items: center; z-index: 10;">
+            <h3 style="color: #1f2937; font-size: 20px; margin: 0;">Template Vorschau</h3>
+            <button onclick="closePreview()" style="padding: 8px 16px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; transition: background 0.2s;">
+                ✕ Schließen
+            </button>
+        </div>
+        <div id="previewContent" style="padding: 40px;">
+            <!-- Preview wird hier geladen -->
+        </div>
+    </div>
 </div>
 
 <style>
@@ -131,6 +145,7 @@ $freebies = $pdo->query("SELECT * FROM freebies ORDER BY created_at DESC")->fetc
         font-weight: 600;
         transition: all 0.2s;
         box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        cursor: pointer;
     }
     
     .btn-preview:hover {
@@ -171,7 +186,167 @@ $freebies = $pdo->query("SELECT * FROM freebies ORDER BY created_at DESC")->fetc
 </style>
 
 <script>
-// EINZIGE LÖSCHEN-FUNKTION - MIT RICHTIGEM PFAD
+// VORSCHAU-FUNKTION
+function previewTemplate(template) {
+    // Layout-Mapping zurück
+    const layoutMapping = {
+        'layout1': 'hybrid',
+        'layout2': 'centered',
+        'layout3': 'sidebar'
+    };
+    
+    const data = {
+        name: template.name,
+        headline: template.headline,
+        subheadline: template.subheadline || '',
+        preheadline: template.preheadline || '',
+        bulletpoints: template.bullet_points || '',
+        cta_button_text: template.cta_text || 'Jetzt kostenlos sichern',
+        layout: layoutMapping[template.layout] || 'hybrid',
+        background_color: template.background_color || '#FFFFFF',
+        primary_color: template.primary_color || '#7C3AED',
+        mockup_image_url: template.mockup_image_url || '',
+        show_mockup: template.mockup_image_url ? '1' : '0'
+    };
+    
+    // Vorschau-HTML generieren
+    const previewHTML = generatePreviewHTML(data);
+    
+    // Modal anzeigen
+    const modal = document.getElementById('previewModal');
+    const content = document.getElementById('previewContent');
+    
+    content.innerHTML = previewHTML;
+    modal.style.display = 'flex';
+}
+
+// Vorschau-Modal schließen
+function closePreview() {
+    const modal = document.getElementById('previewModal');
+    modal.style.display = 'none';
+}
+
+// HTML für Vorschau generieren
+function generatePreviewHTML(data) {
+    const layout = data.layout || 'hybrid';
+    const bgColor = data.background_color || '#FFFFFF';
+    const primaryColor = data.primary_color || '#7C3AED';
+    const showMockup = data.show_mockup === '1';
+    const mockupUrl = data.mockup_image_url || '';
+    
+    // Bulletpoints verarbeiten
+    let bulletpointsHTML = '';
+    if (data.bulletpoints) {
+        const bullets = data.bulletpoints.split('\n').filter(b => b.trim());
+        bulletpointsHTML = bullets.map(bullet => 
+            `<div style="display: flex; align-items: start; gap: 12px; margin-bottom: 16px;">
+                <span style="color: ${primaryColor}; font-size: 20px; flex-shrink: 0;">✓</span>
+                <span style="color: #374151; font-size: 16px;">${escapeHtml(bullet.replace(/^[✓✔︎•-]\s*/, ''))}</span>
+            </div>`
+        ).join('');
+    }
+    
+    // Layout-spezifisches HTML
+    let layoutHTML = '';
+    
+    if (layout === 'hybrid' || layout === 'sidebar') {
+        // Zwei-Spalten Layout
+        layoutHTML = `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">
+                <div style="order: ${layout === 'sidebar' ? '2' : '1'};">
+                    ${showMockup && mockupUrl ? `
+                        <img src="${escapeHtml(mockupUrl)}" alt="Mockup" style="width: 100%; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+                    ` : `
+                        <div style="width: 100%; aspect-ratio: 4/3; background: linear-gradient(135deg, ${primaryColor}20, ${primaryColor}40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ${primaryColor}; font-size: 48px;">
+                            🎁
+                        </div>
+                    `}
+                </div>
+                <div style="order: ${layout === 'sidebar' ? '1' : '2'};">
+                    ${data.preheadline ? `<div style="color: ${primaryColor}; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">${escapeHtml(data.preheadline)}</div>` : ''}
+                    
+                    <h1 style="font-size: 48px; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px;">
+                        ${escapeHtml(data.headline || 'Dein kostenloser Kurs')}
+                    </h1>
+                    
+                    ${data.subheadline ? `<p style="font-size: 20px; color: #6b7280; margin-bottom: 32px;">${escapeHtml(data.subheadline)}</p>` : ''}
+                    
+                    ${bulletpointsHTML ? `<div style="margin-bottom: 32px;">${bulletpointsHTML}</div>` : ''}
+                    
+                    <button style="background: ${primaryColor}; color: white; padding: 16px 40px; border: none; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px ${primaryColor}40;">
+                        ${escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern')}
+                    </button>
+                </div>
+            </div>
+        `;
+    } else {
+        // Zentriertes Layout
+        layoutHTML = `
+            <div style="max-width: 800px; margin: 0 auto; text-align: center;">
+                ${data.preheadline ? `<div style="color: ${primaryColor}; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">${escapeHtml(data.preheadline)}</div>` : ''}
+                
+                <h1 style="font-size: 56px; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px;">
+                    ${escapeHtml(data.headline || 'Dein kostenloser Kurs')}
+                </h1>
+                
+                ${data.subheadline ? `<p style="font-size: 22px; color: #6b7280; margin-bottom: 40px;">${escapeHtml(data.subheadline)}</p>` : ''}
+                
+                ${showMockup && mockupUrl ? `
+                    <img src="${escapeHtml(mockupUrl)}" alt="Mockup" style="width: 100%; max-width: 500px; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); margin-bottom: 40px;">
+                ` : `
+                    <div style="width: 100%; max-width: 500px; aspect-ratio: 4/3; background: linear-gradient(135deg, ${primaryColor}20, ${primaryColor}40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ${primaryColor}; font-size: 64px; margin: 0 auto 40px;">
+                        🎁
+                    </div>
+                `}
+                
+                ${bulletpointsHTML ? `<div style="text-align: left; max-width: 500px; margin: 0 auto 40px;">${bulletpointsHTML}</div>` : ''}
+                
+                <button style="background: ${primaryColor}; color: white; padding: 18px 48px; border: none; border-radius: 8px; font-size: 20px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px ${primaryColor}40;">
+                    ${escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern')}
+                </button>
+            </div>
+        `;
+    }
+    
+    return `
+        <div style="background: ${bgColor}; padding: 80px 40px; min-height: 600px; border-radius: 8px;">
+            ${layoutHTML}
+        </div>
+    `;
+}
+
+// HTML escapen
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Event Listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Modal bei ESC schließen
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('previewModal');
+            if (modal && modal.style.display === 'flex') {
+                closePreview();
+            }
+        }
+    });
+    
+    // Modal bei Klick außerhalb schließen
+    const modal = document.getElementById('previewModal');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePreview();
+            }
+        });
+    }
+});
+
+// LÖSCHEN-FUNKTION
 async function deleteTemplate(templateId, templateName) {
     // Bestätigung
     if (!confirm(`Möchten Sie das Template "${templateName}" wirklich löschen?\n\n⚠️ Diese Aktion kann nicht rückgängig gemacht werden!`)) {
@@ -179,7 +354,6 @@ async function deleteTemplate(templateId, templateName) {
     }
     
     try {
-        // RICHTIGER PFAD: /api/delete-freebie.php
         const response = await fetch('/api/delete-freebie.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
