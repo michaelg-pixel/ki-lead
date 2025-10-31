@@ -9,10 +9,10 @@ $search = $_GET['search'] ?? '';
 $status = $_GET['status'] ?? 'all';
 
 $query = "SELECT u.*, 
-          GROUP_CONCAT(DISTINCT ft.title SEPARATOR ', ') as assigned_freebies
+          GROUP_CONCAT(DISTINCT f.name SEPARATOR ', ') as assigned_freebies
           FROM users u
           LEFT JOIN user_freebies uf ON u.id = uf.user_id
-          LEFT JOIN freebie_templates ft ON uf.freebie_id = ft.id
+          LEFT JOIN freebies f ON uf.freebie_id = f.id
           WHERE u.role = 'customer'";
 
 $params = [];
@@ -34,8 +34,8 @@ $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Alle Freebie Templates laden
-$freebieTemplates = $pdo->query("SELECT id, title FROM freebie_templates ORDER BY title")->fetchAll(PDO::FETCH_ASSOC);
+// Alle Freebie Templates laden (aus der richtigen Tabelle!)
+$freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <style>
@@ -463,14 +463,22 @@ $freebieTemplates = $pdo->query("SELECT id, title FROM freebie_templates ORDER B
                     <option value="">Bitte wählen...</option>
                     <?php foreach ($freebieTemplates as $template): ?>
                     <option value="<?php echo $template['id']; ?>">
-                        <?php echo htmlspecialchars($template['title']); ?>
+                        <?php echo htmlspecialchars($template['name']); ?>
+                        <?php if (!empty($template['headline'])): ?>
+                            - <?php echo htmlspecialchars($template['headline']); ?>
+                        <?php endif; ?>
                     </option>
                     <?php endforeach; ?>
                 </select>
+                <?php if (count($freebieTemplates) === 0): ?>
+                    <small style="color: #ef4444; font-size: 12px; display: block; margin-top: 8px;">
+                        ⚠️ Keine Freebie Templates vorhanden. Bitte erst Templates erstellen!
+                    </small>
+                <?php endif; ?>
             </div>
             <div class="modal-actions">
                 <button type="button" class="btn-secondary" onclick="closeModal('assignFreebieModal')">Abbrechen</button>
-                <button type="submit" class="btn-primary">Zuweisen</button>
+                <button type="submit" class="btn-primary" <?php echo count($freebieTemplates) === 0 ? 'disabled' : ''; ?>>Zuweisen</button>
             </div>
         </form>
     </div>
