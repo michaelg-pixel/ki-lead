@@ -55,7 +55,7 @@ $domain = $_SERVER['HTTP_HOST'];
                     </div>
                 </div>
                 
-                <!-- FREEBIE LINK - DIREKT -->
+                <!-- FREEBIE LINK -->
                 <div class="link-section">
                     <div class="link-header">
                         <span class="link-icon">🔗</span>
@@ -70,23 +70,9 @@ $domain = $_SERVER['HTTP_HOST'];
                         <input type="text" readonly value="<?php echo htmlspecialchars($fullFreebieLink); ?>" class="link-input" id="freebie-<?php echo $freebie['id']; ?>">
                         <button onclick="copyLink('freebie-<?php echo $freebie['id']; ?>')" class="btn-copy" title="Link kopieren">📋</button>
                     </div>
-                    
-                    <?php if (!empty($freebie['short_link'])): ?>
-                        <div class="link-item" style="margin-top: 8px;">
-                            <input type="text" readonly value="<?php echo htmlspecialchars($protocol . '://' . $domain . $freebie['short_link']); ?>" class="link-input link-input-short" id="short-freebie-<?php echo $freebie['id']; ?>">
-                            <button onclick="copyLink('short-freebie-<?php echo $freebie['id']; ?>')" class="btn-copy" title="Short-Link kopieren">📋</button>
-                        </div>
-                        <div style="font-size: 11px; color: #888; margin-top: 4px; padding-left: 8px;">
-                            ⚡ Short-Link (falls Server konfiguriert)
-                        </div>
-                    <?php else: ?>
-                        <button onclick="shortenLink(<?php echo $freebie['id']; ?>, 'freebie')" class="btn-shorten">
-                            🔗 Short-Link erstellen (optional)
-                        </button>
-                    <?php endif; ?>
                 </div>
                 
-                <!-- THANK YOU LINK - DIREKT -->
+                <!-- THANK YOU LINK -->
                 <div class="link-section">
                     <div class="link-header">
                         <span class="link-icon">🎉</span>
@@ -101,20 +87,6 @@ $domain = $_SERVER['HTTP_HOST'];
                         <input type="text" readonly value="<?php echo htmlspecialchars($fullThankYouLink); ?>" class="link-input" id="thankyou-<?php echo $freebie['id']; ?>">
                         <button onclick="copyLink('thankyou-<?php echo $freebie['id']; ?>')" class="btn-copy" title="Link kopieren">📋</button>
                     </div>
-                    
-                    <?php if (!empty($freebie['thank_you_short_link'])): ?>
-                        <div class="link-item" style="margin-top: 8px;">
-                            <input type="text" readonly value="<?php echo htmlspecialchars($protocol . '://' . $domain . $freebie['thank_you_short_link']); ?>" class="link-input link-input-short" id="short-thankyou-<?php echo $freebie['id']; ?>">
-                            <button onclick="copyLink('short-thankyou-<?php echo $freebie['id']; ?>')" class="btn-copy" title="Short-Link kopieren">📋</button>
-                        </div>
-                        <div style="font-size: 11px; color: #888; margin-top: 4px; padding-left: 8px;">
-                            ⚡ Short-Link (falls Server konfiguriert)
-                        </div>
-                    <?php else: ?>
-                        <button onclick="shortenLink(<?php echo $freebie['id']; ?>, 'thankyou')" class="btn-shorten">
-                            🔗 Short-Link erstellen (optional)
-                        </button>
-                    <?php endif; ?>
                 </div>
                 
                 <div class="freebie-actions">
@@ -292,11 +264,6 @@ $domain = $_SERVER['HTTP_HOST'];
         font-family: 'Courier New', monospace;
     }
     
-    .link-input-short {
-        background: rgba(102, 234, 126, 0.1);
-        border: 1px solid rgba(102, 234, 126, 0.3);
-    }
-    
     .btn-copy {
         padding: 8px 12px;
         background: rgba(102, 126, 234, 0.3);
@@ -310,24 +277,6 @@ $domain = $_SERVER['HTTP_HOST'];
     
     .btn-copy:hover {
         background: rgba(102, 126, 234, 0.5);
-    }
-    
-    .btn-shorten {
-        width: 100%;
-        padding: 8px;
-        background: rgba(102, 126, 234, 0.2);
-        border: 1px solid rgba(102, 126, 234, 0.4);
-        border-radius: 6px;
-        color: #667eea;
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-        margin-top: 8px;
-    }
-    
-    .btn-shorten:hover {
-        background: rgba(102, 126, 234, 0.3);
     }
     
     .freebie-actions {
@@ -411,31 +360,6 @@ function copyLink(inputId) {
         }, 2000);
     } catch (err) {
         alert('Fehler beim Kopieren');
-    }
-}
-
-// Link kürzen
-async function shortenLink(freebieId, type) {
-    try {
-        const response = await fetch('/api/shorten-link.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                freebie_id: freebieId,
-                type: type
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            alert('✅ Short-Link erstellt!\n\n' + result.full_url + '\n\n⚠️ Hinweis: Short-Links funktionieren nur, wenn der Server entsprechend konfiguriert ist. Nutze ansonsten die vollen Links oben.');
-            location.reload();
-        } else {
-            alert('❌ Fehler: ' + (result.error || 'Unbekannter Fehler'));
-        }
-    } catch (error) {
-        alert('❌ Netzwerkfehler: ' + error.message);
     }
 }
 
