@@ -17,15 +17,80 @@ try {
         throw new Exception('Keine Berechtigung');
     }
     
-    // FormData verarbeiten (statt JSON)
-    $data = $_POST;
+    // Daten verarbeiten - JSON oder FormData
+    $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
     
-    // File-Upload verarbeiten
+    if (strpos($contentType, 'application/json') !== false) {
+        // JSON-Daten
+        $json = file_get_contents('php://input');
+        $data = json_decode($json, true);
+        if (!$data) {
+            throw new Exception('Ungültige JSON-Daten');
+        }
+    } else {
+        // FormData
+        $data = $_POST;
+    }
+    
+    // Mockup-Image verarbeiten
     $mockup_image_url = $data['mockup_image_url'] ?? '';
     
-    if (isset($_FILES['mockup_image']) && $_FILES['mockup_image']['error'] === UPLOAD_ERR_OK) {
+    // Base64-Upload verarbeiten
+    if (!empty($data['mockup_image_base64'])) {
+        $base64_data = $data['mockup_image_base64'];
+        
+        // Base64-Header entfernen (data:image/png;base64,...)
+        if (strpos($base64_data, 'base64,') !== false) {
+            $base64_data = explode('base64,', $base64_data)[1];
+        }
+        
+        // Dekodieren
+        $image_data = base64_decode($base64_data);
+        
+        if ($image_data === false) {
+            throw new Exception('Ungültige Base64-Daten');
+        }
+        
+        // Upload-Verzeichnis erstellen
+        $upload_dir = __DIR__ . '/../uploads/freebies';
+        if (!file_exists($upload_dir)) {
+            mkdir($upload_dir, 0755, true);
+        }
+        
+        // Dateityp aus Base64-Header ermitteln oder aus Image-Data
+        $file_extension = 'png'; // Default
+        if (preg_match('/data:image\/(\w+);base64/', $data['mockup_image_base64'], $matches)) {
+            $file_extension = $matches[1];
+            if ($file_extension === 'jpeg') $file_extension = 'jpg';
+        } else {
+            // Versuche Typ aus Binärdaten zu erkennen
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $mime_type = $finfo->buffer($image_data);
+            $ext_map = [
+                'image/jpeg' => 'jpg',
+                'image/png' => 'png',
+                'image/gif' => 'gif',
+                'image/webp' => 'webp'
+            ];
+            $file_extension = $ext_map[$mime_type] ?? 'png';
+        }
+        
+        // Eindeutigen Dateinamen generieren
+        $new_filename = 'mockup_' . time() . '_' . uniqid() . '.' . $file_extension;
+        $target_path = $upload_dir . '/' . $new_filename;
+        
+        // Datei speichern
+        if (file_put_contents($target_path, $image_data) === false) {
+            throw new Exception('Fehler beim Speichern der Datei');
+        }
+        
+        // URL für Datenbank
+        $mockup_image_url = '/uploads/freebies/' . $new_filename;
+    }
+    // Fallback: File-Upload über $_FILES (FormData)
+    elseif (isset($_FILES['mockup_image']) && $_FILES['mockup_image']['error'] === UPLOAD_ERR_OK) {
         // Upload-Verzeichnis erstellen falls nicht vorhanden
-        $upload_dir = __DIR__ . '/../uploads/mockups';
+        $upload_dir = __DIR__ . '/../uploads/freebies';
         if (!file_exists($upload_dir)) {
             mkdir($upload_dir, 0755, true);
         }
@@ -51,7 +116,7 @@ try {
         // Datei verschieben
         if (move_uploaded_file($file['tmp_name'], $target_path)) {
             // URL für Datenbank
-            $mockup_image_url = '/uploads/mockups/' . $new_filename;
+            $mockup_image_url = '/uploads/freebies/' . $new_filename;
         } else {
             throw new Exception('Fehler beim Hochladen der Datei');
         }
@@ -142,6 +207,17 @@ try {
             $stmt->execute([$template_id]);
             $existing = $stmt->fetch(PDO::FETCH_ASSOC);
             $mockup_image_url = $existing['mockup_image_url'] ?? '';
+        } else {
+            // Altes Bild löschen wenn neues hochgeladen wurde
+            $stmt = $pdo->prepare("SELECT mockup_image_url FROM freebies WHERE id = ?");
+            $stmt->execute([$template_id]);
+            $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!empty($existing['mockup_image_url'])) {
+                $old_file = __DIR__ . '/..' . $existing['mockup_image_url'];
+                if (file_exists($old_file)) {
+                    @unlink($old_file);
+                }
+            }
         }
         
         $sql = "UPDATE freebies SET
