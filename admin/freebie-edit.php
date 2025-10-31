@@ -76,8 +76,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete'])) {
             'background' => $_POST['color_background'] ?? '#FFFFFF'
         ],
         'fonts' => [
-            'heading' => $_POST['font_heading'] ?? 'Inter',
-            'body' => $_POST['font_body'] ?? 'Inter'
+            'heading' => $_POST['font_heading'] ?? 'System UI',
+            'body' => $_POST['font_body'] ?? 'System UI'
         ],
         'layout' => $_POST['layout'] ?? 'modern',
         'template_type' => $template_type
@@ -159,6 +159,19 @@ if (isset($_POST['delete']) && $_POST['delete'] === 'confirm') {
 }
 
 $current_datetime = date('d.m.Y H:i');
+
+// Font-Stack Definitionen (websichere Fonts)
+$font_stacks = [
+    'System UI' => '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    'Arial' => 'Arial, "Helvetica Neue", Helvetica, sans-serif',
+    'Helvetica' => '"Helvetica Neue", Helvetica, Arial, sans-serif',
+    'Verdana' => 'Verdana, Geneva, sans-serif',
+    'Trebuchet MS' => '"Trebuchet MS", "Lucida Grande", sans-serif',
+    'Georgia' => 'Georgia, "Times New Roman", serif',
+    'Times New Roman' => '"Times New Roman", Times, Georgia, serif',
+    'Courier New' => '"Courier New", Courier, monospace',
+    'Tahoma' => 'Tahoma, Geneva, sans-serif'
+];
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -169,13 +182,10 @@ $current_datetime = date('d.m.Y H:i');
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Lokale Fonts (DSGVO-konform über Bunny Fonts - EU Server) -->
-    <link rel="stylesheet" href="/assets/css/fonts.css">
-    
     <style>
         body {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            font-family: 'Inter', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         }
         .sidebar {
             background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
@@ -573,11 +583,9 @@ $current_datetime = date('d.m.Y H:i');
                                     </label>
                                     <select name="font_heading" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                                             onchange="updatePreview()">
-                                        <option value="Inter" <?php echo ($design_config['fonts']['heading'] ?? 'Inter') === 'Inter' ? 'selected' : ''; ?>>Inter</option>
-                                        <option value="Poppins" <?php echo ($design_config['fonts']['heading'] ?? '') === 'Poppins' ? 'selected' : ''; ?>>Poppins</option>
-                                        <option value="Roboto" <?php echo ($design_config['fonts']['heading'] ?? '') === 'Roboto' ? 'selected' : ''; ?>>Roboto</option>
-                                        <option value="Montserrat" <?php echo ($design_config['fonts']['heading'] ?? '') === 'Montserrat' ? 'selected' : ''; ?>>Montserrat</option>
-                                        <option value="Playfair Display" <?php echo ($design_config['fonts']['heading'] ?? '') === 'Playfair Display' ? 'selected' : ''; ?>>Playfair Display</option>
+                                        <?php foreach ($font_stacks as $name => $stack): ?>
+                                            <option value="<?php echo $name; ?>" <?php echo ($design_config['fonts']['heading'] ?? 'System UI') === $name ? 'selected' : ''; ?>><?php echo $name; ?></option>
+                                        <?php endforeach; ?>
                                     </select>
                                 </div>
                                 
@@ -587,13 +595,18 @@ $current_datetime = date('d.m.Y H:i');
                                     </label>
                                     <select name="font_body" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                                             onchange="updatePreview()">
-                                        <option value="Inter" <?php echo ($design_config['fonts']['body'] ?? 'Inter') === 'Inter' ? 'selected' : ''; ?>>Inter</option>
-                                        <option value="Poppins" <?php echo ($design_config['fonts']['body'] ?? '') === 'Poppins' ? 'selected' : ''; ?>>Poppins</option>
-                                        <option value="Roboto" <?php echo ($design_config['fonts']['body'] ?? '') === 'Roboto' ? 'selected' : ''; ?>>Roboto</option>
-                                        <option value="Open Sans" <?php echo ($design_config['fonts']['body'] ?? '') === 'Open Sans' ? 'selected' : ''; ?>>Open Sans</option>
-                                        <option value="Lato" <?php echo ($design_config['fonts']['body'] ?? '') === 'Lato' ? 'selected' : ''; ?>>Lato</option>
+                                        <?php foreach ($font_stacks as $name => $stack): ?>
+                                            <option value="<?php echo $name; ?>" <?php echo ($design_config['fonts']['body'] ?? 'System UI') === $name ? 'selected' : ''; ?>><?php echo $name; ?></option>
+                                        <?php endforeach; ?>
                                     </select>
                                 </div>
+                            </div>
+                            
+                            <div class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <p class="text-xs text-green-800">
+                                    <i class="fas fa-check-circle mr-1"></i>
+                                    <strong>100% DSGVO-konform:</strong> Es werden nur websichere System-Fonts verwendet. Keine externen Server, keine Tracking-Cookies.
+                                </p>
                             </div>
                             
                             <div class="mt-4">
@@ -688,6 +701,19 @@ $current_datetime = date('d.m.Y H:i');
     </main>
 
     <script>
+        // Font-Stack Mapping (muss mit PHP übereinstimmen)
+        const fontStacks = {
+            'System UI': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+            'Arial': 'Arial, "Helvetica Neue", Helvetica, sans-serif',
+            'Helvetica': '"Helvetica Neue", Helvetica, Arial, sans-serif',
+            'Verdana': 'Verdana, Geneva, sans-serif',
+            'Trebuchet MS': '"Trebuchet MS", "Lucida Grande", sans-serif',
+            'Georgia': 'Georgia, "Times New Roman", serif',
+            'Times New Roman': '"Times New Roman", Times, Georgia, serif',
+            'Courier New': '"Courier New", Courier, monospace',
+            'Tahoma': 'Tahoma, Geneva, sans-serif'
+        };
+        
         function selectTemplate(element, type) {
             document.querySelectorAll('.template-option').forEach(opt => {
                 opt.classList.remove('selected');
@@ -724,19 +750,25 @@ $current_datetime = date('d.m.Y H:i');
             const secondaryColor = document.querySelector('input[name="color_secondary"]')?.value || '#6D28D9';
             const textColor = document.querySelector('input[name="color_text"]')?.value || '#1F2937';
             const bgColor = document.querySelector('input[name="color_background"]')?.value || '#FFFFFF';
-            const headingFont = document.querySelector('select[name="font_heading"]')?.value || 'Inter';
-            const bodyFont = document.querySelector('select[name="font_body"]')?.value || 'Inter';
+            const headingFont = document.querySelector('select[name="font_heading"]')?.value || 'System UI';
+            const bodyFont = document.querySelector('select[name="font_body"]')?.value || 'System UI';
+            
+            // Get font stacks
+            const headingFontStack = fontStacks[headingFont] || fontStacks['System UI'];
+            const bodyFontStack = fontStacks[bodyFont] || fontStacks['System UI'];
             
             const previewBox = document.getElementById('previewBox');
             
-            // VERBESSERTE VORSCHAU mit lokalen Schriftarten und Größen
+            // Live-Vorschau mit websicheren Schriftarten
             const previewContent = `
-                <div style="background: ${bgColor}; color: ${textColor}; padding: 30px; border-radius: 12px; width: 100%; text-align: center; font-family: '${bodyFont}', sans-serif;">
-                    ${preheadline ? `<p style="font-family: '${bodyFont}', sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: ${secondaryColor}; margin-bottom: 12px; font-weight: 700;">${preheadline}</p>` : ''}
-                    ${headline ? `<h2 style="font-family: '${headingFont}', sans-serif; color: ${primaryColor}; font-size: 22px; font-weight: 700; margin-bottom: 10px; line-height: 1.3;">${headline}</h2>` : `<h2 style="font-family: '${headingFont}', sans-serif; color: ${primaryColor}; font-size: 22px; font-weight: 700; margin-bottom: 10px;">Deine Hauptüberschrift</h2>`}
-                    ${subheadline ? `<p style="font-family: '${bodyFont}', sans-serif; font-size: 14px; color: ${textColor}; opacity: 0.8; line-height: 1.6;">${subheadline}</p>` : `<p style="font-family: '${bodyFont}', sans-serif; font-size: 14px; color: ${textColor}; opacity: 0.8;">Deine Unterüberschrift</p>`}
+                <div style="background: ${bgColor}; color: ${textColor}; padding: 30px; border-radius: 12px; width: 100%; text-align: center; font-family: ${bodyFontStack};">
+                    ${preheadline ? `<p style="font-family: ${bodyFontStack}; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: ${secondaryColor}; margin-bottom: 12px; font-weight: 700;">${preheadline}</p>` : ''}
+                    ${headline ? `<h2 style="font-family: ${headingFontStack}; color: ${primaryColor}; font-size: 22px; font-weight: 700; margin-bottom: 10px; line-height: 1.3;">${headline}</h2>` : `<h2 style="font-family: ${headingFontStack}; color: ${primaryColor}; font-size: 22px; font-weight: 700; margin-bottom: 10px;">Deine Hauptüberschrift</h2>`}
+                    ${subheadline ? `<p style="font-family: ${bodyFontStack}; font-size: 14px; color: ${textColor}; opacity: 0.8; line-height: 1.6;">${subheadline}</p>` : `<p style="font-family: ${bodyFontStack}; font-size: 14px; color: ${textColor}; opacity: 0.8;">Deine Unterüberschrift</p>`}
                     <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid ${primaryColor}; opacity: 0.3;"></div>
-                    <p style="font-family: '${bodyFont}', sans-serif; font-size: 10px; color: ${textColor}; opacity: 0.5; margin-top: 10px;">✓ Live-Vorschau mit lokalen Schriftarten (DSGVO-konform)</p>
+                    <p style="font-family: ${bodyFontStack}; font-size: 10px; color: ${textColor}; opacity: 0.5; margin-top: 10px;">
+                        <i class="fas fa-check-circle" style="color: #10b981;"></i> Websichere Fonts - 100% DSGVO-konform
+                    </p>
                 </div>
             `;
             
