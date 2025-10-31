@@ -66,6 +66,63 @@ $freebies = $pdo->query("SELECT * FROM freebies ORDER BY created_at DESC")->fetc
     </div>
 </div>
 
+<!-- COOKIE EINSTELLUNGEN MODAL -->
+<div id="cookieSettingsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10001; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 16px; width: 90%; max-width: 600px; max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+        <div style="padding: 32px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h3 style="font-size: 24px; font-weight: 700; color: #1f2937; margin: 0;">Cookie-Einstellungen</h3>
+                <button onclick="closeCookieSettings()" style="width: 32px; height: 32px; border-radius: 50%; background: #f3f4f6; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #6b7280;">×</button>
+            </div>
+            
+            <p style="color: #6b7280; margin-bottom: 32px; line-height: 1.6;">Wir verwenden Cookies und ähnliche Technologien, um Ihnen ein optimales Erlebnis zu bieten. Wählen Sie, welche Cookies Sie zulassen möchten.</p>
+            
+            <div style="margin-bottom: 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: #f9fafb; border-radius: 8px; margin-bottom: 16px;">
+                    <div>
+                        <h4 style="font-size: 16px; font-weight: 600; color: #1f2937; margin: 0 0 4px 0;">Notwendige Cookies</h4>
+                        <p style="font-size: 14px; color: #6b7280; margin: 0;">Erforderlich für die Grundfunktionen der Website</p>
+                    </div>
+                    <div style="padding: 8px 16px; background: #e5e7eb; border-radius: 6px; font-size: 12px; font-weight: 600; color: #6b7280;">Immer aktiv</div>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: #f9fafb; border-radius: 8px; margin-bottom: 16px;">
+                    <div style="flex: 1;">
+                        <h4 style="font-size: 16px; font-weight: 600; color: #1f2937; margin: 0 0 4px 0;">Analyse & Statistik</h4>
+                        <p style="font-size: 14px; color: #6b7280; margin: 0;">Helfen uns, die Nutzung zu verstehen und zu verbessern</p>
+                    </div>
+                    <label style="position: relative; display: inline-block; width: 48px; height: 24px; cursor: pointer;">
+                        <input type="checkbox" id="analyticsCookie" style="opacity: 0; width: 0; height: 0;">
+                        <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #e5e7eb; transition: .3s; border-radius: 24px;"></span>
+                        <span style="position: absolute; content: ''; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%;"></span>
+                    </label>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: #f9fafb; border-radius: 8px;">
+                    <div style="flex: 1;">
+                        <h4 style="font-size: 16px; font-weight: 600; color: #1f2937; margin: 0 0 4px 0;">Marketing</h4>
+                        <p style="font-size: 14px; color: #6b7280; margin: 0;">Ermöglichen personalisierte Werbung und Inhalte</p>
+                    </div>
+                    <label style="position: relative; display: inline-block; width: 48px; height: 24px; cursor: pointer;">
+                        <input type="checkbox" id="marketingCookie" style="opacity: 0; width: 0; height: 0;">
+                        <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #e5e7eb; transition: .3s; border-radius: 24px;"></span>
+                        <span style="position: absolute; content: ''; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%;"></span>
+                    </label>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 12px;">
+                <button onclick="saveSelectedCookies()" style="flex: 1; padding: 14px; background: var(--primary-color, #7C3AED); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
+                    Auswahl speichern
+                </button>
+                <button onclick="acceptAllCookiesFromSettings()" style="flex: 1; padding: 14px; background: transparent; color: var(--primary-color, #7C3AED); border: 2px solid var(--primary-color, #7C3AED); border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
+                    Alle akzeptieren
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
     .freebie-card {
         background: linear-gradient(135deg, #1e1e3f 0%, #2a2a4f 100%);
@@ -183,10 +240,18 @@ $freebies = $pdo->query("SELECT * FROM freebies ORDER BY created_at DESC")->fetc
     .btn-danger:hover {
         background: rgba(255, 107, 107, 0.2);
     }
+    
+    /* Toggle Switch Styles */
+    input[type="checkbox"]:checked + span {
+        background-color: var(--primary-color, #7C3AED);
+    }
+    
+    input[type="checkbox"]:checked + span + span {
+        transform: translateX(24px);
+    }
 </style>
 
 <script>
-// VORSCHAU-FUNKTION
 function previewTemplate(template) {
     const layoutMapping = {
         'layout1': 'hybrid',
@@ -207,6 +272,8 @@ function previewTemplate(template) {
         mockup_image_url: template.mockup_image_url || '',
         show_mockup: template.mockup_image_url ? '1' : '0'
     };
+    
+    document.documentElement.style.setProperty('--primary-color', data.primary_color);
     
     const previewHTML = generatePreviewHTML(data);
     const modal = document.getElementById('previewModal');
@@ -238,9 +305,10 @@ function generatePreviewHTML(data) {
         }).join('');
     }
     
+    // Kleineres Mockup (max 380px statt volle Breite)
     const mockupHTML = showMockup && mockupUrl ? 
-        '<img src="' + escapeHtml(mockupUrl) + '" alt="Mockup" style="width: 100%; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">' :
-        '<div style="width: 100%; aspect-ratio: 4/3; background: linear-gradient(135deg, ' + primaryColor + '20, ' + primaryColor + '40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ' + primaryColor + '; font-size: 64px;">🎁</div>';
+        '<img src="' + escapeHtml(mockupUrl) + '" alt="Mockup" style="width: 100%; max-width: 380px; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">' :
+        '<div style="width: 100%; max-width: 380px; aspect-ratio: 3/4; background: linear-gradient(135deg, ' + primaryColor + '20, ' + primaryColor + '40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ' + primaryColor + '; font-size: 64px;">🎁</div>';
     
     const preheadlineHTML = data.preheadline ? 
         '<div style="color: ' + primaryColor + '; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">' + escapeHtml(data.preheadline) + '</div>' : '';
@@ -260,19 +328,22 @@ function generatePreviewHTML(data) {
     let layoutHTML = '';
     
     if (layout === 'hybrid') {
-        layoutHTML = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">' +
-            '<div>' + mockupHTML + '</div>' +
+        // Hybrid: 40% Bild, 60% Text
+        layoutHTML = '<div style="display: grid; grid-template-columns: 2fr 3fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">' +
+            '<div style="display: flex; justify-content: center;">' + mockupHTML + '</div>' +
             '<div>' + preheadlineHTML + headlineHTML + subheadlineHTML + bulletpointsWrapHTML + ctaHTML + '</div>' +
             '</div>';
     } else if (layout === 'sidebar') {
-        layoutHTML = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">' +
+        // Sidebar: 60% Text, 40% Bild
+        layoutHTML = '<div style="display: grid; grid-template-columns: 3fr 2fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">' +
             '<div>' + preheadlineHTML + headlineHTML + subheadlineHTML + bulletpointsWrapHTML + ctaHTML + '</div>' +
-            '<div>' + mockupHTML + '</div>' +
+            '<div style="display: flex; justify-content: center;">' + mockupHTML + '</div>' +
             '</div>';
     } else {
+        // Centered Layout
         const mockupCenteredHTML = showMockup && mockupUrl ?
-            '<img src="' + escapeHtml(mockupUrl) + '" alt="Mockup" style="width: 100%; max-width: 500px; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); margin-bottom: 40px;">' :
-            '<div style="width: 100%; max-width: 500px; aspect-ratio: 4/3; background: linear-gradient(135deg, ' + primaryColor + '20, ' + primaryColor + '40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ' + primaryColor + '; font-size: 64px; margin: 0 auto 40px;">🎁</div>';
+            '<img src="' + escapeHtml(mockupUrl) + '" alt="Mockup" style="width: 100%; max-width: 380px; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); margin: 0 auto 40px;">' :
+            '<div style="width: 100%; max-width: 380px; aspect-ratio: 3/4; background: linear-gradient(135deg, ' + primaryColor + '20, ' + primaryColor + '40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ' + primaryColor + '; font-size: 64px; margin: 0 auto 40px;">🎁</div>';
         
         const bulletpointsCenteredHTML = bulletpointsHTML ?
             '<div style="text-align: left; max-width: 500px; margin: 0 auto 40px;">' + bulletpointsHTML + '</div>' : '';
@@ -290,27 +361,21 @@ function generatePreviewHTML(data) {
             '</div>';
     }
     
-    const cookieBanner = '<div id="cookieBanner" style="position: fixed; bottom: 0; left: 0; right: 0; background: #ffffff; box-shadow: 0 -2px 20px rgba(0,0,0,0.1); padding: 24px 32px; z-index: 1000; border-top: 3px solid ' + primaryColor + ';">' +
-        '<div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 32px; flex-wrap: wrap;">' +
-        '<div style="flex: 1; min-width: 300px;">' +
-        '<div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">' +
-        '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="flex-shrink: 0;">' +
-        '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" fill="' + primaryColor + '"/>' +
-        '<circle cx="12" cy="8" r="1.5" fill="' + primaryColor + '"/>' +
-        '<rect x="11" y="11" width="2" height="6" rx="1" fill="' + primaryColor + '"/>' +
-        '</svg>' +
-        '<h3 style="font-size: 18px; font-weight: 700; color: #1f2937; margin: 0;">Wir verwenden Cookies</h3>' +
+    // Moderner Cookie Banner
+    const cookieBanner = '<div id="cookieBanner" style="position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); max-width: 600px; width: calc(100% - 48px); background: white; box-shadow: 0 8px 32px rgba(0,0,0,0.12); padding: 24px; z-index: 1000; border-radius: 16px; border: 1px solid #e5e7eb;">' +
+        '<div style="display: flex; align-items: start; gap: 16px; margin-bottom: 20px;">' +
+        '<div style="width: 48px; height: 48px; background: linear-gradient(135deg, ' + primaryColor + ', ' + primaryColor + 'dd); border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">' +
+        '<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="2"/><path d="M12 8v4M12 16h.01" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>' +
         '</div>' +
-        '<p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin: 0;">' +
-        'Wir verwenden Cookies, um Inhalte und Anzeigen zu personalisieren und die Zugriffe auf unsere Website zu analysieren. ' +
-        '<a href="#" style="color: ' + primaryColor + '; text-decoration: underline;">Mehr erfahren</a>' +
-        '</p>' +
+        '<div style="flex: 1;">' +
+        '<h3 style="font-size: 16px; font-weight: 700; color: #1f2937; margin: 0 0 8px 0;">🍪 Cookies & Datenschutz</h3>' +
+        '<p style="font-size: 14px; color: #6b7280; line-height: 1.5; margin: 0;">Wir nutzen Cookies für ein besseres Erlebnis. Mit "Akzeptieren" stimmst du der Nutzung zu. <a href="#" style="color: ' + primaryColor + '; text-decoration: underline;">Mehr Info</a></p>' +
         '</div>' +
-        '<div style="display: flex; gap: 12px; flex-wrap: wrap;">' +
-        '<button onclick="acceptCookies()" style="padding: 12px 24px; background: ' + primaryColor + '; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: opacity 0.2s;">Alle akzeptieren</button>' +
-        '<button onclick="declineCookies()" style="padding: 12px 24px; background: transparent; color: #6b7280; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s;">Nur notwendige</button>' +
-        '<button onclick="showCookieSettings()" style="padding: 12px 24px; background: transparent; color: #6b7280; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s;">⚙️ Einstellungen</button>' +
         '</div>' +
+        '<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">' +
+        '<button onclick="showCookieSettings()" style="padding: 10px 16px; background: white; color: #6b7280; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;">⚙️ Einstellungen</button>' +
+        '<button onclick="declineCookies()" style="padding: 10px 16px; background: #f3f4f6; color: #6b7280; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Ablehnen</button>' +
+        '<button onclick="acceptCookies()" style="padding: 10px 16px; background: ' + primaryColor + '; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px ' + primaryColor + '40;">Akzeptieren</button>' +
         '</div>' +
         '</div>';
     
@@ -321,16 +386,44 @@ function generatePreviewHTML(data) {
         '<style>' +
         '#cookieBanner button:hover { opacity: 0.9; transform: translateY(-1px); }' +
         '@media (max-width: 768px) {' +
-        '#cookieBanner { padding: 20px 16px; }' +
-        '#cookieBanner > div { flex-direction: column; align-items: flex-start; }' +
-        '#cookieBanner button { width: 100%; }' +
+        '#cookieBanner { bottom: 16px; width: calc(100% - 32px); padding: 20px; }' +
+        '#cookieBanner > div:last-child { grid-template-columns: 1fr; }' +
         '}' +
-        '</style>' +
-        '<script>' +
-        'function acceptCookies() { document.getElementById("cookieBanner").style.display = "none"; }' +
-        'function declineCookies() { document.getElementById("cookieBanner").style.display = "none"; }' +
-        'function showCookieSettings() { alert("Cookie-Einstellungen würden hier geöffnet werden"); }' +
-        '</scr' + 'ipt>';
+        '</style>';
+}
+
+function acceptCookies() {
+    document.getElementById('cookieBanner').style.display = 'none';
+    console.log('Alle Cookies akzeptiert');
+}
+
+function declineCookies() {
+    document.getElementById('cookieBanner').style.display = 'none';
+    console.log('Nur notwendige Cookies');
+}
+
+function showCookieSettings() {
+    document.getElementById('cookieSettingsModal').style.display = 'flex';
+}
+
+function closeCookieSettings() {
+    document.getElementById('cookieSettingsModal').style.display = 'none';
+}
+
+function saveSelectedCookies() {
+    const analytics = document.getElementById('analyticsCookie').checked;
+    const marketing = document.getElementById('marketingCookie').checked;
+    console.log('Cookies gespeichert:', { analytics, marketing });
+    document.getElementById('cookieSettingsModal').style.display = 'none';
+    document.getElementById('cookieBanner').style.display = 'none';
+}
+
+function acceptAllCookiesFromSettings() {
+    document.getElementById('analyticsCookie').checked = true;
+    document.getElementById('marketingCookie').checked = true;
+    console.log('Alle Cookies aus Einstellungen akzeptiert');
+    document.getElementById('cookieSettingsModal').style.display = 'none';
+    document.getElementById('cookieBanner').style.display = 'none';
 }
 
 function escapeHtml(text) {
@@ -347,6 +440,10 @@ document.addEventListener('DOMContentLoaded', function() {
             if (modal && modal.style.display === 'flex') {
                 closePreview();
             }
+            const settingsModal = document.getElementById('cookieSettingsModal');
+            if (settingsModal && settingsModal.style.display === 'flex') {
+                closeCookieSettings();
+            }
         }
     });
     
@@ -355,6 +452,15 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.addEventListener('click', function(e) {
             if (e.target === this) {
                 closePreview();
+            }
+        });
+    }
+    
+    const settingsModal = document.getElementById('cookieSettingsModal');
+    if (settingsModal) {
+        settingsModal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeCookieSettings();
             }
         });
     }
