@@ -1,4 +1,7 @@
 <?php
+// Font-Konfiguration laden
+$fontConfig = require __DIR__ . '/../../config/fonts.php';
+
 // Template-ID prüfen
 if (empty($_GET['id'])) {
     echo '<div style="background: #fee2e2; border-left: 4px solid #dc2626; padding: 16px; border-radius: 8px; margin: 20px;">
@@ -45,26 +48,149 @@ try {
           </div>';
     exit;
 }
+
+// Defaults zusammenführen
+$defaults = array_merge([
+    'name' => '',
+    'headline' => 'Dein kostenloser KI-Kurs wartet auf dich!',
+    'subheadline' => 'Lerne in 7 Tagen die Grundlagen',
+    'preheadline' => '',
+    'mockup_image_url' => '',
+    'course_id' => null,
+    'cta_button_text' => 'Jetzt kostenlos sichern',
+    'layout' => 'hybrid',
+    'background_color' => '#FFF9E6',
+    'primary_color' => '#FF8C00',
+    'bullet_points' => '',
+    'custom_raw_code' => '',
+    'custom_css' => '',
+    'show_mockup' => 1,
+    'is_master_template' => 1
+], $fontConfig['defaults']);
+
+$template = array_merge($defaults, $template);
+// Alias für bulletpoints
+$template['bulletpoints'] = $template['bullet_points'] ?? '';
 ?>
 
-<!-- Tailwind wird jetzt im dashboard.php Head geladen -->
+<!-- Google Fonts laden -->
+<link href="<?php echo $fontConfig['google_fonts_url']; ?>" rel="stylesheet">
 
 <style>
-    body {
-        background: #1e1e2e;
+    .editor-container {
+        max-width: 1400px;
+        margin: 0 auto;
     }
+    
+    .editor-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .editor-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .back-link {
+        color: #888;
+        text-decoration: none;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .back-link:hover {
+        color: #667eea;
+    }
+    
+    .editor-actions {
+        display: flex;
+        gap: 12px;
+    }
+    
+    .btn-preview {
+        padding: 10px 20px;
+        background: rgba(255,255,255,0.1);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 8px;
+        cursor: pointer;
+        text-decoration: none;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .btn-preview:hover {
+        background: rgba(255,255,255,0.15);
+    }
+    
+    .btn-save {
+        padding: 10px 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .btn-save:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .editor-grid {
+        display: grid;
+        grid-template-columns: 1fr 400px;
+        gap: 24px;
+    }
+    
+    .editor-main {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .editor-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+    
     .card {
         background: white;
         border-radius: 12px;
         padding: 24px;
-        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
+    
     .card-title {
         font-size: 18px;
         font-weight: 600;
         color: #1f2937;
         margin-bottom: 20px;
     }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group:last-child {
+        margin-bottom: 0;
+    }
+    
     .form-label {
         display: block;
         font-size: 14px;
@@ -72,346 +198,526 @@ try {
         color: #374151;
         margin-bottom: 8px;
     }
-    .form-input, .form-select, .form-textarea {
+    
+    .form-label.required::after {
+        content: ' *';
+        color: #ef4444;
+    }
+    
+    .form-input,
+    .form-select,
+    .form-textarea {
         width: 100%;
-        padding: 10px 12px;
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
+        padding: 10px 14px;
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
         font-size: 14px;
         color: #1f2937;
         transition: all 0.2s;
     }
     
-    .form-input::placeholder,
-    .form-textarea::placeholder {
-        color: #9ca3af;
-        opacity: 1;
-    }
-    .form-input:focus, .form-select:focus, .form-textarea:focus {
+    .form-input:focus,
+    .form-select:focus,
+    .form-textarea:focus {
         outline: none;
-        border-color: #8b5cf6;
-        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        border-color: #667eea;
+        background: white;
     }
+    
     .form-textarea {
-        font-family: 'Courier New', monospace;
         resize: vertical;
+        min-height: 100px;
+        font-family: monospace;
     }
-    .helper-text {
+    
+    .form-textarea.large {
+        min-height: 200px;
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 12px;
+    }
+    
+    .color-input {
+        width: 100%;
+        height: 44px;
+        border-radius: 6px;
+        border: 1px solid #e5e7eb;
+        cursor: pointer;
+    }
+    
+    .layout-buttons {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+    
+    .layout-btn {
+        padding: 12px;
+        background: #f9fafb;
+        border: 2px solid #e5e7eb;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        color: #6b7280;
+        transition: all 0.2s;
+    }
+    
+    .layout-btn:hover {
+        border-color: #667eea;
+        color: #667eea;
+    }
+    
+    .layout-btn.active {
+        background: #667eea;
+        border-color: #667eea;
+        color: white;
+    }
+    
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .checkbox-input {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+    
+    .checkbox-label {
+        font-size: 14px;
+        color: #374151;
+        cursor: pointer;
+    }
+    
+    .info-box {
+        background: #eff6ff;
+        border-left: 3px solid #3b82f6;
+        padding: 12px 16px;
+        border-radius: 6px;
+        font-size: 13px;
+        color: #1e40af;
+        margin-top: 8px;
+    }
+    
+    .help-text {
         font-size: 12px;
         color: #6b7280;
-        margin-top: 4px;
+        margin-top: 6px;
     }
-    .layout-btn {
-        padding: 8px 16px;
-        border: 2px solid #e5e7eb;
+    
+    .form-select {
+        font-family: inherit;
+    }
+    
+    .form-select option {
+        padding: 8px;
+    }
+    
+    .upload-area {
+        border: 2px dashed #cbd5e0;
+        background: #f9fafb;
         border-radius: 8px;
-        background: white;
-        cursor: pointer;
-        transition: all 0.2s;
-        font-size: 14px;
-    }
-    .layout-btn.active {
-        background: #8b5cf6;
-        color: white;
-        border-color: #8b5cf6;
-    }
-    .file-upload-area {
-        border: 2px dashed #d1d5db;
-        border-radius: 8px;
-        padding: 20px;
+        padding: 32px;
         text-align: center;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all 0.3s;
     }
-    .file-upload-area:hover {
-        border-color: #8b5cf6;
-        background: #f9fafb;
+    
+    .upload-area:hover {
+        border-color: #667eea;
+        background: #f3f4f6;
     }
-    .file-upload-area.dragover {
-        border-color: #8b5cf6;
-        background: #f3e8ff;
+    
+    .upload-area.dragover {
+        border-color: #667eea;
+        background: #eef2ff;
     }
-    .mockup-preview {
+    
+    .upload-icon {
+        font-size: 48px;
+        color: #9ca3af;
+        margin-bottom: 12px;
+    }
+    
+    .upload-text {
+        color: #6b7280;
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+    
+    .upload-hint {
+        color: #9ca3af;
+        font-size: 12px;
+    }
+    
+    .preview-image {
         max-width: 100%;
-        max-height: 200px;
+        height: auto;
         border-radius: 8px;
         margin-top: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
-    .form-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
+    
+    @media (max-width: 1200px) {
+        .editor-grid {
+            grid-template-columns: 1fr;
+        }
+        .form-row {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 
-<div class="max-w-7xl mx-auto">
-    
-    <!-- Header -->
-    <div class="flex justify-between items-center mb-6">
-        <div>
-            <a href="?page=freebies" class="text-gray-400 hover:text-white text-sm inline-block mb-2">
-                ← Zurück
-            </a>
-            <h1 class="text-2xl font-bold text-white">Template bearbeiten</h1>
+<div class="editor-container">
+    <div class="editor-header">
+        <div class="editor-title">
+            <a href="?page=freebies" class="back-link">← Zurück</a>
+            <h2 style="color: white; font-size: 24px; margin: 0;">Template bearbeiten</h2>
         </div>
-        <div class="flex gap-3">
-            <button type="button" onclick="previewTemplate()" class="bg-gray-700 text-white px-5 py-2.5 rounded-lg hover:bg-gray-600 transition">
-                👁 Vorschau
+        <div class="editor-actions">
+            <button type="button" class="btn-preview" onclick="previewTemplate()">
+                👁️ Vorschau
             </button>
-            <button type="button" onclick="saveTemplate()" id="saveBtn" class="bg-purple-600 text-white px-5 py-2.5 rounded-lg hover:bg-purple-700 transition font-medium">
+            <button type="button" class="btn-save" onclick="saveFreebie()">
                 💾 Speichern
             </button>
         </div>
     </div>
-
-    <!-- 2-Spalten Layout -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    
+    <form id="freebieForm" onsubmit="return false;">
+        <input type="hidden" name="template_id" id="template_id" value="<?php echo $template['id']; ?>">
+        <input type="hidden" name="mockup_image_base64" id="mockup_image_base64">
         
-        <!-- Linke Spalte (2/3) -->
-        <div class="lg:col-span-2 space-y-6">
-            
-            <form id="editTemplateForm">
-                <input type="hidden" name="template_id" value="<?php echo $template['id']; ?>">
+        <div class="editor-grid">
+            <!-- Linke Spalte: Hauptfelder -->
+            <div class="editor-main">
                 
                 <!-- Grundeinstellungen -->
                 <div class="card">
-                    <h2 class="card-title">Grundeinstellungen</h2>
+                    <h3 class="card-title">Grundeinstellungen</h3>
                     
-                    <div class="mb-4">
-                        <label class="form-label">Template Name *</label>
-                        <input type="text" name="name" value="<?php echo htmlspecialchars($template['name']); ?>" 
-                               placeholder="z.B. KI-Kurs Lead-Magnet" class="form-input" required>
+                    <div class="form-group">
+                        <label class="form-label required">Template Name</label>
+                        <input type="text" name="name" id="template_name" class="form-input" 
+                               placeholder="z.B. KI-Kurs Lead-Magnet"
+                               value="<?php echo htmlspecialchars($template['name']); ?>" required>
                     </div>
                     
-                    <div>
+                    <div class="form-group">
                         <label class="form-label">URL-Slug</label>
-                        <input type="text" name="url_slug" value="<?php echo htmlspecialchars($template['url_slug'] ?? ''); ?>"
-                               placeholder="ki-kurs-lead-magnet" class="form-input">
-                        <p class="helper-text">Optional: Wird automatisch aus dem Namen generiert wenn leer</p>
+                        <input type="text" name="url_slug" id="url_slug" class="form-input" 
+                               placeholder="ki-kurs-lead-magnet"
+                               value="<?php echo htmlspecialchars($template['url_slug'] ?? ''); ?>">
+                        <p class="help-text">Optional: Wird automatisch aus dem Namen generiert wenn leer</p>
                     </div>
                 </div>
-
-                <!-- Inhalte -->
+                
+                <!-- Pre-Headline -->
                 <div class="card">
-                    <h2 class="card-title">Inhalte</h2>
+                    <h3 class="card-title">Pre-Headline</h3>
                     
-                    <div class="mb-4">
-                        <label class="form-label">Pre-Headline</label>
-                        <input type="text" name="preheadline" id="preheadline" value="<?php echo htmlspecialchars($template['preheadline'] ?? ''); ?>"
-                               placeholder="z.B. NUR FÜR KURZE ZEIT" class="form-input">
-                        <p class="helper-text">Kleiner Text über der Hauptüberschrift (optional)</p>
+                    <div class="form-group">
+                        <label class="form-label">Text</label>
+                        <input type="text" name="preheadline" id="preheadline" class="form-input" 
+                               placeholder="z.B. NUR FÜR KURZE ZEIT"
+                               value="<?php echo htmlspecialchars($template['preheadline']); ?>"
+                               oninput="updatePreview()">
+                        <p class="help-text">Kleiner Text über der Hauptüberschrift (optional)</p>
                     </div>
                     
-                    <div class="mb-4">
-                        <label class="form-label">Headline *</label>
-                        <input type="text" name="headline" id="headline" value="<?php echo htmlspecialchars($template['headline']); ?>"
-                               placeholder="Dein kostenloser KI-Kurs wartet auf dich!" class="form-input" required>
-                    </div>
-                    
-                    <div>
-                        <label class="form-label">Subheadline</label>
-                        <input type="text" name="subheadline" id="subheadline" value="<?php echo htmlspecialchars($template['subheadline'] ?? ''); ?>"
-                               placeholder="Lerne in 7 Tagen die Grundlagen" class="form-input">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Schriftart</label>
+                            <select name="preheadline_font" id="preheadline_font" class="form-select" onchange="updatePreview()">
+                                <?php foreach ($fontConfig['fonts'] as $font => $category): ?>
+                                <option value="<?php echo htmlspecialchars($font); ?>" 
+                                        <?php echo ($template['preheadline_font'] ?? 'Poppins') === $font ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($font); ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Größe (px)</label>
+                            <select name="preheadline_size" id="preheadline_size" class="form-select" onchange="updatePreview()">
+                                <?php foreach ($fontConfig['sizes']['preheadline'] as $size): ?>
+                                <option value="<?php echo $size; ?>" 
+                                        <?php echo (int)($template['preheadline_size'] ?? 14) === $size ? 'selected' : ''; ?>>
+                                    <?php echo $size; ?>px
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
                     </div>
                 </div>
-
+                
+                <!-- Headline -->
+                <div class="card">
+                    <h3 class="card-title">Headline</h3>
+                    
+                    <div class="form-group">
+                        <label class="form-label required">Text</label>
+                        <input type="text" name="headline" id="headline" class="form-input" 
+                               placeholder="z.B. Dein kostenloser KI-Kurs wartet auf dich!"
+                               value="<?php echo htmlspecialchars($template['headline']); ?>" 
+                               oninput="updatePreview()" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Schriftart</label>
+                            <select name="headline_font" id="headline_font" class="form-select" onchange="updatePreview()">
+                                <?php foreach ($fontConfig['fonts'] as $font => $category): ?>
+                                <option value="<?php echo htmlspecialchars($font); ?>" 
+                                        <?php echo ($template['headline_font'] ?? 'Poppins') === $font ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($font); ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Größe (px)</label>
+                            <select name="headline_size" id="headline_size" class="form-select" onchange="updatePreview()">
+                                <?php foreach ($fontConfig['sizes']['headline'] as $size): ?>
+                                <option value="<?php echo $size; ?>" 
+                                        <?php echo (int)($template['headline_size'] ?? 48) === $size ? 'selected' : ''; ?>>
+                                    <?php echo $size; ?>px
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Subheadline -->
+                <div class="card">
+                    <h3 class="card-title">Subheadline</h3>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Text</label>
+                        <input type="text" name="subheadline" id="subheadline" class="form-input" 
+                               placeholder="z.B. Lerne in 7 Tagen die Grundlagen"
+                               value="<?php echo htmlspecialchars($template['subheadline']); ?>"
+                               oninput="updatePreview()">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Schriftart</label>
+                            <select name="subheadline_font" id="subheadline_font" class="form-select" onchange="updatePreview()">
+                                <?php foreach ($fontConfig['fonts'] as $font => $category): ?>
+                                <option value="<?php echo htmlspecialchars($font); ?>" 
+                                        <?php echo ($template['subheadline_font'] ?? 'Poppins') === $font ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($font); ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Größe (px)</label>
+                            <select name="subheadline_size" id="subheadline_size" class="form-select" onchange="updatePreview()">
+                                <?php foreach ($fontConfig['sizes']['subheadline'] as $size): ?>
+                                <option value="<?php echo $size; ?>" 
+                                        <?php echo (int)($template['subheadline_size'] ?? 20) === $size ? 'selected' : ''; ?>>
+                                    <?php echo $size; ?>px
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Bulletpoints -->
                 <div class="card">
-                    <h2 class="card-title">Bulletpoints</h2>
+                    <h3 class="card-title">Bulletpoints</h3>
                     
-                    <div>
+                    <div class="form-group">
                         <label class="form-label">Vorteile / Features</label>
-                        <textarea name="bulletpoints" id="bulletpoints" rows="8" class="form-textarea"
-                                  placeholder="✓ Erster Vorteil&#10;✓ Zweiter Vorteil&#10;✓ Dritter Vorteil&#10;✓ Vierter Vorteil"><?php echo htmlspecialchars($template['bullet_points'] ?? ''); ?></textarea>
-                        <p class="helper-text">Ein Bulletpoint pro Zeile</p>
+                        <textarea name="bulletpoints" id="bulletpoints" class="form-textarea large" 
+                                  placeholder="✓ Erster Vorteil&#10;✓ Zweiter Vorteil&#10;✓ Dritter Vorteil&#10;✓ Vierter Vorteil"><?php echo htmlspecialchars($template['bulletpoints']); ?></textarea>
+                        <p class="help-text">Ein Bulletpoint pro Zeile</p>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Schriftart</label>
+                            <select name="bulletpoints_font" id="bulletpoints_font" class="form-select" onchange="updatePreview()">
+                                <?php foreach ($fontConfig['fonts'] as $font => $category): ?>
+                                <option value="<?php echo htmlspecialchars($font); ?>" 
+                                        <?php echo ($template['bulletpoints_font'] ?? 'Poppins') === $font ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($font); ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Größe (px)</label>
+                            <select name="bulletpoints_size" id="bulletpoints_size" class="form-select" onchange="updatePreview()">
+                                <?php foreach ($fontConfig['sizes']['bulletpoints'] as $size): ?>
+                                <option value="<?php echo $size; ?>" 
+                                        <?php echo (int)($template['bulletpoints_size'] ?? 16) === $size ? 'selected' : ''; ?>>
+                                    <?php echo $size; ?>px
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
                     </div>
                 </div>
-
-                <!-- Erweiterte Einstellungen -->
+                
+                <!-- Erweitert -->
                 <div class="card">
-                    <h2 class="card-title">Erweiterte Einstellungen</h2>
+                    <h3 class="card-title">Erweiterte Einstellungen</h3>
                     
-                    <div class="mb-4">
-                        <label class="form-label">E-Mail Optin Code</label>
-                        <textarea name="optin_code" rows="4" class="form-textarea"
-                                  placeholder="<form>...</form> oder Autoresponder-Code"></textarea>
-                        <p class="helper-text">HTML-Code für E-Mail-Eintragung (Quentn, ActiveCampaign etc.)</p>
-                    </div>
-                    
-                    <div class="mb-4">
+                    <div class="form-group">
                         <label class="form-label">Custom Raw Code</label>
-                        <textarea name="custom_raw_code" rows="4" class="form-textarea"
-                                  placeholder="<script>...</script> oder zusätzlicher HTML-Code"><?php echo htmlspecialchars($template['raw_code'] ?? ''); ?></textarea>
-                        <p class="helper-text">Zusätzlicher Code für Tracking, Pixel, etc.</p>
+                        <textarea name="custom_raw_code" id="custom_raw_code" class="form-textarea" 
+                                  placeholder="<script>...</script> oder zusätzlicher HTML-Code"><?php echo htmlspecialchars($template['custom_raw_code'] ?? ''); ?></textarea>
+                        <p class="help-text">Zusätzlicher Code für Tracking, Pixel, etc.</p>
                     </div>
                     
-                    <div>
+                    <div class="form-group">
                         <label class="form-label">Custom CSS</label>
-                        <textarea name="custom_css" rows="4" class="form-textarea"
+                        <textarea name="custom_css" id="custom_css" class="form-textarea" 
                                   placeholder=".custom-class { color: red; }"><?php echo htmlspecialchars($template['custom_css'] ?? ''); ?></textarea>
-                        <p class="helper-text">Eigenes CSS für individuelle Anpassungen</p>
+                        <p class="help-text">Eigenes CSS für individuelle Anpassungen</p>
                     </div>
                 </div>
-                
-            </form>
-        </div>
-
-        <!-- Rechte Spalte (1/3) -->
-        <div class="space-y-6">
+            </div>
             
-            <!-- Design -->
-            <div class="card">
-                <h2 class="card-title">Design</h2>
+            <!-- Rechte Spalte: Design & Einstellungen -->
+            <div class="editor-sidebar">
                 
-                <div class="mb-4">
-                    <label class="form-label">Layout</label>
-                    <div class="flex gap-2">
-                        <button type="button" class="layout-btn <?php echo ($template['layout'] == 'hybrid') ? 'active' : ''; ?>" 
-                                onclick="selectLayout('hybrid')">Hybrid</button>
-                        <button type="button" class="layout-btn <?php echo ($template['layout'] == 'centered') ? 'active' : ''; ?>" 
-                                onclick="selectLayout('centered')">Zentriert</button>
-                        <button type="button" class="layout-btn <?php echo ($template['layout'] == 'sidebar') ? 'active' : ''; ?>" 
-                                onclick="selectLayout('sidebar')">Sidebar</button>
+                <!-- Mockup Upload -->
+                <div class="card">
+                    <h3 class="card-title">📸 Mockup-Bild</h3>
+                    
+                    <?php if (!empty($template['mockup_image_url'])): ?>
+                    <div class="form-group">
+                        <p class="help-text" style="margin-bottom: 8px;">Aktuelles Mockup:</p>
+                        <img src="<?php echo htmlspecialchars($template['mockup_image_url']); ?>" 
+                             alt="Current Mockup" 
+                             class="preview-image"
+                             id="current-mockup">
                     </div>
-                    <input type="hidden" name="layout" id="layoutInput" value="<?php echo $template['layout']; ?>">
-                </div>
-                
-                <div class="mb-4">
-                    <label class="form-label">Hintergrundfarbe</label>
-                    <input type="color" name="background_color" id="background_color" value="<?php echo $template['background_color'] ?? '#FFFFFF'; ?>"
-                           class="form-input" style="height: 50px; cursor: pointer;">
-                </div>
-                
-                <div class="mb-4">
-                    <label class="form-label">Primärfarbe</label>
-                    <input type="color" name="primary_color" id="primary_color" value="<?php echo $template['primary_color'] ?? '#7C3AED'; ?>"
-                           class="form-input" style="height: 50px; cursor: pointer;">
-                </div>
-                
-                <div class="mb-4">
-                    <label class="form-label">Mockup Bild</label>
-                    <div class="file-upload-area" id="fileUploadArea" onclick="document.getElementById('mockupImageInput').click()">
-                        <input type="file" id="mockupImageInput" accept="image/*" style="display: none;" onchange="handleFileSelect(event)">
-                        <div id="uploadPrompt" style="<?php echo !empty($template['mockup_image_url']) ? 'display: none;' : ''; ?>">
-                            <p style="color: #6b7280; font-size: 14px; margin-bottom: 8px;">📷 Bild hochladen</p>
-                            <p style="color: #9ca3af; font-size: 12px;">Klicken oder Bild hierher ziehen</p>
+                    <?php endif; ?>
+                    
+                    <div class="form-group">
+                        <div class="upload-area" id="uploadArea" onclick="document.getElementById('mockupFileInput').click()">
+                            <input type="file" 
+                                   id="mockupFileInput" 
+                                   accept="image/*" 
+                                   style="display: none;"
+                                   onchange="handleFileSelect(event)">
+                            
+                            <div id="uploadPlaceholder">
+                                <div class="upload-icon">☁️</div>
+                                <div class="upload-text">
+                                    <strong>Klicke zum Hochladen</strong> oder ziehe eine Datei hierher
+                                </div>
+                                <div class="upload-hint">PNG, JPG, GIF, WEBP (Max. 5MB)</div>
+                            </div>
+                            
+                            <img id="imagePreview" class="preview-image" style="display: none;" alt="Preview">
                         </div>
-                        <?php if (!empty($template['mockup_image_url'])): ?>
-                        <div id="currentImage">
-                            <img src="<?php echo htmlspecialchars($template['mockup_image_url']); ?>" class="mockup-preview" alt="Aktuelles Mockup">
-                            <p style="color: #6b7280; font-size: 12px; margin-top: 8px;">Aktuelles Bild</p>
-                            <button type="button" onclick="removeImage(event)" style="margin-top: 8px; padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer;">
-                                🗑️ Entfernen
-                            </button>
-                        </div>
-                        <?php endif; ?>
                     </div>
-                    <p class="helper-text">PNG, JPG oder GIF (max. 5MB)</p>
-                    <input type="hidden" name="mockup_image_url" id="mockup_image_url" value="<?php echo htmlspecialchars($template['mockup_image_url'] ?? ''); ?>">
-                </div>
-            </div>
-
-            <!-- Typografie -->
-            <div class="card">
-                <h2 class="card-title">Typografie</h2>
-                
-                <div class="mb-4">
-                    <label class="form-label">Headline Schriftart</label>
-                    <select name="headline_font" id="headline_font" class="form-select">
-                        <option value="Inter" <?php echo ($template['headline_font'] ?? 'Inter') == 'Inter' ? 'selected' : ''; ?>>Inter (Standard)</option>
-                        <option value="Poppins" <?php echo ($template['headline_font'] ?? '') == 'Poppins' ? 'selected' : ''; ?>>Poppins</option>
-                        <option value="Roboto" <?php echo ($template['headline_font'] ?? '') == 'Roboto' ? 'selected' : ''; ?>>Roboto</option>
-                        <option value="Montserrat" <?php echo ($template['headline_font'] ?? '') == 'Montserrat' ? 'selected' : ''; ?>>Montserrat</option>
-                        <option value="Open Sans" <?php echo ($template['headline_font'] ?? '') == 'Open Sans' ? 'selected' : ''; ?>>Open Sans</option>
-                        <option value="Lato" <?php echo ($template['headline_font'] ?? '') == 'Lato' ? 'selected' : ''; ?>>Lato</option>
-                        <option value="Playfair Display" <?php echo ($template['headline_font'] ?? '') == 'Playfair Display' ? 'selected' : ''; ?>>Playfair Display</option>
-                        <option value="Merriweather" <?php echo ($template['headline_font'] ?? '') == 'Merriweather' ? 'selected' : ''; ?>>Merriweather</option>
-                    </select>
-                </div>
-                
-                <div class="mb-4">
-                    <label class="form-label">Headline Schriftgröße</label>
-                    <div class="form-grid">
-                        <div>
-                            <input type="number" name="headline_size" id="headline_size" value="<?php echo $template['headline_size'] ?? 48; ?>" 
-                                   class="form-input" min="20" max="100">
-                            <p class="helper-text">Desktop (px)</p>
-                        </div>
-                        <div>
-                            <input type="number" name="headline_size_mobile" id="headline_size_mobile" value="<?php echo $template['headline_size_mobile'] ?? 32; ?>" 
-                                   class="form-input" min="16" max="60">
-                            <p class="helper-text">Mobil (px)</p>
-                        </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Oder Mockup-URL</label>
+                        <input type="url" name="mockup_image_url" id="mockup_image_url" class="form-input" 
+                               placeholder="https://example.com/mockup.png"
+                               value="<?php echo htmlspecialchars($template['mockup_image_url']); ?>"
+                               oninput="updatePreview()">
+                        <p class="help-text">Alternativ: Direkte URL zum Mockup-Bild</p>
                     </div>
                 </div>
                 
-                <div class="mb-4">
-                    <label class="form-label">Body Schriftart</label>
-                    <select name="body_font" id="body_font" class="form-select">
-                        <option value="Inter" <?php echo ($template['body_font'] ?? 'Inter') == 'Inter' ? 'selected' : ''; ?>>Inter (Standard)</option>
-                        <option value="Poppins" <?php echo ($template['body_font'] ?? '') == 'Poppins' ? 'selected' : ''; ?>>Poppins</option>
-                        <option value="Roboto" <?php echo ($template['body_font'] ?? '') == 'Roboto' ? 'selected' : ''; ?>>Roboto</option>
-                        <option value="Montserrat" <?php echo ($template['body_font'] ?? '') == 'Montserrat' ? 'selected' : ''; ?>>Montserrat</option>
-                        <option value="Open Sans" <?php echo ($template['body_font'] ?? '') == 'Open Sans' ? 'selected' : ''; ?>>Open Sans</option>
-                        <option value="Lato" <?php echo ($template['body_font'] ?? '') == 'Lato' ? 'selected' : ''; ?>>Lato</option>
-                    </select>
-                </div>
-                
-                <div>
-                    <label class="form-label">Body Schriftgröße</label>
-                    <div class="form-grid">
-                        <div>
-                            <input type="number" name="body_size" id="body_size" value="<?php echo $template['body_size'] ?? 16; ?>" 
-                                   class="form-input" min="12" max="24">
-                            <p class="helper-text">Desktop (px)</p>
+                <!-- Design -->
+                <div class="card">
+                    <h3 class="card-title">Design</h3>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Layout</label>
+                        <div class="layout-buttons">
+                            <button type="button" class="layout-btn <?php echo $template['layout'] === 'hybrid' ? 'active' : ''; ?>" 
+                                    onclick="setLayout('hybrid')">Hybrid</button>
+                            <button type="button" class="layout-btn <?php echo $template['layout'] === 'centered' ? 'active' : ''; ?>" 
+                                    onclick="setLayout('centered')">Zentriert</button>
+                            <button type="button" class="layout-btn <?php echo $template['layout'] === 'sidebar' ? 'active' : ''; ?>" 
+                                    onclick="setLayout('sidebar')">Sidebar</button>
                         </div>
-                        <div>
-                            <input type="number" name="body_size_mobile" id="body_size_mobile" value="<?php echo $template['body_size_mobile'] ?? 14; ?>" 
-                                   class="form-input" min="12" max="20">
-                            <p class="helper-text">Mobil (px)</p>
-                        </div>
+                        <input type="hidden" name="layout" id="layout" value="<?php echo $template['layout']; ?>">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Hintergrundfarbe</label>
+                        <input type="color" name="background_color" id="background_color" class="color-input"
+                               value="<?php echo $template['background_color']; ?>" 
+                               oninput="updatePreview()">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Primärfarbe</label>
+                        <input type="color" name="primary_color" id="primary_color" class="color-input"
+                               value="<?php echo $template['primary_color']; ?>" 
+                               oninput="updatePreview()">
+                    </div>
+                    
+                    <div class="checkbox-group">
+                        <input type="checkbox" name="show_mockup" id="show_mockup" class="checkbox-input" 
+                               value="1" <?php echo $template['show_mockup'] ? 'checked' : ''; ?>>
+                        <label for="show_mockup" class="checkbox-label">Mockup anzeigen</label>
                     </div>
                 </div>
-            </div>
-
-            <!-- Call-to-Action -->
-            <div class="card">
-                <h2 class="card-title">Call-to-Action</h2>
                 
-                <div>
-                    <label class="form-label">CTA Button Text</label>
-                    <input type="text" name="cta_button_text" id="cta_button_text" value="<?php echo htmlspecialchars($template['cta_text'] ?? 'Jetzt kostenlos sichern'); ?>"
-                           class="form-input">
+                <!-- Call-to-Action -->
+                <div class="card">
+                    <h3 class="card-title">Call-to-Action</h3>
+                    
+                    <div class="form-group">
+                        <label class="form-label">CTA Button Text</label>
+                        <input type="text" name="cta_button_text" id="cta_button_text" class="form-input" 
+                               placeholder="Jetzt kostenlos sichern"
+                               value="<?php echo htmlspecialchars($template['cta_button_text'] ?? $template['cta_text'] ?? 'Jetzt kostenlos sichern'); ?>"
+                               oninput="updatePreview()">
+                    </div>
                 </div>
-            </div>
-
-            <!-- Verknüpfungen -->
-            <div class="card">
-                <h2 class="card-title">Verknüpfungen</h2>
                 
-                <div>
-                    <label class="form-label">Videokurs</label>
-                    <select name="course_id" class="form-select">
-                        <option value="">-- Kein Videokurs --</option>
-                        <?php foreach ($courses as $course): ?>
-                            <option value="<?php echo $course['id']; ?>" <?php echo ($template['course_id'] == $course['id']) ? 'selected' : ''; ?>>
+                <!-- Verknüpfungen -->
+                <div class="card">
+                    <h3 class="card-title">Verknüpfungen</h3>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Videokurs</label>
+                        <select name="course_id" id="course_id" class="form-select">
+                            <option value="">-- Kein Videokurs --</option>
+                            <?php foreach ($courses as $course): ?>
+                            <option value="<?php echo $course['id']; ?>" 
+                                    <?php echo ($template['course_id'] == $course['id']) ? 'selected' : ''; ?>>
                                 <?php echo htmlspecialchars($course['title']); ?>
                             </option>
-                        <?php endforeach; ?>
-                    </select>
-                    <p class="helper-text">Wird auf der Danke-Seite angezeigt</p>
+                            <?php endforeach; ?>
+                        </select>
+                        <p class="help-text">Wird auf der Danke-Seite angezeigt</p>
+                    </div>
                 </div>
+                
             </div>
-            
         </div>
-        
-    </div>
+    </form>
 </div>
 
-<!-- ============================================ -->
 <!-- VORSCHAU MODAL -->
-<!-- ============================================ -->
 <div id="previewModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; align-items: center; justify-content: center;">
     <div style="background: white; border-radius: 12px; width: 90%; max-width: 1200px; max-height: 90vh; overflow-y: auto; position: relative;">
         <div style="position: sticky; top: 0; background: white; border-bottom: 1px solid #e5e7eb; padding: 20px; display: flex; justify-content: space-between; align-items: center; z-index: 10;">
@@ -427,41 +733,49 @@ try {
 </div>
 
 <script>
-let uploadedImageFile = null;
-
-// Drag & Drop Event Listeners
-document.addEventListener('DOMContentLoaded', function() {
-    const uploadArea = document.getElementById('fileUploadArea');
-    
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        uploadArea.addEventListener(eventName, preventDefaults, false);
-    });
-    
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
+// Hilfsfunktion: Wert sicher aus Input holen
+function getInputValue(id, defaultValue = '') {
+    const element = document.getElementById(id);
+    if (!element) {
+        console.warn('Element not found:', id);
+        return defaultValue;
     }
-    
-    ['dragenter', 'dragover'].forEach(eventName => {
-        uploadArea.addEventListener(eventName, () => {
-            uploadArea.classList.add('dragover');
-        }, false);
-    });
-    
-    ['dragleave', 'drop'].forEach(eventName => {
-        uploadArea.addEventListener(eventName, () => {
-            uploadArea.classList.remove('dragover');
-        }, false);
-    });
-    
-    uploadArea.addEventListener('drop', function(e) {
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            handleFile(files[0]);
-        }
-    }, false);
+    return element.value || defaultValue;
+}
+
+// Hilfsfunktion: Checkbox-Wert holen
+function getCheckboxValue(id, defaultValue = 0) {
+    const element = document.getElementById(id);
+    if (!element) {
+        console.warn('Checkbox not found:', id);
+        return defaultValue;
+    }
+    return element.checked ? 1 : 0;
+}
+
+// Drag & Drop Funktionalität
+const uploadArea = document.getElementById('uploadArea');
+
+uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
 });
 
+uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('dragover');
+});
+
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        handleFile(files[0]);
+    }
+});
+
+// File Select Handler
 function handleFileSelect(event) {
     const file = event.target.files[0];
     if (file) {
@@ -469,108 +783,84 @@ function handleFileSelect(event) {
     }
 }
 
+// File Handler
 function handleFile(file) {
-    // Validierung
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
-    
-    if (!allowedTypes.includes(file.type)) {
-        alert('❌ Nur Bilddateien erlaubt (PNG, JPG, GIF, WEBP)');
+    if (!file.type.startsWith('image/')) {
+        alert('Bitte nur Bilddateien hochladen!');
         return;
     }
     
-    if (file.size > maxSize) {
-        alert('❌ Datei zu groß! Maximal 5MB erlaubt.');
+    if (file.size > 5 * 1024 * 1024) {
+        alert('Datei ist zu groß! Maximale Größe: 5MB');
         return;
     }
     
-    // Bild speichern für Upload
-    uploadedImageFile = file;
-    
-    // Vorschau anzeigen
     const reader = new FileReader();
     reader.onload = function(e) {
-        const uploadArea = document.getElementById('fileUploadArea');
-        uploadArea.innerHTML = `
-            <div id="imagePreview">
-                <img src="${e.target.result}" class="mockup-preview" alt="Vorschau">
-                <p style="color: #10b981; font-size: 12px; margin-top: 8px;">✓ Neues Bild ausgewählt (wird beim Speichern hochgeladen)</p>
-                <button type="button" onclick="removeImage(event)" style="margin-top: 8px; padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer;">
-                    🗑️ Entfernen
-                </button>
-            </div>
-        `;
+        const base64 = e.target.result;
+        
+        document.getElementById('uploadPlaceholder').style.display = 'none';
+        const preview = document.getElementById('imagePreview');
+        preview.src = base64;
+        preview.style.display = 'block';
+        
+        document.getElementById('mockup_image_base64').value = base64;
+        
+        const currentMockup = document.getElementById('current-mockup');
+        if (currentMockup) {
+            currentMockup.style.display = 'none';
+        }
     };
     reader.readAsDataURL(file);
 }
 
-function removeImage(event) {
-    event.stopPropagation();
-    uploadedImageFile = null;
-    document.getElementById('mockup_image_url').value = '';
-    const uploadArea = document.getElementById('fileUploadArea');
-    uploadArea.innerHTML = `
-        <input type="file" id="mockupImageInput" accept="image/*" style="display: none;" onchange="handleFileSelect(event)">
-        <div id="uploadPrompt">
-            <p style="color: #6b7280; font-size: 14px; margin-bottom: 8px;">📷 Bild hochladen</p>
-            <p style="color: #9ca3af; font-size: 12px;">Klicken oder Bild hierher ziehen</p>
-        </div>
-    `;
-    uploadArea.onclick = () => document.getElementById('mockupImageInput').click();
-}
-
-function selectLayout(layout) {
-    // Alle Buttons deaktivieren
-    document.querySelectorAll('.layout-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    // Aktiven Button markieren
+// Layout setzen
+function setLayout(layout) {
+    document.getElementById('layout').value = layout;
+    document.querySelectorAll('.layout-btn').forEach(btn => btn.classList.remove('active'));
     event.target.classList.add('active');
-    
-    // Hidden Input aktualisieren
-    document.getElementById('layoutInput').value = layout;
+    updatePreview();
 }
 
-// VORSCHAU-FUNKTION
+// Live-Vorschau Update
+function updatePreview() {
+    console.log('Preview updated');
+}
+
+// Vorschau-Modal öffnen
 function previewTemplate() {
-    const form = document.getElementById('editTemplateForm');
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData);
+    const data = {
+        layout: getInputValue('layout', 'hybrid'),
+        background_color: getInputValue('background_color', '#FFF9E6'),
+        primary_color: getInputValue('primary_color', '#FF8C00'),
+        show_mockup: getCheckboxValue('show_mockup', 1),
+        mockup_image_url: getInputValue('mockup_image_url', ''),
+        
+        // Texte
+        preheadline: getInputValue('preheadline', ''),
+        headline: getInputValue('headline', ''),
+        subheadline: getInputValue('subheadline', ''),
+        bulletpoints: getInputValue('bulletpoints', ''),
+        cta_button_text: getInputValue('cta_button_text', ''),
+        
+        // Fonts & Sizes
+        preheadline_font: getInputValue('preheadline_font', 'Poppins'),
+        preheadline_size: getInputValue('preheadline_size', '14'),
+        headline_font: getInputValue('headline_font', 'Poppins'),
+        headline_size: getInputValue('headline_size', '48'),
+        subheadline_font: getInputValue('subheadline_font', 'Poppins'),
+        subheadline_size: getInputValue('subheadline_size', '20'),
+        bulletpoints_font: getInputValue('bulletpoints_font', 'Poppins'),
+        bulletpoints_size: getInputValue('bulletpoints_size', '16'),
+    };
     
-    // Layout hinzufügen
-    data.layout = document.getElementById('layoutInput').value;
-    
-    // Schriftarten und -größen
-    data.headline_font = document.getElementById('headline_font').value;
-    data.headline_size = document.getElementById('headline_size').value;
-    data.headline_size_mobile = document.getElementById('headline_size_mobile').value;
-    data.body_font = document.getElementById('body_font').value;
-    data.body_size = document.getElementById('body_size').value;
-    data.body_size_mobile = document.getElementById('body_size_mobile').value;
-    
-    // Mockup URL - prüfe ob neues Bild hochgeladen wurde
-    if (uploadedImageFile) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            data.mockup_image_url = e.target.result;
-            data.show_mockup = '1'; // Immer anzeigen wenn Bild vorhanden
-            showPreview(data);
-        };
-        reader.readAsDataURL(uploadedImageFile);
-    } else {
-        // Nutze existierende URL oder leeren String
-        data.mockup_image_url = document.getElementById('mockup_image_url').value || '';
-        data.show_mockup = data.mockup_image_url ? '1' : '0';
-        showPreview(data);
+    // Mockup URL oder Preview verwenden
+    if (document.getElementById('imagePreview').style.display === 'block') {
+        data.mockup_image_url = document.getElementById('imagePreview').src;
     }
-}
-
-function showPreview(data) {
-    // Vorschau-HTML generieren
+    
     const previewHTML = generatePreviewHTML(data);
     
-    // Modal anzeigen
     const modal = document.getElementById('previewModal');
     const content = document.getElementById('previewContent');
     
@@ -580,29 +870,16 @@ function showPreview(data) {
 
 // Vorschau-Modal schließen
 function closePreview() {
-    const modal = document.getElementById('previewModal');
-    modal.style.display = 'none';
+    document.getElementById('previewModal').style.display = 'none';
 }
 
 // HTML für Vorschau generieren
 function generatePreviewHTML(data) {
     const layout = data.layout || 'hybrid';
-    const bgColor = data.background_color || '#FFFFFF';
-    const primaryColor = data.primary_color || '#7C3AED';
-    const showMockup = data.show_mockup === '1' && data.mockup_image_url;
+    const bgColor = data.background_color || '#FFF9E6';
+    const primaryColor = data.primary_color || '#FF8C00';
+    const showMockup = data.show_mockup === 1;
     const mockupUrl = data.mockup_image_url || '';
-    
-    // Typografie
-    const headlineFont = data.headline_font || 'Inter';
-    const headlineSize = data.headline_size || '48';
-    const bodyFont = data.body_font || 'Inter';
-    const bodySize = data.body_size || '16';
-    
-    // Google Fonts laden
-    const fontsToLoad = new Set([headlineFont, bodyFont]);
-    const fontLinks = Array.from(fontsToLoad).map(font => 
-        `<link href="https://fonts.googleapis.com/css2?family=${font.replace(' ', '+')}:wght@400;600;700;800&display=swap" rel="stylesheet">`
-    ).join('');
     
     // Bulletpoints verarbeiten
     let bulletpointsHTML = '';
@@ -611,7 +888,7 @@ function generatePreviewHTML(data) {
         bulletpointsHTML = bullets.map(bullet => 
             `<div style="display: flex; align-items: start; gap: 12px; margin-bottom: 16px;">
                 <span style="color: ${primaryColor}; font-size: 20px; flex-shrink: 0;">✓</span>
-                <span style="color: #374151; font-size: ${bodySize}px; font-family: '${bodyFont}', sans-serif;">${escapeHtml(bullet.replace(/^[✓✔︎•-]\s*/, ''))}</span>
+                <span style="color: #374151; font-size: ${data.bulletpoints_size}px; font-family: '${data.bulletpoints_font}', sans-serif;">${escapeHtml(bullet.replace(/^[✓✔︎•-]\s*/, ''))}</span>
             </div>`
         ).join('');
     }
@@ -620,51 +897,49 @@ function generatePreviewHTML(data) {
     let layoutHTML = '';
     
     if (layout === 'hybrid' || layout === 'sidebar') {
-        // Zwei-Spalten Layout
         layoutHTML = `
-            ${fontLinks}
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">
                 <div style="order: ${layout === 'sidebar' ? '2' : '1'};">
                     ${showMockup && mockupUrl ? `
-                        <img src="${escapeHtml(mockupUrl)}" alt="Mockup" style="width: 100%; height: auto; border-radius: 12px;">
+                        <img src="${escapeHtml(mockupUrl)}" alt="Mockup" style="width: 100%; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
                     ` : `
                         <div style="width: 100%; aspect-ratio: 4/3; background: linear-gradient(135deg, ${primaryColor}20, ${primaryColor}40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ${primaryColor}; font-size: 48px;">
                             🎁
                         </div>
                     `}
                 </div>
-                <div style="order: ${layout === 'sidebar' ? '1' : '2'};">
-                    ${data.preheadline ? `<div style="color: ${primaryColor}; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-family: '${headlineFont}', sans-serif;">${escapeHtml(data.preheadline)}</div>` : ''}
+                <div style="order: ${layout === 'sidebar' ? '1' : '2'}; text-align: center;">
+                    ${data.preheadline ? `<div style="color: ${primaryColor}; font-size: ${data.preheadline_size}px; font-family: '${data.preheadline_font}', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">${escapeHtml(data.preheadline)}</div>` : ''}
                     
-                    <h1 style="font-size: ${headlineSize}px; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px; font-family: '${headlineFont}', sans-serif;">
+                    <h1 style="font-size: ${data.headline_size}px; font-family: '${data.headline_font}', sans-serif; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px;">
                         ${escapeHtml(data.headline || 'Dein kostenloser Kurs')}
                     </h1>
                     
-                    ${data.subheadline ? `<p style="font-size: 20px; color: #6b7280; margin-bottom: 32px; font-family: '${bodyFont}', sans-serif;">${escapeHtml(data.subheadline)}</p>` : ''}
+                    ${data.subheadline ? `<p style="font-size: ${data.subheadline_size}px; font-family: '${data.subheadline_font}', sans-serif; color: #6b7280; margin-bottom: 32px;">${escapeHtml(data.subheadline)}</p>` : ''}
                     
-                    ${bulletpointsHTML ? `<div style="margin-bottom: 32px;">${bulletpointsHTML}</div>` : ''}
+                    ${bulletpointsHTML ? `<div style="margin-bottom: 32px; text-align: left;">${bulletpointsHTML}</div>` : ''}
                     
-                    <button style="background: ${primaryColor}; color: white; padding: 16px 40px; border: none; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer; font-family: '${bodyFont}', sans-serif;">
-                        ${escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern')}
-                    </button>
+                    <div>
+                        <button style="background: ${primaryColor}; color: white; padding: 16px 40px; border: none; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px ${primaryColor}40;">
+                            ${escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern')}
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
     } else {
-        // Zentriertes Layout
         layoutHTML = `
-            ${fontLinks}
             <div style="max-width: 800px; margin: 0 auto; text-align: center;">
-                ${data.preheadline ? `<div style="color: ${primaryColor}; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-family: '${headlineFont}', sans-serif;">${escapeHtml(data.preheadline)}</div>` : ''}
+                ${data.preheadline ? `<div style="color: ${primaryColor}; font-size: ${data.preheadline_size}px; font-family: '${data.preheadline_font}', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">${escapeHtml(data.preheadline)}</div>` : ''}
                 
-                <h1 style="font-size: ${headlineSize}px; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px; font-family: '${headlineFont}', sans-serif;">
+                <h1 style="font-size: ${data.headline_size}px; font-family: '${data.headline_font}', sans-serif; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px;">
                     ${escapeHtml(data.headline || 'Dein kostenloser Kurs')}
                 </h1>
                 
-                ${data.subheadline ? `<p style="font-size: 22px; color: #6b7280; margin-bottom: 40px; font-family: '${bodyFont}', sans-serif;">${escapeHtml(data.subheadline)}</p>` : ''}
+                ${data.subheadline ? `<p style="font-size: ${data.subheadline_size}px; font-family: '${data.subheadline_font}', sans-serif; color: #6b7280; margin-bottom: 40px;">${escapeHtml(data.subheadline)}</p>` : ''}
                 
                 ${showMockup && mockupUrl ? `
-                    <img src="${escapeHtml(mockupUrl)}" alt="Mockup" style="width: 100%; max-width: 500px; height: auto; border-radius: 12px; margin-bottom: 40px;">
+                    <img src="${escapeHtml(mockupUrl)}" alt="Mockup" style="width: 100%; max-width: 500px; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); margin-bottom: 40px;">
                 ` : `
                     <div style="width: 100%; max-width: 500px; aspect-ratio: 4/3; background: linear-gradient(135deg, ${primaryColor}20, ${primaryColor}40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ${primaryColor}; font-size: 64px; margin: 0 auto 40px;">
                         🎁
@@ -673,7 +948,7 @@ function generatePreviewHTML(data) {
                 
                 ${bulletpointsHTML ? `<div style="text-align: left; max-width: 500px; margin: 0 auto 40px;">${bulletpointsHTML}</div>` : ''}
                 
-                <button style="background: ${primaryColor}; color: white; padding: 18px 48px; border: none; border-radius: 8px; font-size: 20px; font-weight: 600; cursor: pointer; font-family: '${bodyFont}', sans-serif;">
+                <button style="background: ${primaryColor}; color: white; padding: 18px 48px; border: none; border-radius: 8px; font-size: 20px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px ${primaryColor}40;">
                     ${escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern')}
                 </button>
             </div>
@@ -689,61 +964,94 @@ function generatePreviewHTML(data) {
 
 // HTML escapen
 function escapeHtml(text) {
-    if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-async function saveTemplate() {
-    const btn = document.getElementById('saveBtn');
-    const form = document.getElementById('editTemplateForm');
-    const formData = new FormData(form);
-    
-    // Layout aus hidden input hinzufügen
-    formData.set('layout', document.getElementById('layoutInput').value);
-    
-    // Typografie Felder hinzufügen
-    formData.set('headline_font', document.getElementById('headline_font').value);
-    formData.set('headline_size', document.getElementById('headline_size').value);
-    formData.set('headline_size_mobile', document.getElementById('headline_size_mobile').value);
-    formData.set('body_font', document.getElementById('body_font').value);
-    formData.set('body_size', document.getElementById('body_size').value);
-    formData.set('body_size_mobile', document.getElementById('body_size_mobile').value);
-    
-    // Wenn Bild hochgeladen wurde, hinzufügen
-    if (uploadedImageFile) {
-        formData.append('mockup_image', uploadedImageFile);
-    }
-    
-    // Button deaktivieren
+// Speichern-Funktion
+async function saveFreebie() {
+    const btn = event.target;
     const originalText = btn.innerHTML;
+    btn.innerHTML = '⏳ Speichere...';
     btn.disabled = true;
-    btn.innerHTML = '⏳ Speichert...';
     
     try {
+        const data = {
+            template_id: getInputValue('template_id', ''),
+            name: getInputValue('template_name', ''),
+            url_slug: getInputValue('url_slug', ''),
+            headline: getInputValue('headline', ''),
+            subheadline: getInputValue('subheadline', ''),
+            preheadline: getInputValue('preheadline', ''),
+            bulletpoints: getInputValue('bulletpoints', ''),
+            cta_button_text: getInputValue('cta_button_text', 'Jetzt kostenlos sichern'),
+            layout: getInputValue('layout', 'hybrid'),
+            primary_color: getInputValue('primary_color', '#FF8C00'),
+            secondary_color: '#EC4899',
+            background_color: getInputValue('background_color', '#FFF9E6'),
+            text_color: '#1F2937',
+            cta_button_color: '#5B8DEF',
+            mockup_image_url: getInputValue('mockup_image_url', ''),
+            mockup_image_base64: getInputValue('mockup_image_base64', ''),
+            custom_raw_code: getInputValue('custom_raw_code', ''),
+            custom_css: getInputValue('custom_css', ''),
+            course_id: getInputValue('course_id', ''),
+            is_master_template: 1,
+            show_mockup: getCheckboxValue('show_mockup', 1),
+            
+            // Font-Einstellungen
+            preheadline_font: getInputValue('preheadline_font', 'Poppins'),
+            preheadline_size: parseInt(getInputValue('preheadline_size', '14')),
+            headline_font: getInputValue('headline_font', 'Poppins'),
+            headline_size: parseInt(getInputValue('headline_size', '48')),
+            subheadline_font: getInputValue('subheadline_font', 'Poppins'),
+            subheadline_size: parseInt(getInputValue('subheadline_size', '20')),
+            bulletpoints_font: getInputValue('bulletpoints_font', 'Poppins'),
+            bulletpoints_size: parseInt(getInputValue('bulletpoints_size', '16')),
+        };
+        
+        console.log('Sending data:', data);
+        
+        // Validierung
+        if (!data.name || data.name.trim() === '') {
+            throw new Error('Template-Name ist erforderlich');
+        }
+        
+        if (!data.headline || data.headline.trim() === '') {
+            throw new Error('Headline ist erforderlich');
+        }
+        
         const response = await fetch('/api/save-freebie.php', {
             method: 'POST',
-            body: formData
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(data)
         });
         
-        const result = await response.json();
+        const responseText = await response.text();
+        console.log('Response:', responseText);
+        
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (e) {
+            throw new Error('Ungültige Server-Antwort: ' + responseText.substring(0, 200));
+        }
         
         if (result.success) {
-            btn.innerHTML = '✅ Gespeichert!';
-            setTimeout(() => {
-                window.location.href = '?page=freebies&updated=1';
-            }, 800);
+            alert('✅ Template erfolgreich gespeichert!');
+            window.location.href = '?page=freebies';
         } else {
-            alert('❌ Fehler: ' + (result.error || 'Unbekannter Fehler'));
-            btn.disabled = false;
-            btn.innerHTML = originalText;
+            throw new Error(result.error || 'Unbekannter Fehler beim Speichern');
         }
     } catch (error) {
-        alert('❌ Netzwerkfehler: ' + error.message);
         console.error('Save error:', error);
-        btn.disabled = false;
+        alert('❌ Fehler: ' + error.message);
         btn.innerHTML = originalText;
+        btn.disabled = false;
     }
 }
 
