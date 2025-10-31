@@ -1,0 +1,12 @@
+# Root .htaccess für app.mehr-infos-jetzt.de
+# Erlaubt öffentlichen Zugriff auf bestimmte Verzeichnisse
+
+RewriteEngine On
+RewriteBase /
+
+# Öffentliche Bereiche - KEIN Auth-Check
+RewriteCond %{REQUEST_URI} ^/f/ [NC,OR]
+RewriteCond %{REQUEST_URI} ^/freebie/ [NC]
+RewriteRule ^ - [L]
+
+# Alle anderen PHP-Dateien normal behandeln
