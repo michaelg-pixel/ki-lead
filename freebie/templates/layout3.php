@@ -15,6 +15,42 @@
             margin: 0 auto;
             padding: 40px 20px;
         }
+        
+        /* Cookie Modal */
+        #cookie-settings-modal {
+            backdrop-filter: blur(5px);
+            background: rgba(0, 0, 0, 0.5);
+        }
+        
+        .cookie-toggle {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: #cbd5e0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .cookie-toggle.active {
+            background: #48bb78;
+        }
+        
+        .cookie-toggle::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+        
+        .cookie-toggle.active::after {
+            transform: translateX(20px);
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -75,16 +111,16 @@
                 <?php endif; ?>
             </div>
             
-            <!-- Mockup -->
+            <!-- Mockup - VERKLEINERT -->
             <div class="flex justify-center">
                 <?php if (!empty($freebie['mockup_image_url'])): ?>
                     <img src="<?= htmlspecialchars($freebie['mockup_image_url']) ?>" 
                          alt="<?= htmlspecialchars($freebie['headline']) ?>" 
-                         class="w-full max-w-md rounded-2xl shadow-2xl">
+                         class="w-full max-w-sm rounded-2xl shadow-2xl">
                 <?php elseif (!empty($course['thumbnail'])): ?>
                     <img src="../uploads/thumbnails/<?= htmlspecialchars($course['thumbnail']) ?>" 
                          alt="Course" 
-                         class="w-full max-w-md rounded-2xl shadow-2xl">
+                         class="w-full max-w-sm rounded-2xl shadow-2xl">
                 <?php endif; ?>
             </div>
         </div>
@@ -137,35 +173,202 @@
         </div>
     </footer>
 
-    <!-- Cookie Banner -->
-    <div id="cookie-banner" class="hidden fixed bottom-0 left-0 right-0 bg-gray-900 text-white p-6 shadow-2xl z-50">
-        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-            <div class="flex-1">
-                <p class="text-sm">
-                    <i class="fas fa-cookie-bite mr-2"></i>
-                    Wir verwenden Cookies, um Ihnen die bestmögliche Erfahrung zu bieten. 
-                    Weitere Informationen finden Sie in unserer 
-                    <a href="/datenschutz.php" class="underline">Datenschutzerklärung</a>.
-                </p>
+    <!-- MODERNISIERTER Cookie Banner -->
+    <div id="cookie-banner" class="hidden fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 shadow-2xl z-50">
+        <div class="max-w-7xl mx-auto p-6">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex items-start gap-4 flex-1">
+                    <div class="text-3xl">🍪</div>
+                    <div>
+                        <h3 class="font-bold text-gray-900 mb-1">Wir respektieren Ihre Privatsphäre</h3>
+                        <p class="text-sm text-gray-600">
+                            Wir verwenden Cookies, um Ihnen die bestmögliche Erfahrung zu bieten. 
+                            <a href="/datenschutz.php" class="text-blue-600 hover:underline">Mehr erfahren</a>
+                        </p>
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-3">
+                    <button onclick="openCookieSettings()" 
+                            class="px-5 py-2.5 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition">
+                        <i class="fas fa-cog mr-2"></i>Einstellungen
+                    </button>
+                    <button onclick="rejectCookies()" 
+                            class="px-5 py-2.5 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition">
+                        Nur notwendige
+                    </button>
+                    <button onclick="acceptAllCookies()" 
+                            class="px-6 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition shadow-md">
+                        <i class="fas fa-check mr-2"></i>Alle akzeptieren
+                    </button>
+                </div>
             </div>
-            <div class="flex gap-3">
-                <button onclick="acceptCookies()" 
-                        class="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-semibold transition">
-                    Alle akzeptieren
+        </div>
+    </div>
+
+    <!-- Cookie Settings Modal -->
+    <div id="cookie-settings-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <!-- Modal Header -->
+            <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-t-2xl">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold">Cookie-Einstellungen</h2>
+                    <button onclick="closeCookieSettings()" class="text-white hover:text-gray-200 text-2xl">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Modal Content -->
+            <div class="p-6 space-y-6">
+                <p class="text-gray-600">
+                    Wir verwenden Cookies und ähnliche Technologien, um Ihnen das beste Erlebnis auf unserer Website zu bieten. 
+                    Sie können Ihre Einstellungen jederzeit ändern.
+                </p>
+                
+                <!-- Notwendige Cookies -->
+                <div class="border-2 border-gray-200 rounded-xl p-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <div>
+                            <h3 class="font-bold text-gray-900">Notwendige Cookies</h3>
+                            <p class="text-sm text-gray-600 mt-1">Diese Cookies sind für die Funktion der Website erforderlich.</p>
+                        </div>
+                        <div class="cookie-toggle active" data-locked="true"></div>
+                    </div>
+                </div>
+                
+                <!-- Analyse Cookies -->
+                <div class="border-2 border-gray-200 rounded-xl p-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <div>
+                            <h3 class="font-bold text-gray-900">Analyse & Statistik</h3>
+                            <p class="text-sm text-gray-600 mt-1">Helfen uns zu verstehen, wie Besucher mit der Website interagieren.</p>
+                        </div>
+                        <div class="cookie-toggle" id="analytics-toggle" onclick="toggleCookie('analytics')"></div>
+                    </div>
+                </div>
+                
+                <!-- Marketing Cookies -->
+                <div class="border-2 border-gray-200 rounded-xl p-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <div>
+                            <h3 class="font-bold text-gray-900">Marketing & Werbung</h3>
+                            <p class="text-sm text-gray-600 mt-1">Werden verwendet, um Besuchern relevante Anzeigen zu zeigen.</p>
+                        </div>
+                        <div class="cookie-toggle" id="marketing-toggle" onclick="toggleCookie('marketing')"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="bg-gray-50 p-6 rounded-b-2xl flex flex-wrap gap-3 justify-end">
+                <button onclick="saveSettings()" 
+                        class="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition">
+                    Einstellungen speichern
                 </button>
-                <button onclick="rejectCookies()" 
-                        class="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-lg transition">
-                    Ablehnen
+                <button onclick="acceptAllFromModal()" 
+                        class="px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition">
+                    Alle akzeptieren
                 </button>
             </div>
         </div>
     </div>
 
-    <script src="../assets/js/cookie-banner.js"></script>
     <script>
+        // Cookie preferences state
+        let cookiePreferences = {
+            necessary: true,
+            analytics: false,
+            marketing: false
+        };
+
         // Show cookie banner if not decided
-        if (!localStorage.getItem('cookieConsent')) {
-            document.getElementById('cookie-banner').classList.remove('hidden');
+        window.addEventListener('DOMContentLoaded', function() {
+            if (!localStorage.getItem('cookieConsent')) {
+                document.getElementById('cookie-banner').classList.remove('hidden');
+            }
+        });
+
+        function toggleCookie(type) {
+            cookiePreferences[type] = !cookiePreferences[type];
+            const toggle = document.getElementById(type + '-toggle');
+            if (cookiePreferences[type]) {
+                toggle.classList.add('active');
+            } else {
+                toggle.classList.remove('active');
+            }
+        }
+
+        function openCookieSettings() {
+            document.getElementById('cookie-settings-modal').classList.remove('hidden');
+            
+            // Load current preferences if they exist
+            const saved = localStorage.getItem('cookiePreferences');
+            if (saved) {
+                cookiePreferences = JSON.parse(saved);
+                if (cookiePreferences.analytics) {
+                    document.getElementById('analytics-toggle').classList.add('active');
+                }
+                if (cookiePreferences.marketing) {
+                    document.getElementById('marketing-toggle').classList.add('active');
+                }
+            }
+        }
+
+        function closeCookieSettings() {
+            document.getElementById('cookie-settings-modal').classList.add('hidden');
+        }
+
+        function saveSettings() {
+            localStorage.setItem('cookieConsent', 'custom');
+            localStorage.setItem('cookiePreferences', JSON.stringify(cookiePreferences));
+            document.getElementById('cookie-banner').classList.add('hidden');
+            closeCookieSettings();
+            
+            // Apply cookie preferences
+            if (cookiePreferences.analytics) {
+                // Enable analytics
+                console.log('Analytics enabled');
+            }
+            if (cookiePreferences.marketing) {
+                // Enable marketing
+                console.log('Marketing enabled');
+            }
+        }
+
+        function acceptAllCookies() {
+            cookiePreferences = {
+                necessary: true,
+                analytics: true,
+                marketing: true
+            };
+            localStorage.setItem('cookieConsent', 'all');
+            localStorage.setItem('cookiePreferences', JSON.stringify(cookiePreferences));
+            document.getElementById('cookie-banner').classList.add('hidden');
+            
+            // Enable all tracking
+            console.log('All cookies accepted');
+        }
+
+        function acceptAllFromModal() {
+            cookiePreferences = {
+                necessary: true,
+                analytics: true,
+                marketing: true
+            };
+            saveSettings();
+        }
+
+        function rejectCookies() {
+            cookiePreferences = {
+                necessary: true,
+                analytics: false,
+                marketing: false
+            };
+            localStorage.setItem('cookieConsent', 'necessary');
+            localStorage.setItem('cookiePreferences', JSON.stringify(cookiePreferences));
+            document.getElementById('cookie-banner').classList.add('hidden');
+            
+            console.log('Only necessary cookies accepted');
         }
     </script>
 
