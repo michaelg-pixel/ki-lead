@@ -233,33 +233,7 @@ function columnExists($table, $column) {
                     }
                 }
                 
-                // 3. Freebie Templates Tabelle erstellen
-                $messages[] = "🔄 Erstelle freebie_templates Tabelle...";
-                
-                if (!tableExists('freebie_templates')) {
-                    $pdo->exec("
-                        CREATE TABLE freebie_templates (
-                            id INT AUTO_INCREMENT PRIMARY KEY,
-                            title VARCHAR(255) NOT NULL,
-                            description TEXT NULL,
-                            content LONGTEXT NULL,
-                            thumbnail VARCHAR(500) NULL,
-                            category VARCHAR(100) NULL,
-                            is_active TINYINT(1) DEFAULT 1,
-                            created_by INT NULL,
-                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                            updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
-                            INDEX idx_category (category),
-                            INDEX idx_active (is_active),
-                            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
-                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-                    ");
-                    $messages[] = "✅ freebie_templates Tabelle erstellt!";
-                } else {
-                    $messages[] = "ℹ️ freebie_templates Tabelle existiert bereits";
-                }
-                
-                // 4. user_freebies Tabelle erstellen
+                // 3. user_freebies Tabelle erstellen (verweist auf 'freebies' Tabelle!)
                 $messages[] = "🔄 Erstelle user_freebies Tabelle...";
                 
                 if (!tableExists('user_freebies')) {
@@ -277,16 +251,16 @@ function columnExists($table, $column) {
                             INDEX idx_assigned (assigned_at),
                             UNIQUE KEY unique_assignment (user_id, freebie_id),
                             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                            FOREIGN KEY (freebie_id) REFERENCES freebie_templates(id) ON DELETE CASCADE,
+                            FOREIGN KEY (freebie_id) REFERENCES freebies(id) ON DELETE CASCADE,
                             FOREIGN KEY (assigned_by) REFERENCES users(id) ON DELETE SET NULL
                         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                     ");
-                    $messages[] = "✅ user_freebies Tabelle erstellt!";
+                    $messages[] = "✅ user_freebies Tabelle erstellt (verweist auf 'freebies')!";
                 } else {
                     $messages[] = "ℹ️ user_freebies Tabelle existiert bereits";
                 }
                 
-                // 5. user_progress Tabelle erstellen
+                // 4. user_progress Tabelle erstellen
                 $messages[] = "🔄 Erstelle user_progress Tabelle...";
                 
                 if (!tableExists('user_progress')) {
@@ -311,7 +285,7 @@ function columnExists($table, $column) {
                     $messages[] = "ℹ️ user_progress Tabelle existiert bereits";
                 }
                 
-                // 6. Webhook-Logs Tabelle
+                // 5. Webhook-Logs Tabelle
                 $messages[] = "🔄 Erstelle webhook_logs Tabelle...";
                 
                 if (!tableExists('webhook_logs')) {
@@ -335,7 +309,7 @@ function columnExists($table, $column) {
                     $messages[] = "ℹ️ webhook_logs Tabelle existiert bereits";
                 }
                 
-                // 7. RAW-Codes für existierende Kunden
+                // 6. RAW-Codes für existierende Kunden
                 $messages[] = "🔄 Generiere RAW-Codes für existierende Kunden...";
                 
                 $stmt = $pdo->query("SELECT id FROM users WHERE role = 'customer' AND (raw_code IS NULL OR raw_code = '')");
@@ -362,11 +336,11 @@ function columnExists($table, $column) {
                 
                 $messages[] = "✅ $generatedCodes RAW-Codes generiert!";
                 
-                // 8. Source setzen
+                // 7. Source setzen
                 $result = $pdo->exec("UPDATE users SET source = 'manual' WHERE role = 'customer' AND (source IS NULL OR source = '')");
                 $messages[] = "✅ Source für $result Kunden gesetzt!";
                 
-                // 9. is_active auf 1 setzen
+                // 8. is_active auf 1 setzen
                 $result = $pdo->exec("UPDATE users SET is_active = 1 WHERE is_active IS NULL");
                 $messages[] = "✅ is_active Status für $result Kunden aktualisiert!";
                 
@@ -392,7 +366,7 @@ function columnExists($table, $column) {
                 $stats['customers'] = $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'customer'")->fetchColumn();
                 $stats['admins'] = $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin'")->fetchColumn();
                 $stats['active'] = $pdo->query("SELECT COUNT(*) FROM users WHERE is_active = 1")->fetchColumn();
-                $stats['freebies'] = $pdo->query("SELECT COUNT(*) FROM freebie_templates")->fetchColumn();
+                $stats['freebies'] = $pdo->query("SELECT COUNT(*) FROM freebies")->fetchColumn();
                 $stats['assignments'] = $pdo->query("SELECT COUNT(*) FROM user_freebies")->fetchColumn();
             } catch (Exception $e) {
                 // Ignorieren
@@ -471,7 +445,6 @@ function columnExists($table, $column) {
                 <h3>📋 Was wird gemacht?</h3>
                 <ul style="margin-left: 20px; margin-top: 10px;">
                     <li>✅ Erweitert die <code>users</code> Tabelle um Digistore24-Felder</li>
-                    <li>✅ Erstellt <code>freebie_templates</code> Tabelle (falls nicht vorhanden)</li>
                     <li>✅ Erstellt <code>user_freebies</code> Tabelle für Zuweisungen</li>
                     <li>✅ Erstellt <code>user_progress</code> Tabelle für Fortschritte</li>
                     <li>✅ Erstellt <code>webhook_logs</code> Tabelle für Debugging</li>
