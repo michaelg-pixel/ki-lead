@@ -26,6 +26,7 @@ try {
     $mockup_url = $_POST['mockup_url'] ?? '';
     $is_freebie = isset($_POST['is_freebie']) ? 1 : 0;
     $digistore_product_id = $_POST['digistore_product_id'] ?? '';
+    $niche = 'other'; // Default niche
     
     // Validation
     if (empty($title)) {
@@ -69,27 +70,55 @@ try {
         }
     }
     
-    // Insert Course
-    $stmt = $pdo->prepare("
-        INSERT INTO courses (
-            title, description, type, additional_info, 
-            mockup_url, pdf_file, is_freebie, digistore_product_id
-        ) VALUES (
-            :title, :description, :type, :additional_info,
-            :mockup_url, :pdf_file, :is_freebie, :digistore_product_id
-        )
-    ");
+    // Prüfe ob niche Spalte existiert
+    $stmt = $pdo->query("SHOW COLUMNS FROM courses LIKE 'niche'");
+    $has_niche = $stmt->rowCount() > 0;
     
-    $stmt->execute([
-        'title' => $title,
-        'description' => $description,
-        'type' => $type,
-        'additional_info' => $additional_info,
-        'mockup_url' => $mockup_url,
-        'pdf_file' => $pdf_file,
-        'is_freebie' => $is_freebie,
-        'digistore_product_id' => $digistore_product_id
-    ]);
+    // Insert Course
+    if ($has_niche) {
+        $stmt = $pdo->prepare("
+            INSERT INTO courses (
+                title, description, type, additional_info, 
+                mockup_url, pdf_file, is_freebie, digistore_product_id, niche
+            ) VALUES (
+                :title, :description, :type, :additional_info,
+                :mockup_url, :pdf_file, :is_freebie, :digistore_product_id, :niche
+            )
+        ");
+        
+        $stmt->execute([
+            'title' => $title,
+            'description' => $description,
+            'type' => $type,
+            'additional_info' => $additional_info,
+            'mockup_url' => $mockup_url,
+            'pdf_file' => $pdf_file,
+            'is_freebie' => $is_freebie,
+            'digistore_product_id' => $digistore_product_id,
+            'niche' => $niche
+        ]);
+    } else {
+        $stmt = $pdo->prepare("
+            INSERT INTO courses (
+                title, description, type, additional_info, 
+                mockup_url, pdf_file, is_freebie, digistore_product_id
+            ) VALUES (
+                :title, :description, :type, :additional_info,
+                :mockup_url, :pdf_file, :is_freebie, :digistore_product_id
+            )
+        ");
+        
+        $stmt->execute([
+            'title' => $title,
+            'description' => $description,
+            'type' => $type,
+            'additional_info' => $additional_info,
+            'mockup_url' => $mockup_url,
+            'pdf_file' => $pdf_file,
+            'is_freebie' => $is_freebie,
+            'digistore_product_id' => $digistore_product_id
+        ]);
+    }
     
     $course_id = $pdo->lastInsertId();
     
