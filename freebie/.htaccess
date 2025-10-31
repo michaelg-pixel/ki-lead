@@ -1,12 +1,13 @@
-# .htaccess für Freebie-Vorschau
+# .htaccess für Freebie-Bereich
 # Diese Datei gehört in: /htdocs/app.mehr-infos-jetzt.de/freebie/.htaccess
 
 RewriteEngine On
 RewriteBase /freebie/
 
-# Wenn die angeforderte Datei oder das Verzeichnis existiert, wird nicht umgeleitet
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
+# Wenn die Datei oder das Verzeichnis existiert, keine Umleitung
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
 
-# Leite alle Anfragen an index.php um
+# Leite alle anderen Anfragen an index.php um (für old-style URLs)
 RewriteRule ^(.*)$ index.php [L,QSA]
