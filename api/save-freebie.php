@@ -17,19 +17,51 @@ try {
         throw new Exception('Keine Berechtigung');
     }
     
+    // DEBUG: Rohe Eingabedaten loggen
+    $raw_input = file_get_contents('php://input');
+    error_log("RAW INPUT: " . $raw_input);
+    error_log("CONTENT_TYPE: " . ($_SERVER['CONTENT_TYPE'] ?? 'not set'));
+    error_log("POST DATA: " . print_r($_POST, true));
+    
     // Daten verarbeiten - JSON oder FormData
     $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+    $data = [];
     
     if (strpos($contentType, 'application/json') !== false) {
         // JSON-Daten
-        $json = file_get_contents('php://input');
-        $data = json_decode($json, true);
-        if (!$data) {
-            throw new Exception('Ungültige JSON-Daten');
+        if (empty($raw_input)) {
+            throw new Exception('Keine Daten empfangen');
         }
+        
+        $data = json_decode($raw_input, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new Exception('Ungültige JSON-Daten: ' . json_last_error_msg());
+        }
+        
+        if (!is_array($data)) {
+            throw new Exception('JSON-Daten sind kein Array');
+        }
+        
+        error_log("DECODED JSON DATA: " . print_r($data, true));
     } else {
         // FormData
         $data = $_POST;
+        error_log("USING POST DATA");
+    }
+    
+    // DEBUG: Prüfe ob 'name' vorhanden ist
+    error_log("DATA['name'] exists: " . (isset($data['name']) ? 'YES' : 'NO'));
+    error_log("DATA['name'] value: " . ($data['name'] ?? 'NOT SET'));
+    error_log("DATA keys: " . implode(', ', array_keys($data)));
+    
+    // Validierung
+    if (!isset($data['name']) || trim($data['name']) === '') {
+        throw new Exception('Template-Name ist erforderlich (Feld ist leer oder nicht vorhanden)');
+    }
+    
+    if (!isset($data['headline']) || trim($data['headline']) === '') {
+        throw new Exception('Headline ist erforderlich (Feld ist leer oder nicht vorhanden)');
     }
     
     // Mockup-Image verarbeiten
@@ -134,21 +166,15 @@ try {
         throw new Exception('Datenbankverbindung fehlgeschlagen');
     }
     
-    // Validierung
-    if (empty($data['name'])) {
-        throw new Exception('Template-Name ist erforderlich');
-    }
-    
-    if (empty($data['headline'])) {
-        throw new Exception('Headline ist erforderlich');
-    }
-    
-    // Basis-Werte
+    // Basis-Werte extrahieren
     $name = trim($data['name']);
     $headline = trim($data['headline']);
     $subheadline = trim($data['subheadline'] ?? '');
     $preheadline = trim($data['preheadline'] ?? '');
     $description = trim($data['description'] ?? '');
+    
+    error_log("EXTRACTED NAME: " . $name);
+    error_log("EXTRACTED HEADLINE: " . $headline);
     
     // Layout-Mapping
     $layoutMapping = [
@@ -174,6 +200,7 @@ try {
     $url_slug = !empty($data['url_slug']) ? trim($data['url_slug']) : generateSlug($name);
     $raw_code = trim($data['custom_raw_code'] ?? '');
     $custom_css = trim($data['custom_css'] ?? '');
+    $email_optin_code = trim($data['email_optin_code'] ?? '');
     
     // WICHTIG: course_id als NULL wenn nicht ausgewählt (wegen Foreign Key)
     $course_id = (!empty($data['course_id']) && (int)$data['course_id'] > 0) ? (int)$data['course_id'] : null;
@@ -192,15 +219,21 @@ try {
     $optin_placeholder_email = $data['optin_placeholder_email'] ?? 'Deine E-Mail-Adresse';
     $optin_button_text = $data['optin_button_text'] ?? 'KOSTENLOS DOWNLOADEN';
     $optin_privacy_text = trim($data['optin_privacy_text'] ?? '');
+    
+    // Checkbox-Werte richtig verarbeiten
+    $show_mockup = isset($data['show_mockup']) ? (int)$data['show_mockup'] : 1;
     $show_footer = isset($data['show_footer']) ? (int)$data['show_footer'] : 1;
     $footer_links = trim($data['footer_links'] ?? '');
     $allow_customer_image = isset($data['allow_customer_image']) ? (int)$data['allow_customer_image'] : 1;
+    $is_master_template = isset($data['is_master_template']) ? (int)$data['is_master_template'] : 1;
     
     // Template ID für Update
     $template_id = !empty($data['template_id']) ? (int)$data['template_id'] : null;
     
     if ($template_id) {
         // UPDATE
+        error_log("UPDATING TEMPLATE ID: " . $template_id);
+        
         // Wenn kein neues Bild hochgeladen wurde, altes behalten
         if (empty($mockup_image_url)) {
             $stmt = $pdo->prepare("SELECT mockup_image_url FROM freebies WHERE id = ?");
@@ -294,6 +327,8 @@ try {
         
     } else {
         // INSERT
+        error_log("INSERTING NEW TEMPLATE");
+        
         $sql = "INSERT INTO freebies (
             customer_id,
             course_id,
@@ -366,6 +401,8 @@ try {
         
         $template_id = $pdo->lastInsertId();
         
+        error_log("INSERTED TEMPLATE WITH ID: " . $template_id);
+        
         $response = [
             'success' => true,
             'message' => 'Template erfolgreich erstellt',
@@ -376,12 +413,14 @@ try {
     }
     
 } catch (PDOException $e) {
+    error_log("DATABASE ERROR: " . $e->getMessage());
     $response = [
         'success' => false,
         'error' => 'Datenbankfehler: ' . $e->getMessage(),
         'error_code' => $e->getCode()
     ];
 } catch (Exception $e) {
+    error_log("GENERAL ERROR: " . $e->getMessage());
     $response = [
         'success' => false,
         'error' => $e->getMessage()
