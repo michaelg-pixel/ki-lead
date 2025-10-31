@@ -1,7 +1,12 @@
-# 🚀 Auto-Deploy Test
+# 🚀 Auto-Deploy Test V2
+
+**NEUER TEST nach SSH-Key Update!**
 
 Wenn du diese Datei auf dem Server siehst, funktioniert Auto-Deploy!
 
 Timestamp: <?php echo date('Y-m-d H:i:s'); ?>
 
 ✅ GitHub Actions → Server Sync aktiv!
+
+Version: 2.0
+Updated: <?php echo time(); ?>
