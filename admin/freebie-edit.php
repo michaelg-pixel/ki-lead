@@ -67,6 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete'])) {
     $headline = trim($_POST['headline'] ?? '');
     $subheadline = trim($_POST['subheadline'] ?? '');
     $preheadline = trim($_POST['preheadline'] ?? '');
+    $raw_code = trim($_POST['raw_code'] ?? '');
     
     $design_config_new = json_encode([
         'colors' => [
@@ -102,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete'])) {
                 UPDATE freebies 
                 SET name = ?, description = ?, template_type = ?, design_config = ?, customizable_fields = ?, 
                     is_active = ?, headline = ?, subheadline = ?, preheadline = ?, mockup_image_url = ?,
-                    primary_color = ?, secondary_color = ?, updated_at = NOW()
+                    primary_color = ?, secondary_color = ?, raw_code = ?, updated_at = NOW()
                 WHERE id = ?
             ");
             
@@ -119,6 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete'])) {
                 $mockup_url,
                 $primary_color,
                 $secondary_color,
+                $raw_code,
                 $template_id
             ])) {
                 $success_message = "Template erfolgreich aktualisiert!";
@@ -411,6 +413,67 @@ $font_stacks = [
                                            placeholder="ohne diese selbst erstellen zu müssen"
                                            oninput="updatePreview()">
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- E-Mail Optin Section -->
+                        <div class="card p-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                                <i class="fas fa-envelope text-purple-600 mr-2"></i>
+                                E-Mail Optin Code
+                            </h3>
+                            
+                            <div class="mb-4 p-4 bg-blue-50 border-l-4 border-blue-500 rounded">
+                                <p class="text-sm text-blue-800">
+                                    <i class="fas fa-info-circle mr-2"></i>
+                                    <strong>Hinweis:</strong> Hier kannst du den Raw-HTML-Code von deinem E-Mail-Marketing-Tool (Quentn, Klicktipp, Brevo, GetResponse, etc.) einfügen. 
+                                    Das Formular wird automatisch unter den Bulletpoints platziert und ist responsiv.
+                                </p>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    HTML-Code des E-Mail-Formulars
+                                </label>
+                                <textarea name="raw_code" rows="10"
+                                          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
+                                          placeholder='Beispiel:
+<form action="https://dein-anbieter.com/submit" method="post">
+  <input type="text" name="first_name" placeholder="Vorname">
+  <input type="email" name="email" placeholder="E-Mail">
+  <button type="submit">Jetzt kostenlos bestellen</button>
+</form>'><?php echo htmlspecialchars($template['raw_code'] ?? ''); ?></textarea>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <details class="cursor-pointer">
+                                    <summary class="text-sm font-medium text-gray-700 mb-2">
+                                        <i class="fas fa-lightbulb mr-2"></i>Beispiel-Codes anzeigen
+                                    </summary>
+                                    <div class="mt-3 space-y-4">
+                                        <div class="p-3 bg-gray-50 rounded border border-gray-200">
+                                            <p class="text-xs font-semibold text-gray-700 mb-2">Quentn Beispiel:</p>
+                                            <code class="text-xs text-gray-600 block overflow-x-auto">
+&lt;form action="https://pk1bh1.eu-1.quentn-site.com/public/forms/5710/raw/submit" method="post"&gt;
+  &lt;input type="text" name="first_name" placeholder="Vorname"&gt;
+  &lt;input type="email" name="mail" placeholder="E-Mail"&gt;
+  &lt;button type="submit"&gt;Jetzt kostenlos bestellen&lt;/button&gt;
+&lt;/form&gt;
+                                            </code>
+                                        </div>
+                                        
+                                        <div class="p-3 bg-gray-50 rounded border border-gray-200">
+                                            <p class="text-xs font-semibold text-gray-700 mb-2">Klicktipp Beispiel:</p>
+                                            <code class="text-xs text-gray-600 block overflow-x-auto">
+&lt;form action="https://www.klicktipp.com/form/12345" method="post"&gt;
+  &lt;input type="text" name="firstname" placeholder="Vorname"&gt;
+  &lt;input type="email" name="email" placeholder="E-Mail"&gt;
+  &lt;button type="submit"&gt;Kostenlos downloaden&lt;/button&gt;
+&lt;/form&gt;
+                                            </code>
+                                        </div>
+                                    </div>
+                                </details>
                             </div>
                         </div>
 
