@@ -115,6 +115,29 @@ try {
         color: white;
         border-color: #8b5cf6;
     }
+    .file-upload-area {
+        border: 2px dashed #d1d5db;
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .file-upload-area:hover {
+        border-color: #8b5cf6;
+        background: #f9fafb;
+    }
+    .file-upload-area.dragover {
+        border-color: #8b5cf6;
+        background: #f3e8ff;
+    }
+    .mockup-preview {
+        max-width: 100%;
+        max-height: 200px;
+        border-radius: 8px;
+        margin-top: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
 </style>
 
 <div class="max-w-7xl mx-auto">
@@ -262,9 +285,22 @@ try {
                 </div>
                 
                 <div class="mb-4">
-                    <label class="form-label">Mockup URL</label>
-                    <input type="url" name="mockup_image_url" id="mockup_image_url" value="<?php echo htmlspecialchars($template['mockup_image_url'] ?? ''); ?>"
-                           placeholder="https://example.com/mockup.png" class="form-input">
+                    <label class="form-label">Mockup Bild hochladen</label>
+                    <div class="file-upload-area" id="fileUploadArea" onclick="document.getElementById('mockupImageInput').click()">
+                        <input type="file" id="mockupImageInput" accept="image/*" style="display: none;" onchange="handleFileSelect(event)">
+                        <div id="uploadPrompt">
+                            <p style="color: #6b7280; font-size: 14px; margin-bottom: 8px;">📷 Bild hochladen</p>
+                            <p style="color: #9ca3af; font-size: 12px;">Klicken oder Bild hierher ziehen</p>
+                        </div>
+                        <?php if (!empty($template['mockup_image_url'])): ?>
+                        <div id="currentImage">
+                            <img src="<?php echo htmlspecialchars($template['mockup_image_url']); ?>" class="mockup-preview" alt="Aktuelles Mockup">
+                            <p style="color: #6b7280; font-size: 12px; margin-top: 8px;">Aktuelles Bild</p>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                    <p class="helper-text">PNG, JPG oder GIF (max. 5MB)</p>
+                    <input type="hidden" name="mockup_image_url" id="mockup_image_url" value="<?php echo htmlspecialchars($template['mockup_image_url'] ?? ''); ?>">
                 </div>
                 
                 <div>
@@ -329,6 +365,97 @@ try {
 </div>
 
 <script>
+let uploadedImageFile = null;
+
+// Drag & Drop Event Listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadArea = document.getElementById('fileUploadArea');
+    
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, () => {
+            uploadArea.classList.add('dragover');
+        }, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, () => {
+            uploadArea.classList.remove('dragover');
+        }, false);
+    });
+    
+    uploadArea.addEventListener('drop', function(e) {
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            handleFile(files[0]);
+        }
+    }, false);
+});
+
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (file) {
+        handleFile(file);
+    }
+}
+
+function handleFile(file) {
+    // Validierung
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+    
+    if (!allowedTypes.includes(file.type)) {
+        alert('❌ Nur Bilddateien erlaubt (PNG, JPG, GIF, WEBP)');
+        return;
+    }
+    
+    if (file.size > maxSize) {
+        alert('❌ Datei zu groß! Maximal 5MB erlaubt.');
+        return;
+    }
+    
+    // Bild speichern für Upload
+    uploadedImageFile = file;
+    
+    // Vorschau anzeigen
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const uploadArea = document.getElementById('fileUploadArea');
+        uploadArea.innerHTML = `
+            <div id="imagePreview">
+                <img src="${e.target.result}" class="mockup-preview" alt="Vorschau">
+                <p style="color: #10b981; font-size: 12px; margin-top: 8px;">✓ Neues Bild ausgewählt (wird beim Speichern hochgeladen)</p>
+                <button type="button" onclick="removeImage()" style="margin-top: 8px; padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer;">
+                    🗑️ Entfernen
+                </button>
+            </div>
+        `;
+    };
+    reader.readAsDataURL(file);
+}
+
+function removeImage() {
+    uploadedImageFile = null;
+    document.getElementById('mockup_image_url').value = '';
+    const uploadArea = document.getElementById('fileUploadArea');
+    uploadArea.innerHTML = `
+        <input type="file" id="mockupImageInput" accept="image/*" style="display: none;" onchange="handleFileSelect(event)">
+        <div id="uploadPrompt">
+            <p style="color: #6b7280; font-size: 14px; margin-bottom: 8px;">📷 Bild hochladen</p>
+            <p style="color: #9ca3af; font-size: 12px;">Klicken oder Bild hierher ziehen</p>
+        </div>
+    `;
+    uploadArea.onclick = () => document.getElementById('mockupImageInput').click();
+}
+
 function selectLayout(layout) {
     // Alle Buttons deaktivieren
     document.querySelectorAll('.layout-btn').forEach(btn => {
@@ -354,6 +481,20 @@ function previewTemplate() {
     // Checkbox-Werte korrigieren
     data.show_mockup = document.getElementById('show_mockup').checked ? '1' : '0';
     
+    // Wenn neues Bild hochgeladen wurde, Vorschau nutzen
+    if (uploadedImageFile) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            data.mockup_image_url = e.target.result;
+            showPreview(data);
+        };
+        reader.readAsDataURL(uploadedImageFile);
+    } else {
+        showPreview(data);
+    }
+}
+
+function showPreview(data) {
     // Vorschau-HTML generieren
     const previewHTML = generatePreviewHTML(data);
     
@@ -475,7 +616,10 @@ async function saveTemplate() {
     // Layout aus hidden input hinzufügen
     formData.set('layout', document.getElementById('layoutInput').value);
     
-    const data = Object.fromEntries(formData);
+    // Wenn Bild hochgeladen wurde, hinzufügen
+    if (uploadedImageFile) {
+        formData.append('mockup_image', uploadedImageFile);
+    }
     
     // Button deaktivieren
     const originalText = btn.innerHTML;
@@ -485,8 +629,7 @@ async function saveTemplate() {
     try {
         const response = await fetch('/api/save-freebie.php', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+            body: formData // FormData statt JSON
         });
         
         const result = await response.json();
