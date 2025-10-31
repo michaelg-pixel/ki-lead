@@ -1,16 +1,53 @@
 /* 
  * Lokale Font-Definitionen für KI Leadsystem
- * DSGVO-konform - Keine Verbindung zu Google Servern
- * Fonts werden über Bunny Fonts (EU-Server) geladen
+ * DSGVO-konform - Alle Fonts auf eigenem Server
+ * 
+ * Installation: Siehe docs/FONT-INSTALLATION.md
+ * Download-Skript: scripts/download-fonts.sh
  */
 
-/* Inter - Variable Font */
+/* Inter */
 @font-face {
   font-family: 'Inter';
   font-style: normal;
-  font-weight: 300 800;
+  font-weight: 300;
   font-display: swap;
-  src: url('https://fonts.bunny.net/inter/files/inter-latin-300-normal.woff2') format('woff2');
+  src: url('/assets/fonts/inter-300.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/assets/fonts/inter-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/assets/fonts/inter-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/assets/fonts/inter-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/assets/fonts/inter-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('/assets/fonts/inter-800.woff2') format('woff2');
 }
 
 /* Poppins */
@@ -19,42 +56,42 @@
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url('https://fonts.bunny.net/poppins/files/poppins-latin-300-normal.woff2') format('woff2');
+  src: url('/assets/fonts/poppins-300.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Poppins';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('https://fonts.bunny.net/poppins/files/poppins-latin-400-normal.woff2') format('woff2');
+  src: url('/assets/fonts/poppins-400.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Poppins';
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url('https://fonts.bunny.net/poppins/files/poppins-latin-500-normal.woff2') format('woff2');
+  src: url('/assets/fonts/poppins-500.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Poppins';
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url('https://fonts.bunny.net/poppins/files/poppins-latin-600-normal.woff2') format('woff2');
+  src: url('/assets/fonts/poppins-600.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Poppins';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url('https://fonts.bunny.net/poppins/files/poppins-latin-700-normal.woff2') format('woff2');
+  src: url('/assets/fonts/poppins-700.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Poppins';
   font-style: normal;
   font-weight: 800;
   font-display: swap;
-  src: url('https://fonts.bunny.net/poppins/files/poppins-latin-800-normal.woff2') format('woff2');
+  src: url('/assets/fonts/poppins-800.woff2') format('woff2');
 }
 
 /* Roboto */
@@ -63,35 +100,35 @@
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url('https://fonts.bunny.net/roboto/files/roboto-latin-300-normal.woff2') format('woff2');
+  src: url('/assets/fonts/roboto-300.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Roboto';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('https://fonts.bunny.net/roboto/files/roboto-latin-400-normal.woff2') format('woff2');
+  src: url('/assets/fonts/roboto-400.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Roboto';
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url('https://fonts.bunny.net/roboto/files/roboto-latin-500-normal.woff2') format('woff2');
+  src: url('/assets/fonts/roboto-500.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Roboto';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url('https://fonts.bunny.net/roboto/files/roboto-latin-700-normal.woff2') format('woff2');
+  src: url('/assets/fonts/roboto-700.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Roboto';
   font-style: normal;
   font-weight: 900;
   font-display: swap;
-  src: url('https://fonts.bunny.net/roboto/files/roboto-latin-900-normal.woff2') format('woff2');
+  src: url('/assets/fonts/roboto-900.woff2') format('woff2');
 }
 
 /* Montserrat */
@@ -100,42 +137,42 @@
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url('https://fonts.bunny.net/montserrat/files/montserrat-latin-300-normal.woff2') format('woff2');
+  src: url('/assets/fonts/montserrat-300.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Montserrat';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('https://fonts.bunny.net/montserrat/files/montserrat-latin-400-normal.woff2') format('woff2');
+  src: url('/assets/fonts/montserrat-400.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Montserrat';
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url('https://fonts.bunny.net/montserrat/files/montserrat-latin-500-normal.woff2') format('woff2');
+  src: url('/assets/fonts/montserrat-500.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Montserrat';
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url('https://fonts.bunny.net/montserrat/files/montserrat-latin-600-normal.woff2') format('woff2');
+  src: url('/assets/fonts/montserrat-600.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Montserrat';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url('https://fonts.bunny.net/montserrat/files/montserrat-latin-700-normal.woff2') format('woff2');
+  src: url('/assets/fonts/montserrat-700.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Montserrat';
   font-style: normal;
   font-weight: 800;
   font-display: swap;
-  src: url('https://fonts.bunny.net/montserrat/files/montserrat-latin-800-normal.woff2') format('woff2');
+  src: url('/assets/fonts/montserrat-800.woff2') format('woff2');
 }
 
 /* Playfair Display */
@@ -144,35 +181,35 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('https://fonts.bunny.net/playfair-display/files/playfair-display-latin-400-normal.woff2') format('woff2');
+  src: url('/assets/fonts/playfair-400.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Playfair Display';
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url('https://fonts.bunny.net/playfair-display/files/playfair-display-latin-500-normal.woff2') format('woff2');
+  src: url('/assets/fonts/playfair-500.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Playfair Display';
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url('https://fonts.bunny.net/playfair-display/files/playfair-display-latin-600-normal.woff2') format('woff2');
+  src: url('/assets/fonts/playfair-600.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Playfair Display';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url('https://fonts.bunny.net/playfair-display/files/playfair-display-latin-700-normal.woff2') format('woff2');
+  src: url('/assets/fonts/playfair-700.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Playfair Display';
   font-style: normal;
   font-weight: 800;
   font-display: swap;
-  src: url('https://fonts.bunny.net/playfair-display/files/playfair-display-latin-800-normal.woff2') format('woff2');
+  src: url('/assets/fonts/playfair-800.woff2') format('woff2');
 }
 
 /* Open Sans */
@@ -181,42 +218,42 @@
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url('https://fonts.bunny.net/open-sans/files/open-sans-latin-300-normal.woff2') format('woff2');
+  src: url('/assets/fonts/opensans-300.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Open Sans';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('https://fonts.bunny.net/open-sans/files/open-sans-latin-400-normal.woff2') format('woff2');
+  src: url('/assets/fonts/opensans-400.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Open Sans';
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url('https://fonts.bunny.net/open-sans/files/open-sans-latin-500-normal.woff2') format('woff2');
+  src: url('/assets/fonts/opensans-500.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Open Sans';
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url('https://fonts.bunny.net/open-sans/files/open-sans-latin-600-normal.woff2') format('woff2');
+  src: url('/assets/fonts/opensans-600.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Open Sans';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url('https://fonts.bunny.net/open-sans/files/open-sans-latin-700-normal.woff2') format('woff2');
+  src: url('/assets/fonts/opensans-700.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Open Sans';
   font-style: normal;
   font-weight: 800;
   font-display: swap;
-  src: url('https://fonts.bunny.net/open-sans/files/open-sans-latin-800-normal.woff2') format('woff2');
+  src: url('/assets/fonts/opensans-800.woff2') format('woff2');
 }
 
 /* Lato */
@@ -225,26 +262,26 @@
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url('https://fonts.bunny.net/lato/files/lato-latin-300-normal.woff2') format('woff2');
+  src: url('/assets/fonts/lato-300.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Lato';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('https://fonts.bunny.net/lato/files/lato-latin-400-normal.woff2') format('woff2');
+  src: url('/assets/fonts/lato-400.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Lato';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url('https://fonts.bunny.net/lato/files/lato-latin-700-normal.woff2') format('woff2');
+  src: url('/assets/fonts/lato-700.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Lato';
   font-style: normal;
   font-weight: 900;
   font-display: swap;
-  src: url('https://fonts.bunny.net/lato/files/lato-latin-900-normal.woff2') format('woff2');
+  src: url('/assets/fonts/lato-900.woff2') format('woff2');
 }
