@@ -35,9 +35,39 @@ try {
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete'])) {
+    
+    // Handle file upload for mockup
+    $mockup_url = $template['mockup_image_url']; // Keep existing URL
+    if (isset($_FILES['mockup_image']) && $_FILES['mockup_image']['error'] === UPLOAD_ERR_OK) {
+        $upload_dir = __DIR__ . '/../uploads/freebies/';
+        if (!is_dir($upload_dir)) {
+            mkdir($upload_dir, 0755, true);
+        }
+        
+        $file_extension = strtolower(pathinfo($_FILES['mockup_image']['name'], PATHINFO_EXTENSION));
+        $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        
+        if (in_array($file_extension, $allowed_extensions)) {
+            $new_filename = 'mockup_' . uniqid() . '.' . $file_extension;
+            $target_path = $upload_dir . $new_filename;
+            
+            if (move_uploaded_file($_FILES['mockup_image']['tmp_name'], $target_path)) {
+                // Delete old mockup if exists
+                if (!empty($template['mockup_image_url']) && file_exists(__DIR__ . '/..' . $template['mockup_image_url'])) {
+                    @unlink(__DIR__ . '/..' . $template['mockup_image_url']);
+                }
+                $mockup_url = '/uploads/freebies/' . $new_filename;
+            }
+        }
+    }
+    
     $name = trim($_POST['name'] ?? '');
     $description = trim($_POST['description'] ?? '');
     $template_type = $_POST['template_type'] ?? 'checklist';
+    $headline = trim($_POST['headline'] ?? '');
+    $subheadline = trim($_POST['subheadline'] ?? '');
+    $preheadline = trim($_POST['preheadline'] ?? '');
+    
     $design_config_new = json_encode([
         'colors' => [
             'primary' => $_POST['color_primary'] ?? '#8B5CF6',
@@ -63,16 +93,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete'])) {
     ]);
     
     $is_active = isset($_POST['is_active']) ? 1 : 0;
+    $primary_color = $_POST['color_primary'] ?? '#8B5CF6';
+    $secondary_color = $_POST['color_secondary'] ?? '#6D28D9';
     
     if (!empty($name)) {
         try {
             $stmt = $pdo->prepare("
                 UPDATE freebies 
-                SET name = ?, description = ?, template_type = ?, design_config = ?, customizable_fields = ?, is_active = ?, updated_at = NOW()
+                SET name = ?, description = ?, template_type = ?, design_config = ?, customizable_fields = ?, 
+                    is_active = ?, headline = ?, subheadline = ?, preheadline = ?, mockup_image_url = ?,
+                    primary_color = ?, secondary_color = ?, updated_at = NOW()
                 WHERE id = ?
             ");
             
-            if ($stmt->execute([$name, $description, $template_type, $design_config_new, $customizable_fields_new, $is_active, $template_id])) {
+            if ($stmt->execute([
+                $name, 
+                $description, 
+                $template_type, 
+                $design_config_new, 
+                $customizable_fields_new, 
+                $is_active,
+                $headline,
+                $subheadline,
+                $preheadline,
+                $mockup_url,
+                $primary_color,
+                $secondary_color,
+                $template_id
+            ])) {
                 $success_message = "Template erfolgreich aktualisiert!";
                 
                 // Reload template data
@@ -95,6 +143,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete'])) {
 // Handle delete request
 if (isset($_POST['delete']) && $_POST['delete'] === 'confirm') {
     try {
+        // Delete mockup image if exists
+        if (!empty($template['mockup_image_url']) && file_exists(__DIR__ . '/..' . $template['mockup_image_url'])) {
+            @unlink(__DIR__ . '/..' . $template['mockup_image_url']);
+        }
+        
         $stmt = $pdo->prepare("DELETE FROM freebies WHERE id = ?");
         if ($stmt->execute([$template_id])) {
             header('Location: /admin/freebie-templates.php?deleted=1');
@@ -168,6 +221,16 @@ $current_datetime = date('d.m.Y H:i');
         .delete-zone {
             border: 2px dashed #ef4444;
             background: rgba(239, 68, 68, 0.05);
+        }
+        .upload-area {
+            border: 2px dashed #cbd5e0;
+            background: #f9fafb;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .upload-area:hover {
+            border-color: #8B5CF6;
+            background: #f3f4f6;
         }
     </style>
 </head>
@@ -263,7 +326,7 @@ $current_datetime = date('d.m.Y H:i');
                 </div>
             <?php endif; ?>
 
-            <form method="POST" action="" id="templateForm">
+            <form method="POST" action="" id="templateForm" enctype="multipart/form-data">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     
                     <!-- Left Column - Form -->
@@ -295,6 +358,76 @@ $current_datetime = date('d.m.Y H:i');
                                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                               placeholder="Kurze Beschreibung des Templates..."><?php echo htmlspecialchars($template['description']); ?></textarea>
                                 </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Hauptüberschrift (Headline)
+                                    </label>
+                                    <input type="text" 
+                                           name="headline"
+                                           value="<?php echo htmlspecialchars($template['headline'] ?? ''); ?>"
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                                           placeholder="Wie du eigene KI Kurse verkaufst...">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Unterüberschrift (Subheadline)
+                                    </label>
+                                    <input type="text" 
+                                           name="subheadline"
+                                           value="<?php echo htmlspecialchars($template['subheadline'] ?? ''); ?>"
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                                           placeholder="ohne diese selbst erstellen zu müssen">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Vorüberschrift (Preheadline)
+                                    </label>
+                                    <input type="text" 
+                                           name="preheadline"
+                                           value="<?php echo htmlspecialchars($template['preheadline'] ?? ''); ?>"
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                                           placeholder="NUR FÜR KURZE ZEIT">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mockup Upload -->
+                        <div class="card p-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                                <i class="fas fa-image text-purple-600 mr-2"></i>
+                                Mockup-Bild
+                            </h3>
+                            
+                            <?php if (!empty($template['mockup_image_url'])): ?>
+                                <div class="mb-4">
+                                    <p class="text-sm text-gray-600 mb-2">Aktuelles Mockup:</p>
+                                    <img src="<?php echo htmlspecialchars($template['mockup_image_url']); ?>" 
+                                         alt="Current Mockup" 
+                                         class="max-w-sm rounded-lg shadow-md"
+                                         id="current-mockup">
+                                </div>
+                            <?php endif; ?>
+                            
+                            <div class="upload-area rounded-lg p-8 text-center">
+                                <input type="file" 
+                                       name="mockup_image" 
+                                       id="mockup_image"
+                                       accept="image/*"
+                                       class="hidden"
+                                       onchange="previewImage(this)">
+                                <label for="mockup_image" class="cursor-pointer">
+                                    <div id="upload-placeholder">
+                                        <i class="fas fa-cloud-upload-alt text-5xl text-gray-400 mb-3"></i>
+                                        <p class="text-gray-600 font-medium mb-1">
+                                            <?php echo !empty($template['mockup_image_url']) ? 'Neues Bild hochladen' : 'Klicke zum Hochladen'; ?>
+                                        </p>
+                                        <p class="text-sm text-gray-500">PNG, JPG, GIF oder WEBP (Max. 5MB)</p>
+                                    </div>
+                                    <img id="image-preview" class="hidden max-w-full h-auto rounded-lg mx-auto" alt="Preview">
+                                </label>
                             </div>
                         </div>
 
@@ -552,6 +685,25 @@ $current_datetime = date('d.m.Y H:i');
             element.classList.add('selected');
             element.querySelector('input[type="radio"]').checked = true;
             updatePreview();
+        }
+        
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('upload-placeholder').classList.add('hidden');
+                    const preview = document.getElementById('image-preview');
+                    preview.src = e.target.result;
+                    preview.classList.remove('hidden');
+                    
+                    // Hide current mockup if exists
+                    const currentMockup = document.getElementById('current-mockup');
+                    if (currentMockup) {
+                        currentMockup.style.display = 'none';
+                    }
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
         }
         
         function updatePreview() {
