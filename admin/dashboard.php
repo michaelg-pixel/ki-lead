@@ -30,9 +30,69 @@ $page = $_GET['page'] ?? 'overview';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - KI Leadsystem</title>
+    
+    <!-- Tailwind CSS vorab laden für freebie-edit -->
+    <?php if ($page === 'freebie-edit' || $page === 'freebie-create'): ?>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Loading Screen für Editor-Seiten */
+        .page-loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0a0a16;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            opacity: 1;
+            transition: opacity 0.3s ease-out;
+        }
+        
+        .page-loading.loaded {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(168, 85, 247, 0.2);
+            border-top-color: #a855f7;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+    <?php endif; ?>
+    
     <link rel="stylesheet" href="styles/dashboard.css">
 </head>
 <body>
+    <!-- Loading Screen für Editor-Seiten -->
+    <?php if ($page === 'freebie-edit' || $page === 'freebie-create'): ?>
+    <div class="page-loading" id="pageLoading">
+        <div class="spinner"></div>
+    </div>
+    <script>
+        // Loading Screen nach DOM-Ready ausblenden
+        window.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                const loader = document.getElementById('pageLoading');
+                if (loader) {
+                    loader.classList.add('loaded');
+                    setTimeout(() => loader.remove(), 300);
+                }
+            }, 100);
+        });
+    </script>
+    <?php endif; ?>
+    
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="logo">
