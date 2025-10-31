@@ -864,7 +864,7 @@ function closePreview() {
     document.getElementById('previewModal').style.display = 'none';
 }
 
-// HTML für Vorschau generieren
+// HTML für Vorschau generieren - MIT ZENTRIERTEN HEADLINES
 function generatePreviewHTML(data) {
     const layout = data.layout || 'hybrid';
     const bgColor = data.background_color || '#FFF9E6';
@@ -884,7 +884,7 @@ function generatePreviewHTML(data) {
         ).join('');
     }
     
-    // Layout-spezifisches HTML
+    // Layout-spezifisches HTML - ALLE HEADLINES ZENTRIERT
     let layoutHTML = '';
     
     if (layout === 'hybrid' || layout === 'sidebar') {
@@ -899,18 +899,18 @@ function generatePreviewHTML(data) {
                         </div>
                     `}
                 </div>
-                <div style="order: ${layout === 'sidebar' ? '1' : '2'};">
-                    ${data.preheadline ? `<div style="color: ${primaryColor}; font-size: ${data.preheadline_size}px; font-family: '${data.preheadline_font}', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; text-align: center;">${escapeHtml(data.preheadline)}</div>` : ''}
+                <div style="order: ${layout === 'sidebar' ? '1' : '2'}; text-align: center;">
+                    ${data.preheadline ? `<div style="color: ${primaryColor}; font-size: ${data.preheadline_size}px; font-family: '${data.preheadline_font}', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">${escapeHtml(data.preheadline)}</div>` : ''}
                     
-                    <h1 style="font-size: ${data.headline_size}px; font-family: '${data.headline_font}', sans-serif; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px; text-align: center;">
+                    <h1 style="font-size: ${data.headline_size}px; font-family: '${data.headline_font}', sans-serif; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px;">
                         ${escapeHtml(data.headline || 'Dein kostenloser Kurs')}
                     </h1>
                     
-                    ${data.subheadline ? `<p style="font-size: ${data.subheadline_size}px; font-family: '${data.subheadline_font}', sans-serif; color: #6b7280; margin-bottom: 32px; text-align: center;">${escapeHtml(data.subheadline)}</p>` : ''}
+                    ${data.subheadline ? `<p style="font-size: ${data.subheadline_size}px; font-family: '${data.subheadline_font}', sans-serif; color: #6b7280; margin-bottom: 32px;">${escapeHtml(data.subheadline)}</p>` : ''}
                     
-                    ${bulletpointsHTML ? `<div style="margin-bottom: 32px;">${bulletpointsHTML}</div>` : ''}
+                    ${bulletpointsHTML ? `<div style="margin-bottom: 32px; text-align: left;">${bulletpointsHTML}</div>` : ''}
                     
-                    <div style="text-align: center;">
+                    <div>
                         <button style="background: ${primaryColor}; color: white; padding: 16px 40px; border: none; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px ${primaryColor}40;">
                             ${escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern')}
                         </button>
