@@ -39,6 +39,7 @@ if (!isset($pdo)) {
             'headline' => "varchar(500) NOT NULL DEFAULT ''",
             'subheadline' => "text DEFAULT NULL",
             'bullet_points' => "text DEFAULT NULL",
+            'urgency_text' => "varchar(500) DEFAULT NULL",
             'layout' => "enum('layout1','layout2','layout3') DEFAULT 'layout1'",
             'cta_text' => "varchar(255) DEFAULT 'Jetzt kostenlos downloaden'",
             'cta_button_color' => "varchar(20) DEFAULT '#5B8DEF'",
