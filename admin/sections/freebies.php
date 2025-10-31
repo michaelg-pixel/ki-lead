@@ -30,7 +30,7 @@ $freebies = $pdo->query("SELECT * FROM freebies ORDER BY created_at DESC")->fetc
                     </span>
                 </div>
                 <div class="freebie-actions">
-                    <button onclick="previewTemplate(<?php echo htmlspecialchars(json_encode($freebie)); ?>)" 
+                    <button onclick='previewTemplate(<?php echo json_encode($freebie); ?>)' 
                             class="btn-preview" 
                             title="Vorschau öffnen">
                         👁️ Vorschau
@@ -188,7 +188,6 @@ $freebies = $pdo->query("SELECT * FROM freebies ORDER BY created_at DESC")->fetc
 <script>
 // VORSCHAU-FUNKTION
 function previewTemplate(template) {
-    // Layout-Mapping zurück
     const layoutMapping = {
         'layout1': 'hybrid',
         'layout2': 'centered',
@@ -209,10 +208,7 @@ function previewTemplate(template) {
         show_mockup: template.mockup_image_url ? '1' : '0'
     };
     
-    // Vorschau-HTML generieren
     const previewHTML = generatePreviewHTML(data);
-    
-    // Modal anzeigen
     const modal = document.getElementById('previewModal');
     const content = document.getElementById('previewContent');
     
@@ -220,13 +216,10 @@ function previewTemplate(template) {
     modal.style.display = 'flex';
 }
 
-// Vorschau-Modal schließen
 function closePreview() {
-    const modal = document.getElementById('previewModal');
-    modal.style.display = 'none';
+    document.getElementById('previewModal').style.display = 'none';
 }
 
-// HTML für Vorschau generieren
 function generatePreviewHTML(data) {
     const layout = data.layout || 'hybrid';
     const bgColor = data.background_color || '#FFFFFF';
@@ -234,188 +227,112 @@ function generatePreviewHTML(data) {
     const showMockup = data.show_mockup === '1';
     const mockupUrl = data.mockup_image_url || '';
     
-    // Bulletpoints verarbeiten
     let bulletpointsHTML = '';
     if (data.bulletpoints) {
         const bullets = data.bulletpoints.split('\n').filter(b => b.trim());
-        bulletpointsHTML = bullets.map(bullet => 
-            `<div style="display: flex; align-items: start; gap: 12px; margin-bottom: 16px;">
-                <span style="color: ${primaryColor}; font-size: 20px; flex-shrink: 0;">✓</span>
-                <span style="color: #374151; font-size: 16px; line-height: 1.5;">${escapeHtml(bullet.replace(/^[✓✔︎•-]\s*/, ''))}</span>
-            </div>`
-        ).join('');
+        bulletpointsHTML = bullets.map(bullet => {
+            return '<div style="display: flex; align-items: start; gap: 12px; margin-bottom: 16px;">' +
+                '<span style="color: ' + primaryColor + '; font-size: 20px; flex-shrink: 0;">✓</span>' +
+                '<span style="color: #374151; font-size: 16px; line-height: 1.5;">' + escapeHtml(bullet.replace(/^[✓✔︎•-]\s*/, '')) + '</span>' +
+                '</div>';
+        }).join('');
     }
     
-    // Layout-spezifisches HTML
+    const mockupHTML = showMockup && mockupUrl ? 
+        '<img src="' + escapeHtml(mockupUrl) + '" alt="Mockup" style="width: 100%; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">' :
+        '<div style="width: 100%; aspect-ratio: 4/3; background: linear-gradient(135deg, ' + primaryColor + '20, ' + primaryColor + '40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ' + primaryColor + '; font-size: 64px;">🎁</div>';
+    
+    const preheadlineHTML = data.preheadline ? 
+        '<div style="color: ' + primaryColor + '; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">' + escapeHtml(data.preheadline) + '</div>' : '';
+    
+    const headlineHTML = '<h1 style="font-size: 48px; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px;">' +
+        escapeHtml(data.headline || 'Dein kostenloser Kurs') + '</h1>';
+    
+    const subheadlineHTML = data.subheadline ? 
+        '<p style="font-size: 20px; color: #6b7280; margin-bottom: 32px; line-height: 1.6;">' + escapeHtml(data.subheadline) + '</p>' : '';
+    
+    const bulletpointsWrapHTML = bulletpointsHTML ? 
+        '<div style="margin-bottom: 32px;">' + bulletpointsHTML + '</div>' : '';
+    
+    const ctaHTML = '<button style="background: ' + primaryColor + '; color: white; padding: 16px 40px; border: none; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px ' + primaryColor + '40; transition: transform 0.2s;">' +
+        escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern') + '</button>';
+    
     let layoutHTML = '';
     
     if (layout === 'hybrid') {
-        // Hybrid Layout: Bild links, Text rechts
-        layoutHTML = `
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">
-                <div>
-                    ${showMockup && mockupUrl ? `
-                        <img src="${escapeHtml(mockupUrl)}" alt="Mockup" style="width: 100%; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
-                    ` : `
-                        <div style="width: 100%; aspect-ratio: 4/3; background: linear-gradient(135deg, ${primaryColor}20, ${primaryColor}40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ${primaryColor}; font-size: 64px;">
-                            🎁
-                        </div>
-                    `}
-                </div>
-                <div>
-                    ${data.preheadline ? `<div style="color: ${primaryColor}; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">${escapeHtml(data.preheadline)}</div>` : ''}
-                    
-                    <h1 style="font-size: 48px; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px;">
-                        ${escapeHtml(data.headline || 'Dein kostenloser Kurs')}
-                    </h1>
-                    
-                    ${data.subheadline ? `<p style="font-size: 20px; color: #6b7280; margin-bottom: 32px; line-height: 1.6;">${escapeHtml(data.subheadline)}</p>` : ''}
-                    
-                    ${bulletpointsHTML ? `<div style="margin-bottom: 32px;">${bulletpointsHTML}</div>` : ''}
-                    
-                    <button style="background: ${primaryColor}; color: white; padding: 16px 40px; border: none; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px ${primaryColor}40; transition: transform 0.2s;">
-                        ${escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern')}
-                    </button>
-                </div>
-            </div>
-        `;
+        layoutHTML = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">' +
+            '<div>' + mockupHTML + '</div>' +
+            '<div>' + preheadlineHTML + headlineHTML + subheadlineHTML + bulletpointsWrapHTML + ctaHTML + '</div>' +
+            '</div>';
     } else if (layout === 'sidebar') {
-        // Sidebar Layout: Text links, Bild rechts
-        layoutHTML = `
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">
-                <div>
-                    ${data.preheadline ? `<div style="color: ${primaryColor}; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">${escapeHtml(data.preheadline)}</div>` : ''}
-                    
-                    <h1 style="font-size: 48px; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px;">
-                        ${escapeHtml(data.headline || 'Dein kostenloser Kurs')}
-                    </h1>
-                    
-                    ${data.subheadline ? `<p style="font-size: 20px; color: #6b7280; margin-bottom: 32px; line-height: 1.6;">${escapeHtml(data.subheadline)}</p>` : ''}
-                    
-                    ${bulletpointsHTML ? `<div style="margin-bottom: 32px;">${bulletpointsHTML}</div>` : ''}
-                    
-                    <button style="background: ${primaryColor}; color: white; padding: 16px 40px; border: none; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px ${primaryColor}40; transition: transform 0.2s;">
-                        ${escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern')}
-                    </button>
-                </div>
-                <div>
-                    ${showMockup && mockupUrl ? `
-                        <img src="${escapeHtml(mockupUrl)}" alt="Mockup" style="width: 100%; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
-                    ` : `
-                        <div style="width: 100%; aspect-ratio: 4/3; background: linear-gradient(135deg, ${primaryColor}20, ${primaryColor}40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ${primaryColor}; font-size: 64px;">
-                            🎁
-                        </div>
-                    `}
-                </div>
-            </div>
-        `;
+        layoutHTML = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto;">' +
+            '<div>' + preheadlineHTML + headlineHTML + subheadlineHTML + bulletpointsWrapHTML + ctaHTML + '</div>' +
+            '<div>' + mockupHTML + '</div>' +
+            '</div>';
     } else {
-        // Centered Layout: Alles zentriert
-        layoutHTML = `
-            <div style="max-width: 800px; margin: 0 auto; text-align: center;">
-                ${data.preheadline ? `<div style="color: ${primaryColor}; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">${escapeHtml(data.preheadline)}</div>` : ''}
-                
-                <h1 style="font-size: 56px; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px;">
-                    ${escapeHtml(data.headline || 'Dein kostenloser Kurs')}
-                </h1>
-                
-                ${data.subheadline ? `<p style="font-size: 22px; color: #6b7280; margin-bottom: 40px; line-height: 1.6;">${escapeHtml(data.subheadline)}</p>` : ''}
-                
-                ${showMockup && mockupUrl ? `
-                    <img src="${escapeHtml(mockupUrl)}" alt="Mockup" style="width: 100%; max-width: 500px; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); margin-bottom: 40px;">
-                ` : `
-                    <div style="width: 100%; max-width: 500px; aspect-ratio: 4/3; background: linear-gradient(135deg, ${primaryColor}20, ${primaryColor}40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ${primaryColor}; font-size: 64px; margin: 0 auto 40px;">
-                        🎁
-                    </div>
-                `}
-                
-                ${bulletpointsHTML ? `<div style="text-align: left; max-width: 500px; margin: 0 auto 40px;">${bulletpointsHTML}</div>` : ''}
-                
-                <button style="background: ${primaryColor}; color: white; padding: 18px 48px; border: none; border-radius: 8px; font-size: 20px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px ${primaryColor}40; transition: transform 0.2s;">
-                    ${escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern')}
-                </button>
-            </div>
-        `;
+        const mockupCenteredHTML = showMockup && mockupUrl ?
+            '<img src="' + escapeHtml(mockupUrl) + '" alt="Mockup" style="width: 100%; max-width: 500px; height: auto; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); margin-bottom: 40px;">' :
+            '<div style="width: 100%; max-width: 500px; aspect-ratio: 4/3; background: linear-gradient(135deg, ' + primaryColor + '20, ' + primaryColor + '40); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: ' + primaryColor + '; font-size: 64px; margin: 0 auto 40px;">🎁</div>';
+        
+        const bulletpointsCenteredHTML = bulletpointsHTML ?
+            '<div style="text-align: left; max-width: 500px; margin: 0 auto 40px;">' + bulletpointsHTML + '</div>' : '';
+        
+        const ctaCenteredHTML = '<button style="background: ' + primaryColor + '; color: white; padding: 18px 48px; border: none; border-radius: 8px; font-size: 20px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px ' + primaryColor + '40; transition: transform 0.2s;">' +
+            escapeHtml(data.cta_button_text || 'Jetzt kostenlos sichern') + '</button>';
+        
+        layoutHTML = '<div style="max-width: 800px; margin: 0 auto; text-align: center;">' +
+            preheadlineHTML +
+            '<h1 style="font-size: 56px; font-weight: 800; color: #1f2937; line-height: 1.1; margin-bottom: 20px;">' + escapeHtml(data.headline || 'Dein kostenloser Kurs') + '</h1>' +
+            (data.subheadline ? '<p style="font-size: 22px; color: #6b7280; margin-bottom: 40px; line-height: 1.6;">' + escapeHtml(data.subheadline) + '</p>' : '') +
+            mockupCenteredHTML +
+            bulletpointsCenteredHTML +
+            ctaCenteredHTML +
+            '</div>';
     }
     
-    // Cookie Banner im Borlabs-Design
-    const cookieBanner = `
-        <div id="cookieBanner" style="position: fixed; bottom: 0; left: 0; right: 0; background: #ffffff; box-shadow: 0 -2px 20px rgba(0,0,0,0.1); padding: 24px 32px; z-index: 1000; border-top: 3px solid ${primaryColor};">
-            <div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 32px; flex-wrap: wrap;">
-                <div style="flex: 1; min-width: 300px;">
-                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="flex-shrink: 0;">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" fill="${primaryColor}"/>
-                            <circle cx="12" cy="8" r="1.5" fill="${primaryColor}"/>
-                            <rect x="11" y="11" width="2" height="6" rx="1" fill="${primaryColor}"/>
-                        </svg>
-                        <h3 style="font-size: 18px; font-weight: 700; color: #1f2937; margin: 0;">Wir verwenden Cookies</h3>
-                    </div>
-                    <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin: 0;">
-                        Wir verwenden Cookies, um Inhalte und Anzeigen zu personalisieren und die Zugriffe auf unsere Website zu analysieren. 
-                        <a href="#" style="color: ${primaryColor}; text-decoration: underline;">Mehr erfahren</a>
-                    </p>
-                </div>
-                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                    <button onclick="acceptCookies()" style="padding: 12px 24px; background: ${primaryColor}; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: opacity 0.2s;">
-                        Alle akzeptieren
-                    </button>
-                    <button onclick="declineCookies()" style="padding: 12px 24px; background: transparent; color: #6b7280; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s;">
-                        Nur notwendige
-                    </button>
-                    <button onclick="showCookieSettings()" style="padding: 12px 24px; background: transparent; color: #6b7280; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s;">
-                        ⚙️ Einstellungen
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
+    const cookieBanner = '<div id="cookieBanner" style="position: fixed; bottom: 0; left: 0; right: 0; background: #ffffff; box-shadow: 0 -2px 20px rgba(0,0,0,0.1); padding: 24px 32px; z-index: 1000; border-top: 3px solid ' + primaryColor + ';">' +
+        '<div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 32px; flex-wrap: wrap;">' +
+        '<div style="flex: 1; min-width: 300px;">' +
+        '<div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">' +
+        '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="flex-shrink: 0;">' +
+        '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" fill="' + primaryColor + '"/>' +
+        '<circle cx="12" cy="8" r="1.5" fill="' + primaryColor + '"/>' +
+        '<rect x="11" y="11" width="2" height="6" rx="1" fill="' + primaryColor + '"/>' +
+        '</svg>' +
+        '<h3 style="font-size: 18px; font-weight: 700; color: #1f2937; margin: 0;">Wir verwenden Cookies</h3>' +
+        '</div>' +
+        '<p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin: 0;">' +
+        'Wir verwenden Cookies, um Inhalte und Anzeigen zu personalisieren und die Zugriffe auf unsere Website zu analysieren. ' +
+        '<a href="#" style="color: ' + primaryColor + '; text-decoration: underline;">Mehr erfahren</a>' +
+        '</p>' +
+        '</div>' +
+        '<div style="display: flex; gap: 12px; flex-wrap: wrap;">' +
+        '<button onclick="acceptCookies()" style="padding: 12px 24px; background: ' + primaryColor + '; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: opacity 0.2s;">Alle akzeptieren</button>' +
+        '<button onclick="declineCookies()" style="padding: 12px 24px; background: transparent; color: #6b7280; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s;">Nur notwendige</button>' +
+        '<button onclick="showCookieSettings()" style="padding: 12px 24px; background: transparent; color: #6b7280; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s;">⚙️ Einstellungen</button>' +
+        '</div>' +
+        '</div>' +
+        '</div>';
     
-    return `
-        <div style="background: ${bgColor}; padding: 80px 40px; min-height: 600px; border-radius: 8px; position: relative;">
-            ${layoutHTML}
-        </div>
-        ${cookieBanner}
-        
-        <style>
-            #cookieBanner button:hover {
-                opacity: 0.9;
-                transform: translateY(-1px);
-            }
-            
-            @media (max-width: 768px) {
-                #cookieBanner {
-                    padding: 20px 16px;
-                }
-                #cookieBanner > div {
-                    flex-direction: column;
-                    align-items: flex-start;
-                }
-                #cookieBanner button {
-                    width: 100%;
-                }
-            }
-        </style>
-        
-        <script>
-            function acceptCookies() {
-                document.getElementById('cookieBanner').style.display = 'none';
-                console.log('Cookies akzeptiert');
-            }
-            
-            function declineCookies() {
-                document.getElementById('cookieBanner').style.display = 'none';
-                console.log('Nur notwendige Cookies akzeptiert');
-            }
-            
-            function showCookieSettings() {
-                alert('Cookie-Einstellungen würden hier geöffnet werden');
-            }
-        </script>
-    `;
+    return '<div style="background: ' + bgColor + '; padding: 80px 40px; min-height: 600px; border-radius: 8px; position: relative;">' +
+        layoutHTML +
+        '</div>' +
+        cookieBanner +
+        '<style>' +
+        '#cookieBanner button:hover { opacity: 0.9; transform: translateY(-1px); }' +
+        '@media (max-width: 768px) {' +
+        '#cookieBanner { padding: 20px 16px; }' +
+        '#cookieBanner > div { flex-direction: column; align-items: flex-start; }' +
+        '#cookieBanner button { width: 100%; }' +
+        '}' +
+        '</style>' +
+        '<script>' +
+        'function acceptCookies() { document.getElementById("cookieBanner").style.display = "none"; }' +
+        'function declineCookies() { document.getElementById("cookieBanner").style.display = "none"; }' +
+        'function showCookieSettings() { alert("Cookie-Einstellungen würden hier geöffnet werden"); }' +
+        '</scr' + 'ipt>';
 }
 
-// HTML escapen
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -423,9 +340,7 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Event Listeners
 document.addEventListener('DOMContentLoaded', function() {
-    // Modal bei ESC schließen
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             const modal = document.getElementById('previewModal');
@@ -435,7 +350,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Modal bei Klick außerhalb schließen
     const modal = document.getElementById('previewModal');
     if (modal) {
         modal.addEventListener('click', function(e) {
@@ -446,10 +360,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// LÖSCHEN-FUNKTION
 async function deleteTemplate(templateId, templateName) {
-    // Bestätigung
-    if (!confirm(`Möchten Sie das Template "${templateName}" wirklich löschen?\n\n⚠️ Diese Aktion kann nicht rückgängig gemacht werden!`)) {
+    if (!confirm('Möchten Sie das Template "' + templateName + '" wirklich löschen?\n\n⚠️ Diese Aktion kann nicht rückgängig gemacht werden!')) {
         return;
     }
     
