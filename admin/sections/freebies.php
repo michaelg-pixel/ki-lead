@@ -72,7 +72,7 @@ $domain = $_SERVER['HTTP_HOST'];
                     </div>
                 </div>
                 
-                <!-- THANK YOU LINK -->
+                <!-- DANKE-SEITE LINK -->
                 <div class="link-section">
                     <div class="link-header">
                         <span class="link-icon">🎉</span>
