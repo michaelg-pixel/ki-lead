@@ -39,21 +39,35 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 ?>
 
 <style>
-/* FARBEN ANGEPASST AN SCREENSHOT */
+/* ANGEPASSTE FARBEN - Basierend auf Screenshot */
 :root {
-    --bg-primary: #0f0f1e;
+    /* Hintergrundfarben - Dunklere violett-blaue Töne */
+    --bg-primary: #0a0a16;
     --bg-secondary: #1a1532;
-    --bg-card: #1e1b3f;
+    --bg-tertiary: #252041;
+    --bg-card: #2a2550;
+    
+    /* Primärfarben - Violett/Lila Töne */
     --primary: #a855f7;
-    --primary-dark: #9333ea;
+    --primary-dark: #8b40d1;
     --primary-light: #c084fc;
+    
+    /* Akzentfarben */
+    --accent: #f59e0b;
     --success: #4ade80;
-    --danger: #ef4444;
-    --warning: #f59e0b;
-    --text-primary: #e0e0e0;
-    --text-secondary: #a0a0a0;
-    --text-muted: #666;
+    --success-dark: #22c55e;
+    --danger: #fb7185;
+    --danger-dark: #f43f5e;
+    --warning: #fbbf24;
+    
+    /* Text-Farben */
+    --text-primary: #e5e7eb;
+    --text-secondary: #9ca3af;
+    --text-muted: #6b7280;
+    
+    /* Borders */
     --border: rgba(168, 85, 247, 0.2);
+    --border-light: rgba(255, 255, 255, 0.05);
 }
 
 .customers-header {
@@ -87,6 +101,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 .search-input:focus {
     outline: none;
     border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
 }
 
 .status-filter {
@@ -102,6 +117,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 .status-filter:focus {
     outline: none;
     border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
 }
 
 .btn-primary {
@@ -115,12 +131,13 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     display: flex;
     align-items: center;
     gap: 8px;
-    transition: transform 0.2s;
+    transition: all 0.2s;
     font-size: 14px;
 }
 
 .btn-primary:hover {
     transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(168, 85, 247, 0.4);
 }
 
 .customers-table {
@@ -148,7 +165,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 
 .customers-table td {
     padding: 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: 1px solid var(--border-light);
     color: var(--text-primary);
     font-size: 14px;
 }
@@ -187,7 +204,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 }
 
 .status-inactive {
-    background: rgba(239, 68, 68, 0.15);
+    background: rgba(251, 113, 133, 0.15);
     color: var(--danger);
 }
 
@@ -224,12 +241,12 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 
 .action-btn.delete {
     color: var(--danger);
-    background: rgba(239, 68, 68, 0.1);
-    border-color: rgba(239, 68, 68, 0.2);
+    background: rgba(251, 113, 133, 0.1);
+    border-color: rgba(251, 113, 133, 0.2);
 }
 
 .action-btn.delete:hover {
-    background: rgba(239, 68, 68, 0.2);
+    background: rgba(251, 113, 133, 0.2);
 }
 
 .empty-state {
@@ -293,8 +310,8 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.2);
+    background: rgba(251, 113, 133, 0.1);
+    border: 1px solid rgba(251, 113, 133, 0.2);
     border-radius: 6px;
     cursor: pointer;
     color: var(--danger);
@@ -303,7 +320,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 }
 
 .modal-close:hover {
-    background: rgba(239, 68, 68, 0.2);
+    background: rgba(251, 113, 133, 0.2);
 }
 
 .form-group {
@@ -334,6 +351,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     outline: none;
     border-color: var(--primary);
     background: rgba(168, 85, 247, 0.1);
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
 }
 
 .modal-actions {
@@ -360,18 +378,19 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 
 .btn-danger {
     padding: 12px 24px;
-    background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
+    background: linear-gradient(135deg, var(--danger) 0%, var(--danger-dark) 100%);
     color: white;
     border: none;
     border-radius: 8px;
     cursor: pointer;
     font-weight: 600;
     font-size: 14px;
-    transition: transform 0.2s;
+    transition: all 0.2s;
 }
 
 .btn-danger:hover {
     transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(251, 113, 133, 0.4);
 }
 </style>
 
