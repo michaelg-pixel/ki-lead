@@ -39,7 +39,23 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 ?>
 
 <style>
-/* Modern Dark Purple Theme - wie im Screenshot */
+/* FARBEN ANGEPASST AN SCREENSHOT */
+:root {
+    --bg-primary: #0f0f1e;
+    --bg-secondary: #1a1532;
+    --bg-card: #1e1b3f;
+    --primary: #a855f7;
+    --primary-dark: #9333ea;
+    --primary-light: #c084fc;
+    --success: #4ade80;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --text-primary: #e0e0e0;
+    --text-secondary: #a0a0a0;
+    --text-muted: #666;
+    --border: rgba(168, 85, 247, 0.2);
+}
+
 .customers-header {
     display: flex;
     justify-content: space-between;
@@ -57,34 +73,40 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 .search-input {
     flex: 1;
     padding: 12px 16px;
-    background: #2a2a4f;
-    border: 1px solid rgba(168, 85, 247, 0.3);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
     border-radius: 8px;
-    color: #e0e0e0;
+    color: var(--text-primary);
     font-size: 14px;
 }
 
 .search-input::placeholder {
-    color: #888;
+    color: var(--text-muted);
 }
 
 .search-input:focus {
     outline: none;
-    border-color: #a855f7;
+    border-color: var(--primary);
 }
 
 .status-filter {
     padding: 12px 16px;
-    background: #2a2a4f;
-    border: 1px solid rgba(168, 85, 247, 0.3);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
     border-radius: 8px;
-    color: #e0e0e0;
+    color: var(--text-primary);
     cursor: pointer;
+    font-size: 14px;
+}
+
+.status-filter:focus {
+    outline: none;
+    border-color: var(--primary);
 }
 
 .btn-primary {
     padding: 12px 24px;
-    background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
     color: white;
     border: none;
     border-radius: 8px;
@@ -94,6 +116,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     align-items: center;
     gap: 8px;
     transition: transform 0.2s;
+    font-size: 14px;
 }
 
 .btn-primary:hover {
@@ -101,8 +124,8 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 }
 
 .customers-table {
-    background: #1e1e3f;
-    border: 1px solid rgba(168, 85, 247, 0.2);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
     border-radius: 12px;
     overflow: hidden;
 }
@@ -113,10 +136,10 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 }
 
 .customers-table th {
-    background: #2a2a4f;
-    color: #a0a0a0;
+    background: rgba(168, 85, 247, 0.05);
+    color: var(--text-secondary);
     font-weight: 600;
-    font-size: 13px;
+    font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     padding: 16px;
@@ -126,7 +149,8 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 .customers-table td {
     padding: 16px;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
-    color: #e0e0e0;
+    color: var(--text-primary);
+    font-size: 14px;
 }
 
 .customers-table tbody tr {
@@ -140,12 +164,13 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 .raw-code {
     display: inline-block;
     padding: 6px 12px;
-    background: rgba(168, 85, 247, 0.2);
-    border: 1px solid rgba(168, 85, 247, 0.4);
+    background: rgba(168, 85, 247, 0.15);
+    border: 1px solid var(--border);
     border-radius: 6px;
     font-family: 'Courier New', monospace;
     font-size: 12px;
-    color: #a855f7;
+    color: var(--primary-light);
+    font-weight: 600;
 }
 
 .status-badge {
@@ -157,23 +182,23 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 }
 
 .status-active {
-    background: rgba(74, 222, 128, 0.2);
-    color: #4ade80;
+    background: rgba(74, 222, 128, 0.15);
+    color: var(--success);
 }
 
 .status-inactive {
-    background: rgba(239, 68, 68, 0.2);
-    color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger);
 }
 
 .assigned-content {
     font-size: 12px;
-    color: #888;
+    color: var(--text-secondary);
 }
 
 .action-icons {
     display: flex;
-    gap: 8px;
+    gap: 6px;
 }
 
 .action-btn {
@@ -183,20 +208,22 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     align-items: center;
     justify-content: center;
     background: rgba(168, 85, 247, 0.1);
-    border: 1px solid rgba(168, 85, 247, 0.2);
+    border: 1px solid var(--border);
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s;
-    color: #a855f7;
+    color: var(--text-secondary);
+    font-size: 14px;
 }
 
 .action-btn:hover {
     background: rgba(168, 85, 247, 0.2);
     transform: translateY(-2px);
+    color: var(--primary-light);
 }
 
 .action-btn.delete {
-    color: #ef4444;
+    color: var(--danger);
     background: rgba(239, 68, 68, 0.1);
     border-color: rgba(239, 68, 68, 0.2);
 }
@@ -208,7 +235,13 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 .empty-state {
     text-align: center;
     padding: 60px 20px;
-    color: #666;
+    color: var(--text-muted);
+}
+
+.empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.3;
 }
 
 /* Modal Styles */
@@ -223,6 +256,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     z-index: 1000;
     align-items: center;
     justify-content: center;
+    backdrop-filter: blur(4px);
 }
 
 .modal.active {
@@ -230,8 +264,8 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 }
 
 .modal-content {
-    background: #1e1e3f;
-    border: 1px solid rgba(168, 85, 247, 0.3);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
     border-radius: 16px;
     padding: 32px;
     max-width: 500px;
@@ -260,11 +294,16 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     align-items: center;
     justify-content: center;
     background: rgba(239, 68, 68, 0.1);
-    border: none;
+    border: 1px solid rgba(239, 68, 68, 0.2);
     border-radius: 6px;
     cursor: pointer;
-    color: #ef4444;
+    color: var(--danger);
     font-size: 20px;
+    transition: all 0.2s;
+}
+
+.modal-close:hover {
+    background: rgba(239, 68, 68, 0.2);
 }
 
 .form-group {
@@ -274,7 +313,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 .form-label {
     display: block;
     margin-bottom: 8px;
-    color: #a0a0a0;
+    color: var(--text-secondary);
     font-size: 14px;
     font-weight: 600;
 }
@@ -283,17 +322,18 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 .form-select {
     width: 100%;
     padding: 12px 16px;
-    background: #2a2a4f;
-    border: 1px solid rgba(168, 85, 247, 0.3);
+    background: rgba(168, 85, 247, 0.05);
+    border: 1px solid var(--border);
     border-radius: 8px;
-    color: #e0e0e0;
+    color: var(--text-primary);
     font-size: 14px;
 }
 
 .form-input:focus,
 .form-select:focus {
     outline: none;
-    border-color: #a855f7;
+    border-color: var(--primary);
+    background: rgba(168, 85, 247, 0.1);
 }
 
 .modal-actions {
@@ -305,21 +345,33 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 .btn-secondary {
     padding: 12px 24px;
     background: rgba(168, 85, 247, 0.1);
-    border: 1px solid rgba(168, 85, 247, 0.3);
+    border: 1px solid var(--border);
     border-radius: 8px;
-    color: #a855f7;
+    color: var(--primary-light);
     cursor: pointer;
     font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    background: rgba(168, 85, 247, 0.2);
 }
 
 .btn-danger {
     padding: 12px 24px;
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
     color: white;
     border: none;
     border-radius: 8px;
     cursor: pointer;
     font-weight: 600;
+    font-size: 14px;
+    transition: transform 0.2s;
+}
+
+.btn-danger:hover {
+    transform: translateY(-2px);
 }
 </style>
 
@@ -362,7 +414,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
                 <td><?php echo htmlspecialchars($customer['name']); ?></td>
                 <td><?php echo htmlspecialchars($customer['email']); ?></td>
                 <td>
-                    <span class="raw-code"><?php echo htmlspecialchars($customer['raw_code'] ?? 'Keine Zuweisungen'); ?></span>
+                    <span class="raw-code"><?php echo htmlspecialchars($customer['raw_code'] ?? 'N/A'); ?></span>
                 </td>
                 <td>
                     <div class="assigned-content">
@@ -410,10 +462,10 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     </table>
     <?php else: ?>
     <div class="empty-state">
-        <div style="font-size: 48px; margin-bottom: 16px;">👥</div>
+        <div class="empty-state-icon">👥</div>
         <p>Keine Kunden gefunden</p>
         <?php if (!empty($search)): ?>
-        <p style="color: #666; font-size: 14px;">Versuche einen anderen Suchbegriff</p>
+        <p style="color: var(--text-muted); font-size: 14px; margin-top: 8px;">Versuche einen anderen Suchbegriff</p>
         <?php endif; ?>
     </div>
     <?php endif; ?>
@@ -438,7 +490,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
             <div class="form-group">
                 <label class="form-label">Passwort</label>
                 <input type="password" class="form-input" name="password" required>
-                <small style="color: #888; font-size: 12px;">Mindestens 8 Zeichen</small>
+                <small style="color: var(--text-muted); font-size: 12px; display: block; margin-top: 4px;">Mindestens 8 Zeichen</small>
             </div>
             <div class="modal-actions">
                 <button type="button" class="btn-secondary" onclick="closeModal('addCustomerModal')">Abbrechen</button>
@@ -471,7 +523,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
                     <?php endforeach; ?>
                 </select>
                 <?php if (count($freebieTemplates) === 0): ?>
-                    <small style="color: #ef4444; font-size: 12px; display: block; margin-top: 8px;">
+                    <small style="color: var(--danger); font-size: 12px; display: block; margin-top: 8px;">
                         ⚠️ Keine Freebie Templates vorhanden. Bitte erst Templates erstellen!
                     </small>
                 <?php endif; ?>
