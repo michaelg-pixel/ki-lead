@@ -168,6 +168,12 @@ $current_datetime = date('d.m.Y H:i');
     <title>Template Bearbeiten - KI Leadsystem</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts für Vorschau -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&family=Roboto:wght@300;400;500;700;900&family=Montserrat:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700;800&family=Open+Sans:wght@300;400;500;600;700;800&family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
+    
     <style>
         body {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -622,7 +628,7 @@ $current_datetime = date('d.m.Y H:i');
                         <div class="card p-6">
                             <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
                                 <i class="fas fa-eye text-purple-600 mr-2"></i>
-                                Vorschau
+                                Live-Vorschau
                             </h3>
                             <div id="previewBox" class="preview-box p-6">
                                 <div class="text-center">
@@ -725,12 +731,14 @@ $current_datetime = date('d.m.Y H:i');
             
             const previewBox = document.getElementById('previewBox');
             
-            // ZENTRIERTE VORSCHAU mit allen Headlines
+            // VERBESSERTE VORSCHAU mit korrekten Font-Familien und Größen
             const previewContent = `
-                <div style="background: ${bgColor}; color: ${textColor}; padding: 30px; border-radius: 12px; width: 100%; text-align: center; font-family: ${bodyFont};">
-                    ${preheadline ? `<p style="font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: ${secondaryColor}; margin-bottom: 10px; font-weight: bold;">${preheadline}</p>` : ''}
-                    ${headline ? `<h2 style="font-family: ${headingFont}; color: ${primaryColor}; font-size: 24px; font-weight: bold; margin-bottom: 12px; line-height: 1.3;">${headline}</h2>` : '<h2 style="font-family: ' + headingFont + '; color: ' + primaryColor + '; font-size: 24px; font-weight: bold; margin-bottom: 12px;">Deine Hauptüberschrift</h2>'}
-                    ${subheadline ? `<p style="font-size: 16px; color: ${textColor}; opacity: 0.8; line-height: 1.5;">${subheadline}</p>` : '<p style="font-size: 16px; color: ' + textColor + '; opacity: 0.8;">Deine Unterüberschrift</p>'}
+                <div style="background: ${bgColor}; color: ${textColor}; padding: 30px; border-radius: 12px; width: 100%; text-align: center; font-family: '${bodyFont}', sans-serif;">
+                    ${preheadline ? `<p style="font-family: '${bodyFont}', sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: ${secondaryColor}; margin-bottom: 12px; font-weight: 700;">${preheadline}</p>` : ''}
+                    ${headline ? `<h2 style="font-family: '${headingFont}', sans-serif; color: ${primaryColor}; font-size: 22px; font-weight: 700; margin-bottom: 10px; line-height: 1.3;">${headline}</h2>` : `<h2 style="font-family: '${headingFont}', sans-serif; color: ${primaryColor}; font-size: 22px; font-weight: 700; margin-bottom: 10px;">Deine Hauptüberschrift</h2>`}
+                    ${subheadline ? `<p style="font-family: '${bodyFont}', sans-serif; font-size: 14px; color: ${textColor}; opacity: 0.8; line-height: 1.6;">${subheadline}</p>` : `<p style="font-family: '${bodyFont}', sans-serif; font-size: 14px; color: ${textColor}; opacity: 0.8;">Deine Unterüberschrift</p>`}
+                    <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid ${primaryColor}; opacity: 0.3;"></div>
+                    <p style="font-family: '${bodyFont}', sans-serif; font-size: 10px; color: ${textColor}; opacity: 0.5; margin-top: 10px;">✓ Live-Vorschau mit Schriftarten & Größen</p>
                 </div>
             `;
             
