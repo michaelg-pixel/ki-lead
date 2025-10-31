@@ -126,15 +126,21 @@ try {
     $text_color = $data['text_color'] ?? '#1F2937';
     $cta_button_color = $data['cta_button_color'] ?? '#5B8DEF';
     
-    // Font-Einstellungen
-    $preheadline_font = $data['preheadline_font'] ?? 'Poppins';
-    $preheadline_size = (int)($data['preheadline_size'] ?? 14);
-    $headline_font = $data['headline_font'] ?? 'Poppins';
+    // Typografie - Neue Felder
+    $headline_font = $data['headline_font'] ?? 'Inter';
     $headline_size = (int)($data['headline_size'] ?? 48);
-    $subheadline_font = $data['subheadline_font'] ?? 'Poppins';
+    $headline_size_mobile = (int)($data['headline_size_mobile'] ?? 32);
+    $body_font = $data['body_font'] ?? 'Inter';
+    $body_size = (int)($data['body_size'] ?? 16);
+    $body_size_mobile = (int)($data['body_size_mobile'] ?? 14);
+    
+    // Legacy Font-Einstellungen (für Kompatibilität)
+    $preheadline_font = $data['preheadline_font'] ?? $headline_font;
+    $preheadline_size = (int)($data['preheadline_size'] ?? 14);
+    $subheadline_font = $data['subheadline_font'] ?? $body_font;
     $subheadline_size = (int)($data['subheadline_size'] ?? 20);
-    $bulletpoints_font = $data['bulletpoints_font'] ?? 'Poppins';
-    $bulletpoints_size = (int)($data['bulletpoints_size'] ?? 16);
+    $bulletpoints_font = $data['bulletpoints_font'] ?? $body_font;
+    $bulletpoints_size = (int)($data['bulletpoints_size'] ?? $body_size);
     
     // Weitere Felder
     $url_slug = !empty($data['url_slug']) ? trim($data['url_slug']) : generateSlug($name);
@@ -148,8 +154,7 @@ try {
     $customer_id = null;
     $unique_id = 'master_' . uniqid();
     
-    $heading_font = $data['heading_font'] ?? 'Inter';
-    $body_font = $data['body_font'] ?? 'Inter';
+    $heading_font = $headline_font; // Alias für Kompatibilität
     
     $pixel_code = trim($data['pixel_code'] ?? '');
     $optin_placeholder_email = $data['optin_placeholder_email'] ?? 'Deine E-Mail-Adresse';
@@ -205,10 +210,13 @@ try {
             linked_course_id = ?,
             heading_font = ?,
             body_font = ?,
-            preheadline_font = ?,
-            preheadline_size = ?,
             headline_font = ?,
             headline_size = ?,
+            headline_size_mobile = ?,
+            body_size = ?,
+            body_size_mobile = ?,
+            preheadline_font = ?,
+            preheadline_size = ?,
             subheadline_font = ?,
             subheadline_size = ?,
             bulletpoints_font = ?,
@@ -246,10 +254,13 @@ try {
             $linked_course_id,
             $heading_font,
             $body_font,
-            $preheadline_font,
-            $preheadline_size,
             $headline_font,
             $headline_size,
+            $headline_size_mobile,
+            $body_size,
+            $body_size_mobile,
+            $preheadline_font,
+            $preheadline_size,
             $subheadline_font,
             $subheadline_size,
             $bulletpoints_font,
@@ -297,10 +308,13 @@ try {
             linked_course_id,
             heading_font,
             body_font,
-            preheadline_font,
-            preheadline_size,
             headline_font,
             headline_size,
+            headline_size_mobile,
+            body_size,
+            body_size_mobile,
+            preheadline_font,
+            preheadline_size,
             subheadline_font,
             subheadline_size,
             bulletpoints_font,
@@ -315,7 +329,7 @@ try {
             usage_count,
             created_at,
             updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW(), NOW())";
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW(), NOW())";
         
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
@@ -342,10 +356,13 @@ try {
             $linked_course_id,
             $heading_font,
             $body_font,
-            $preheadline_font,
-            $preheadline_size,
             $headline_font,
             $headline_size,
+            $headline_size_mobile,
+            $body_size,
+            $body_size_mobile,
+            $preheadline_font,
+            $preheadline_size,
             $subheadline_font,
             $subheadline_size,
             $bulletpoints_font,
