@@ -1,0 +1,9 @@
+# Font-Dateien nicht ins Git aufnehmen (zu groß)
+*.woff
+*.woff2
+*.ttf
+*.otf
+*.eot
+
+# Aber README behalten
+!README.md
