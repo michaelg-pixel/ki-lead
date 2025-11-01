@@ -34,12 +34,12 @@ if (!$freebie) {
 
 // Customer-ID ermitteln
 $customer_id = null;
-if (isset($freebie['customer_id'])) {
+if (isset($freebie['customer_id']) && !empty($freebie['customer_id'])) {
     // Direktes Feld in freebies Tabelle
     $customer_id = $freebie['customer_id'];
 } else {
-    // Über customer_freebies Tabelle
-    $stmt_customer = $pdo->prepare("SELECT customer_id FROM customer_freebies WHERE freebie_id = ? LIMIT 1");
+    // Über customer_freebies Tabelle (template_id, nicht freebie_id!)
+    $stmt_customer = $pdo->prepare("SELECT customer_id FROM customer_freebies WHERE template_id = ? LIMIT 1");
     $stmt_customer->execute([$freebie_id]);
     $customer_relation = $stmt_customer->fetch(PDO::FETCH_ASSOC);
     if ($customer_relation) {
@@ -48,8 +48,12 @@ if (isset($freebie['customer_id'])) {
 }
 
 // Klick-Tracking für Danke-Seite
-$update = $pdo->prepare("UPDATE freebies SET thank_you_clicks = thank_you_clicks + 1 WHERE id = ?");
-$update->execute([$freebie_id]);
+try {
+    $update = $pdo->prepare("UPDATE freebies SET thank_you_clicks = COALESCE(thank_you_clicks, 0) + 1 WHERE id = ?");
+    $update->execute([$freebie_id]);
+} catch (PDOException $e) {
+    // Tracking-Fehler ignorieren
+}
 
 // Standardwerte
 $primary_color = $freebie['primary_color'] ?? '#7C3AED';
@@ -83,7 +87,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($freebie['course_title'] ?? $freebie['name']); ?> - Dein Zugang</title>
+    <title><?php echo htmlspecialchars($freebie['course_title'] ?? $freebie['name'] ?? 'Dein Freebie'); ?> - Dein Zugang</title>
     
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -492,7 +496,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             <?php if (!empty($mockup_image)): ?>
                 <div class="mockup-container">
                     <img src="<?php echo htmlspecialchars($mockup_image); ?>" 
-                         alt="<?php echo htmlspecialchars($freebie['course_title'] ?? $freebie['name']); ?>">
+                         alt="<?php echo htmlspecialchars($freebie['course_title'] ?? $freebie['name'] ?? 'Freebie'); ?>">
                 </div>
             <?php else: ?>
                 <div class="mockup-container">
@@ -565,7 +569,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
     
     <script>
         function bookmarkPage() {
-            const pageTitle = '<?php echo htmlspecialchars($freebie['course_title'] ?? $freebie['name']); ?> - Dein Zugang';
+            const pageTitle = '<?php echo htmlspecialchars($freebie['course_title'] ?? $freebie['name'] ?? 'Dein Freebie'); ?> - Dein Zugang';
             const pageURL = window.location.href;
             
             // Moderne Browser
