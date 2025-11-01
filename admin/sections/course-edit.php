@@ -152,6 +152,7 @@ if ($course['type'] === 'video') {
                                             <?php endif; ?>
                                         </div>
                                         <div class="module-actions">
+                                            <button onclick='showEditModuleModal(<?php echo json_encode($module); ?>)' class="btn-icon" title="Bearbeiten">✏️</button>
                                             <button onclick="deleteModule(<?php echo $module['id']; ?>)" class="btn-icon" title="Löschen">🗑️</button>
                                         </div>
                                     </div>
@@ -172,6 +173,7 @@ if ($course['type'] === 'video') {
                                                         </div>
                                                     </div>
                                                     <div class="lesson-actions">
+                                                        <button onclick='showEditLessonModal(<?php echo json_encode($lesson); ?>)' class="btn-icon" title="Bearbeiten">✏️</button>
                                                         <button onclick="deleteLesson(<?php echo $lesson['id']; ?>)" class="btn-icon" title="Löschen">🗑️</button>
                                                     </div>
                                                 </div>
@@ -236,6 +238,33 @@ if ($course['type'] === 'video') {
     </div>
 </div>
 
+<!-- Edit Module Modal -->
+<div id="editModuleModal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>✏️ Modul bearbeiten</h3>
+            <button onclick="closeEditModuleModal()" class="modal-close">&times;</button>
+        </div>
+        <form id="editModuleForm" onsubmit="handleEditModule(event)">
+            <input type="hidden" name="module_id" id="editModuleId">
+            <div style="padding: 24px;">
+                <div class="form-group">
+                    <label>Modultitel *</label>
+                    <input type="text" name="title" id="editModuleTitle" required placeholder="z.B. Einführung in KI">
+                </div>
+                <div class="form-group">
+                    <label>Beschreibung</label>
+                    <textarea name="description" id="editModuleDescription" rows="3" placeholder="Optionale Beschreibung des Moduls..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="closeEditModuleModal()" class="btn-secondary">Abbrechen</button>
+                <button type="submit" class="btn-primary">Änderungen speichern</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Add Lesson Modal -->
 <div id="addLessonModal" class="modal hidden">
     <div class="modal-content">
@@ -267,6 +296,45 @@ if ($course['type'] === 'video') {
             <div class="modal-footer">
                 <button type="button" onclick="closeAddLessonModal()" class="btn-secondary">Abbrechen</button>
                 <button type="submit" class="btn-primary">Lektion erstellen</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Lesson Modal -->
+<div id="editLessonModal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>✏️ Lektion bearbeiten</h3>
+            <button onclick="closeEditLessonModal()" class="modal-close">&times;</button>
+        </div>
+        <form id="editLessonForm" onsubmit="handleEditLesson(event)">
+            <input type="hidden" name="lesson_id" id="editLessonId">
+            <div style="padding: 24px;">
+                <div class="form-group">
+                    <label>Lektionstitel *</label>
+                    <input type="text" name="title" id="editLessonTitle" required placeholder="z.B. Was ist künstliche Intelligenz?">
+                </div>
+                <div class="form-group">
+                    <label>Videolink (Vimeo oder YouTube)</label>
+                    <input type="url" name="video_url" id="editLessonVideoUrl" placeholder="https://vimeo.com/123456789">
+                    <small>Unterstützt: Vimeo und YouTube Links</small>
+                </div>
+                <div class="form-group">
+                    <label>Beschreibung</label>
+                    <textarea name="description" id="editLessonDescription" rows="3" placeholder="Optionale Beschreibung der Lektion..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>PDF-Anhang (z.B. Arbeitsblatt)</label>
+                    <input type="file" name="pdf_attachment" accept=".pdf">
+                    <small id="editLessonCurrentPdf" style="display: none; margin-top: 4px;">
+                        Aktuell: <span id="editLessonPdfName"></span> (Leer lassen zum Behalten)
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="closeEditLessonModal()" class="btn-secondary">Abbrechen</button>
+                <button type="submit" class="btn-primary">Änderungen speichern</button>
             </div>
         </form>
     </div>
@@ -690,6 +758,18 @@ function closeAddModuleModal() {
     document.getElementById('addModuleForm').reset();
 }
 
+function showEditModuleModal(module) {
+    document.getElementById('editModuleId').value = module.id;
+    document.getElementById('editModuleTitle').value = module.title;
+    document.getElementById('editModuleDescription').value = module.description || '';
+    document.getElementById('editModuleModal').classList.remove('hidden');
+}
+
+function closeEditModuleModal() {
+    document.getElementById('editModuleModal').classList.add('hidden');
+    document.getElementById('editModuleForm').reset();
+}
+
 async function handleAddModule(event) {
     event.preventDefault();
     const formData = new FormData(event.target);
@@ -704,6 +784,29 @@ async function handleAddModule(event) {
         
         if (data.success) {
             alert('✅ Modul erfolgreich erstellt!');
+            location.reload();
+        } else {
+            alert('❌ Fehler: ' + data.error);
+        }
+    } catch (error) {
+        alert('❌ Fehler: ' + error.message);
+    }
+}
+
+async function handleEditModule(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    
+    try {
+        const response = await fetch('/admin/api/courses/modules/update.php', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('✅ Modul erfolgreich aktualisiert!');
             location.reload();
         } else {
             alert('❌ Fehler: ' + data.error);
@@ -749,6 +852,30 @@ function closeAddLessonModal() {
     document.getElementById('addLessonForm').reset();
 }
 
+function showEditLessonModal(lesson) {
+    document.getElementById('editLessonId').value = lesson.id;
+    document.getElementById('editLessonTitle').value = lesson.title;
+    document.getElementById('editLessonVideoUrl').value = lesson.video_url || '';
+    document.getElementById('editLessonDescription').value = lesson.description || '';
+    
+    // PDF Anzeige
+    const pdfInfo = document.getElementById('editLessonCurrentPdf');
+    const pdfName = document.getElementById('editLessonPdfName');
+    if (lesson.pdf_attachment) {
+        pdfName.textContent = lesson.pdf_attachment;
+        pdfInfo.style.display = 'block';
+    } else {
+        pdfInfo.style.display = 'none';
+    }
+    
+    document.getElementById('editLessonModal').classList.remove('hidden');
+}
+
+function closeEditLessonModal() {
+    document.getElementById('editLessonModal').classList.add('hidden');
+    document.getElementById('editLessonForm').reset();
+}
+
 async function handleAddLesson(event) {
     event.preventDefault();
     const formData = new FormData(event.target);
@@ -763,6 +890,29 @@ async function handleAddLesson(event) {
         
         if (data.success) {
             alert('✅ Lektion erfolgreich erstellt!');
+            location.reload();
+        } else {
+            alert('❌ Fehler: ' + data.error);
+        }
+    } catch (error) {
+        alert('❌ Fehler: ' + error.message);
+    }
+}
+
+async function handleEditLesson(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    
+    try {
+        const response = await fetch('/admin/api/courses/lessons/update.php', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('✅ Lektion erfolgreich aktualisiert!');
             location.reload();
         } else {
             alert('❌ Fehler: ' + data.error);
