@@ -19,7 +19,6 @@ $stmt = $pdo->prepare("
         f.*,
         c.id as course_id,
         c.title as course_title,
-        c.slug as course_slug,
         c.description as course_description
     FROM freebies f
     LEFT JOIN courses c ON f.course_id = c.id
@@ -50,9 +49,9 @@ $video_button_text = $freebie['video_button_text'] ?? 'Zum Videokurs';
 
 // Kurs-URL aus verknüpftem Kurs generieren oder Fallback verwenden
 $video_course_url = '';
-if (!empty($freebie['course_id']) && !empty($freebie['course_slug'])) {
-    // Verknüpfter Kurs existiert - Link zum Kurs erstellen
-    $video_course_url = '/customer/course-view.php?slug=' . urlencode($freebie['course_slug']);
+if (!empty($freebie['course_id'])) {
+    // Verknüpfter Kurs existiert - Link zum Kurs erstellen (mit ID statt slug)
+    $video_course_url = '/customer/course-view.php?id=' . $freebie['course_id'];
 } elseif (!empty($freebie['video_course_url'])) {
     // Fallback auf manuelle URL
     $video_course_url = $freebie['video_course_url'];
