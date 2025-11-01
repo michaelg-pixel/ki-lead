@@ -93,8 +93,18 @@ $page = $_GET['page'] ?? 'overview';
     </script>
     <?php endif; ?>
     
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+    
+    <!-- Sidebar Overlay für Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    
     <!-- Sidebar -->
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
         <div class="logo">
             <div class="logo-icon">⭐</div>
             <div class="logo-text">
@@ -151,7 +161,7 @@ $page = $_GET['page'] ?? 'overview';
     <!-- Main Content -->
     <div class="main-content">
         <div class="topbar">
-            <div>
+            <div class="topbar-left">
                 <h2><?php 
                     $titles = [
                         'overview' => 'Dashboard Übersicht',
@@ -167,7 +177,7 @@ $page = $_GET['page'] ?? 'overview';
                     ];
                     echo $titles[$page] ?? 'Dashboard';
                 ?></h2>
-                <p>Willkommen zurück, <?php echo htmlspecialchars($admin_name); ?></p>
+                <p class="topbar-subtitle">Willkommen zurück, <?php echo htmlspecialchars($admin_name); ?></p>
             </div>
             <div class="topbar-actions">
                 <button class="icon-btn" title="Einstellungen">⚙️</button>
@@ -233,26 +243,28 @@ $page = $_GET['page'] ?? 'overview';
                     $recent_users = $pdo->query("SELECT * FROM users ORDER BY created_at DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
                     if (count($recent_users) > 0):
                     ?>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>E-Mail</th>
-                                <th>Rolle</th>
-                                <th>Registriert</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($recent_users as $user): ?>
-                            <tr>
-                                <td><?php echo htmlspecialchars($user['name']); ?></td>
-                                <td><?php echo htmlspecialchars($user['email']); ?></td>
-                                <td><span class="badge badge-<?php echo $user['role']; ?>"><?php echo strtoupper($user['role']); ?></span></td>
-                                <td><?php echo date('d.m.Y', strtotime($user['created_at'])); ?></td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>E-Mail</th>
+                                    <th>Rolle</th>
+                                    <th>Registriert</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($recent_users as $user): ?>
+                                <tr>
+                                    <td data-label="Name"><?php echo htmlspecialchars($user['name']); ?></td>
+                                    <td data-label="E-Mail"><?php echo htmlspecialchars($user['email']); ?></td>
+                                    <td data-label="Rolle"><span class="badge badge-<?php echo $user['role']; ?>"><?php echo strtoupper($user['role']); ?></span></td>
+                                    <td data-label="Registriert"><?php echo date('d.m.Y', strtotime($user['created_at'])); ?></td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
                     <?php else: ?>
                     <div class="empty-state">
                         <div class="empty-state-icon">👥</div>
@@ -335,6 +347,65 @@ $page = $_GET['page'] ?? 'overview';
             overflow: hidden;
         }
         
+        /* MOBILE MENU TOGGLE */
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 1001;
+            width: 44px;
+            height: 44px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            padding: 0;
+            transition: all 0.3s;
+        }
+        
+        .mobile-menu-toggle span {
+            width: 20px;
+            height: 2px;
+            background: var(--text-primary);
+            transition: all 0.3s;
+            display: block;
+        }
+        
+        .mobile-menu-toggle.active span:nth-child(1) {
+            transform: rotate(45deg) translate(6px, 6px);
+        }
+        
+        .mobile-menu-toggle.active span:nth-child(2) {
+            opacity: 0;
+        }
+        
+        .mobile-menu-toggle.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(6px, -6px);
+        }
+        
+        /* SIDEBAR OVERLAY */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .sidebar-overlay.active {
+            opacity: 1;
+        }
+        
         /* SIDEBAR */
         .sidebar {
             width: 240px;
@@ -343,6 +414,8 @@ $page = $_GET['page'] ?? 'overview';
             display: flex;
             flex-direction: column;
             padding: 24px 0;
+            transition: transform 0.3s ease;
+            z-index: 1000;
         }
         
         .logo {
@@ -379,6 +452,7 @@ $page = $_GET['page'] ?? 'overview';
         .nav-menu {
             flex: 1;
             padding: 0 12px;
+            overflow-y: auto;
         }
         
         .nav-item {
@@ -489,13 +563,13 @@ $page = $_GET['page'] ?? 'overview';
             align-items: center;
         }
         
-        .topbar h2 {
+        .topbar-left h2 {
             font-size: 24px;
             color: white;
             margin-bottom: 4px;
         }
         
-        .topbar p {
+        .topbar-subtitle {
             font-size: 13px;
             color: var(--text-muted);
         }
@@ -641,6 +715,8 @@ $page = $_GET['page'] ?? 'overview';
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
         }
         
         .section-title {
@@ -668,10 +744,17 @@ $page = $_GET['page'] ?? 'overview';
             box-shadow: 0 6px 20px rgba(168, 85, 247, 0.4);
         }
         
+        /* TABLE CONTAINER für horizontales Scrollen */
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
         /* TABLES */
         table {
             width: 100%;
             border-collapse: collapse;
+            min-width: 600px;
         }
         
         th, td {
@@ -708,6 +791,7 @@ $page = $_GET['page'] ?? 'overview';
             border-radius: 20px;
             font-size: 11px;
             font-weight: 600;
+            white-space: nowrap;
         }
         
         .badge-admin {
@@ -731,6 +815,274 @@ $page = $_GET['page'] ?? 'overview';
             margin-bottom: 16px;
             opacity: 0.5;
         }
+        
+        /* ============================================
+           RESPONSIVE DESIGN - MOBILE OPTIMIERUNG
+           ============================================ */
+        
+        /* Tablets und kleine Desktops */
+        @media (max-width: 1024px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 16px;
+            }
+            
+            .content-area {
+                padding: 24px;
+            }
+            
+            .topbar {
+                padding: 16px 24px;
+            }
+        }
+        
+        /* Mobile Geräte */
+        @media (max-width: 768px) {
+            /* Mobile Menu Toggle anzeigen */
+            .mobile-menu-toggle {
+                display: flex;
+            }
+            
+            /* Sidebar Overlay anzeigen wenn aktiv */
+            .sidebar-overlay.active {
+                display: block;
+            }
+            
+            /* Sidebar für Mobile */
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                transform: translateX(-100%);
+                z-index: 1000;
+            }
+            
+            .sidebar.active {
+                transform: translateX(0);
+            }
+            
+            /* Main Content nimmt volle Breite */
+            .main-content {
+                width: 100%;
+            }
+            
+            /* Topbar anpassen */
+            .topbar {
+                padding: 16px;
+                padding-left: 70px; /* Platz für Menu Button */
+            }
+            
+            .topbar-left h2 {
+                font-size: 18px;
+            }
+            
+            .topbar-subtitle {
+                display: none; /* Subtitle auf Mobile ausblenden */
+            }
+            
+            /* Profile Button vereinfachen */
+            .profile-btn .profile-info {
+                display: none;
+            }
+            
+            .profile-btn > span:last-child {
+                display: none;
+            }
+            
+            .icon-btn {
+                width: 36px;
+                height: 36px;
+                font-size: 16px;
+            }
+            
+            /* Content Area */
+            .content-area {
+                padding: 16px;
+            }
+            
+            /* Stats Grid - Eine Spalte auf sehr kleinen Geräten */
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            
+            .stat-card {
+                padding: 16px;
+            }
+            
+            .stat-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+            
+            .stat-value {
+                font-size: 28px;
+            }
+            
+            /* Sections */
+            .section {
+                padding: 16px;
+                margin-bottom: 16px;
+            }
+            
+            .section-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .section-title {
+                font-size: 16px;
+            }
+            
+            /* Buttons */
+            .btn {
+                width: 100%;
+                text-align: center;
+                padding: 12px 16px;
+            }
+            
+            /* Tables - Responsive Ansicht */
+            table {
+                min-width: 100%;
+                font-size: 13px;
+            }
+            
+            th, td {
+                padding: 8px;
+            }
+            
+            /* Optional: Card-Style für Tabellen auf kleinen Geräten */
+            @media (max-width: 600px) {
+                .table-container table,
+                .table-container thead,
+                .table-container tbody,
+                .table-container th,
+                .table-container td,
+                .table-container tr {
+                    display: block;
+                }
+                
+                .table-container thead tr {
+                    position: absolute;
+                    top: -9999px;
+                    left: -9999px;
+                }
+                
+                .table-container tr {
+                    margin-bottom: 12px;
+                    border: 1px solid var(--border);
+                    border-radius: 8px;
+                    padding: 12px;
+                    background: var(--bg-tertiary);
+                }
+                
+                .table-container td {
+                    border: none;
+                    position: relative;
+                    padding: 8px 8px 8px 120px;
+                    text-align: right;
+                }
+                
+                .table-container td:before {
+                    content: attr(data-label);
+                    position: absolute;
+                    left: 8px;
+                    width: 100px;
+                    padding-right: 10px;
+                    white-space: nowrap;
+                    font-weight: 600;
+                    color: var(--text-secondary);
+                    text-align: left;
+                }
+                
+                .badge {
+                    display: inline-block;
+                }
+            }
+        }
+        
+        /* Sehr kleine Mobile Geräte */
+        @media (max-width: 480px) {
+            .topbar-left h2 {
+                font-size: 16px;
+            }
+            
+            .mobile-menu-toggle {
+                width: 40px;
+                height: 40px;
+            }
+            
+            .stat-card {
+                padding: 12px;
+            }
+            
+            .stat-value {
+                font-size: 24px;
+            }
+            
+            .stat-label {
+                font-size: 12px;
+            }
+            
+            /* Stats auf zwei Spalten bei sehr kleinen Geräten optional */
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
     </style>
+    
+    <script>
+        // Mobile Menu Toggle Funktionalität
+        document.addEventListener('DOMContentLoaded', function() {
+            const menuToggle = document.getElementById('mobileMenuToggle');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            function toggleMenu() {
+                menuToggle.classList.toggle('active');
+                sidebar.classList.toggle('active');
+                overlay.classList.toggle('active');
+                
+                // Body Scroll verhindern wenn Menu offen
+                if (sidebar.classList.contains('active')) {
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    document.body.style.overflow = '';
+                }
+            }
+            
+            // Menu Toggle Button
+            if (menuToggle) {
+                menuToggle.addEventListener('click', toggleMenu);
+            }
+            
+            // Overlay Click zum Schließen
+            if (overlay) {
+                overlay.addEventListener('click', toggleMenu);
+            }
+            
+            // Navigation Items schließen Menu auf Mobile
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    if (window.innerWidth <= 768) {
+                        toggleMenu();
+                    }
+                });
+            });
+            
+            // Bei Resize über 768px Menu zurücksetzen
+            window.addEventListener('resize', function() {
+                if (window.innerWidth > 768) {
+                    sidebar.classList.remove('active');
+                    overlay.classList.remove('active');
+                    menuToggle.classList.remove('active');
+                    document.body.style.overflow = '';
+                }
+            });
+        });
+    </script>
 </body>
 </html>
