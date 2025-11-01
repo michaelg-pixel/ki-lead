@@ -38,12 +38,6 @@ if (isset($_GET['id'])) {
     if (!$freebie) {
         die('Freebie nicht gefunden oder keine Berechtigung');
     }
-} else {
-    // Neues Freebie - Limit prüfen
-    if ($customCount >= $freebieLimit) {
-        header('Location: dashboard.php?page=freebies');
-        exit;
-    }
 }
 
 // Verfügbare Kurse für Verlinkung laden
@@ -61,9 +55,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
     $background_color = $_POST['background_color'] ?? '#FFFFFF';
     $primary_color = $_POST['primary_color'] ?? '#8B5CF6';
     $raw_code = trim($_POST['raw_code'] ?? '');
-    $custom_css = trim($_POST['custom_css'] ?? '');
+    $custom_code = trim($_POST['custom_code'] ?? ''); // Facebook Pixel etc.
     $mockup_image_url = trim($_POST['mockup_image_url'] ?? '');
     $course_id = !empty($_POST['course_id']) ? (int)$_POST['course_id'] : null;
+    
+    // Custom Code in raw_code speichern (mit Trennzeichen)
+    $combined_code = $raw_code;
+    if (!empty($custom_code)) {
+        $combined_code .= "\n<!-- CUSTOM_TRACKING_CODE -->\n" . $custom_code;
+    }
     
     // Unique ID für die Freebie-Seite
     if (!$freebie) {
@@ -82,14 +82,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
                     headline = ?, subheadline = ?, preheadline = ?,
                     bullet_points = ?, cta_text = ?, layout = ?,
                     background_color = ?, primary_color = ?, raw_code = ?,
-                    custom_css = ?, mockup_image_url = ?, course_id = ?, updated_at = NOW()
+                    mockup_image_url = ?, course_id = ?, updated_at = NOW()
                 WHERE id = ?
             ");
             $stmt->execute([
                 $headline, $subheadline, $preheadline,
                 $bullet_points, $cta_text, $layout,
-                $background_color, $primary_color, $raw_code,
-                $custom_css, $mockup_image_url, $course_id, $freebie['id']
+                $background_color, $primary_color, $combined_code,
+                $mockup_image_url, $course_id, $freebie['id']
             ]);
             
             $success_message = "✅ Freebie erfolgreich aktualisiert!";
@@ -99,13 +99,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
                 INSERT INTO customer_freebies (
                     customer_id, headline, subheadline, preheadline,
                     bullet_points, cta_text, layout, background_color, primary_color,
-                    raw_code, custom_css, mockup_image_url, unique_id, url_slug, freebie_type, course_id, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'custom', ?, NOW())
+                    raw_code, mockup_image_url, unique_id, url_slug, freebie_type, course_id, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'custom', ?, NOW())
             ");
             $stmt->execute([
                 $customer_id, $headline, $subheadline, $preheadline,
                 $bullet_points, $cta_text, $layout, $background_color, $primary_color,
-                $raw_code, $custom_css, $mockup_image_url, $unique_id, $url_slug, $course_id
+                $combined_code, $mockup_image_url, $unique_id, $url_slug, $course_id
             ]);
             
             $freebie_id = $pdo->lastInsertId();
@@ -130,6 +130,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
     }
 }
 
+// Custom Code aus raw_code extrahieren (wenn vorhanden)
+$email_optin_code = '';
+$custom_tracking_code = '';
+if ($freebie && !empty($freebie['raw_code'])) {
+    $parts = explode('<!-- CUSTOM_TRACKING_CODE -->', $freebie['raw_code']);
+    $email_optin_code = trim($parts[0]);
+    $custom_tracking_code = isset($parts[1]) ? trim($parts[1]) : '';
+}
+
 // Daten für Formular vorbereiten
 $form_data = [
     'headline' => $freebie['headline'] ?? 'Sichere dir jetzt deinen kostenlosen Zugang',
@@ -140,8 +149,8 @@ $form_data = [
     'layout' => $freebie['layout'] ?? 'hybrid',
     'background_color' => $freebie['background_color'] ?? '#FFFFFF',
     'primary_color' => $freebie['primary_color'] ?? '#8B5CF6',
-    'raw_code' => $freebie['raw_code'] ?? '',
-    'custom_css' => $freebie['custom_css'] ?? '',
+    'raw_code' => $email_optin_code,
+    'custom_code' => $custom_tracking_code,
     'mockup_image_url' => $freebie['mockup_image_url'] ?? '',
     'course_id' => $freebie['course_id'] ?? null
 ];
@@ -841,13 +850,13 @@ $form_data = [
                                     Der Code wird im <strong>&lt;head&gt;</strong> Bereich der Seite eingefügt.
                                 </div>
                             </div>
-                            <textarea name="custom_css" class="form-textarea" rows="6"
+                            <textarea name="custom_code" class="form-textarea" rows="6"
                                       placeholder='<!-- Facebook Pixel Code -->
 <script>
   !function(f,b,e,v,n,t,s)
   {if(f.fbq)return;n=f.fbq=function(){...};
 </script>
-<!-- End Facebook Pixel Code -->'><?php echo htmlspecialchars($form_data['custom_css']); ?></textarea>
+<!-- End Facebook Pixel Code -->'><?php echo htmlspecialchars($form_data['custom_code']); ?></textarea>
                         </div>
                     </div>
                     
