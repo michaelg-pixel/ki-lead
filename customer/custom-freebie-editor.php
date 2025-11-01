@@ -61,6 +61,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
     $background_color = $_POST['background_color'] ?? '#FFFFFF';
     $primary_color = $_POST['primary_color'] ?? '#8B5CF6';
     $raw_code = trim($_POST['raw_code'] ?? '');
+    $custom_css = trim($_POST['custom_css'] ?? '');
+    $mockup_image_url = trim($_POST['mockup_image_url'] ?? '');
     $course_id = !empty($_POST['course_id']) ? (int)$_POST['course_id'] : null;
     
     // Unique ID für die Freebie-Seite
@@ -80,14 +82,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
                     headline = ?, subheadline = ?, preheadline = ?,
                     bullet_points = ?, cta_text = ?, layout = ?,
                     background_color = ?, primary_color = ?, raw_code = ?,
-                    course_id = ?, updated_at = NOW()
+                    custom_css = ?, mockup_image_url = ?, course_id = ?, updated_at = NOW()
                 WHERE id = ?
             ");
             $stmt->execute([
                 $headline, $subheadline, $preheadline,
                 $bullet_points, $cta_text, $layout,
                 $background_color, $primary_color, $raw_code,
-                $course_id, $freebie['id']
+                $custom_css, $mockup_image_url, $course_id, $freebie['id']
             ]);
             
             $success_message = "✅ Freebie erfolgreich aktualisiert!";
@@ -97,13 +99,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
                 INSERT INTO customer_freebies (
                     customer_id, headline, subheadline, preheadline,
                     bullet_points, cta_text, layout, background_color, primary_color,
-                    raw_code, unique_id, url_slug, freebie_type, course_id, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'custom', ?, NOW())
+                    raw_code, custom_css, mockup_image_url, unique_id, url_slug, freebie_type, course_id, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'custom', ?, NOW())
             ");
             $stmt->execute([
                 $customer_id, $headline, $subheadline, $preheadline,
                 $bullet_points, $cta_text, $layout, $background_color, $primary_color,
-                $raw_code, $unique_id, $url_slug, $course_id
+                $raw_code, $custom_css, $mockup_image_url, $unique_id, $url_slug, $course_id
             ]);
             
             $freebie_id = $pdo->lastInsertId();
@@ -139,6 +141,8 @@ $form_data = [
     'background_color' => $freebie['background_color'] ?? '#FFFFFF',
     'primary_color' => $freebie['primary_color'] ?? '#8B5CF6',
     'raw_code' => $freebie['raw_code'] ?? '',
+    'custom_css' => $freebie['custom_css'] ?? '',
+    'mockup_image_url' => $freebie['mockup_image_url'] ?? '',
     'course_id' => $freebie['course_id'] ?? null
 ];
 ?>
@@ -412,6 +416,45 @@ $form_data = [
             display: block;
         }
         
+        .mockup-preview {
+            margin-top: 12px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #e5e7eb;
+        }
+        
+        .mockup-preview img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .mockup-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        .btn-mockup {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+        
+        .btn-mockup-remove {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        
+        .btn-mockup-remove:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+        
         .preview-panel {
             position: sticky;
             top: 20px;
@@ -432,6 +475,18 @@ $form_data = [
             border-radius: 12px;
             padding: 60px 40px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .preview-mockup {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        
+        .preview-mockup img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
         }
         
         .preview-preheadline {
@@ -610,6 +665,35 @@ $form_data = [
                         <p>Sobald du dieses Freebie speicherst, werden automatisch deine Impressum- und Datenschutz-Links im Footer der Freebie-Seite angezeigt. Du kannst deine Rechtstexte unter <strong>"Dashboard → Rechtstexte"</strong> bearbeiten.</p>
                     </div>
                     
+                    <!-- Mockup-Bild -->
+                    <div class="form-section">
+                        <div class="section-title">🖼️ Mockup-Bild</div>
+                        <div class="info-box">
+                            <div class="info-box-title">💡 Hinweis</div>
+                            <div class="info-box-text">
+                                Füge hier die URL deines Mockup-Bildes ein (z.B. von Imgur, Dropbox oder einem anderen Image-Hosting).
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Mockup-Bild URL</label>
+                            <input type="url" name="mockup_image_url" id="mockupImageUrl" class="form-input"
+                                   value="<?php echo htmlspecialchars($form_data['mockup_image_url']); ?>"
+                                   placeholder="https://i.imgur.com/example.png"
+                                   oninput="updatePreview()">
+                            
+                            <?php if (!empty($form_data['mockup_image_url'])): ?>
+                            <div class="mockup-preview" id="mockupPreviewContainer">
+                                <img src="<?php echo htmlspecialchars($form_data['mockup_image_url']); ?>" alt="Mockup Preview" id="mockupPreviewImg">
+                            </div>
+                            <div class="mockup-actions">
+                                <button type="button" class="btn-mockup btn-mockup-remove" onclick="removeMockup()">
+                                    🗑️ Mockup entfernen
+                                </button>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    
                     <!-- Kurs verknüpfen (optional) -->
                     <div class="form-section">
                         <div class="section-title">🎓 Kurs verknüpfen (optional)</div>
@@ -714,20 +798,6 @@ $form_data = [
                         <div class="section-title">🎨 Farben</div>
                         <div class="color-group">
                             <div class="form-group">
-                                <label class="form-label">Primärfarbe</label>
-                                <div class="color-input-wrapper">
-                                    <input type="color" id="primary_color_picker" 
-                                           value="<?php echo htmlspecialchars($form_data['primary_color']); ?>"
-                                           class="color-preview"
-                                           onchange="document.getElementById('primary_color').value = this.value; updatePreview()">
-                                    <input type="text" name="primary_color" id="primary_color" 
-                                           class="form-input color-input"
-                                           value="<?php echo htmlspecialchars($form_data['primary_color']); ?>"
-                                           oninput="document.getElementById('primary_color_picker').value = this.value; updatePreview()">
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
                                 <label class="form-label">Hintergrundfarbe</label>
                                 <div class="color-input-wrapper">
                                     <input type="color" id="background_color_picker"
@@ -740,6 +810,44 @@ $form_data = [
                                            oninput="document.getElementById('background_color_picker').value = this.value; updatePreview()">
                                 </div>
                             </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Primärfarbe</label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="primary_color_picker" 
+                                           value="<?php echo htmlspecialchars($form_data['primary_color']); ?>"
+                                           class="color-preview"
+                                           onchange="document.getElementById('primary_color').value = this.value; updatePreview()">
+                                    <input type="text" name="primary_color" id="primary_color" 
+                                           class="form-input color-input"
+                                           value="<?php echo htmlspecialchars($form_data['primary_color']); ?>"
+                                           oninput="document.getElementById('primary_color_picker').value = this.value; updatePreview()">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Erweiterte Einstellungen -->
+                    <div class="form-section">
+                        <div class="section-title">🔧 Erweiterte Einstellungen</div>
+                        
+                        <!-- Custom Code / Facebook Pixel -->
+                        <div class="form-group">
+                            <label class="form-label">Custom Code (Tracking Pixel, etc.)</label>
+                            <div class="info-box">
+                                <div class="info-box-title">💡 Hinweis</div>
+                                <div class="info-box-text">
+                                    Füge hier deinen Facebook Pixel, Google Analytics Code oder andere Tracking-Codes ein. 
+                                    Der Code wird im <strong>&lt;head&gt;</strong> Bereich der Seite eingefügt.
+                                </div>
+                            </div>
+                            <textarea name="custom_css" class="form-textarea" rows="6"
+                                      placeholder='<!-- Facebook Pixel Code -->
+<script>
+  !function(f,b,e,v,n,t,s)
+  {if(f.fbq)return;n=f.fbq=function(){...};
+</script>
+<!-- End Facebook Pixel Code -->'><?php echo htmlspecialchars($form_data['custom_css']); ?></textarea>
                         </div>
                     </div>
                     
@@ -781,6 +889,22 @@ $form_data = [
     </div>
     
     <script>
+        const mockupUrl = document.getElementById('mockupImageUrl').value;
+        
+        function removeMockup() {
+            document.getElementById('mockupImageUrl').value = '';
+            const container = document.getElementById('mockupPreviewContainer');
+            if (container) {
+                container.remove();
+            }
+            updatePreview();
+        }
+        
+        // Mockup-Vorschau beim Eingeben aktualisieren
+        document.getElementById('mockupImageUrl').addEventListener('input', function() {
+            updatePreview();
+        });
+        
         function updateLayoutSelection(radio) {
             document.querySelectorAll('.layout-option').forEach(opt => {
                 opt.classList.remove('selected');
@@ -797,6 +921,7 @@ $form_data = [
             const layout = document.querySelector('input[name="layout"]:checked').value;
             const primaryColor = document.getElementById('primary_color').value;
             const backgroundColor = document.getElementById('background_color').value;
+            const mockupImageUrl = document.getElementById('mockupImageUrl').value;
             
             const previewContent = document.getElementById('previewContent');
             previewContent.style.background = backgroundColor;
@@ -816,6 +941,15 @@ $form_data = [
                 bulletHTML = `<div class="preview-bullets">${bulletHTML}</div>`;
             }
             
+            let mockupHTML = '';
+            if (mockupImageUrl) {
+                mockupHTML = `
+                    <div class="preview-mockup">
+                        <img src="${escapeHtml(mockupImageUrl)}" alt="Mockup" style="max-width: 380px;">
+                    </div>
+                `;
+            }
+            
             const preheadlineHTML = preheadline ? `
                 <div class="preview-preheadline" style="color: ${primaryColor};">
                     ${escapeHtml(preheadline)}
@@ -831,6 +965,7 @@ $form_data = [
             if (layout === 'centered') {
                 layoutHTML = `
                     <div style="max-width: 800px; margin: 0 auto;">
+                        ${mockupHTML}
                         ${preheadlineHTML}
                         <div class="preview-headline" style="color: ${primaryColor};">
                             ${escapeHtml(headline || 'Deine Hauptüberschrift')}
@@ -845,9 +980,10 @@ $form_data = [
                     </div>
                 `;
             } else if (layout === 'hybrid') {
+                const mockupOrIcon = mockupImageUrl ? mockupHTML : `<div style="text-align: center; color: ${primaryColor}; font-size: 80px;">🎁</div>`;
                 layoutHTML = `
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center;">
-                        <div style="text-align: center; color: ${primaryColor}; font-size: 80px;">🎁</div>
+                        <div>${mockupOrIcon}</div>
                         <div>
                             ${preheadlineHTML}
                             <div class="preview-headline" style="color: ${primaryColor}; text-align: left;">
@@ -864,6 +1000,7 @@ $form_data = [
                     </div>
                 `;
             } else { // sidebar
+                const mockupOrIcon = mockupImageUrl ? mockupHTML : `<div style="text-align: center; color: ${primaryColor}; font-size: 80px;">🎁</div>`;
                 layoutHTML = `
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center;">
                         <div>
@@ -879,7 +1016,7 @@ $form_data = [
                                 </button>
                             </div>
                         </div>
-                        <div style="text-align: center; color: ${primaryColor}; font-size: 80px;">🎁</div>
+                        <div>${mockupOrIcon}</div>
                     </div>
                 `;
             }
