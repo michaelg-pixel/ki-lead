@@ -38,6 +38,7 @@ if ($page === 'overview') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KI Leadsystem - Kunden Portal</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -439,6 +440,10 @@ if ($page === 'overview') {
                 <span class="nav-icon">📊</span>
                 <span>Übersicht</span>
             </a>
+            <a href="?page=tutorials" class="nav-item <?php echo $page === 'tutorials' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
+                <span class="nav-icon">📖</span>
+                <span>Anleitungen & Tutorials</span>
+            </a>
             <a href="?page=kurse" class="nav-item <?php echo $page === 'kurse' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
                 <span class="nav-icon">🎓</span>
                 <span>Meine Kurse</span>
@@ -497,6 +502,16 @@ if ($page === 'overview') {
                         <div class="stat-label">Tutorials</div>
                     </div>
                 </div>
+            
+            <?php elseif ($page === 'tutorials'): ?>
+                <?php 
+                $section_file = __DIR__ . '/sections/tutorials.php';
+                if (file_exists($section_file)) {
+                    include $section_file;
+                } else {
+                    echo '<div style="padding: 32px; text-align: center;"><h3>Tutorials werden geladen...</h3></div>';
+                }
+                ?>
             
             <?php elseif ($page === 'kurse'): ?>
                 <?php 
