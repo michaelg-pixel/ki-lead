@@ -1,7 +1,7 @@
 <?php
 /**
- * Digistore24 Webhook Handler - MIT KURS-FREISCHALTUNG
- * Empfängt Kunden von Digistore24 und erstellt automatisch Accounts + Kurs-Zugang
+ * Digistore24 Webhook Handler - MIT KURS-FREISCHALTUNG & FREEBIE-LIMITS
+ * Empfängt Kunden von Digistore24 und erstellt automatisch Accounts + Kurs-Zugang + Freebie-Limits
  */
 
 require_once '../config/database.php';
@@ -64,7 +64,7 @@ try {
 }
 
 /**
- * Neuen Kunden anlegen + Kurs-Zugang gewähren
+ * Neuen Kunden anlegen + Kurs-Zugang gewähren + Freebie-Limits setzen
  */
 function handleNewCustomer($pdo, $data) {
     // Digistore24 Daten extrahieren
@@ -88,7 +88,7 @@ function handleNewCustomer($pdo, $data) {
     
     if ($existingUser) {
         $userId = $existingUser['id'];
-        logWebhook(['message' => 'User already exists, granting course access', 'email' => $email, 'user_id' => $userId], 'info');
+        logWebhook(['message' => 'User already exists, granting access', 'email' => $email, 'user_id' => $userId], 'info');
     } else {
         // Neuen User erstellen
         $userId = createNewUser($pdo, $email, $name, $orderId, $productId, $productName);
@@ -97,6 +97,9 @@ function handleNewCustomer($pdo, $data) {
     
     // KURS-ZUGANG GEWÄHREN
     grantCourseAccess($pdo, $userId, $productId, $email);
+    
+    // FREEBIE-LIMITS SETZEN (NEU!)
+    setFreebieLimit($pdo, $userId, $productId, $productName);
     
     logWebhook([
         'message' => 'Customer processed successfully',
@@ -218,6 +221,84 @@ function grantCourseAccess($pdo, $userId, $productId, $email) {
 }
 
 /**
+ * NEUE FUNKTION: Freebie-Limit für Kunde setzen
+ */
+function setFreebieLimit($pdo, $userId, $productId, $productName) {
+    if (empty($productId)) {
+        logWebhook(['warning' => 'No product_id provided, cannot set freebie limit'], 'warning');
+        return;
+    }
+    
+    // Freebie-Limit aus Konfiguration holen
+    $stmt = $pdo->prepare("
+        SELECT freebie_limit, product_name 
+        FROM product_freebie_config 
+        WHERE product_id = ? AND is_active = 1
+    ");
+    $stmt->execute([$productId]);
+    $config = $stmt->fetch();
+    
+    $freebieLimit = 5; // Default
+    
+    if ($config) {
+        $freebieLimit = $config['freebie_limit'];
+        $productName = $config['product_name'] ?: $productName;
+    } else {
+        logWebhook([
+            'info' => 'No freebie config found, using default limit',
+            'product_id' => $productId,
+            'default_limit' => $freebieLimit
+        ], 'info');
+    }
+    
+    // Prüfen ob bereits ein Limit existiert
+    $stmt = $pdo->prepare("SELECT id, freebie_limit FROM customer_freebie_limits WHERE customer_id = ?");
+    $stmt->execute([$userId]);
+    $existing = $stmt->fetch();
+    
+    if ($existing) {
+        // Update nur wenn neues Limit höher ist
+        if ($freebieLimit > $existing['freebie_limit']) {
+            $stmt = $pdo->prepare("
+                UPDATE customer_freebie_limits 
+                SET freebie_limit = ?, product_id = ?, product_name = ?, updated_at = NOW()
+                WHERE customer_id = ?
+            ");
+            $stmt->execute([$freebieLimit, $productId, $productName, $userId]);
+            
+            logWebhook([
+                'success' => 'Freebie limit upgraded',
+                'user_id' => $userId,
+                'old_limit' => $existing['freebie_limit'],
+                'new_limit' => $freebieLimit,
+                'product_id' => $productId
+            ], 'success');
+        } else {
+            logWebhook([
+                'info' => 'Existing limit is higher or equal, not downgrading',
+                'user_id' => $userId,
+                'current_limit' => $existing['freebie_limit'],
+                'new_limit' => $freebieLimit
+            ], 'info');
+        }
+    } else {
+        // Neues Limit erstellen
+        $stmt = $pdo->prepare("
+            INSERT INTO customer_freebie_limits (customer_id, freebie_limit, product_id, product_name)
+            VALUES (?, ?, ?, ?)
+        ");
+        $stmt->execute([$userId, $freebieLimit, $productId, $productName]);
+        
+        logWebhook([
+            'success' => 'Freebie limit created',
+            'user_id' => $userId,
+            'limit' => $freebieLimit,
+            'product_id' => $productId
+        ], 'success');
+    }
+}
+
+/**
  * Rückerstattung behandeln
  */
 function handleRefund($pdo, $data) {
@@ -244,6 +325,10 @@ function handleRefund($pdo, $data) {
     $stmt = $pdo->prepare("UPDATE users SET is_active = 0, refund_date = NOW() WHERE id = ?");
     $stmt->execute([$userId]);
     
+    // Freebie-Limit auf 0 setzen
+    $stmt = $pdo->prepare("UPDATE customer_freebie_limits SET freebie_limit = 0 WHERE customer_id = ?");
+    $stmt->execute([$userId]);
+    
     // Kurs-Zugang entfernen (falls Product-ID vorhanden)
     if (!empty($productId)) {
         $stmt = $pdo->prepare("
@@ -262,7 +347,7 @@ function handleRefund($pdo, $data) {
     }
     
     logWebhook([
-        'message' => 'User deactivated due to refund',
+        'message' => 'User deactivated and freebie limit reset due to refund',
         'user_id' => $userId,
         'email' => $email
     ], 'info');
