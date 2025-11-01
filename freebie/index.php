@@ -1,6 +1,6 @@
 <?php
 /**
- * Freebie Public Page - Optimiertes Layout wie im Screenshot
+ * Freebie Public Page - Optimiertes Layout mit Cookie-Banner
  */
 
 error_reporting(E_ALL);
@@ -230,6 +230,111 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             color: <?php echo htmlspecialchars($primaryColor); ?>;
         }
         
+        /* COOKIE BANNER */
+        .cookie-banner {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(26, 32, 44, 0.98);
+            backdrop-filter: blur(20px);
+            padding: 24px;
+            box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.3);
+            z-index: 9999;
+            transform: translateY(100%);
+            transition: transform 0.4s ease-out;
+            border-top: 3px solid <?php echo htmlspecialchars($primaryColor); ?>;
+        }
+        
+        .cookie-banner.show {
+            transform: translateY(0);
+        }
+        
+        .cookie-banner.hidden {
+            display: none;
+        }
+        
+        .cookie-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+        
+        .cookie-text {
+            flex: 1;
+            min-width: 280px;
+        }
+        
+        .cookie-text h3 {
+            color: white;
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .cookie-text p {
+            color: #cbd5e1;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .cookie-text a {
+            color: <?php echo htmlspecialchars($primaryColor); ?>;
+            text-decoration: underline;
+        }
+        
+        .cookie-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .cookie-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        
+        .cookie-btn-accept {
+            background: <?php echo htmlspecialchars($primaryColor); ?>;
+            color: white;
+        }
+        
+        .cookie-btn-accept:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(91, 141, 239, 0.6);
+        }
+        
+        .cookie-btn-reject {
+            background: transparent;
+            color: #94a3b8;
+            border: 1px solid #475569;
+        }
+        
+        .cookie-btn-reject:hover {
+            background: rgba(71, 85, 105, 0.2);
+            color: white;
+        }
+        
+        .cookie-btn-settings {
+            background: transparent;
+            color: <?php echo htmlspecialchars($primaryColor); ?>;
+            border: 1px solid <?php echo htmlspecialchars($primaryColor); ?>;
+        }
+        
+        .cookie-btn-settings:hover {
+            background: rgba(91, 141, 239, 0.15);
+        }
+        
         /* RESPONSIVE */
         @media (max-width: 968px) {
             .main-content {
@@ -255,6 +360,20 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             .bullet-points li { font-size: 16px; }
             
             .optin-section { padding: 20px; }
+            
+            .cookie-content {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .cookie-actions {
+                flex-direction: column;
+            }
+            
+            .cookie-btn {
+                width: 100%;
+                justify-content: center;
+            }
         }
     </style>
 </head>
@@ -324,5 +443,83 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
         </div>
         
     </div>
+    
+    <!-- COOKIE BANNER -->
+    <div id="cookie-banner" class="cookie-banner">
+        <div class="cookie-content">
+            <div class="cookie-text">
+                <h3>🍪 Wir respektieren deine Privatsphäre</h3>
+                <p>
+                    Wir verwenden Cookies, um dein Erlebnis zu verbessern und Inhalte zu personalisieren. 
+                    <a href="<?php echo htmlspecialchars($datenschutz_link); ?>">Mehr erfahren</a>
+                </p>
+            </div>
+            <div class="cookie-actions">
+                <button onclick="rejectCookies()" class="cookie-btn cookie-btn-reject">
+                    Nur notwendige
+                </button>
+                <button onclick="showCookieSettings()" class="cookie-btn cookie-btn-settings">
+                    Einstellungen
+                </button>
+                <button onclick="acceptCookies()" class="cookie-btn cookie-btn-accept">
+                    Alle akzeptieren
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Cookie Banner Management
+        function acceptCookies() {
+            localStorage.setItem('cookieConsent', 'accepted');
+            hideCookieBanner();
+            enableTracking();
+        }
+        
+        function rejectCookies() {
+            localStorage.setItem('cookieConsent', 'rejected');
+            hideCookieBanner();
+            disableTracking();
+        }
+        
+        function showCookieSettings() {
+            window.location.href = '<?php echo htmlspecialchars($datenschutz_link); ?>#cookie-einstellungen';
+        }
+        
+        function hideCookieBanner() {
+            const banner = document.getElementById('cookie-banner');
+            if (banner) {
+                banner.classList.remove('show');
+                setTimeout(() => {
+                    banner.classList.add('hidden');
+                }, 400);
+            }
+        }
+        
+        function enableTracking() {
+            console.log('Tracking enabled');
+            // Hier Tracking-Code aktivieren (Google Analytics, Facebook Pixel, etc.)
+        }
+        
+        function disableTracking() {
+            console.log('Tracking disabled');
+            // Hier Tracking-Code deaktivieren
+        }
+        
+        // Cookie-Banner bei Seite-Load prüfen
+        document.addEventListener('DOMContentLoaded', function() {
+            const consent = localStorage.getItem('cookieConsent');
+            const banner = document.getElementById('cookie-banner');
+            
+            if (!consent && banner) {
+                // Kurze Verzögerung für bessere UX
+                setTimeout(() => {
+                    banner.classList.add('show');
+                }, 1000);
+            } else if (consent === 'accepted') {
+                enableTracking();
+            }
+        });
+    </script>
 </body>
 </html>
