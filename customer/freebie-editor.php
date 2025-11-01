@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
     
     try {
         if ($customer_freebie) {
-            // Update existing
+            // Update existing customer_freebies
             $stmt = $pdo->prepare("
                 UPDATE customer_freebies SET
                     headline = ?, subheadline = ?, preheadline = ?,
@@ -86,9 +86,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
                 $customer_freebie['id']
             ]);
             $customer_freebie_id = $customer_freebie['id'];
-            $success_message = "✅ Freebie erfolgreich aktualisiert!";
+            
+            // WICHTIG: Auch die freebies Tabelle aktualisieren mit customer_id
+            // Damit die öffentlichen Links die Rechtstexte finden können
+            $stmt = $pdo->prepare("
+                UPDATE freebies SET
+                    headline = ?, subheadline = ?, preheadline = ?,
+                    bullet_points = ?, cta_text = ?, layout = ?,
+                    background_color = ?, primary_color = ?, raw_code = ?,
+                    customer_id = ?
+                WHERE id = ?
+            ");
+            $stmt->execute([
+                $headline, $subheadline, $preheadline,
+                $bullet_points, $cta_text, $layout,
+                $background_color, $primary_color, $raw_code,
+                $customer_id,  // WICHTIG: customer_id setzen!
+                $template_id
+            ]);
+            
+            $success_message = "✅ Freebie erfolgreich aktualisiert! Deine Rechtstexte sind automatisch verknüpft.";
         } else {
-            // Create new
+            // Create new in customer_freebies
             $stmt = $pdo->prepare("
                 INSERT INTO customer_freebies (
                     customer_id, template_id, headline, subheadline, preheadline,
@@ -102,7 +121,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
                 $raw_code, $unique_id, $url_slug, $template['mockup_image_url']
             ]);
             $customer_freebie_id = $pdo->lastInsertId();
-            $success_message = "✅ Freebie erfolgreich erstellt!";
+            
+            // WICHTIG: Auch die freebies Tabelle aktualisieren mit customer_id
+            // Damit die öffentlichen Links die Rechtstexte finden können
+            $stmt = $pdo->prepare("
+                UPDATE freebies SET
+                    headline = ?, subheadline = ?, preheadline = ?,
+                    bullet_points = ?, cta_text = ?, layout = ?,
+                    background_color = ?, primary_color = ?, raw_code = ?,
+                    customer_id = ?
+                WHERE id = ?
+            ");
+            $stmt->execute([
+                $headline, $subheadline, $preheadline,
+                $bullet_points, $cta_text, $layout,
+                $background_color, $primary_color, $raw_code,
+                $customer_id,  // WICHTIG: customer_id setzen!
+                $template_id
+            ]);
+            
+            $success_message = "✅ Freebie erfolgreich erstellt! Deine Rechtstexte sind automatisch verknüpft.";
         }
         
         // Reload customer freebie
@@ -563,6 +601,29 @@ $form_data = [
             color: #dc2626;
         }
         
+        /* RECHTST EXTE INFO */
+        .legal-info {
+            background: linear-gradient(135deg, #10B981, #059669);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            color: white;
+        }
+        
+        .legal-info h3 {
+            font-size: 16px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .legal-info p {
+            font-size: 13px;
+            opacity: 0.95;
+            line-height: 1.6;
+        }
+        
         @media (max-width: 1200px) {
             .editor-grid {
                 grid-template-columns: 1fr;
@@ -602,6 +663,12 @@ $form_data = [
                 <!-- Linke Seite: Einstellungen -->
                 <div class="editor-panel">
                     <h2 class="panel-title">⚙️ Einstellungen</h2>
+                    
+                    <!-- Rechtstexte Info -->
+                    <div class="legal-info">
+                        <h3>⚖️ Rechtstexte automatisch verknüpft!</h3>
+                        <p>Sobald du dieses Freebie speicherst, werden automatisch deine Impressum- und Datenschutz-Links im Footer der Freebie-Seite angezeigt. Du kannst deine Rechtstexte unter <strong>"Dashboard → Rechtstexte"</strong> bearbeiten.</p>
+                    </div>
                     
                     <!-- Zugewiesener Kurs (nicht änderbar) -->
                     <?php if ($assigned_course): ?>
@@ -751,7 +818,7 @@ $form_data = [
                     </div>
                     
                     <button type="submit" name="save_freebie" class="save-button">
-                        💾 Freebie speichern
+                        💾 Freebie speichern & Rechtstexte verknüpfen
                     </button>
                 </div>
                 
