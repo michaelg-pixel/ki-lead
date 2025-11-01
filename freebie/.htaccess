@@ -1,9 +1,8 @@
 # .htaccess für Freebie-Bereich
 RewriteEngine On
 
-# Alles mit einem Punkt (Dateiendung) durchlassen - KEINE Umleitung
-RewriteCond %{REQUEST_URI} \. 
-RewriteRule ^ - [L]
+# KEINE Umleitung für URLs die auf .php enden
+RewriteRule \.php$ - [L]
 
-# Alles andere (ohne Punkt) als unique_id an index.php weiterleiten
-RewriteRule ^([a-zA-Z0-9]+)$ /freebie/index.php?id=$1 [L,QSA]
+# Nur alphanumerische Strings ohne Dateiendung umleiten
+RewriteRule ^([a-f0-9]{32})$ /freebie/index.php?id=$1 [L,QSA]
