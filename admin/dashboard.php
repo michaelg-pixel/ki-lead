@@ -122,6 +122,10 @@ $page = $_GET['page'] ?? 'overview';
                 <span class="nav-icon">👥</span>
                 <span>Kunden</span>
             </a>
+            <a href="?page=tutorials" class="nav-item <?php echo $page === 'tutorials' ? 'active' : ''; ?>">
+                <span class="nav-icon">📖</span>
+                <span>Anleitungen & Tutorials</span>
+            </a>
             <a href="?page=freebies" class="nav-item <?php echo $page === 'freebies' ? 'active' : ''; ?>">
                 <span class="nav-icon">🔗</span>
                 <span>Kurs-Freebies</span>
@@ -172,7 +176,7 @@ $page = $_GET['page'] ?? 'overview';
                         'freebie-edit' => 'Template bearbeiten',
                         'templates' => 'Kursverwaltung',
                         'course-edit' => 'Kurs bearbeiten',
-                        'tutorials' => 'Tutorials verwalten',
+                        'tutorials' => 'Anleitungen & Tutorials verwalten',
                         'settings' => 'Einstellungen'
                     ];
                     echo $titles[$page] ?? 'Dashboard';
