@@ -32,24 +32,32 @@ try {
             c.thumbnail as course_thumbnail
         FROM freebies f
         LEFT JOIN courses c ON f.course_id = c.id
+        WHERE f.is_active = 1
         ORDER BY f.created_at DESC
     ");
     $freebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Prüfen, welche Freebies der Kunde bereits bearbeitet hat
     $stmt_customer = $pdo->prepare("
-        SELECT template_id 
+        SELECT template_id, id as customer_freebie_id, url_slug, unique_id
         FROM customer_freebies 
         WHERE customer_id = ?
     ");
     $stmt_customer->execute([$customer_id]);
-    $customer_template_ids = $stmt_customer->fetchAll(PDO::FETCH_COLUMN);
+    $customer_freebies = [];
+    while ($row = $stmt_customer->fetch(PDO::FETCH_ASSOC)) {
+        $customer_freebies[$row['template_id']] = $row;
+    }
     
 } catch (PDOException $e) {
     $freebies = [];
-    $customer_template_ids = [];
+    $customer_freebies = [];
     $error = $e->getMessage();
 }
+
+// Domain für vollständige URLs
+$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+$domain = $_SERVER['HTTP_HOST'];
 ?>
 
 <style>
@@ -203,6 +211,38 @@ try {
         transform: translateY(-2px);
         box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
     }
+    
+    .stats-box {
+        background: rgba(102, 126, 234, 0.1);
+        border: 1px solid rgba(102, 126, 234, 0.3);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 16px;
+        display: flex;
+        justify-content: space-around;
+    }
+    
+    .stat-item {
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 20px;
+        font-weight: 700;
+        color: white;
+    }
+    
+    .stat-label {
+        font-size: 11px;
+        color: #888;
+        text-transform: uppercase;
+    }
+    
+    @media (max-width: 768px) {
+        .freebies-grid {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>
 
 <div style="padding: 32px;">
@@ -237,27 +277,38 @@ try {
         
         <!-- Info Box -->
         <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6; padding: 20px; border-radius: 8px; margin-bottom: 32px;">
-            <h3 style="color: white; font-size: 16px; font-weight: 600; margin-bottom: 12px;">So funktioniert's</h3>
+            <h3 style="color: white; font-size: 16px; font-weight: 600; margin-bottom: 12px;">💡 So funktioniert's</h3>
             <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>1.</strong> Wähle ein Freebie-Template aus unserer Bibliothek</p>
             <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>2.</strong> Klicke auf "Nutzen" um es zu bearbeiten und anzupassen</p>
-            <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>3.</strong> Speichere deine Version - sie wird in deinem Account gespeichert</p>
-            <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>4.</strong> Teile den generierten Link und sammle Leads!</p>
-            <p style="color: #60a5fa; font-size: 13px; margin-top: 12px;">💡 Du kannst jedes Template mehrfach nutzen und beliebig anpassen!</p>
+            <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>3.</strong> Füge deinen E-Mail-Optin Code ein und passe die Farben an</p>
+            <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>4.</strong> Speichere und teile den generierten Link!</p>
+            <p style="color: #60a5fa; font-size: 13px; margin-top: 12px;">✨ Du kannst jedes Template individuell anpassen und mehrfach verwenden!</p>
         </div>
         
         <!-- Freebies Grid -->
         <div class="freebies-grid">
             <?php foreach ($freebies as $freebie): 
-                $isUsedByCustomer = in_array($freebie['id'], $customer_template_ids);
+                $isUsedByCustomer = isset($customer_freebies[$freebie['id']]);
+                $customer_data = $customer_freebies[$freebie['id']] ?? null;
                 
-                // KORRIGIERT: Absolute URL für Vorschau verwenden
-                $identifier = $freebie['url_slug'] ?: $freebie['unique_id'];
-                $freebieUrl = 'https://app.mehr-infos-jetzt.de/freebie/' . $identifier;
+                // Vorschau URL - wenn Kunde eine Version hat, zeige seine, sonst Template-Vorschau
+                if ($isUsedByCustomer && $customer_data) {
+                    $preview_url = 'freebie-preview.php?id=' . $customer_data['customer_freebie_id'];
+                    $live_url = $protocol . '://' . $domain . '/freebie/' . ($customer_data['url_slug'] ?: $customer_data['unique_id']);
+                } else {
+                    // Template-Vorschau
+                    $identifier = $freebie['url_slug'] ?: $freebie['unique_id'];
+                    $preview_url = 'https://app.mehr-infos-jetzt.de/freebie/' . $identifier;
+                    $live_url = $preview_url;
+                }
                 
                 $bgColor = $freebie['background_color'] ?: '#667eea';
                 $primaryColor = $freebie['primary_color'] ?: '#667eea';
                 
                 $layoutNames = [
+                    'hybrid' => 'Hybrid',
+                    'centered' => 'Zentriert',
+                    'sidebar' => 'Sidebar',
                     'layout1' => 'Modern',
                     'layout2' => 'Klassisch',
                     'layout3' => 'Minimal'
@@ -309,14 +360,29 @@ try {
                             <span>📅 <?php echo $formattedDate; ?></span>
                         </div>
                         
+                        <?php if ($isUsedByCustomer): ?>
+                            <div class="stats-box">
+                                <div class="stat-item">
+                                    <div class="stat-value">0</div>
+                                    <div class="stat-label">Aufrufe</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">0</div>
+                                    <div class="stat-label">Conversions</div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                        
                         <div class="freebie-colors">
                             <div class="color-dot" style="background-color: <?php echo htmlspecialchars($bgColor); ?>;" title="Hintergrundfarbe"></div>
                             <div class="color-dot" style="background-color: <?php echo htmlspecialchars($primaryColor); ?>;" title="Primärfarbe"></div>
                         </div>
                         
                         <div class="freebie-actions">
-                            <a href="<?php echo htmlspecialchars($freebieUrl); ?>" target="_blank" class="action-btn action-btn-preview">
-                                👁️ Vorschau
+                            <a href="<?php echo htmlspecialchars($preview_url); ?>" 
+                               <?php echo !$isUsedByCustomer ? 'target="_blank"' : ''; ?>
+                               class="action-btn action-btn-preview">
+                                👁️ <?php echo $isUsedByCustomer ? 'Meine Version' : 'Vorschau'; ?>
                             </a>
                             <a href="freebie-editor.php?template_id=<?php echo $freebie['id']; ?>" class="action-btn action-btn-edit">
                                 <?php echo $isUsedByCustomer ? '✏️ Bearbeiten' : '✨ Nutzen'; ?>
