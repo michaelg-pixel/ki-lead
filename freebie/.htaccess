@@ -1,8 +1,13 @@
 # .htaccess für Freebie-Bereich
 RewriteEngine On
+RewriteBase /freebie/
 
-# KEINE Umleitung für URLs die auf .php enden
-RewriteRule \.php$ - [L]
+# Schritt 1: Wenn Datei existiert oder Verzeichnis existiert -> STOP
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
 
-# Nur alphanumerische Strings ohne Dateiendung umleiten
-RewriteRule ^([a-f0-9]{32})$ /freebie/index.php?id=$1 [L,QSA]
+# Schritt 2: Nur für 32-stellige hex IDs (unique_id Format) -> an index.php
+RewriteRule ^([a-f0-9]{32})$ index.php?id=$1 [L,QSA]
+
+# Alles andere -> 404 oder durchlassen
