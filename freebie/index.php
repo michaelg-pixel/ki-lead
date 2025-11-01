@@ -1,199 +1,88 @@
 <?php
 /**
- * Freebie Preview Page
- * URL: /freebie/{unique_id} oder /freebie/{url_slug}
- * Diese Datei gehört in: /htdocs/app.mehr-infos-jetzt.de/freebie/index.php
+ * Freebie Public Page - OHNE AUTH-CHECK
+ * URL: /freebie/{unique_id} oder /freebie/index.php?id={unique_id}
  */
 
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Get the identifier from URL
-$requestUri = $_SERVER['REQUEST_URI'];
-$path = parse_url($requestUri, PHP_URL_PATH);
-$segments = explode('/', trim($path, '/'));
+// DIREKTE DB-VERBINDUNG (keine includes die Auth-Check haben könnten)
+$host = 'localhost';
+$database = 'lumisaas';
+$username = 'lumisaas52';
+$password = 'I1zx1XdL1hrWd75yu57e';
 
-// Find the identifier after 'freebie'
-$identifier = null;
-foreach ($segments as $index => $segment) {
-    if ($segment === 'freebie' && isset($segments[$index + 1])) {
-        $identifier = $segments[$index + 1];
-        break;
+try {
+    $dsn = "mysql:host=$host;dbname=$database;charset=utf8mb4";
+    $pdo = new PDO($dsn, $username, $password, array(
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+    ));
+} catch (PDOException $e) {
+    die('DB Connection Error');
+}
+
+// Get the identifier from URL
+$identifier = $_GET['id'] ?? null;
+
+// Fallback: Parse from REQUEST_URI for clean URLs
+if (!$identifier) {
+    $requestUri = $_SERVER['REQUEST_URI'];
+    $path = parse_url($requestUri, PHP_URL_PATH);
+    $segments = explode('/', trim($path, '/'));
+    
+    foreach ($segments as $index => $segment) {
+        if ($segment === 'freebie' && isset($segments[$index + 1])) {
+            $identifier = $segments[$index + 1];
+            break;
+        }
     }
 }
 
-// Fallback: check for query parameter
-if (!$identifier && isset($_GET['id'])) {
-    $identifier = $_GET['id'];
-}
-
-// Error if no identifier found
+// Error if no identifier
 if (!$identifier) {
-    die('
-    <!DOCTYPE html>
-    <html lang="de">
-    <head>
-        <meta charset="UTF-8">
-        <title>Fehler</title>
-        <style>
-            body { font-family: Arial, sans-serif; padding: 50px; background: #1a1a2e; color: white; text-align: center; }
-            a { color: #667eea; text-decoration: none; }
-            a:hover { text-decoration: underline; }
-        </style>
-    </head>
-    <body>
-        <h1>❌ Keine Freebie-ID gefunden</h1>
-        <p><strong>Request URI:</strong> ' . htmlspecialchars($requestUri) . '</p>
-        <p><strong>Erwartet:</strong> /freebie/{unique_id}</p>
-        <hr>
-        <a href="/customer/dashboard.php?page=freebies">← Zurück zu Freebies</a>
-    </body>
-    </html>
-    ');
+    http_response_code(404);
+    die('No Freebie ID provided');
 }
 
-// Database connection
-require_once __DIR__ . '/../config/database.php';
-
-// Check database connection
-if (!isset($pdo) || !$pdo) {
-    die('
-    <!DOCTYPE html>
-    <html lang="de">
-    <head>
-        <meta charset="UTF-8">
-        <title>Datenbankfehler</title>
-        <style>
-            body { font-family: Arial, sans-serif; padding: 50px; background: #1a1a2e; color: white; text-align: center; }
-            a { color: #667eea; text-decoration: none; }
-            a:hover { text-decoration: underline; }
-        </style>
-    </head>
-    <body>
-        <h1>❌ Datenbankverbindung fehlgeschlagen</h1>
-        <p>Bitte überprüfen Sie die Konfiguration in <code>/config/database.php</code></p>
-        <hr>
-        <a href="/customer/dashboard.php?page=freebies">← Zurück zu Freebies</a>
-    </body>
-    </html>
-    ');
-}
-
-// Find the freebie - first check customer_freebies, then template freebies
+// Find the freebie
 $customer_id = null;
 try {
-    // First check if this is a customer-specific freebie
+    // Check customer_freebies first
     $stmt = $pdo->prepare("SELECT cf.*, u.id as customer_id FROM customer_freebies cf LEFT JOIN users u ON cf.customer_id = u.id WHERE cf.unique_id = ? LIMIT 1");
     $stmt->execute([$identifier]);
     $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($freebie) {
-        // This is a customer-specific freebie
         $customer_id = $freebie['customer_id'] ?? null;
     } else {
-        // Check if this is a template freebie
+        // Check template freebies
         $stmt = $pdo->prepare("SELECT * FROM freebies WHERE unique_id = ? OR url_slug = ? LIMIT 1");
         $stmt->execute([$identifier, $identifier]);
         $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
     }
 } catch (PDOException $e) {
-    die('
-    <!DOCTYPE html>
-    <html lang="de">
-    <head>
-        <meta charset="UTF-8">
-        <title>Datenbankfehler</title>
-        <style>
-            body { font-family: Arial, sans-serif; padding: 50px; background: #1a1a2e; color: white; text-align: center; }
-            a { color: #667eea; text-decoration: none; }
-            a:hover { text-decoration: underline; }
-        </style>
-    </head>
-    <body>
-        <h1>❌ Datenbankfehler</h1>
-        <p><strong>Fehler:</strong> ' . htmlspecialchars($e->getMessage()) . '</p>
-        <hr>
-        <a href="/customer/dashboard.php?page=freebies">← Zurück zu Freebies</a>
-    </body>
-    </html>
-    ');
+    http_response_code(500);
+    die('Database Error');
 }
 
-// Check if freebie exists
 if (!$freebie) {
-    die('
-    <!DOCTYPE html>
-    <html lang="de">
-    <head>
-        <meta charset="UTF-8">
-        <title>Nicht gefunden</title>
-        <style>
-            body { font-family: Arial, sans-serif; padding: 50px; background: #1a1a2e; color: white; text-align: center; }
-            a { color: #667eea; text-decoration: none; }
-            a:hover { text-decoration: underline; }
-        </style>
-    </head>
-    <body>
-        <h1>❌ Freebie nicht gefunden</h1>
-        <p><strong>Gesucht nach:</strong> ' . htmlspecialchars($identifier) . '</p>
-        <p>Dieses Freebie existiert nicht in der Datenbank.</p>
-        <hr>
-        <a href="/customer/dashboard.php?page=freebies">← Zurück zu Freebies</a>
-    </body>
-    </html>
-    ');
-}
-
-// Handle form submission
-$leadCaptured = false;
-$errorMessage = '';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['capture_lead'])) {
-    $email = trim($_POST['email'] ?? '');
-    
-    if (empty($email)) {
-        $errorMessage = 'Bitte geben Sie Ihre E-Mail-Adresse ein.';
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $errorMessage = 'Bitte geben Sie eine gültige E-Mail-Adresse ein.';
-    } else {
-        try {
-            // Insert lead
-            $leadStmt = $pdo->prepare("INSERT INTO leads (freebie_id, email, ip_address, created_at) VALUES (?, ?, ?, NOW())");
-            $leadStmt->execute([$freebie['id'], $email, $_SERVER['REMOTE_ADDR'] ?? 'unknown']);
-            
-            // Update usage count
-            $updateStmt = $pdo->prepare("UPDATE freebies SET usage_count = COALESCE(usage_count, 0) + 1 WHERE id = ?");
-            $updateStmt->execute([$freebie['id']]);
-            
-            $leadCaptured = true;
-        } catch (PDOException $e) {
-            // If leads table doesn't exist, still show success
-            $leadCaptured = true;
-        }
-    }
+    http_response_code(404);
+    die('Freebie not found');
 }
 
 // Get values with defaults
-$primaryColor = $freebie['primary_color'] ?? '#7C3AED';
-$secondaryColor = $freebie['secondary_color'] ?? '#EC4899';
+$primaryColor = $freebie['primary_color'] ?? '#8B5CF6';
 $backgroundColor = $freebie['background_color'] ?? '#FFFFFF';
-$textColor = $freebie['text_color'] ?? '#1F2937';
-$ctaButtonColor = $freebie['cta_button_color'] ?? '#5B8DEF';
-$headingFont = $freebie['heading_font'] ?? 'Inter';
-$bodyFont = $freebie['body_font'] ?? 'Inter';
 
 // Parse bullet points
 $bulletPoints = [];
 if (!empty($freebie['bullet_points'])) {
-    $decoded = json_decode($freebie['bullet_points'], true);
-    if (is_array($decoded)) {
-        $bulletPoints = $decoded;
-    } else {
-        $bulletPoints = array_filter(explode("\n", $freebie['bullet_points']));
-    }
+    $bulletPoints = array_filter(explode("\n", $freebie['bullet_points']));
 }
 
-// Footer-Links mit customer_id falls vorhanden
+// Footer links with customer_id if available
 $impressum_link = $customer_id ? "/impressum.php?customer=" . $customer_id : "/impressum.php";
 $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id : "/datenschutz.php";
 ?>
@@ -203,12 +92,7 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($freebie['headline'] ?? 'Freebie'); ?></title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
-    
-    <?php if (!empty($freebie['pixel_code'])): ?>
-        <?php echo $freebie['pixel_code']; ?>
-    <?php endif; ?>
-    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -217,31 +101,23 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
         }
         
         body {
-            font-family: '<?php echo $bodyFont; ?>', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, <?php echo $primaryColor; ?> 0%, <?php echo $secondaryColor; ?> 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: <?php echo htmlspecialchars($backgroundColor); ?>;
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
             padding: 40px 20px;
         }
         
-        h1, h2, h3 {
-            font-family: '<?php echo $headingFont; ?>', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        }
-        
         .container {
+            max-width: 800px;
+            margin: 0 auto;
             background: white;
-            max-width: 650px;
-            width: 100%;
             border-radius: 24px;
-            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             overflow: hidden;
-            margin-bottom: 40px;
         }
         
         .header {
-            background: linear-gradient(135deg, <?php echo $primaryColor; ?> 0%, <?php echo $secondaryColor; ?> 100%);
+            background: linear-gradient(135deg, <?php echo htmlspecialchars($primaryColor); ?> 0%, #667eea 100%);
             padding: 60px 40px;
             text-align: center;
             color: white;
@@ -250,9 +126,9 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
         .preheadline {
             font-size: 13px;
             text-transform: uppercase;
-            letter-spacing: 2.5px;
+            letter-spacing: 2px;
             opacity: 0.9;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             font-weight: 600;
         }
         
@@ -273,13 +149,6 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             padding: 45px 40px;
         }
         
-        .description {
-            font-size: 16px;
-            margin-bottom: 30px;
-            line-height: 1.8;
-            color: #4a5568;
-        }
-        
         .bullet-points {
             list-style: none;
             margin-bottom: 35px;
@@ -290,6 +159,7 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             position: relative;
             font-size: 16px;
             line-height: 1.6;
+            color: #374151;
         }
         
         .bullet-points li:before {
@@ -297,282 +167,68 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             position: absolute;
             left: 0;
             top: 14px;
-            color: <?php echo $primaryColor; ?>;
+            color: <?php echo htmlspecialchars($primaryColor); ?>;
             font-weight: bold;
             font-size: 22px;
         }
         
-        .form-container {
-            background: #f8fafc;
-            padding: 45px 40px;
-            border-radius: 16px;
-        }
-        
-        input[type="email"] {
-            width: 100%;
-            padding: 16px 18px;
-            border: 2px solid #e5e7eb;
-            border-radius: 12px;
-            font-size: 16px;
-            transition: all 0.3s;
-            font-family: inherit;
-            margin-bottom: 20px;
-        }
-        
-        input[type="email"]:focus {
-            outline: none;
-            border-color: <?php echo $primaryColor; ?>;
-            box-shadow: 0 0 0 3px <?php echo $primaryColor; ?>20;
-        }
-        
-        .submit-btn {
+        .cta-button {
+            display: inline-block;
             width: 100%;
             padding: 18px 24px;
-            background: <?php echo $ctaButtonColor; ?>;
+            background: <?php echo htmlspecialchars($primaryColor); ?>;
             color: white;
             border: none;
             border-radius: 12px;
             font-size: 17px;
             font-weight: 700;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: transform 0.2s;
+            text-align: center;
+            text-decoration: none;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            box-shadow: 0 4px 12px <?php echo $ctaButtonColor; ?>40;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
         }
         
-        .submit-btn:hover {
+        .cta-button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px <?php echo $ctaButtonColor; ?>50;
         }
         
-        .success-message {
-            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-            border: 2px solid #34d399;
-            color: #065f46;
-            padding: 40px;
-            border-radius: 16px;
-            text-align: center;
-        }
-        
-        .success-icon {
-            font-size: 72px;
-            margin-bottom: 20px;
-        }
-        
-        .success-message h2 {
-            font-size: 30px;
-            margin-bottom: 16px;
-        }
-        
-        .success-message p {
-            font-size: 17px;
-            margin-bottom: 28px;
-        }
-        
-        .download-link {
-            display: inline-block;
-            padding: 18px 45px;
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-            text-decoration: none;
-            border-radius: 12px;
-            font-weight: 700;
-            font-size: 18px;
-            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
-        }
-        
-        .download-link:hover {
-            transform: translateY(-3px);
-        }
-        
-        .error-message {
-            background: #fee2e2;
-            border: 2px solid #f87171;
-            color: #991b1b;
-            padding: 16px 20px;
-            border-radius: 10px;
-            margin-bottom: 24px;
-            text-align: center;
-        }
-        
-        .privacy-text {
-            font-size: 12px;
-            color: #6b7280;
-            margin-top: 16px;
-            line-height: 1.6;
-        }
-        
-        /* Footer Styles */
         .footer {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            padding: 30px 20px;
-            border-radius: 16px;
-            max-width: 650px;
-            width: 100%;
+            background: #f9fafb;
+            padding: 30px 40px;
             text-align: center;
+            border-top: 1px solid #e5e7eb;
         }
         
-        .footer-links {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-        
-        .footer-links a {
-            color: #4b5563;
+        .footer a {
+            color: #6b7280;
             text-decoration: none;
             font-size: 14px;
+            margin: 0 12px;
             transition: color 0.3s;
         }
         
-        .footer-links a:hover {
-            color: <?php echo $primaryColor; ?>;
+        .footer a:hover {
+            color: <?php echo htmlspecialchars($primaryColor); ?>;
         }
         
-        .footer-separator {
-            color: #d1d5db;
-        }
-        
-        /* Cookie Banner */
-        .cookie-banner {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: rgba(15, 23, 42, 0.98);
-            backdrop-filter: blur(20px);
-            padding: 24px;
-            box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.3);
-            z-index: 9999;
-            transform: translateY(100%);
-            transition: transform 0.4s ease-out;
-            border-top: 3px solid <?php echo $primaryColor; ?>;
-        }
-        
-        .cookie-banner.show {
-            transform: translateY(0);
-        }
-        
-        .cookie-banner.hidden {
-            display: none;
-        }
-        
-        .cookie-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 24px;
-            flex-wrap: wrap;
-        }
-        
-        .cookie-text {
-            flex: 1;
-            min-width: 280px;
-        }
-        
-        .cookie-text h3 {
-            color: white;
-            font-size: 18px;
-            font-weight: 700;
-            margin-bottom: 8px;
-        }
-        
-        .cookie-text p {
-            color: #cbd5e1;
-            font-size: 14px;
-            line-height: 1.5;
-        }
-        
-        .cookie-text a {
-            color: <?php echo $primaryColor; ?>;
-            text-decoration: underline;
-        }
-        
-        .cookie-actions {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-        
-        .cookie-btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            white-space: nowrap;
-        }
-        
-        .cookie-btn-accept {
-            background: <?php echo $primaryColor; ?>;
-            color: white;
-        }
-        
-        .cookie-btn-accept:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px <?php echo $primaryColor; ?>60;
-        }
-        
-        .cookie-btn-reject {
-            background: transparent;
-            color: #94a3b8;
-            border: 1px solid #475569;
-        }
-        
-        .cookie-btn-reject:hover {
-            background: rgba(71, 85, 105, 0.2);
-            color: white;
-        }
-        
-        .cookie-btn-settings {
-            background: transparent;
-            color: <?php echo $primaryColor; ?>;
-            border: 1px solid <?php echo $primaryColor; ?>;
-        }
-        
-        .cookie-btn-settings:hover {
-            background: <?php echo $primaryColor; ?>15;
+        .raw-code-container {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 12px;
         }
         
         @media (max-width: 768px) {
             h1 {
-                font-size: 32px;
+                font-size: 28px;
             }
-            
             .header, .content {
-                padding: 40px 30px;
-            }
-            
-            .form-container {
-                padding: 35px 25px;
-            }
-            
-            .cookie-content {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            
-            .cookie-actions {
-                flex-direction: column;
-            }
-            
-            .cookie-btn {
-                width: 100%;
-                justify-content: center;
+                padding: 40px 24px;
             }
         }
-        
-        <?php if (!empty($freebie['custom_css'])): ?>
-        <?php echo $freebie['custom_css']; ?>
-        <?php endif; ?>
     </style>
 </head>
 <body>
@@ -590,147 +246,31 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
         </div>
         
         <div class="content">
-            <?php if ($leadCaptured): ?>
-                <div class="success-message">
-                    <div class="success-icon">✅</div>
-                    <h2>Vielen Dank!</h2>
-                    <p>Ihre Anmeldung war erfolgreich.</p>
-                    <?php if (!empty($freebie['freebie_url'])): ?>
-                        <a href="<?php echo htmlspecialchars($freebie['freebie_url']); ?>" 
-                           class="download-link" 
-                           target="_blank">
-                            📥 Jetzt herunterladen
-                        </a>
-                    <?php endif; ?>
+            <?php if (!empty($bulletPoints)): ?>
+                <ul class="bullet-points">
+                    <?php foreach ($bulletPoints as $point): ?>
+                        <?php $cleanPoint = preg_replace('/^[✓✔︎•-]\s*/', '', trim($point)); ?>
+                        <li><?php echo htmlspecialchars($cleanPoint); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+            
+            <?php if (!empty($freebie['raw_code'])): ?>
+                <div class="raw-code-container">
+                    <?php echo $freebie['raw_code']; ?>
                 </div>
             <?php else: ?>
-                <?php if ($errorMessage): ?>
-                    <div class="error-message">
-                        <?php echo htmlspecialchars($errorMessage); ?>
-                    </div>
-                <?php endif; ?>
-                
-                <?php if (!empty($freebie['description'])): ?>
-                    <div class="description">
-                        <?php echo nl2br(htmlspecialchars($freebie['description'])); ?>
-                    </div>
-                <?php endif; ?>
-                
-                <?php if (!empty($bulletPoints)): ?>
-                    <ul class="bullet-points">
-                        <?php foreach ($bulletPoints as $point): ?>
-                            <li><?php echo htmlspecialchars(is_array($point) ? ($point['text'] ?? '') : $point); ?></li>
-                        <?php endforeach; ?>
-                    </ul>
-                <?php endif; ?>
-                
-                <div class="form-container">
-                    <form method="POST" action="">
-                        <input type="email" 
-                               name="email" 
-                               required 
-                               placeholder="<?php echo htmlspecialchars($freebie['optin_placeholder_email'] ?? 'Deine E-Mail-Adresse'); ?>"
-                               value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
-                        
-                        <button type="submit" name="capture_lead" class="submit-btn">
-                            <?php echo htmlspecialchars($freebie['optin_button_text'] ?? 'KOSTENLOS DOWNLOADEN'); ?>
-                        </button>
-                        
-                        <?php if (!empty($freebie['optin_privacy_text'])): ?>
-                            <div class="privacy-text">
-                                <?php echo htmlspecialchars($freebie['optin_privacy_text']); ?>
-                            </div>
-                        <?php endif; ?>
-                    </form>
-                </div>
+                <a href="#" class="cta-button">
+                    <?php echo htmlspecialchars($freebie['cta_text'] ?? 'JETZT KOSTENLOS SICHERN'); ?>
+                </a>
             <?php endif; ?>
         </div>
-    </div>
-    
-    <!-- Footer mit kundenspezifischen Links -->
-    <div class="footer">
-        <div class="footer-links">
+        
+        <div class="footer">
             <a href="<?php echo htmlspecialchars($impressum_link); ?>">Impressum</a>
-            <span class="footer-separator">•</span>
+            <span style="color: #d1d5db;">•</span>
             <a href="<?php echo htmlspecialchars($datenschutz_link); ?>">Datenschutzerklärung</a>
         </div>
     </div>
-    
-    <!-- Cookie Banner -->
-    <div id="cookie-banner" class="cookie-banner">
-        <div class="cookie-content">
-            <div class="cookie-text">
-                <h3>🍪 Wir respektieren deine Privatsphäre</h3>
-                <p>
-                    Wir verwenden Cookies, um dein Erlebnis zu verbessern und Inhalte zu personalisieren. 
-                    <a href="<?php echo htmlspecialchars($datenschutz_link); ?>">Mehr erfahren</a>
-                </p>
-            </div>
-            <div class="cookie-actions">
-                <button onclick="rejectCookies()" class="cookie-btn cookie-btn-reject">
-                    Nur notwendige
-                </button>
-                <button onclick="showCookieSettings()" class="cookie-btn cookie-btn-settings">
-                    Einstellungen
-                </button>
-                <button onclick="acceptCookies()" class="cookie-btn cookie-btn-accept">
-                    Alle akzeptieren
-                </button>
-            </div>
-        </div>
-    </div>
-    
-    <script>
-        // Cookie Banner Management
-        function acceptCookies() {
-            localStorage.setItem('cookieConsent', 'accepted');
-            hideCookieBanner();
-            enableTracking();
-        }
-        
-        function rejectCookies() {
-            localStorage.setItem('cookieConsent', 'rejected');
-            hideCookieBanner();
-            disableTracking();
-        }
-        
-        function showCookieSettings() {
-            // Zur Datenschutzseite mit Cookie-Einstellungen navigieren
-            window.location.href = '<?php echo htmlspecialchars($datenschutz_link); ?>#cookie-einstellungen';
-        }
-        
-        function hideCookieBanner() {
-            const banner = document.getElementById('cookie-banner');
-            if (banner) {
-                banner.classList.remove('show');
-                banner.classList.add('hidden');
-            }
-        }
-        
-        function enableTracking() {
-            console.log('Tracking enabled');
-            // Hier Tracking-Code aktivieren (Google Analytics, etc.)
-        }
-        
-        function disableTracking() {
-            console.log('Tracking disabled');
-            // Hier Tracking-Code deaktivieren
-        }
-        
-        // Cookie-Banner bei Seite-Load prüfen
-        document.addEventListener('DOMContentLoaded', function() {
-            const consent = localStorage.getItem('cookieConsent');
-            const banner = document.getElementById('cookie-banner');
-            
-            if (!consent && banner) {
-                // Kurze Verzögerung für bessere UX
-                setTimeout(() => {
-                    banner.classList.add('show');
-                }, 500);
-            } else if (consent === 'accepted') {
-                enableTracking();
-            }
-        });
-    </script>
 </body>
 </html>
