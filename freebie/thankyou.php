@@ -13,7 +13,7 @@ if ($freebie_id <= 0) {
     die('Ungültige Freebie-ID');
 }
 
-// Freebie aus Datenbank laden MIT verknüpftem Kurs
+// Freebie aus Datenbank laden MIT verknüpftem Kurs und customer_id
 $stmt = $pdo->prepare("
     SELECT 
         f.*,
@@ -30,6 +30,21 @@ $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$freebie) {
     die('Freebie nicht gefunden');
+}
+
+// Customer-ID ermitteln
+$customer_id = null;
+if (isset($freebie['customer_id'])) {
+    // Direktes Feld in freebies Tabelle
+    $customer_id = $freebie['customer_id'];
+} else {
+    // Über customer_freebies Tabelle
+    $stmt_customer = $pdo->prepare("SELECT customer_id FROM customer_freebies WHERE freebie_id = ? LIMIT 1");
+    $stmt_customer->execute([$freebie_id]);
+    $customer_relation = $stmt_customer->fetch(PDO::FETCH_ASSOC);
+    if ($customer_relation) {
+        $customer_id = $customer_relation['customer_id'];
+    }
 }
 
 // Klick-Tracking für Danke-Seite
@@ -55,6 +70,10 @@ if (!empty($freebie['course_id'])) {
 
 // Mockup-Bild des Kurses oder Freebie
 $mockup_image = $freebie['course_mockup'] ?? $freebie['mockup_image_url'] ?? '';
+
+// Footer-Links mit customer_id
+$impressum_link = $customer_id ? "/impressum.php?customer=" . $customer_id : "/impressum.php";
+$datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id : "/datenschutz.php";
 
 // Aktuelle URL für Bookmark-Funktion
 $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
@@ -528,14 +547,14 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         </div>
     </div>
     
-    <!-- Footer -->
+    <!-- Footer mit kundenspezifischen Links -->
     <div class="footer">
         <div class="footer-content">
             <p class="footer-text">&copy; <?php echo date('Y'); ?> - Alle Rechte vorbehalten</p>
             <div class="footer-links">
-                <a href="/impressum.php">Impressum</a>
+                <a href="<?php echo $impressum_link; ?>">Impressum</a>
                 <span style="color: #d1d5db;">•</span>
-                <a href="/datenschutz.php">Datenschutzerklärung</a>
+                <a href="<?php echo $datenschutz_link; ?>">Datenschutzerklärung</a>
             </div>
         </div>
     </div>
