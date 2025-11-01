@@ -8,9 +8,9 @@ RewriteBase /freebie/
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 
+# Ignoriere PHP-Dateien und andere Dateien
+RewriteCond %{REQUEST_URI} !\.(php|html|css|js|jpg|jpeg|png|gif|svg|ico|woff|woff2|ttf|eot)$ [NC]
+
 # Leite clean URLs an index.php mit Parametern weiter
 # z.B. /freebie/abc123 wird zu /freebie/index.php?id=abc123
 RewriteRule ^([a-zA-Z0-9_-]+)$ index.php?id=$1 [L,QSA]
-
-# Fallback: Alle anderen Anfragen auch an index.php
-RewriteRule ^(.*)$ index.php [L,QSA]
