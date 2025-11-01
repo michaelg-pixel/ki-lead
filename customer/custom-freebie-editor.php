@@ -57,7 +57,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
     $raw_code = trim($_POST['raw_code'] ?? '');
     $custom_code = trim($_POST['custom_code'] ?? ''); // Facebook Pixel etc.
     $mockup_image_url = trim($_POST['mockup_image_url'] ?? '');
-    $course_id = !empty($_POST['course_id']) ? (int)$_POST['course_id'] : null;
     
     // Custom Code in raw_code speichern (mit Trennzeichen)
     $combined_code = $raw_code;
@@ -82,14 +81,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
                     headline = ?, subheadline = ?, preheadline = ?,
                     bullet_points = ?, cta_text = ?, layout = ?,
                     background_color = ?, primary_color = ?, raw_code = ?,
-                    mockup_image_url = ?, course_id = ?, updated_at = NOW()
+                    mockup_image_url = ?, updated_at = NOW()
                 WHERE id = ?
             ");
             $stmt->execute([
                 $headline, $subheadline, $preheadline,
                 $bullet_points, $cta_text, $layout,
                 $background_color, $primary_color, $combined_code,
-                $mockup_image_url, $course_id, $freebie['id']
+                $mockup_image_url, $freebie['id']
             ]);
             
             $success_message = "✅ Freebie erfolgreich aktualisiert!";
@@ -99,13 +98,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
                 INSERT INTO customer_freebies (
                     customer_id, headline, subheadline, preheadline,
                     bullet_points, cta_text, layout, background_color, primary_color,
-                    raw_code, mockup_image_url, unique_id, url_slug, freebie_type, course_id, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'custom', ?, NOW())
+                    raw_code, mockup_image_url, unique_id, url_slug, freebie_type, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'custom', NOW())
             ");
             $stmt->execute([
                 $customer_id, $headline, $subheadline, $preheadline,
                 $bullet_points, $cta_text, $layout, $background_color, $primary_color,
-                $combined_code, $mockup_image_url, $unique_id, $url_slug, $course_id
+                $combined_code, $mockup_image_url, $unique_id, $url_slug
             ]);
             
             $freebie_id = $pdo->lastInsertId();
@@ -151,8 +150,7 @@ $form_data = [
     'primary_color' => $freebie['primary_color'] ?? '#8B5CF6',
     'raw_code' => $email_optin_code,
     'custom_code' => $custom_tracking_code,
-    'mockup_image_url' => $freebie['mockup_image_url'] ?? '',
-    'course_id' => $freebie['course_id'] ?? null
+    'mockup_image_url' => $freebie['mockup_image_url'] ?? ''
 ];
 ?>
 <!DOCTYPE html>
@@ -408,21 +406,6 @@ $form_data = [
             font-size: 13px;
             color: #1e3a8a;
             line-height: 1.6;
-        }
-        
-        .course-select-box {
-            background: rgba(16, 185, 129, 0.1);
-            border: 2px solid rgba(16, 185, 129, 0.3);
-            border-radius: 8px;
-            padding: 16px;
-        }
-        
-        .course-select-label {
-            font-size: 14px;
-            font-weight: 600;
-            color: #047857;
-            margin-bottom: 8px;
-            display: block;
         }
         
         .mockup-preview {
@@ -700,23 +683,6 @@ $form_data = [
                                 </button>
                             </div>
                             <?php endif; ?>
-                        </div>
-                    </div>
-                    
-                    <!-- Kurs verknüpfen (optional) -->
-                    <div class="form-section">
-                        <div class="section-title">🎓 Kurs verknüpfen (optional)</div>
-                        <div class="course-select-box">
-                            <label class="course-select-label">Wähle einen Kurs aus</label>
-                            <select name="course_id" class="form-select">
-                                <option value="">Kein Kurs verknüpft</option>
-                                <?php foreach ($courses as $course): ?>
-                                <option value="<?php echo $course['id']; ?>" 
-                                        <?php echo ($form_data['course_id'] == $course['id']) ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($course['title']); ?>
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
                         </div>
                     </div>
                     
