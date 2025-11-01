@@ -17,6 +17,10 @@ if (!isset($customer_id)) {
     $customer_id = $_SESSION['user_id'] ?? 0;
 }
 
+// Domain für vollständige URLs
+$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+$domain = $_SERVER['HTTP_HOST'];
+
 // Freebies aus der Datenbank laden (vom Admin erstellt - Templates)
 try {
     $stmt = $pdo->query("
@@ -45,14 +49,17 @@ try {
     
     // Prüfen, welche Freebies der Kunde bereits bearbeitet hat
     $stmt_customer = $pdo->prepare("
-        SELECT template_id, id as customer_freebie_id
+        SELECT template_id, id as customer_freebie_id, unique_id
         FROM customer_freebies 
         WHERE customer_id = ?
     ");
     $stmt_customer->execute([$customer_id]);
     $customer_freebies_data = [];
     while ($row = $stmt_customer->fetch(PDO::FETCH_ASSOC)) {
-        $customer_freebies_data[$row['template_id']] = $row['customer_freebie_id'];
+        $customer_freebies_data[$row['template_id']] = [
+            'id' => $row['customer_freebie_id'],
+            'unique_id' => $row['unique_id']
+        ];
     }
     
 } catch (PDOException $e) {
@@ -214,9 +221,86 @@ try {
         box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
     }
     
+    /* LINK SECTIONS */
+    .link-sections {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .link-section {
+        background: rgba(102, 126, 234, 0.08);
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 10px;
+    }
+    
+    .link-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #667eea;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .link-icon {
+        font-size: 14px;
+    }
+    
+    .link-item {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+    
+    .link-input {
+        flex: 1;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        color: white;
+        padding: 8px 12px;
+        font-size: 11px;
+        font-family: 'Courier New', monospace;
+        min-width: 0;
+        word-break: break-all;
+    }
+    
+    .btn-copy {
+        padding: 8px 12px;
+        background: rgba(102, 126, 234, 0.3);
+        border: 1px solid #667eea;
+        border-radius: 6px;
+        color: white;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.2s;
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+    
+    .btn-copy:hover {
+        background: rgba(102, 126, 234, 0.5);
+    }
+    
     @media (max-width: 768px) {
         .freebies-grid {
             grid-template-columns: 1fr;
+        }
+        
+        .link-input {
+            font-size: 10px;
+            padding: 6px 10px;
+        }
+        
+        .btn-copy {
+            padding: 6px 10px;
+            font-size: 11px;
         }
     }
 </style>
@@ -265,12 +349,12 @@ try {
         <div class="freebies-grid">
             <?php foreach ($freebies as $freebie): 
                 $isUsedByCustomer = isset($customer_freebies_data[$freebie['id']]);
-                $customer_freebie_id = $customer_freebies_data[$freebie['id']] ?? null;
+                $customer_freebie_data = $customer_freebies_data[$freebie['id']] ?? null;
                 
                 // Vorschau URL
-                if ($isUsedByCustomer && $customer_freebie_id) {
+                if ($isUsedByCustomer && $customer_freebie_data) {
                     // Zeige die Customer-Version
-                    $previewUrl = '/customer/freebie-preview.php?id=' . $customer_freebie_id;
+                    $previewUrl = '/customer/freebie-preview.php?id=' . $customer_freebie_data['id'];
                     $previewTarget = '';
                 } else {
                     // Zeige Template-Vorschau
@@ -280,6 +364,20 @@ try {
                 
                 // Editor URL
                 $editorUrl = '/customer/freebie-editor.php?template_id=' . $freebie['id'];
+                
+                // Öffentliche Links für Kunden
+                $freebieLink = '';
+                $thankYouLink = '';
+                
+                if ($isUsedByCustomer && $customer_freebie_data && !empty($customer_freebie_data['unique_id'])) {
+                    // Customer hat das Freebie angepasst - zeige personalisierte Links
+                    $freebieLink = $protocol . '://' . $domain . '/freebie/' . $customer_freebie_data['unique_id'];
+                    $thankYouLink = $protocol . '://' . $domain . '/freebie/thankyou.php?id=' . $freebie['id'];
+                } elseif (!empty($freebie['unique_id'])) {
+                    // Template-Links als Beispiel
+                    $freebieLink = $protocol . '://' . $domain . '/freebie/' . $freebie['unique_id'];
+                    $thankYouLink = $protocol . '://' . $domain . '/freebie/thankyou.php?id=' . $freebie['id'];
+                }
                 
                 $bgColor = $freebie['background_color'] ?: '#667eea';
                 $primaryColor = $freebie['primary_color'] ?: '#667eea';
@@ -355,6 +453,51 @@ try {
                                 <?php echo $isUsedByCustomer ? '✏️ Bearbeiten' : '✨ Nutzen'; ?>
                             </a>
                         </div>
+                        
+                        <!-- LINKS SECTION - nur anzeigen wenn Freebie genutzt wird -->
+                        <?php if ($isUsedByCustomer && !empty($freebieLink)): ?>
+                            <div class="link-sections">
+                                <!-- Freebie Link -->
+                                <div class="link-section">
+                                    <div class="link-header">
+                                        <span class="link-icon">🔗</span>
+                                        <span>Freebie-Link</span>
+                                    </div>
+                                    <div class="link-item">
+                                        <input type="text" 
+                                               readonly 
+                                               value="<?php echo htmlspecialchars($freebieLink); ?>" 
+                                               class="link-input" 
+                                               id="freebie-link-<?php echo $freebie['id']; ?>">
+                                        <button onclick="copyCustomerLink('freebie-link-<?php echo $freebie['id']; ?>')" 
+                                                class="btn-copy" 
+                                                title="Link kopieren">
+                                            📋 Kopieren
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Danke-Seite Link -->
+                                <div class="link-section">
+                                    <div class="link-header">
+                                        <span class="link-icon">🎉</span>
+                                        <span>Danke-Seite</span>
+                                    </div>
+                                    <div class="link-item">
+                                        <input type="text" 
+                                               readonly 
+                                               value="<?php echo htmlspecialchars($thankYouLink); ?>" 
+                                               class="link-input" 
+                                               id="thankyou-link-<?php echo $freebie['id']; ?>">
+                                        <button onclick="copyCustomerLink('thankyou-link-<?php echo $freebie['id']; ?>')" 
+                                                class="btn-copy" 
+                                                title="Link kopieren">
+                                            📋 Kopieren
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -379,3 +522,41 @@ try {
         
     <?php endif; ?>
 </div>
+
+<script>
+// Link kopieren Funktion
+function copyCustomerLink(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    
+    input.select();
+    input.setSelectionRange(0, 99999); // Für mobile Geräte
+    
+    try {
+        document.execCommand('copy');
+        
+        // Button-Feedback
+        const button = input.nextElementSibling;
+        if (button) {
+            const originalHTML = button.innerHTML;
+            button.innerHTML = '✓ Kopiert!';
+            button.style.background = 'rgba(34, 197, 94, 0.5)';
+            button.style.borderColor = '#22c55e';
+            
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+                button.style.background = '';
+                button.style.borderColor = '';
+            }, 2000);
+        }
+        
+        // Zusätzlich moderne Clipboard API verwenden (falls unterstützt)
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(input.value);
+        }
+    } catch (err) {
+        console.error('Fehler beim Kopieren:', err);
+        alert('Fehler beim Kopieren. Bitte manuell kopieren.');
+    }
+}
+</script>
