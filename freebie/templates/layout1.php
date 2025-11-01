@@ -207,13 +207,25 @@
         <?php endif; ?>
     </div>
     
-    <!-- Footer -->
+    <!-- Footer mit kundenspezifischen Links -->
     <footer class="bg-gray-100 border-t border-gray-200 py-8 mt-16">
         <div class="container-custom">
             <div class="flex flex-wrap justify-center gap-6 text-sm text-gray-600">
-                <a href="/impressum.php" class="hover:text-gray-900 transition">Impressum</a>
+                <?php
+                // Customer-ID ermitteln für Footer-Links
+                $customer_id_footer = null;
+                if (isset($customer_id)) {
+                    $customer_id_footer = $customer_id;
+                } elseif (isset($freebie['customer_id'])) {
+                    $customer_id_footer = $freebie['customer_id'];
+                }
+                
+                $impressum_link = $customer_id_footer ? "/impressum.php?customer=" . $customer_id_footer : "/impressum.php";
+                $datenschutz_link = $customer_id_footer ? "/datenschutz.php?customer=" . $customer_id_footer : "/datenschutz.php";
+                ?>
+                <a href="<?= $impressum_link ?>" class="hover:text-gray-900 transition">Impressum</a>
                 <span class="text-gray-400">•</span>
-                <a href="/datenschutz.php" class="hover:text-gray-900 transition">Datenschutzerklärung</a>
+                <a href="<?= $datenschutz_link ?>" class="hover:text-gray-900 transition">Datenschutzerklärung</a>
             </div>
         </div>
     </footer>
@@ -228,7 +240,7 @@
                         <h3 class="font-bold text-gray-900 mb-1">Wir respektieren Ihre Privatsphäre</h3>
                         <p class="text-sm text-gray-600">
                             Wir verwenden Cookies, um Ihnen die bestmögliche Erfahrung zu bieten. 
-                            <a href="/datenschutz.php" class="text-blue-600 hover:underline">Mehr erfahren</a>
+                            <a href="<?= $datenschutz_link ?>" class="text-blue-600 hover:underline">Mehr erfahren</a>
                         </p>
                     </div>
                 </div>
