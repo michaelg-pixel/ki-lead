@@ -137,23 +137,34 @@ if (!$current_lesson && count($modules) > 0 && count($modules[0]['lessons']) > 0
     $current_lesson = $modules[0]['lessons'][0];
 }
 
-// Video URL parsen
-$video_embed = null;
-if ($current_lesson && $current_lesson['video_url']) {
-    $url = $current_lesson['video_url'];
+// Video URL parsen - VERBESSERTE VERSION
+function parseVideoUrl($url) {
+    if (empty($url)) {
+        return null;
+    }
     
-    // Vimeo
-    if (preg_match('/vimeo\.com\/(\d+)/', $url, $matches)) {
-        $video_embed = "https://player.vimeo.com/video/" . $matches[1];
+    // Vimeo Patterns
+    // https://vimeo.com/123456789
+    // https://vimeo.com/123456789?h=abc123
+    // https://player.vimeo.com/video/123456789
+    if (preg_match('/vimeo\.com\/(?:video\/)?(\d+)(?:\?h=([a-zA-Z0-9]+))?/', $url, $matches)) {
+        $video_id = $matches[1];
+        $hash = isset($matches[2]) ? '?h=' . $matches[2] : '';
+        return "https://player.vimeo.com/video/{$video_id}{$hash}";
     }
-    // YouTube
-    elseif (preg_match('/youtube\.com\/watch\?v=([^&]+)/', $url, $matches)) {
-        $video_embed = "https://www.youtube.com/embed/" . $matches[1];
+    
+    // YouTube Patterns
+    // https://www.youtube.com/watch?v=VIDEO_ID
+    // https://youtu.be/VIDEO_ID
+    // https://www.youtube.com/embed/VIDEO_ID
+    if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/', $url, $matches)) {
+        return "https://www.youtube.com/embed/" . $matches[1];
     }
-    elseif (preg_match('/youtu\.be\/([^?]+)/', $url, $matches)) {
-        $video_embed = "https://www.youtube.com/embed/" . $matches[1];
-    }
+    
+    return null;
 }
+
+$video_embed = $current_lesson ? parseVideoUrl($current_lesson['video_url']) : null;
 
 // Fortschritt simulieren (für Demo-Zwecke)
 $total_lessons = 0;
@@ -424,6 +435,21 @@ $progress_percentage = $total_lessons > 0 ? round(($completed_lessons / $total_l
             gap: 16px;
         }
         
+        .no-video p {
+            font-size: 14px;
+        }
+        
+        .video-url-debug {
+            font-size: 12px;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            max-width: 80%;
+            word-break: break-all;
+        }
+        
         /* Lesson Content */
         .lesson-content {
             padding: 40px;
@@ -634,7 +660,12 @@ $progress_percentage = $total_lessons > 0 ? round(($completed_lessons / $total_l
                     <?php else: ?>
                         <div class="no-video">
                             <span style="font-size: 64px;">🎥</span>
-                            <p>Kein Video verknüpft</p>
+                            <p>Kein Video verknüpft oder URL-Format nicht erkannt</p>
+                            <?php if ($current_lesson['video_url']): ?>
+                                <div class="video-url-debug">
+                                    URL: <?php echo htmlspecialchars($current_lesson['video_url']); ?>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     <?php endif; ?>
                 </div>
