@@ -106,6 +106,19 @@ if (isset($_POST['add_module'])) {
     exit;
 }
 
+// Modul bearbeiten
+if (isset($_POST['edit_module'])) {
+    $module_id = (int)$_POST['module_id'];
+    $module_title = $_POST['module_title'];
+    $module_description = $_POST['module_description'];
+    
+    $stmt = $conn->prepare("UPDATE modules SET title = ?, description = ? WHERE id = ?");
+    $stmt->execute([$module_title, $module_description, $module_id]);
+    
+    header('Location: course-edit.php?id=' . $course_id . '&module_updated=1');
+    exit;
+}
+
 // Lektion hinzufügen
 if (isset($_POST['add_lesson'])) {
     $module_id = (int)$_POST['module_id'];
@@ -146,6 +159,52 @@ if (isset($_POST['add_lesson'])) {
     exit;
 }
 
+// Lektion bearbeiten
+if (isset($_POST['edit_lesson'])) {
+    $lesson_id = (int)$_POST['lesson_id'];
+    $lesson_title = $_POST['lesson_title'];
+    $lesson_description = $_POST['lesson_description'];
+    $vimeo_url = $_POST['vimeo_url'];
+    
+    // Aktuelle PDF-Datei laden
+    $stmt = $conn->prepare("SELECT pdf_file FROM lessons WHERE id = ?");
+    $stmt->execute([$lesson_id]);
+    $current_lesson = $stmt->fetch(PDO::FETCH_ASSOC);
+    $pdf_file = $current_lesson['pdf_file'];
+    
+    // Neue PDF hochladen (falls vorhanden)
+    if (isset($_FILES['pdf_file']) && $_FILES['pdf_file']['error'] === 0) {
+        $upload_dir = '../uploads/pdfs/';
+        if (!file_exists($upload_dir)) {
+            mkdir($upload_dir, 0755, true);
+        }
+        
+        $file_ext = pathinfo($_FILES['pdf_file']['name'], PATHINFO_EXTENSION);
+        if (strtolower($file_ext) === 'pdf') {
+            $new_filename = uniqid() . '_' . time() . '.pdf';
+            $upload_path = $upload_dir . $new_filename;
+            
+            if (move_uploaded_file($_FILES['pdf_file']['tmp_name'], $upload_path)) {
+                // Alte PDF löschen
+                if ($pdf_file && file_exists($upload_dir . $pdf_file)) {
+                    unlink($upload_dir . $pdf_file);
+                }
+                $pdf_file = $new_filename;
+            }
+        }
+    }
+    
+    $stmt = $conn->prepare("
+        UPDATE lessons 
+        SET title = ?, description = ?, vimeo_url = ?, pdf_file = ? 
+        WHERE id = ?
+    ");
+    $stmt->execute([$lesson_title, $lesson_description, $vimeo_url, $pdf_file, $lesson_id]);
+    
+    header('Location: course-edit.php?id=' . $course_id . '&lesson_updated=1');
+    exit;
+}
+
 // Modul löschen
 if (isset($_POST['delete_module'])) {
     $module_id = (int)$_POST['module_id'];
@@ -161,6 +220,18 @@ if (isset($_POST['delete_module'])) {
 // Lektion löschen
 if (isset($_POST['delete_lesson'])) {
     $lesson_id = (int)$_POST['lesson_id'];
+    
+    // PDF-Datei löschen falls vorhanden
+    $stmt = $conn->prepare("SELECT pdf_file FROM lessons WHERE id = ?");
+    $stmt->execute([$lesson_id]);
+    $lesson = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($lesson && $lesson['pdf_file']) {
+        $pdf_path = '../uploads/pdfs/' . $lesson['pdf_file'];
+        if (file_exists($pdf_path)) {
+            unlink($pdf_path);
+        }
+    }
+    
     $stmt = $conn->prepare("DELETE FROM lessons WHERE id = ?");
     $stmt->execute([$lesson_id]);
     
@@ -237,9 +308,21 @@ $niches = [
                 </div>
             <?php endif; ?>
             
+            <?php if (isset($_GET['module_updated'])): ?>
+                <div class="bg-green-600 text-white px-4 py-3 rounded mb-6">
+                    Modul erfolgreich aktualisiert!
+                </div>
+            <?php endif; ?>
+            
             <?php if (isset($_GET['lesson_added'])): ?>
                 <div class="bg-green-600 text-white px-4 py-3 rounded mb-6">
                     Lektion erfolgreich hinzugefügt!
+                </div>
+            <?php endif; ?>
+            
+            <?php if (isset($_GET['lesson_updated'])): ?>
+                <div class="bg-green-600 text-white px-4 py-3 rounded mb-6">
+                    Lektion erfolgreich aktualisiert!
                 </div>
             <?php endif; ?>
 
@@ -350,16 +433,52 @@ $niches = [
                             <?php foreach ($modules as $module): ?>
                                 <div class="bg-gray-700 rounded-lg p-6">
                                     <div class="flex justify-between items-start mb-4">
-                                        <div>
+                                        <div class="flex-1">
                                             <h4 class="text-xl font-bold"><?= htmlspecialchars($module['title']) ?></h4>
                                             <p class="text-gray-400 mt-1"><?= htmlspecialchars($module['description']) ?></p>
                                         </div>
-                                        <form method="POST" onsubmit="return confirm('Modul wirklich löschen?')" class="inline">
-                                            <input type="hidden" name="module_id" value="<?= $module['id'] ?>">
-                                            <button type="submit" name="delete_module" 
-                                                    class="bg-red-600 hover:bg-red-700 px-3 py-2 rounded text-sm">
-                                                <i class="fas fa-trash"></i>
+                                        <div class="flex gap-2">
+                                            <button onclick="toggleEditModule(<?= $module['id'] ?>)" 
+                                                    class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded text-sm">
+                                                <i class="fas fa-edit"></i> Bearbeiten
                                             </button>
+                                            <form method="POST" onsubmit="return confirm('Modul wirklich löschen?')" class="inline">
+                                                <input type="hidden" name="module_id" value="<?= $module['id'] ?>">
+                                                <button type="submit" name="delete_module" 
+                                                        class="bg-red-600 hover:bg-red-700 px-3 py-2 rounded text-sm">
+                                                    <i class="fas fa-trash"></i> Löschen
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Bearbeitungsformular für Modul (versteckt) -->
+                                    <div id="edit-module-<?= $module['id'] ?>" class="hidden bg-gray-600 p-4 rounded mb-4">
+                                        <form method="POST">
+                                            <input type="hidden" name="module_id" value="<?= $module['id'] ?>">
+                                            <div class="space-y-3">
+                                                <div>
+                                                    <label class="block mb-1 text-sm">Modultitel</label>
+                                                    <input type="text" name="module_title" 
+                                                           value="<?= htmlspecialchars($module['title']) ?>" 
+                                                           class="w-full bg-gray-700 px-4 py-2 rounded" required>
+                                                </div>
+                                                <div>
+                                                    <label class="block mb-1 text-sm">Beschreibung</label>
+                                                    <textarea name="module_description" rows="2" 
+                                                              class="w-full bg-gray-700 px-4 py-2 rounded"><?= htmlspecialchars($module['description']) ?></textarea>
+                                                </div>
+                                                <div class="flex gap-2">
+                                                    <button type="submit" name="edit_module" 
+                                                            class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded">
+                                                        <i class="fas fa-save mr-1"></i> Speichern
+                                                    </button>
+                                                    <button type="button" onclick="toggleEditModule(<?= $module['id'] ?>)" 
+                                                            class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded">
+                                                        Abbrechen
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </form>
                                     </div>
                                     
@@ -367,26 +486,84 @@ $niches = [
                                     <?php if (!empty($lessons_by_module[$module['id']])): ?>
                                         <div class="space-y-3">
                                             <?php foreach ($lessons_by_module[$module['id']] as $lesson): ?>
-                                                <div class="bg-gray-800 p-4 rounded flex justify-between items-center">
-                                                    <div class="flex-1">
-                                                        <div class="font-semibold"><?= htmlspecialchars($lesson['title']) ?></div>
-                                                        <div class="text-sm text-gray-400"><?= htmlspecialchars($lesson['description']) ?></div>
-                                                        <div class="text-xs text-purple-400 mt-1">
-                                                            <i class="fas fa-video mr-1"></i> Vimeo: <?= htmlspecialchars($lesson['vimeo_url']) ?>
-                                                            <?php if ($lesson['pdf_file']): ?>
-                                                                <span class="ml-3">
-                                                                    <i class="fas fa-file-pdf mr-1"></i> PDF vorhanden
-                                                                </span>
-                                                            <?php endif; ?>
+                                                <div class="bg-gray-800 p-4 rounded">
+                                                    <div class="flex justify-between items-start">
+                                                        <div class="flex-1">
+                                                            <div class="font-semibold"><?= htmlspecialchars($lesson['title']) ?></div>
+                                                            <div class="text-sm text-gray-400"><?= htmlspecialchars($lesson['description']) ?></div>
+                                                            <div class="text-xs text-purple-400 mt-1">
+                                                                <i class="fas fa-video mr-1"></i> Vimeo: <?= htmlspecialchars($lesson['vimeo_url']) ?>
+                                                                <?php if ($lesson['pdf_file']): ?>
+                                                                    <span class="ml-3">
+                                                                        <i class="fas fa-file-pdf mr-1"></i> 
+                                                                        <a href="../uploads/pdfs/<?= htmlspecialchars($lesson['pdf_file']) ?>" 
+                                                                           target="_blank" class="hover:underline">PDF vorhanden</a>
+                                                                    </span>
+                                                                <?php endif; ?>
+                                                            </div>
+                                                        </div>
+                                                        <div class="flex gap-2 ml-4">
+                                                            <button onclick="toggleEditLesson(<?= $lesson['id'] ?>)" 
+                                                                    class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded text-sm">
+                                                                <i class="fas fa-edit"></i>
+                                                            </button>
+                                                            <form method="POST" onsubmit="return confirm('Lektion löschen?')" class="inline">
+                                                                <input type="hidden" name="lesson_id" value="<?= $lesson['id'] ?>">
+                                                                <button type="submit" name="delete_lesson" 
+                                                                        class="bg-red-600 hover:bg-red-700 px-3 py-2 rounded text-sm">
+                                                                    <i class="fas fa-trash"></i>
+                                                                </button>
+                                                            </form>
                                                         </div>
                                                     </div>
-                                                    <form method="POST" onsubmit="return confirm('Lektion löschen?')" class="inline ml-4">
-                                                        <input type="hidden" name="lesson_id" value="<?= $lesson['id'] ?>">
-                                                        <button type="submit" name="delete_lesson" 
-                                                                class="bg-red-600 hover:bg-red-700 px-3 py-2 rounded text-sm">
-                                                            <i class="fas fa-trash"></i>
-                                                        </button>
-                                                    </form>
+                                                    
+                                                    <!-- Bearbeitungsformular für Lektion (versteckt) -->
+                                                    <div id="edit-lesson-<?= $lesson['id'] ?>" class="hidden mt-4 bg-gray-700 p-4 rounded">
+                                                        <form method="POST" enctype="multipart/form-data">
+                                                            <input type="hidden" name="lesson_id" value="<?= $lesson['id'] ?>">
+                                                            <div class="space-y-3">
+                                                                <div>
+                                                                    <label class="block mb-1 text-sm">Lektionstitel</label>
+                                                                    <input type="text" name="lesson_title" 
+                                                                           value="<?= htmlspecialchars($lesson['title']) ?>" 
+                                                                           class="w-full bg-gray-600 px-4 py-2 rounded" required>
+                                                                </div>
+                                                                <div>
+                                                                    <label class="block mb-1 text-sm">Beschreibung</label>
+                                                                    <textarea name="lesson_description" rows="2" 
+                                                                              class="w-full bg-gray-600 px-4 py-2 rounded"><?= htmlspecialchars($lesson['description']) ?></textarea>
+                                                                </div>
+                                                                <div>
+                                                                    <label class="block mb-1 text-sm">Vimeo URL</label>
+                                                                    <input type="url" name="vimeo_url" 
+                                                                           value="<?= htmlspecialchars($lesson['vimeo_url']) ?>" 
+                                                                           class="w-full bg-gray-600 px-4 py-2 rounded" required>
+                                                                </div>
+                                                                <div>
+                                                                    <label class="block mb-1 text-sm">
+                                                                        PDF hochladen (optional - leer lassen um beizubehalten)
+                                                                    </label>
+                                                                    <input type="file" name="pdf_file" accept=".pdf" 
+                                                                           class="w-full bg-gray-600 px-4 py-2 rounded">
+                                                                    <?php if ($lesson['pdf_file']): ?>
+                                                                        <div class="text-xs text-gray-400 mt-1">
+                                                                            Aktuell: <?= htmlspecialchars($lesson['pdf_file']) ?>
+                                                                        </div>
+                                                                    <?php endif; ?>
+                                                                </div>
+                                                                <div class="flex gap-2">
+                                                                    <button type="submit" name="edit_lesson" 
+                                                                            class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded">
+                                                                        <i class="fas fa-save mr-1"></i> Speichern
+                                                                    </button>
+                                                                    <button type="button" onclick="toggleEditLesson(<?= $lesson['id'] ?>)" 
+                                                                            class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded">
+                                                                        Abbrechen
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </form>
+                                                    </div>
                                                 </div>
                                             <?php endforeach; ?>
                                         </div>
@@ -451,6 +628,26 @@ $niches = [
         document.querySelector('input[name="is_premium"]').addEventListener('change', function() {
             document.getElementById('digistore-field').style.display = this.checked ? 'block' : 'none';
         });
+        
+        // Toggle Modul-Bearbeitung
+        function toggleEditModule(moduleId) {
+            const editForm = document.getElementById('edit-module-' + moduleId);
+            if (editForm.classList.contains('hidden')) {
+                editForm.classList.remove('hidden');
+            } else {
+                editForm.classList.add('hidden');
+            }
+        }
+        
+        // Toggle Lektions-Bearbeitung
+        function toggleEditLesson(lessonId) {
+            const editForm = document.getElementById('edit-lesson-' + lessonId);
+            if (editForm.classList.contains('hidden')) {
+                editForm.classList.remove('hidden');
+            } else {
+                editForm.classList.add('hidden');
+            }
+        }
     </script>
 
 </body>
