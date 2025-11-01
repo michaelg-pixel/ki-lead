@@ -381,8 +381,8 @@ try {
                 $thankYouLink = '';
                 
                 if ($isUsedByCustomer && $customer_freebie_data && !empty($customer_freebie_data['unique_id'])) {
-                    // Customer hat das Template bearbeitet - zeige SEINE Version
-                    $freebieLink = $protocol . '://' . $domain . '/freebie/' . $customer_freebie_data['unique_id'];
+                    // WICHTIG: Parameter-URL verwenden (funktioniert), nicht Clean URL
+                    $freebieLink = $protocol . '://' . $domain . '/freebie/index.php?id=' . $customer_freebie_data['unique_id'];
                     $thankYouLink = $protocol . '://' . $domain . '/freebie/thankyou.php?id=' . $customer_freebie_data['id'] . '&customer=' . $customer_id;
                 }
                 
