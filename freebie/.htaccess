@@ -1,15 +1,9 @@
 # .htaccess für Freebie-Bereich
 RewriteEngine On
 
-# Wenn es eine echte Datei ist (wie test.php, debug.php), lass sie durch
-RewriteCond %{REQUEST_FILENAME} -f
+# Alles mit einem Punkt (Dateiendung) durchlassen - KEINE Umleitung
+RewriteCond %{REQUEST_URI} \. 
 RewriteRule ^ - [L]
 
-# Wenn es ein echtes Verzeichnis ist, lass es durch
-RewriteCond %{REQUEST_FILENAME} -d
-RewriteRule ^ - [L]
-
-# Nur für URLs ohne Punkt (also keine .php, .html, etc.)
-# Leite an index.php weiter
-RewriteCond %{REQUEST_URI} !\.
+# Alles andere (ohne Punkt) als unique_id an index.php weiterleiten
 RewriteRule ^([a-zA-Z0-9]+)$ /freebie/index.php?id=$1 [L,QSA]
