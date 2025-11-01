@@ -18,7 +18,6 @@ $stmt = $pdo->prepare("
         c.*,
         ca.id as has_access,
         ca.access_source,
-        ca.granted_at,
         (SELECT COUNT(*) FROM course_modules WHERE course_id = c.id) as module_count,
         (SELECT COUNT(cl.id) 
          FROM course_lessons cl 
