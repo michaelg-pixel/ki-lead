@@ -70,30 +70,32 @@ try {
             c.thumbnail as course_thumbnail
         FROM freebies f
         LEFT JOIN courses c ON f.course_id = c.id
+        WHERE f.is_active = 1
         ORDER BY f.created_at DESC
     ");
     $freebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Prüfen, welche Freebies der Kunde bereits bearbeitet hat
+    // Prüfen, welche Freebies der Kunde bereits bearbeitet hat (template-basiert)
     $stmt_customer = $pdo->prepare("
         SELECT template_id, id as customer_freebie_id, unique_id
         FROM customer_freebies 
-        WHERE customer_id = ?
+        WHERE customer_id = ? AND (freebie_type = 'template' OR freebie_type IS NULL)
     ");
     $stmt_customer->execute([$customer_id]);
     $customer_freebies_data = [];
     while ($row = $stmt_customer->fetch(PDO::FETCH_ASSOC)) {
-        $customer_freebies_data[$row['template_id']] = [
-            'id' => $row['customer_freebie_id'],
-            'unique_id' => $row['unique_id']
-        ];
+        if ($row['template_id']) {
+            $customer_freebies_data[$row['template_id']] = [
+                'id' => $row['customer_freebie_id'],
+                'unique_id' => $row['unique_id']
+            ];
+        }
     }
     
-    // EIGENE FREEBIES LADEN (custom type)
+    // EIGENE FREEBIES LADEN (custom type) - FIX: Nur vorhandene Spalten
     $stmt_custom = $pdo->prepare("
         SELECT 
             cf.id,
-            cf.name,
             cf.headline,
             cf.subheadline,
             cf.background_color,
@@ -761,7 +763,7 @@ try {
                         
                         <div class="freebie-content">
                             <h3 class="freebie-title">
-                                <?php echo htmlspecialchars($custom['headline'] ?: $custom['name']); ?>
+                                <?php echo htmlspecialchars($custom['headline']); ?>
                             </h3>
                             
                             <?php if (!empty($custom['subheadline'])): ?>
