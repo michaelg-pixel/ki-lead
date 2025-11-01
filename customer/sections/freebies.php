@@ -271,10 +271,11 @@ try {
                 if ($isUsedByCustomer && $customer_freebie_id) {
                     // Zeige die Customer-Version
                     $previewUrl = '/customer/freebie-preview.php?id=' . $customer_freebie_id;
+                    $previewTarget = '';
                 } else {
                     // Zeige Template-Vorschau
-                    $identifier = !empty($freebie['url_slug']) ? $freebie['url_slug'] : $freebie['unique_id'];
-                    $previewUrl = 'https://app.mehr-infos-jetzt.de/freebie/' . urlencode($identifier);
+                    $previewUrl = '/template-preview.php?template_id=' . $freebie['id'];
+                    $previewTarget = 'target="_blank" rel="noopener noreferrer"';
                 }
                 
                 // Editor URL
@@ -345,7 +346,7 @@ try {
                         
                         <div class="freebie-actions">
                             <a href="<?php echo htmlspecialchars($previewUrl); ?>" 
-                               <?php echo !$isUsedByCustomer ? 'target="_blank" rel="noopener noreferrer"' : ''; ?>
+                               <?php echo $previewTarget; ?>
                                class="action-btn action-btn-preview">
                                 👁️ <?php echo $isUsedByCustomer ? 'Meine Version' : 'Vorschau'; ?>
                             </a>
