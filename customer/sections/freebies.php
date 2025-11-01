@@ -341,7 +341,7 @@ try {
             <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>1.</strong> Wähle ein Freebie-Template aus unserer Bibliothek</p>
             <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>2.</strong> Klicke auf "Nutzen" um es zu bearbeiten und anzupassen</p>
             <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>3.</strong> Füge deinen E-Mail-Optin Code ein und passe die Farben an</p>
-            <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>4.</strong> Speichere und teile den generierten Link!</p>
+            <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>4.</strong> Kopiere die Links und teile sie in deinem Marketing!</p>
             <p style="color: #60a5fa; font-size: 13px; margin-top: 12px;">✨ Du kannst jedes Template individuell anpassen und mehrfach verwenden!</p>
         </div>
         
@@ -365,16 +365,12 @@ try {
                 // Editor URL
                 $editorUrl = '/customer/freebie-editor.php?template_id=' . $freebie['id'];
                 
-                // Öffentliche Links für Kunden
+                // Öffentliche Links - IMMER basierend auf Template
                 $freebieLink = '';
                 $thankYouLink = '';
                 
-                if ($isUsedByCustomer && $customer_freebie_data && !empty($customer_freebie_data['unique_id'])) {
-                    // Customer hat das Freebie angepasst - zeige personalisierte Links
-                    $freebieLink = $protocol . '://' . $domain . '/freebie/' . $customer_freebie_data['unique_id'];
-                    $thankYouLink = $protocol . '://' . $domain . '/freebie/thankyou.php?id=' . $freebie['id'];
-                } elseif (!empty($freebie['unique_id'])) {
-                    // Template-Links als Beispiel
+                if (!empty($freebie['unique_id'])) {
+                    // Template-Links (immer verfügbar)
                     $freebieLink = $protocol . '://' . $domain . '/freebie/' . $freebie['unique_id'];
                     $thankYouLink = $protocol . '://' . $domain . '/freebie/thankyou.php?id=' . $freebie['id'];
                 }
@@ -454,8 +450,8 @@ try {
                             </a>
                         </div>
                         
-                        <!-- LINKS SECTION - nur anzeigen wenn Freebie genutzt wird -->
-                        <?php if ($isUsedByCustomer && !empty($freebieLink)): ?>
+                        <!-- LINKS SECTION - IMMER anzeigen -->
+                        <?php if (!empty($freebieLink)): ?>
                             <div class="link-sections">
                                 <!-- Freebie Link -->
                                 <div class="link-section">
@@ -472,7 +468,7 @@ try {
                                         <button onclick="copyCustomerLink('freebie-link-<?php echo $freebie['id']; ?>')" 
                                                 class="btn-copy" 
                                                 title="Link kopieren">
-                                            📋 Kopieren
+                                            📋
                                         </button>
                                     </div>
                                 </div>
@@ -492,7 +488,7 @@ try {
                                         <button onclick="copyCustomerLink('thankyou-link-<?php echo $freebie['id']; ?>')" 
                                                 class="btn-copy" 
                                                 title="Link kopieren">
-                                            📋 Kopieren
+                                            📋
                                         </button>
                                     </div>
                                 </div>
@@ -539,7 +535,7 @@ function copyCustomerLink(inputId) {
         const button = input.nextElementSibling;
         if (button) {
             const originalHTML = button.innerHTML;
-            button.innerHTML = '✓ Kopiert!';
+            button.innerHTML = '✓';
             button.style.background = 'rgba(34, 197, 94, 0.5)';
             button.style.borderColor = '#22c55e';
             
