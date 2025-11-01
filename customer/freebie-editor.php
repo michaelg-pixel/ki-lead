@@ -1,13 +1,14 @@
 <?php
 session_start();
-require_once '../config/database.php';
-require_once '../includes/auth.php';
+require_once __DIR__ . '/../config/database.php';
 
-if (!isLoggedIn()) {
-    header('Location: ../public/login.php');
+// Check if customer is logged in
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
+    header('Location: /public/login.php');
     exit;
 }
 
+$pdo = getDBConnection();
 $customer_id = $_SESSION['user_id'];
 $template_id = isset($_GET['template_id']) ? (int)$_GET['template_id'] : 0;
 
@@ -577,7 +578,7 @@ $form_data = [
 <body>
     <div class="editor-container">
         <div class="editor-header">
-            <a href="dashboard.php?page=freebies" class="back-button">
+            <a href="/customer/dashboard.php?page=freebies" class="back-button">
                 ← Zurück zur Übersicht
             </a>
             <h1>🎁 Freebie bearbeiten</h1>
