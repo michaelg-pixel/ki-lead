@@ -92,7 +92,7 @@ try {
         }
     }
     
-    // EIGENE FREEBIES LADEN (custom type) - FIX: Nur vorhandene Spalten
+    // EIGENE FREEBIES LADEN (custom type) - NUR vorhandene Spalten!
     $stmt_custom = $pdo->prepare("
         SELECT 
             cf.id,
