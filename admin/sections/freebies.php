@@ -20,7 +20,7 @@ $domain = $_SERVER['HTTP_HOST'];
     </div>
     
     <?php if (count($freebies) > 0): ?>
-    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 24px; margin-top: 24px;">
+    <div class="freebies-grid">
         <?php foreach ($freebies as $freebie): ?>
         <div class="freebie-card">
             <div class="freebie-mockup">
@@ -112,21 +112,27 @@ $domain = $_SERVER['HTTP_HOST'];
 </div>
 
 <!-- VORSCHAU MODAL -->
-<div id="previewModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; align-items: center; justify-content: center;">
-    <div style="background: white; border-radius: 12px; width: 90%; max-width: 1400px; max-height: 90vh; overflow-y: auto; position: relative;">
-        <div style="position: sticky; top: 0; background: white; border-bottom: 1px solid #e5e7eb; padding: 20px; display: flex; justify-content: space-between; align-items: center; z-index: 10;">
-            <h3 style="color: #1f2937; font-size: 20px; margin: 0;">Template Vorschau</h3>
-            <button onclick="closePreview()" style="padding: 8px 16px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; transition: background 0.2s;">
-                ✕ Schließen
-            </button>
+<div id="previewModal" class="preview-modal">
+    <div class="preview-container">
+        <div class="preview-header">
+            <h3>Template Vorschau</h3>
+            <button onclick="closePreview()" class="preview-close">✕ Schließen</button>
         </div>
-        <div id="previewContent" style="padding: 40px; position: relative;">
+        <div id="previewContent" class="preview-body">
             <!-- Preview wird hier geladen -->
         </div>
     </div>
 </div>
 
 <style>
+    /* Grid für Freebie Cards */
+    .freebies-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 24px;
+        margin-top: 24px;
+    }
+    
     .freebie-card {
         background: linear-gradient(135deg, #1e1e3f 0%, #2a2a4f 100%);
         border: 1px solid rgba(102, 126, 234, 0.2);
@@ -185,6 +191,8 @@ $domain = $_SERVER['HTTP_HOST'];
         justify-content: space-between;
         align-items: center;
         margin-bottom: 16px;
+        gap: 8px;
+        flex-wrap: wrap;
     }
     
     /* TRACKING STATS */
@@ -262,6 +270,7 @@ $domain = $_SERVER['HTTP_HOST'];
         padding: 8px 12px;
         font-size: 12px;
         font-family: 'Courier New', monospace;
+        min-width: 0;
     }
     
     .btn-copy {
@@ -273,6 +282,7 @@ $domain = $_SERVER['HTTP_HOST'];
         cursor: pointer;
         font-size: 14px;
         transition: all 0.2s;
+        flex-shrink: 0;
     }
     
     .btn-copy:hover {
@@ -335,6 +345,249 @@ $domain = $_SERVER['HTTP_HOST'];
     
     .btn-danger:hover {
         background: rgba(255, 107, 107, 0.2);
+    }
+    
+    /* PREVIEW MODAL */
+    .preview-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.9);
+        z-index: 10000;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+    
+    .preview-container {
+        background: white;
+        border-radius: 12px;
+        width: 100%;
+        max-width: 1400px;
+        max-height: 90vh;
+        overflow-y: auto;
+        position: relative;
+    }
+    
+    .preview-header {
+        position: sticky;
+        top: 0;
+        background: white;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 10;
+    }
+    
+    .preview-header h3 {
+        color: #1f2937;
+        font-size: 20px;
+        margin: 0;
+    }
+    
+    .preview-close {
+        padding: 8px 16px;
+        background: #f3f4f6;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: background 0.2s;
+    }
+    
+    .preview-close:hover {
+        background: #e5e7eb;
+    }
+    
+    .preview-body {
+        padding: 40px;
+        position: relative;
+    }
+    
+    /* ============================================
+       RESPONSIVE DESIGN - MOBILE OPTIMIERUNG
+       ============================================ */
+    
+    /* Tablets */
+    @media (max-width: 1024px) {
+        .freebies-grid {
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+    }
+    
+    /* Mobile Geräte */
+    @media (max-width: 768px) {
+        .freebies-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+        
+        .freebie-card {
+            border-radius: 12px;
+        }
+        
+        .freebie-mockup {
+            height: 180px;
+        }
+        
+        .freebie-content {
+            padding: 16px;
+        }
+        
+        .freebie-content h4 {
+            font-size: 16px;
+        }
+        
+        .freebie-content p {
+            font-size: 13px;
+        }
+        
+        /* Tracking Stats anpassen */
+        .tracking-stats {
+            gap: 8px;
+        }
+        
+        .stat {
+            padding: 10px 8px;
+        }
+        
+        .stat-value {
+            font-size: 20px;
+        }
+        
+        .stat-label {
+            font-size: 10px;
+        }
+        
+        /* Link Sections */
+        .link-section {
+            padding: 10px;
+        }
+        
+        .link-header {
+            font-size: 12px;
+        }
+        
+        .link-input {
+            font-size: 11px;
+            padding: 6px 10px;
+        }
+        
+        .btn-copy {
+            padding: 6px 10px;
+            font-size: 12px;
+        }
+        
+        /* Actions */
+        .freebie-actions {
+            gap: 6px;
+        }
+        
+        .btn-preview,
+        .btn-secondary,
+        .btn-danger {
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+        
+        /* Preview Modal */
+        .preview-modal {
+            padding: 10px;
+        }
+        
+        .preview-container {
+            max-height: 95vh;
+        }
+        
+        .preview-header {
+            padding: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        
+        .preview-header h3 {
+            font-size: 18px;
+        }
+        
+        .preview-close {
+            order: 1;
+            width: 100%;
+            padding: 10px;
+        }
+        
+        .preview-body {
+            padding: 20px 16px;
+        }
+    }
+    
+    /* Sehr kleine Mobile Geräte */
+    @media (max-width: 480px) {
+        .freebie-mockup {
+            height: 160px;
+        }
+        
+        .freebie-content {
+            padding: 12px;
+        }
+        
+        .freebie-content h4 {
+            font-size: 15px;
+        }
+        
+        .freebie-meta {
+            font-size: 11px;
+        }
+        
+        .badge {
+            font-size: 10px;
+            padding: 4px 8px;
+        }
+        
+        .tracking-stats {
+            grid-template-columns: 1fr;
+        }
+        
+        .stat {
+            padding: 8px;
+        }
+        
+        .link-input {
+            font-size: 10px;
+        }
+        
+        .freebie-actions {
+            grid-template-columns: 1fr;
+        }
+        
+        .btn-secondary,
+        .btn-danger {
+            grid-column: 1;
+        }
+        
+        .preview-body {
+            padding: 16px 12px;
+        }
+    }
+    
+    /* Landscape Modus */
+    @media (max-height: 600px) and (max-width: 768px) {
+        .preview-container {
+            max-height: 98vh;
+        }
+        
+        .preview-header {
+            padding: 12px 16px;
+        }
+        
+        .preview-body {
+            padding: 20px 16px;
+        }
     }
 </style>
 
@@ -402,10 +655,12 @@ function previewTemplate(template) {
     
     content.innerHTML = previewHTML;
     modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
 }
 
 function closePreview() {
     document.getElementById('previewModal').style.display = 'none';
+    document.body.style.overflow = '';
 }
 
 function generatePreviewHTML(data) {
