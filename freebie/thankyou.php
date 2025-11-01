@@ -152,9 +152,9 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             background-clip: text;
         }
         
-        /* Mockup Image */
+        /* Mockup Image - KLEINER */
         .mockup-container {
-            max-width: 500px;
+            max-width: 350px;
             margin: 0 auto 40px;
             animation: fadeIn 0.8s ease-out 0.3s both;
         }
@@ -179,7 +179,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         
         .mockup-placeholder {
             width: 100%;
-            aspect-ratio: 16/9;
+            aspect-ratio: 3/4;
             background: linear-gradient(135deg, var(--primary-light), var(--primary-light));
             border-radius: 16px;
             display: flex;
@@ -298,7 +298,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             transform: translateY(-2px);
         }
         
-        /* Info Steps */
+        /* Info Steps - NUR 2 SCHRITTE */
         .info-steps {
             background: white;
             border-radius: 20px;
@@ -317,13 +317,13 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         
         .steps-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(2, 1fr);
             gap: 24px;
         }
         
         .step {
             text-align: center;
-            padding: 24px;
+            padding: 32px 24px;
             background: linear-gradient(135deg, #f9fafb, #f3f4f6);
             border-radius: 16px;
             border: 2px solid #e5e7eb;
@@ -337,31 +337,31 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         }
         
         .step-number {
-            width: 56px;
-            height: 56px;
-            margin: 0 auto 16px;
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 20px;
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 28px;
+            font-size: 32px;
             font-weight: 900;
             box-shadow: 0 6px 20px var(--primary-light);
         }
         
         .step h3 {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 700;
             color: #1F2937;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
         }
         
         .step p {
-            font-size: 14px;
+            font-size: 15px;
             color: #6b7280;
-            line-height: 1.6;
+            line-height: 1.7;
         }
         
         /* Footer */
@@ -432,6 +432,10 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
                 font-size: 24px;
             }
             
+            .mockup-container {
+                max-width: 280px;
+            }
+            
             .cta-button {
                 width: 100%;
                 padding: 20px 40px;
@@ -465,7 +469,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
                 <h2 class="course-title"><?php echo htmlspecialchars($freebie['course_title']); ?></h2>
             <?php endif; ?>
             
-            <!-- Mockup Image -->
+            <!-- Mockup Image - KLEINER -->
             <?php if (!empty($mockup_image)): ?>
                 <div class="mockup-container">
                     <img src="<?php echo htmlspecialchars($mockup_image); ?>" 
@@ -505,7 +509,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             </div>
         </div>
         
-        <!-- Info Steps -->
+        <!-- Info Steps - NUR 2 SCHRITTE -->
         <div class="info-steps">
             <h2 class="steps-title">So geht's weiter 👇</h2>
             <div class="steps-grid">
@@ -518,13 +522,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
                 <div class="step">
                     <div class="step-number">2</div>
                     <h3>Freebie abrufen</h3>
-                    <p>Klicke auf den Button oben und erhalte sofortigen Zugang zu deinem exklusiven Freebie</p>
-                </div>
-                
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <h3>Bonus freischalten</h3>
-                    <p>Entdecke zusätzliche Inhalte und starte mit dem kostenlosen Videokurs durch</p>
+                    <p>Klicke auf den Button oben und erhalte sofortigen Zugang zu deinem exklusiven Videokurs</p>
                 </div>
             </div>
         </div>
