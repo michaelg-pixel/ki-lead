@@ -5,9 +5,12 @@ RewriteEngine On
 RewriteBase /freebie/
 
 # Wenn die Datei oder das Verzeichnis existiert, keine Umleitung
-RewriteCond %{REQUEST_FILENAME} -f [OR]
-RewriteCond %{REQUEST_FILENAME} -d
-RewriteRule ^ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
 
-# Leite alle anderen Anfragen an index.php um (für old-style URLs)
+# Leite clean URLs an index.php mit Parametern weiter
+# z.B. /freebie/abc123 wird zu /freebie/index.php?id=abc123
+RewriteRule ^([a-zA-Z0-9_-]+)$ index.php?id=$1 [L,QSA]
+
+# Fallback: Alle anderen Anfragen auch an index.php
 RewriteRule ^(.*)$ index.php [L,QSA]
