@@ -1,7 +1,7 @@
 <?php
 /**
  * Kundenverwaltung - Admin Dashboard
- * Mit Digistore24 Integration
+ * Mit Digistore24 Integration - RESPONSIVE OPTIMIERT
  */
 
 // Kunden aus Datenbank laden
@@ -75,6 +75,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     justify-content: space-between;
     align-items: center;
     margin-bottom: 24px;
+    gap: 16px;
 }
 
 .search-bar {
@@ -92,6 +93,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     border-radius: 8px;
     color: var(--text-primary);
     font-size: 14px;
+    min-width: 0;
 }
 
 .search-input::placeholder {
@@ -112,6 +114,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     color: var(--text-primary);
     cursor: pointer;
     font-size: 14px;
+    white-space: nowrap;
 }
 
 .status-filter:focus {
@@ -133,6 +136,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     gap: 8px;
     transition: all 0.2s;
     font-size: 14px;
+    white-space: nowrap;
 }
 
 .btn-primary:hover {
@@ -147,9 +151,15 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     overflow: hidden;
 }
 
+.table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
 .customers-table table {
     width: 100%;
     border-collapse: collapse;
+    min-width: 800px;
 }
 
 .customers-table th {
@@ -196,6 +206,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     border-radius: 6px;
     font-size: 12px;
     font-weight: 600;
+    white-space: nowrap;
 }
 
 .status-active {
@@ -211,11 +222,16 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 .assigned-content {
     font-size: 12px;
     color: var(--text-secondary);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .action-icons {
     display: flex;
     gap: 6px;
+    flex-wrap: wrap;
 }
 
 .action-btn {
@@ -270,10 +286,11 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.8);
-    z-index: 1000;
+    z-index: 10000;
     align-items: center;
     justify-content: center;
     backdrop-filter: blur(4px);
+    padding: 20px;
 }
 
 .modal.active {
@@ -286,7 +303,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     border-radius: 16px;
     padding: 32px;
     max-width: 500px;
-    width: 90%;
+    width: 100%;
     max-height: 90vh;
     overflow-y: auto;
 }
@@ -317,6 +334,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     color: var(--danger);
     font-size: 20px;
     transition: all 0.2s;
+    flex-shrink: 0;
 }
 
 .modal-close:hover {
@@ -370,6 +388,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     font-weight: 600;
     font-size: 14px;
     transition: all 0.2s;
+    flex: 1;
 }
 
 .btn-secondary:hover {
@@ -386,11 +405,144 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     font-weight: 600;
     font-size: 14px;
     transition: all 0.2s;
+    flex: 1;
 }
 
 .btn-danger:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(251, 113, 133, 0.4);
+}
+
+/* ============================================
+   RESPONSIVE DESIGN - MOBILE OPTIMIERUNG
+   ============================================ */
+
+/* Tablets */
+@media (max-width: 1024px) {
+    .customers-header {
+        flex-wrap: wrap;
+    }
+    
+    .search-bar {
+        max-width: 100%;
+        order: 2;
+        width: 100%;
+    }
+    
+    .btn-primary {
+        order: 1;
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Mobile Geräte */
+@media (max-width: 768px) {
+    .customers-header {
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .search-bar {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .search-input,
+    .status-filter {
+        width: 100%;
+    }
+    
+    .btn-primary {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    /* Tabelle scrollbar machen auf Mobile */
+    .table-wrapper {
+        margin: 0 -16px;
+        padding: 0 16px;
+    }
+    
+    .customers-table table {
+        font-size: 12px;
+    }
+    
+    .customers-table th,
+    .customers-table td {
+        padding: 12px 8px;
+    }
+    
+    .action-icons {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .action-btn {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+    }
+    
+    /* Modal Anpassungen */
+    .modal-content {
+        padding: 24px 20px;
+        margin: 0 10px;
+    }
+    
+    .modal-title {
+        font-size: 20px;
+    }
+    
+    .modal-actions {
+        flex-direction: column;
+    }
+    
+    .btn-secondary,
+    .btn-primary,
+    .btn-danger {
+        width: 100%;
+    }
+}
+
+/* Sehr kleine Mobile Geräte */
+@media (max-width: 480px) {
+    .customers-table {
+        border-radius: 8px;
+        font-size: 11px;
+    }
+    
+    .raw-code {
+        font-size: 10px;
+        padding: 4px 8px;
+    }
+    
+    .status-badge {
+        font-size: 10px;
+        padding: 4px 8px;
+    }
+    
+    .assigned-content {
+        font-size: 11px;
+        max-width: 120px;
+    }
+    
+    .modal {
+        padding: 10px;
+    }
+    
+    .modal-content {
+        padding: 20px 16px;
+        border-radius: 12px;
+    }
+}
+
+/* Landscape Modus auf kleinen Geräten */
+@media (max-height: 600px) and (max-width: 768px) {
+    .modal-content {
+        max-height: 95vh;
+        padding: 20px;
+    }
 }
 </style>
 
@@ -415,70 +567,72 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 
 <div class="customers-table">
     <?php if (count($customers) > 0): ?>
-    <table>
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>E-Mail</th>
-                <th>RAW-Code</th>
-                <th>Zugewiesene Inhalte</th>
-                <th>Registrierung</th>
-                <th>Status</th>
-                <th>Aktionen</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php foreach ($customers as $customer): ?>
-            <tr>
-                <td><?php echo htmlspecialchars($customer['name']); ?></td>
-                <td><?php echo htmlspecialchars($customer['email']); ?></td>
-                <td>
-                    <span class="raw-code"><?php echo htmlspecialchars($customer['raw_code'] ?? 'N/A'); ?></span>
-                </td>
-                <td>
-                    <div class="assigned-content">
-                        <?php echo $customer['assigned_freebies'] ? htmlspecialchars($customer['assigned_freebies']) : 'Keine Zuweisungen'; ?>
-                    </div>
-                </td>
-                <td><?php echo date('d.m.Y', strtotime($customer['created_at'])); ?></td>
-                <td>
-                    <span class="status-badge status-<?php echo $customer['is_active'] ? 'active' : 'inactive'; ?>">
-                        <?php echo $customer['is_active'] ? 'Aktiv' : 'Inaktiv'; ?>
-                    </span>
-                </td>
-                <td>
-                    <div class="action-icons">
-                        <button class="action-btn" 
-                                onclick="viewCustomer(<?php echo $customer['id']; ?>)" 
-                                title="Ansehen">
-                            👁️
-                        </button>
-                        <button class="action-btn" 
-                                onclick="assignFreebie(<?php echo $customer['id']; ?>)" 
-                                title="Freebie zuweisen">
-                            ➕
-                        </button>
-                        <button class="action-btn" 
-                                onclick="editCustomer(<?php echo $customer['id']; ?>)" 
-                                title="Bearbeiten">
-                            ✏️
-                        </button>
-                        <button class="action-btn" 
-                                onclick="toggleStatus(<?php echo $customer['id']; ?>, <?php echo $customer['is_active']; ?>)" 
-                                title="<?php echo $customer['is_active'] ? 'Sperren' : 'Aktivieren'; ?>">
-                            <?php echo $customer['is_active'] ? '🔒' : '🔓'; ?>
-                        </button>
-                        <button class="action-btn delete" 
-                                onclick="deleteCustomer(<?php echo $customer['id']; ?>)" 
-                                title="Löschen">
-                            🗑️
-                        </button>
-                    </div>
-                </td>
-            </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>E-Mail</th>
+                    <th>RAW-Code</th>
+                    <th>Zugewiesene Inhalte</th>
+                    <th>Registrierung</th>
+                    <th>Status</th>
+                    <th>Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($customers as $customer): ?>
+                <tr>
+                    <td><?php echo htmlspecialchars($customer['name']); ?></td>
+                    <td><?php echo htmlspecialchars($customer['email']); ?></td>
+                    <td>
+                        <span class="raw-code"><?php echo htmlspecialchars($customer['raw_code'] ?? 'N/A'); ?></span>
+                    </td>
+                    <td>
+                        <div class="assigned-content" title="<?php echo htmlspecialchars($customer['assigned_freebies'] ?: 'Keine Zuweisungen'); ?>">
+                            <?php echo $customer['assigned_freebies'] ? htmlspecialchars($customer['assigned_freebies']) : 'Keine Zuweisungen'; ?>
+                        </div>
+                    </td>
+                    <td><?php echo date('d.m.Y', strtotime($customer['created_at'])); ?></td>
+                    <td>
+                        <span class="status-badge status-<?php echo $customer['is_active'] ? 'active' : 'inactive'; ?>">
+                            <?php echo $customer['is_active'] ? 'Aktiv' : 'Inaktiv'; ?>
+                        </span>
+                    </td>
+                    <td>
+                        <div class="action-icons">
+                            <button class="action-btn" 
+                                    onclick="viewCustomer(<?php echo $customer['id']; ?>)" 
+                                    title="Ansehen">
+                                👁️
+                            </button>
+                            <button class="action-btn" 
+                                    onclick="assignFreebie(<?php echo $customer['id']; ?>)" 
+                                    title="Freebie zuweisen">
+                                ➕
+                            </button>
+                            <button class="action-btn" 
+                                    onclick="editCustomer(<?php echo $customer['id']; ?>)" 
+                                    title="Bearbeiten">
+                                ✏️
+                            </button>
+                            <button class="action-btn" 
+                                    onclick="toggleStatus(<?php echo $customer['id']; ?>, <?php echo $customer['is_active']; ?>)" 
+                                    title="<?php echo $customer['is_active'] ? 'Sperren' : 'Aktivieren'; ?>">
+                                <?php echo $customer['is_active'] ? '🔒' : '🔓'; ?>
+                            </button>
+                            <button class="action-btn delete" 
+                                    onclick="deleteCustomer(<?php echo $customer['id']; ?>)" 
+                                    title="Löschen">
+                                🗑️
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
     <?php else: ?>
     <div class="empty-state">
         <div class="empty-state-icon">👥</div>
@@ -582,10 +736,12 @@ function updateURL(search, status) {
 // Modal Functions
 function openModal(modalId) {
     document.getElementById(modalId).classList.add('active');
+    document.body.style.overflow = 'hidden';
 }
 
 function closeModal(modalId) {
     document.getElementById(modalId).classList.remove('active');
+    document.body.style.overflow = '';
 }
 
 function openAddCustomerModal() {
@@ -701,4 +857,15 @@ function editCustomer(userId) {
     // TODO: Bearbeiten-Modal implementieren
     alert('Bearbeiten für Kunde ID: ' + userId);
 }
+
+// ESC-Taste zum Schließen von Modals
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const modals = document.querySelectorAll('.modal.active');
+        modals.forEach(modal => {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+        });
+    }
+});
 </script>
