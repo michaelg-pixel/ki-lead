@@ -17,7 +17,7 @@ $user_id = $_SESSION['user_id'];
 $course_id = $_GET['id'] ?? null;
 
 if (!$course_id) {
-    header('Location: my-courses.php');
+    header('Location: dashboard.php?page=kurse');
     exit;
 }
 
@@ -87,7 +87,7 @@ if ($course['type'] === 'pdf') {
     <body>
         <div class="pdf-header">
             <h1>📄 <?php echo htmlspecialchars($course['title']); ?></h1>
-            <a href="my-courses.php" class="back-link">← Zurück zu meinen Kursen</a>
+            <a href="dashboard.php?page=kurse" class="back-link">← Zurück zu meinen Kursen</a>
         </div>
         <div class="pdf-container">
             <?php if ($course['pdf_file']): ?>
@@ -161,23 +161,34 @@ if (!$current_lesson && count($modules) > 0 && count($modules[0]['lessons']) > 0
     $current_lesson = $modules[0]['lessons'][0];
 }
 
-// Video URL parsen (Vimeo/YouTube)
-$video_embed = null;
-if ($current_lesson && $current_lesson['video_url']) {
-    $url = $current_lesson['video_url'];
+// Video URL parsen - VERBESSERTE VERSION
+function parseVideoUrl($url) {
+    if (empty($url)) {
+        return null;
+    }
     
-    // Vimeo
-    if (preg_match('/vimeo\.com\/(\d+)/', $url, $matches)) {
-        $video_embed = "https://player.vimeo.com/video/" . $matches[1];
+    // Vimeo Patterns
+    // https://vimeo.com/123456789
+    // https://vimeo.com/123456789?h=abc123
+    // https://player.vimeo.com/video/123456789
+    if (preg_match('/vimeo\.com\/(?:video\/)?(\d+)(?:\?h=([a-zA-Z0-9]+))?/', $url, $matches)) {
+        $video_id = $matches[1];
+        $hash = isset($matches[2]) ? '?h=' . $matches[2] : '';
+        return "https://player.vimeo.com/video/{$video_id}{$hash}";
     }
-    // YouTube
-    elseif (preg_match('/youtube\.com\/watch\?v=([^&]+)/', $url, $matches)) {
-        $video_embed = "https://www.youtube.com/embed/" . $matches[1];
+    
+    // YouTube Patterns
+    // https://www.youtube.com/watch?v=VIDEO_ID
+    // https://youtu.be/VIDEO_ID
+    // https://www.youtube.com/embed/VIDEO_ID
+    if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/', $url, $matches)) {
+        return "https://www.youtube.com/embed/" . $matches[1];
     }
-    elseif (preg_match('/youtu\.be\/([^?]+)/', $url, $matches)) {
-        $video_embed = "https://www.youtube.com/embed/" . $matches[1];
-    }
+    
+    return null;
 }
+
+$video_embed = $current_lesson ? parseVideoUrl($current_lesson['video_url']) : null;
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -235,7 +246,7 @@ if ($current_lesson && $current_lesson['video_url']) {
             </div>
             
             <div class="sidebar-footer">
-                <a href="my-courses.php" class="btn-back">← Zurück zu meinen Kursen</a>
+                <a href="dashboard.php?page=kurse" class="btn-back">← Zurück zu meinen Kursen</a>
             </div>
         </div>
         
@@ -299,7 +310,7 @@ if ($current_lesson && $current_lesson['video_url']) {
                     <span style="font-size: 80px;">📚</span>
                     <h2>Keine Lektionen verfügbar</h2>
                     <p>Dieser Kurs enthält noch keine Lektionen.</p>
-                    <a href="my-courses.php" class="btn-primary">Zurück zur Übersicht</a>
+                    <a href="dashboard.php?page=kurse" class="btn-primary">Zurück zur Übersicht</a>
                 </div>
             <?php endif; ?>
         </div>
