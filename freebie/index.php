@@ -421,6 +421,111 @@ if (!empty($freebie['bullet_points'])) {
             color: #d1d5db;
         }
         
+        /* Cookie Banner */
+        .cookie-banner {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.98);
+            backdrop-filter: blur(20px);
+            padding: 24px;
+            box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.3);
+            z-index: 9999;
+            transform: translateY(100%);
+            transition: transform 0.4s ease-out;
+            border-top: 3px solid <?php echo $primaryColor; ?>;
+        }
+        
+        .cookie-banner.show {
+            transform: translateY(0);
+        }
+        
+        .cookie-banner.hidden {
+            display: none;
+        }
+        
+        .cookie-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+        
+        .cookie-text {
+            flex: 1;
+            min-width: 280px;
+        }
+        
+        .cookie-text h3 {
+            color: white;
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .cookie-text p {
+            color: #cbd5e1;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .cookie-text a {
+            color: <?php echo $primaryColor; ?>;
+            text-decoration: underline;
+        }
+        
+        .cookie-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .cookie-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        
+        .cookie-btn-accept {
+            background: <?php echo $primaryColor; ?>;
+            color: white;
+        }
+        
+        .cookie-btn-accept:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px <?php echo $primaryColor; ?>60;
+        }
+        
+        .cookie-btn-reject {
+            background: transparent;
+            color: #94a3b8;
+            border: 1px solid #475569;
+        }
+        
+        .cookie-btn-reject:hover {
+            background: rgba(71, 85, 105, 0.2);
+            color: white;
+        }
+        
+        .cookie-btn-settings {
+            background: transparent;
+            color: <?php echo $primaryColor; ?>;
+            border: 1px solid <?php echo $primaryColor; ?>;
+        }
+        
+        .cookie-btn-settings:hover {
+            background: <?php echo $primaryColor; ?>15;
+        }
+        
         @media (max-width: 768px) {
             h1 {
                 font-size: 32px;
@@ -432,6 +537,20 @@ if (!empty($freebie['bullet_points'])) {
             
             .form-container {
                 padding: 35px 25px;
+            }
+            
+            .cookie-content {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .cookie-actions {
+                flex-direction: column;
+            }
+            
+            .cookie-btn {
+                width: 100%;
+                justify-content: center;
             }
         }
         
@@ -520,5 +639,82 @@ if (!empty($freebie['bullet_points'])) {
             <a href="/datenschutz.php">Datenschutzerklärung</a>
         </div>
     </div>
+    
+    <!-- Cookie Banner -->
+    <div id="cookie-banner" class="cookie-banner">
+        <div class="cookie-content">
+            <div class="cookie-text">
+                <h3>🍪 Wir respektieren deine Privatsphäre</h3>
+                <p>
+                    Wir verwenden Cookies, um dein Erlebnis zu verbessern und Inhalte zu personalisieren. 
+                    <a href="/datenschutz.php">Mehr erfahren</a>
+                </p>
+            </div>
+            <div class="cookie-actions">
+                <button onclick="rejectCookies()" class="cookie-btn cookie-btn-reject">
+                    Nur notwendige
+                </button>
+                <button onclick="showCookieSettings()" class="cookie-btn cookie-btn-settings">
+                    Einstellungen
+                </button>
+                <button onclick="acceptCookies()" class="cookie-btn cookie-btn-accept">
+                    Alle akzeptieren
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Cookie Banner Management
+        function acceptCookies() {
+            localStorage.setItem('cookieConsent', 'accepted');
+            hideCookieBanner();
+            enableTracking();
+        }
+        
+        function rejectCookies() {
+            localStorage.setItem('cookieConsent', 'rejected');
+            hideCookieBanner();
+            disableTracking();
+        }
+        
+        function showCookieSettings() {
+            // Zur Datenschutzseite mit Cookie-Einstellungen navigieren
+            window.location.href = '/datenschutz.php#cookie-einstellungen';
+        }
+        
+        function hideCookieBanner() {
+            const banner = document.getElementById('cookie-banner');
+            if (banner) {
+                banner.classList.remove('show');
+                banner.classList.add('hidden');
+            }
+        }
+        
+        function enableTracking() {
+            console.log('Tracking enabled');
+            // Hier Tracking-Code aktivieren (Google Analytics, etc.)
+        }
+        
+        function disableTracking() {
+            console.log('Tracking disabled');
+            // Hier Tracking-Code deaktivieren
+        }
+        
+        // Cookie-Banner bei Seite-Load prüfen
+        document.addEventListener('DOMContentLoaded', function() {
+            const consent = localStorage.getItem('cookieConsent');
+            const banner = document.getElementById('cookie-banner');
+            
+            if (!consent && banner) {
+                // Kurze Verzögerung für bessere UX
+                setTimeout(() => {
+                    banner.classList.add('show');
+                }, 500);
+            } else if (consent === 'accepted') {
+                enableTracking();
+            }
+        });
+    </script>
 </body>
 </html>
