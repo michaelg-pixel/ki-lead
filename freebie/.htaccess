@@ -4,13 +4,13 @@
 RewriteEngine On
 RewriteBase /freebie/
 
+# WICHTIG: PHP-Dateien und Test-Dateien NICHT umleiten
+RewriteRule ^(test|debug|index)\.php$ - [L]
+
 # Wenn die Datei oder das Verzeichnis existiert, keine Umleitung
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 
-# Ignoriere PHP-Dateien und andere Dateien
-RewriteCond %{REQUEST_URI} !\.(php|html|css|js|jpg|jpeg|png|gif|svg|ico|woff|woff2|ttf|eot)$ [NC]
-
-# Leite clean URLs an index.php mit Parametern weiter
+# Leite clean URLs an index.php weiter
 # z.B. /freebie/abc123 wird zu /freebie/index.php?id=abc123
-RewriteRule ^([a-zA-Z0-9_-]+)$ index.php?id=$1 [L,QSA]
+RewriteRule ^([a-zA-Z0-9]+)$ index.php?id=$1 [L,QSA]
