@@ -1,7 +1,7 @@
 <?php
 /**
  * Danke-Seite nach Freebie-Anforderung
- * Direkter Zugang zum Freebie + Kurs-Button
+ * Direkter Zugang zum Freebie-Videokurs
  */
 
 require_once __DIR__ . '/../config/database.php';
@@ -19,7 +19,8 @@ $stmt = $pdo->prepare("
         f.*,
         c.id as course_id,
         c.title as course_title,
-        c.description as course_description
+        c.description as course_description,
+        c.mockup_url as course_mockup
     FROM freebies f
     LEFT JOIN courses c ON f.course_id = c.id
     WHERE f.id = ?
@@ -41,14 +42,8 @@ $background_color = $freebie['background_color'] ?? '#FFFFFF';
 $headline_font = $freebie['headline_font'] ?? 'Poppins';
 $body_font = $freebie['body_font'] ?? 'Poppins';
 
-$thank_you_headline = $freebie['thank_you_headline'] ?? 'Glückwunsch! 🎉';
-$thank_you_text = $freebie['thank_you_text'] ?? 'Du hast jetzt sofortigen Zugang zu deinem Freebie!';
-
 // Kurs-Button Text und URL
-$video_button_text = $freebie['video_button_text'] ?? 'Zum Bonus-Videokurs';
-
-// Freebie-Button Link (zum Template oder Custom-Freebie)
-$freebie_link = '/freebie/' . ($freebie['unique_id'] ?? $freebie['id']);
+$video_button_text = $freebie['video_button_text'] ?? 'Zum Videokurs';
 
 // Kurs-URL aus verknüpftem Kurs generieren
 $video_course_url = '';
@@ -58,6 +53,9 @@ if (!empty($freebie['course_id'])) {
     $video_course_url = $freebie['video_course_url'];
 }
 
+// Mockup-Bild des Kurses oder Freebie
+$mockup_image = $freebie['course_mockup'] ?? $freebie['mockup_image_url'] ?? '';
+
 // Aktuelle URL für Bookmark-Funktion
 $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
 ?>
@@ -66,7 +64,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($freebie['name']); ?> - Dein Zugang</title>
+    <title><?php echo htmlspecialchars($freebie['course_title'] ?? $freebie['name']); ?> - Dein Zugang</title>
     
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -108,7 +106,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         .success-card {
             background: white;
             border-radius: 24px;
-            padding: 60px 40px;
+            padding: 50px 40px;
             text-align: center;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             animation: slideUp 0.6s ease-out;
@@ -125,35 +123,12 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             }
         }
         
-        .success-icon {
-            width: 120px;
-            height: 120px;
-            margin: 0 auto 32px;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 64px;
-            animation: scaleIn 0.5s ease-out 0.2s both;
-            box-shadow: 0 10px 40px var(--primary-light);
-        }
-        
-        @keyframes scaleIn {
-            from {
-                transform: scale(0) rotate(-180deg);
-            }
-            to {
-                transform: scale(1) rotate(0);
-            }
-        }
-        
         .headline {
             font-size: 48px;
             font-family: '<?php echo $headline_font; ?>', sans-serif;
             font-weight: 900;
             color: #111827;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
             line-height: 1.2;
         }
         
@@ -162,6 +137,55 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             color: #6b7280;
             margin-bottom: 40px;
             font-weight: 500;
+        }
+        
+        .course-title {
+            font-size: 32px;
+            font-family: '<?php echo $headline_font; ?>', sans-serif;
+            font-weight: 800;
+            color: #111827;
+            margin-bottom: 32px;
+            line-height: 1.3;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        /* Mockup Image */
+        .mockup-container {
+            max-width: 500px;
+            margin: 0 auto 40px;
+            animation: fadeIn 0.8s ease-out 0.3s both;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        .mockup-container img {
+            width: 100%;
+            height: auto;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+        }
+        
+        .mockup-placeholder {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: linear-gradient(135deg, var(--primary-light), var(--primary-light));
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 80px;
         }
         
         /* Main CTA Button */
@@ -181,7 +205,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             text-decoration: none;
             box-shadow: 0 10px 30px var(--primary-light);
             transition: all 0.3s;
-            margin-bottom: 24px;
+            margin-bottom: 16px;
             position: relative;
             overflow: hidden;
         }
@@ -214,6 +238,12 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         @keyframes pulse {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.1); }
+        }
+        
+        .access-info {
+            color: #9ca3af;
+            font-size: 14px;
+            font-weight: 500;
         }
         
         /* Bookmark Banner */
@@ -334,62 +364,6 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             line-height: 1.6;
         }
         
-        /* Course Card */
-        .course-card {
-            background: white;
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            animation: slideUp 0.6s ease-out 0.4s both;
-        }
-        
-        .course-badge {
-            display: inline-block;
-            background: linear-gradient(135deg, #fef3c7, #fde68a);
-            color: #92400e;
-            padding: 8px 20px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 700;
-            margin-bottom: 16px;
-        }
-        
-        .course-title {
-            font-size: 28px;
-            font-weight: 800;
-            color: #111827;
-            margin-bottom: 12px;
-        }
-        
-        .course-description {
-            font-size: 16px;
-            color: #6b7280;
-            margin-bottom: 28px;
-            line-height: 1.7;
-        }
-        
-        .course-button {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            padding: 16px 40px;
-            background: white;
-            color: var(--primary);
-            border: 2px solid var(--primary);
-            border-radius: 12px;
-            font-size: 18px;
-            font-weight: 700;
-            text-decoration: none;
-            transition: all 0.3s;
-        }
-        
-        .course-button:hover {
-            background: var(--primary);
-            color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px var(--primary-light);
-        }
-        
         /* Footer */
         .footer {
             margin-top: auto;
@@ -454,6 +428,10 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
                 font-size: 16px;
             }
             
+            .course-title {
+                font-size: 24px;
+            }
+            
             .cta-button {
                 width: 100%;
                 padding: 20px 40px;
@@ -473,33 +451,44 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             .steps-grid {
                 grid-template-columns: 1fr;
             }
-            
-            .course-card {
-                padding: 28px 20px;
-            }
-            
-            .course-title {
-                font-size: 22px;
-            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Success Card -->
+        <!-- Success Card mit Kurs -->
         <div class="success-card">
-            <div class="success-icon">🎁</div>
-            <h1 class="headline"><?php echo htmlspecialchars($thank_you_headline); ?></h1>
-            <p class="subheadline"><?php echo htmlspecialchars($thank_you_text); ?></p>
+            <h1 class="headline">Vielen Dank!</h1>
+            <p class="subheadline">Du hast jetzt sofortigen Zugang zu deinem Freebie!</p>
             
-            <a href="<?php echo htmlspecialchars($freebie_link); ?>" class="cta-button">
-                <span class="cta-icon">🚀</span>
-                <span>Jetzt Freebie abrufen</span>
-            </a>
+            <?php if (!empty($freebie['course_title'])): ?>
+                <h2 class="course-title"><?php echo htmlspecialchars($freebie['course_title']); ?></h2>
+            <?php endif; ?>
             
-            <p style="color: #9ca3af; font-size: 14px;">
-                ⚡ Sofortiger Zugang • Keine Wartezeit • Direkt loslegen
-            </p>
+            <!-- Mockup Image -->
+            <?php if (!empty($mockup_image)): ?>
+                <div class="mockup-container">
+                    <img src="<?php echo htmlspecialchars($mockup_image); ?>" 
+                         alt="<?php echo htmlspecialchars($freebie['course_title'] ?? $freebie['name']); ?>">
+                </div>
+            <?php else: ?>
+                <div class="mockup-container">
+                    <div class="mockup-placeholder">
+                        🎓
+                    </div>
+                </div>
+            <?php endif; ?>
+            
+            <?php if (!empty($video_course_url)): ?>
+                <a href="<?php echo htmlspecialchars($video_course_url); ?>" class="cta-button">
+                    <span class="cta-icon">🚀</span>
+                    <span><?php echo htmlspecialchars($video_button_text); ?></span>
+                </a>
+                
+                <p class="access-info">
+                    ⚡ Sofortiger Zugang • Keine Wartezeit • Direkt loslegen
+                </p>
+            <?php endif; ?>
         </div>
         
         <!-- Bookmark Banner -->
@@ -539,27 +528,6 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
                 </div>
             </div>
         </div>
-        
-        <!-- Course Card -->
-        <?php if (!empty($video_course_url) && !empty($freebie['course_title'])): ?>
-        <div class="course-card">
-            <span class="course-badge">🎓 BONUS FÜR DICH</span>
-            <h2 class="course-title"><?php echo htmlspecialchars($freebie['course_title']); ?></h2>
-            <?php if (!empty($freebie['course_description'])): ?>
-            <p class="course-description">
-                <?php echo htmlspecialchars(substr($freebie['course_description'], 0, 200)); ?>
-                <?php echo strlen($freebie['course_description']) > 200 ? '...' : ''; ?>
-            </p>
-            <?php endif; ?>
-            <a href="<?php echo htmlspecialchars($video_course_url); ?>" class="course-button">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <circle cx="12" cy="12" r="10" stroke-width="2"/>
-                    <polygon points="10,8 16,12 10,16" fill="currentColor"/>
-                </svg>
-                <span><?php echo htmlspecialchars($video_button_text); ?></span>
-            </a>
-        </div>
-        <?php endif; ?>
     </div>
     
     <!-- Footer -->
@@ -580,7 +548,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
     
     <script>
         function bookmarkPage() {
-            const pageTitle = '<?php echo htmlspecialchars($freebie['name']); ?> - Dein Zugang';
+            const pageTitle = '<?php echo htmlspecialchars($freebie['course_title'] ?? $freebie['name']); ?> - Dein Zugang';
             const pageURL = window.location.href;
             
             // Moderne Browser
@@ -599,24 +567,12 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
                 elem.click();
             } else {
                 // Für moderne Browser (Chrome, Safari, Edge)
-                // Zeige Anleitung
                 const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
                 const shortcut = isMac ? 'Cmd+D' : 'Ctrl+D';
                 
                 alert(`✨ Drücke ${shortcut} um diese Seite als Lesezeichen zu speichern!\n\nSo hast du jederzeit Zugriff auf dein Freebie.`);
             }
         }
-        
-        // Optional: Automatisch beim Laden vorschlagen
-        window.addEventListener('load', function() {
-            // Nach 3 Sekunden dezent auf Bookmark hinweisen
-            setTimeout(function() {
-                if (!localStorage.getItem('bookmark_suggested_<?php echo $freebie_id; ?>')) {
-                    // Nur einmal vorschlagen
-                    localStorage.setItem('bookmark_suggested_<?php echo $freebie_id; ?>', 'true');
-                }
-            }, 3000);
-        });
     </script>
 </body>
 </html>
