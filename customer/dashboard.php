@@ -444,6 +444,10 @@ if ($page === 'overview') {
                 <span class="nav-icon">📖</span>
                 <span>Anleitungen & Tutorials</span>
             </a>
+            <a href="legal-texts.php" class="nav-item" onclick="closeSidebarOnMobile()">
+                <span class="nav-icon">⚖️</span>
+                <span>Rechtstexte</span>
+            </a>
             <a href="?page=kurse" class="nav-item <?php echo $page === 'kurse' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
                 <span class="nav-icon">🎓</span>
                 <span>Meine Kurse</span>
