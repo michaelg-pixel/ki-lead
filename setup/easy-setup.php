@@ -11,7 +11,6 @@ session_start();
 
 // Setup-Status in Session speichern
 $setupDone = $_SESSION['setup_done'] ?? false;
-$setupPassword = 'setup2024'; // Standard-Passwort (wird beim ersten Aufruf gesetzt)
 
 // Schritt 1: Passwort-Eingabe
 if (!isset($_POST['password']) && !$setupDone) {
@@ -111,13 +110,6 @@ if (!isset($_POST['password']) && !$setupDone) {
                 margin-bottom: 0;
                 line-height: 1.5;
             }
-            code {
-                background: #1e293b;
-                color: #60a5fa;
-                padding: 3px 8px;
-                border-radius: 4px;
-                font-size: 13px;
-            }
         </style>
     </head>
     <body>
@@ -171,14 +163,14 @@ if (isset($_POST['password']) && !$setupDone) {
     // Datenbank-Setup durchführen
     require_once __DIR__ . '/../config/database.php';
     
+    $errors = [];
+    $warnings = [];
+    $success = [];
+    $productCount = 0;
+    $customerCount = 0;
+    
     try {
         $pdo = getDBConnection();
-        $errors = [];
-        $warnings = [];
-        $success = [];
-        
-        // Transaktion starten
-        $pdo->beginTransaction();
         
         // 1. Tabelle customer_freebie_limits erstellen
         try {
@@ -201,7 +193,7 @@ if (isset($_POST['password']) && !$setupDone) {
             if (strpos($e->getMessage(), 'already exists') !== false) {
                 $warnings[] = "Tabelle 'customer_freebie_limits' existiert bereits";
             } else {
-                throw $e;
+                $errors[] = "Fehler bei customer_freebie_limits: " . $e->getMessage();
             }
         }
         
@@ -217,7 +209,7 @@ if (isset($_POST['password']) && !$setupDone) {
             if (strpos($e->getMessage(), 'Duplicate column') !== false) {
                 $warnings[] = "Spalte 'freebie_type' existiert bereits";
             } else {
-                throw $e;
+                $errors[] = "Fehler bei freebie_type: " . $e->getMessage();
             }
         }
         
@@ -227,7 +219,7 @@ if (isset($_POST['password']) && !$setupDone) {
             $pdo->exec($sql);
             $success[] = "Index 'idx_freebie_type' erstellt";
         } catch (PDOException $e) {
-            if (strpos($e->getMessage(), 'Duplicate key') !== false) {
+            if (strpos($e->getMessage(), 'Duplicate key') !== false || strpos($e->getMessage(), 'already exists') !== false) {
                 $warnings[] = "Index 'idx_freebie_type' existiert bereits";
             }
         }
@@ -238,7 +230,7 @@ if (isset($_POST['password']) && !$setupDone) {
             $pdo->exec($sql);
             $success[] = "Index 'idx_customer_type' erstellt";
         } catch (PDOException $e) {
-            if (strpos($e->getMessage(), 'Duplicate key') !== false) {
+            if (strpos($e->getMessage(), 'Duplicate key') !== false || strpos($e->getMessage(), 'already exists') !== false) {
                 $warnings[] = "Index 'idx_customer_type' existiert bereits";
             }
         }
@@ -262,7 +254,7 @@ if (isset($_POST['password']) && !$setupDone) {
             if (strpos($e->getMessage(), 'already exists') !== false) {
                 $warnings[] = "Tabelle 'product_freebie_config' existiert bereits";
             } else {
-                throw $e;
+                $errors[] = "Fehler bei product_freebie_config: " . $e->getMessage();
             }
         }
         
@@ -284,23 +276,25 @@ if (isset($_POST['password']) && !$setupDone) {
             $warnings[] = "Beispiel-Konfigurationen: " . $e->getMessage();
         }
         
-        // Transaktion abschließen
-        $pdo->commit();
-        
         // Setup als erledigt markieren
         $_SESSION['setup_done'] = true;
         
         // Statistiken sammeln
-        $stmt = $pdo->query("SELECT COUNT(*) FROM product_freebie_config");
-        $productCount = $stmt->fetchColumn();
+        try {
+            $stmt = $pdo->query("SELECT COUNT(*) FROM product_freebie_config");
+            $productCount = $stmt->fetchColumn();
+        } catch (PDOException $e) {
+            $productCount = 0;
+        }
         
-        $stmt = $pdo->query("SELECT COUNT(*) FROM customer_freebie_limits");
-        $customerCount = $stmt->fetchColumn();
+        try {
+            $stmt = $pdo->query("SELECT COUNT(*) FROM customer_freebie_limits");
+            $customerCount = $stmt->fetchColumn();
+        } catch (PDOException $e) {
+            $customerCount = 0;
+        }
         
     } catch (Exception $e) {
-        if (isset($pdo)) {
-            $pdo->rollBack();
-        }
         $errors[] = "Kritischer Fehler: " . $e->getMessage();
     }
 }
@@ -469,10 +463,13 @@ if ($setupDone || $_SESSION['setup_done'] ?? false) {
                 text-decoration: none;
                 border-radius: 10px;
                 font-weight: 600;
-                margin-top: 15px;
+                margin: 10px 5px;
                 transition: transform 0.2s;
             }
             .btn:hover { transform: translateY(-2px); }
+            .btn-success {
+                background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            }
         </style>
     </head>
     <body>
@@ -522,11 +519,11 @@ if ($setupDone || $_SESSION['setup_done'] ?? false) {
                 
                 <div class="stats">
                     <div class="stat-card">
-                        <div class="stat-value"><?php echo $productCount ?? 0; ?></div>
+                        <div class="stat-value"><?php echo $productCount; ?></div>
                         <div class="stat-label">Produkt-Konfigurationen</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value"><?php echo $customerCount ?? 0; ?></div>
+                        <div class="stat-value"><?php echo $customerCount; ?></div>
                         <div class="stat-label">Kunden mit Limits</div>
                     </div>
                     <div class="stat-card">
@@ -594,7 +591,7 @@ if ($setupDone || $_SESSION['setup_done'] ?? false) {
                     <a href="/admin/freebie-limits.php" class="btn">
                         → Zum Admin-Panel
                     </a>
-                    <a href="/customer/dashboard.php?page=freebies" class="btn" style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);">
+                    <a href="/customer/dashboard.php?page=freebies" class="btn btn-success">
                         → Zum Kunden-Dashboard
                     </a>
                 </div>
