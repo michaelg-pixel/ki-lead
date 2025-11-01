@@ -10,70 +10,43 @@ if (!isLoggedIn()) {
 
 $conn = getDBConnection();
 
-// Alle Tutorials laden
-$stmt = $conn->query("SELECT * FROM tutorials ORDER BY category, sort_order");
+// Kategorien laden
+$stmt = $conn->query("SELECT * FROM tutorial_categories ORDER BY sort_order ASC");
+$categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Nur aktive Tutorials laden mit Kategorie-Info
+$stmt = $conn->query("
+    SELECT t.*, tc.name as category_name, tc.slug as category_slug, tc.icon as category_icon
+    FROM tutorials t
+    LEFT JOIN tutorial_categories tc ON t.category_id = tc.id
+    WHERE t.is_active = 1
+    ORDER BY tc.sort_order, t.sort_order
+");
 $tutorials = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Nach Kategorie gruppieren
 $grouped = [];
 foreach ($tutorials as $tutorial) {
-    $grouped[$tutorial['category']][] = $tutorial;
+    $grouped[$tutorial['category_id']][] = $tutorial;
 }
-
-$categories = [
-    'getting_started' => ['name' => 'Erste Schritte', 'icon' => 'rocket'],
-    'freebie_editor' => ['name' => 'Freebie-Editor', 'icon' => 'edit'],
-    'courses' => ['name' => 'Kurse verwenden', 'icon' => 'graduation-cap'],
-    'legal' => ['name' => 'Rechtstexte', 'icon' => 'file-contract'],
-    'advanced' => ['name' => 'Fortgeschritten', 'icon' => 'star']
-];
 ?>
 <!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anleitungen - KI Lead-System</title>
+    <title>Anleitungen & Tutorials - KI Lead-System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-50">
 
-    <!-- Navigation -->
-    <nav class="bg-white shadow-lg">
-        <div class="max-w-7xl mx-auto px-6 py-4">
-            <div class="flex justify-between items-center">
-                <div class="text-2xl font-bold text-purple-600">
-                    🚀 KI Lead-System
-                </div>
-                <div class="flex gap-6">
-                    <a href="index.php" class="text-gray-600 hover:text-purple-600">
-                        <i class="fas fa-home mr-2"></i> Dashboard
-                    </a>
-                    <a href="courses.php" class="text-gray-600 hover:text-purple-600">
-                        <i class="fas fa-graduation-cap mr-2"></i> Kurse
-                    </a>
-                    <a href="freebie-editor.php" class="text-gray-600 hover:text-purple-600">
-                        <i class="fas fa-edit mr-2"></i> Freebie-Editor
-                    </a>
-                    <a href="legal-texts.php" class="text-gray-600 hover:text-purple-600">
-                        <i class="fas fa-file-contract mr-2"></i> Rechtstexte
-                    </a>
-                    <a href="tutorials.php" class="text-purple-600 font-semibold">
-                        <i class="fas fa-question-circle mr-2"></i> Anleitungen
-                    </a>
-                    <a href="logout.php" class="text-red-600 hover:text-red-700">
-                        <i class="fas fa-sign-out-alt mr-2"></i> Abmelden
-                    </a>
-                </div>
-            </div>
-        </div>
-    </nav>
+    <?php include 'includes/navigation.php'; ?>
 
-    <div class="max-w-6xl mx-auto px-6 py-8">
+    <div class="max-w-7xl mx-auto px-6 py-8">
         <!-- Header -->
         <div class="mb-8">
-            <h1 class="text-4xl font-bold text-gray-800 mb-2">Anleitungen & Tutorials</h1>
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">📖 Anleitungen & Tutorials</h1>
             <p class="text-gray-600">Lerne, wie du das KI Lead-System optimal nutzt</p>
         </div>
 
@@ -86,19 +59,22 @@ $categories = [
             </div>
         <?php else: ?>
             <div class="space-y-8">
-                <?php foreach ($categories as $cat_key => $cat_data): ?>
-                    <?php if (isset($grouped[$cat_key])): ?>
+                <?php foreach ($categories as $category): ?>
+                    <?php if (isset($grouped[$category['id']])): ?>
                         <div class="bg-white rounded-lg shadow-lg overflow-hidden">
                             <div class="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-6">
                                 <h2 class="text-2xl font-bold">
-                                    <i class="fas fa-<?= $cat_data['icon'] ?> mr-3"></i>
-                                    <?= $cat_data['name'] ?>
+                                    <i class="fas fa-<?= htmlspecialchars($category['icon']) ?> mr-3"></i>
+                                    <?= htmlspecialchars($category['name']) ?>
                                 </h2>
+                                <?php if ($category['description']): ?>
+                                    <p class="mt-2 text-purple-100"><?= htmlspecialchars($category['description']) ?></p>
+                                <?php endif; ?>
                             </div>
                             
                             <div class="p-6">
                                 <div class="grid md:grid-cols-2 gap-6">
-                                    <?php foreach ($grouped[$cat_key] as $tutorial): ?>
+                                    <?php foreach ($grouped[$category['id']] as $tutorial): ?>
                                         <div class="border-2 border-gray-200 rounded-lg overflow-hidden hover:border-purple-400 hover:shadow-lg transition cursor-pointer"
                                              onclick="playVideo('<?= htmlspecialchars($tutorial['vimeo_url']) ?>', '<?= htmlspecialchars($tutorial['title']) ?>')">
                                             <div class="aspect-video bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center relative group">
@@ -109,6 +85,12 @@ $categories = [
                                                 <h3 class="font-bold text-lg mb-2"><?= htmlspecialchars($tutorial['title']) ?></h3>
                                                 <?php if ($tutorial['description']): ?>
                                                     <p class="text-sm text-gray-600"><?= htmlspecialchars($tutorial['description']) ?></p>
+                                                <?php endif; ?>
+                                                <?php if ($tutorial['duration']): ?>
+                                                    <div class="mt-2 flex items-center text-sm text-gray-500">
+                                                        <i class="fas fa-clock mr-1"></i>
+                                                        <?= htmlspecialchars($tutorial['duration']) ?>
+                                                    </div>
                                                 <?php endif; ?>
                                             </div>
                                         </div>
@@ -131,7 +113,7 @@ $categories = [
                     <h3 class="text-2xl font-bold mb-2">Brauchst du weitere Hilfe?</h3>
                     <p class="mb-4">Unser Support-Team steht dir jederzeit zur Verfügung.</p>
                     <a href="mailto:support@ki-leadsystem.com" 
-                       class="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold inline-block hover:bg-gray-100">
+                       class="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold inline-block hover:bg-gray-100 transition">
                         <i class="fas fa-envelope mr-2"></i> Support kontaktieren
                     </a>
                 </div>
@@ -145,7 +127,7 @@ $categories = [
             <div class="flex justify-between items-center mb-4">
                 <h3 id="video-title" class="text-white text-2xl font-bold"></h3>
                 <button onclick="closeVideo()" 
-                        class="text-white text-4xl hover:text-gray-300">
+                        class="text-white text-4xl hover:text-gray-300 transition">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -179,6 +161,13 @@ $categories = [
         // ESC schließt Video
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
+                closeVideo();
+            }
+        });
+        
+        // Click außerhalb des Videos schließt Modal
+        document.getElementById('video-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
                 closeVideo();
             }
         });
