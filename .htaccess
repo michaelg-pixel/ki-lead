@@ -4,9 +4,10 @@
 RewriteEngine On
 RewriteBase /
 
-# Öffentliche Bereiche - KEIN Auth-Check
+# Öffentliche Bereiche - KEIN Auth-Check - EXPLIZIT KEINE WEITERLEITUNG
 RewriteCond %{REQUEST_URI} ^/f/ [NC,OR]
-RewriteCond %{REQUEST_URI} ^/freebie/ [NC]
+RewriteCond %{REQUEST_URI} ^/freebie/ [NC,OR]
+RewriteCond %{REQUEST_URI} ^/public/ [NC]
 RewriteRule ^ - [L]
 
 # Alle anderen PHP-Dateien normal behandeln
