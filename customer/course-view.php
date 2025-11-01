@@ -1,38 +1,59 @@
 <?php
 /**
- * Kursansicht für Kunden
+ * Kursansicht für Kunden UND Leads
  * Video-Player + Lektionen + Fortschritt
+ * Leads (nicht eingeloggt) können Freebie-Kurse sehen
  */
 
 session_start();
 require_once '../config/database.php';
 
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
-    header('Location: ../public/login.php');
-    exit;
-}
-
 $pdo = getDBConnection();
-$user_id = $_SESSION['user_id'];
+
+// Prüfen ob User eingeloggt ist
+$is_logged_in = isset($_SESSION['user_id']) && isset($_SESSION['role']);
+$is_customer = $is_logged_in && $_SESSION['role'] === 'customer';
+$is_admin = $is_logged_in && $_SESSION['role'] === 'admin';
+$user_id = $is_logged_in ? $_SESSION['user_id'] : null;
+
 $course_id = $_GET['id'] ?? null;
 
 if (!$course_id) {
-    header('Location: dashboard.php?page=kurse');
+    if ($is_logged_in) {
+        header('Location: dashboard.php?page=kurse');
+    } else {
+        die('Kurs nicht gefunden');
+    }
     exit;
 }
 
 // Kurs laden + Zugangs-Check
-$stmt = $pdo->prepare("
-    SELECT c.*, ca.access_source
-    FROM courses c
-    LEFT JOIN course_access ca ON c.id = ca.course_id AND ca.user_id = ?
-    WHERE c.id = ? AND (c.is_freebie = TRUE OR ca.id IS NOT NULL)
-");
-$stmt->execute([$user_id, $course_id]);
+if ($is_logged_in) {
+    // Eingeloggte User: Mit Zugangs-Check
+    $stmt = $pdo->prepare("
+        SELECT c.*, ca.access_source
+        FROM courses c
+        LEFT JOIN course_access ca ON c.id = ca.course_id AND ca.user_id = ?
+        WHERE c.id = ? AND (c.is_freebie = TRUE OR ca.id IS NOT NULL)
+    ");
+    $stmt->execute([$user_id, $course_id]);
+} else {
+    // Leads (nicht eingeloggt): Nur Freebie-Kurse
+    $stmt = $pdo->prepare("
+        SELECT * FROM courses 
+        WHERE id = ? AND is_freebie = TRUE
+    ");
+    $stmt->execute([$course_id]);
+}
+
 $course = $stmt->fetch();
 
 if (!$course) {
-    echo "Kein Zugang zu diesem Kurs!";
+    if ($is_logged_in) {
+        echo "Kein Zugang zu diesem Kurs!";
+    } else {
+        echo "Dieser Kurs ist nicht öffentlich verfügbar.";
+    }
     exit;
 }
 
@@ -87,7 +108,9 @@ if ($course['type'] === 'pdf') {
     <body>
         <div class="pdf-header">
             <h1>📄 <?php echo htmlspecialchars($course['title']); ?></h1>
-            <a href="dashboard.php?page=kurse" class="back-link">← Zurück zu meinen Kursen</a>
+            <?php if ($is_logged_in): ?>
+                <a href="dashboard.php?page=kurse" class="back-link">← Zurück zu meinen Kursen</a>
+            <?php endif; ?>
         </div>
         <div class="pdf-container">
             <?php if ($course['pdf_file']): ?>
@@ -113,18 +136,28 @@ $stmt = $pdo->prepare("
 $stmt->execute([$course_id]);
 $modules = $stmt->fetchAll();
 
-// Lektionen für jedes Modul laden mit Fortschritt
+// Lektionen für jedes Modul laden mit Fortschritt (nur wenn eingeloggt)
 foreach ($modules as &$module) {
-    $stmt = $pdo->prepare("
-        SELECT cl.*, 
-               cp.completed,
-               cp.completed_at
-        FROM course_lessons cl
-        LEFT JOIN course_progress cp ON cl.id = cp.lesson_id AND cp.user_id = ?
-        WHERE cl.module_id = ?
-        ORDER BY cl.sort_order ASC
-    ");
-    $stmt->execute([$user_id, $module['id']]);
+    if ($is_logged_in) {
+        $stmt = $pdo->prepare("
+            SELECT cl.*, 
+                   cp.completed,
+                   cp.completed_at
+            FROM course_lessons cl
+            LEFT JOIN course_progress cp ON cl.id = cp.lesson_id AND cp.user_id = ?
+            WHERE cl.module_id = ?
+            ORDER BY cl.sort_order ASC
+        ");
+        $stmt->execute([$user_id, $module['id']]);
+    } else {
+        // Leads: Ohne Fortschritt
+        $stmt = $pdo->prepare("
+            SELECT * FROM course_lessons 
+            WHERE module_id = ?
+            ORDER BY sort_order ASC
+        ");
+        $stmt->execute([$module['id']]);
+    }
     $module['lessons'] = $stmt->fetchAll();
 }
 
@@ -144,8 +177,8 @@ if ($selected_lesson_id) {
     }
 }
 
-if (!$current_lesson) {
-    // Erste nicht-abgeschlossene Lektion finden
+if (!$current_lesson && $is_logged_in) {
+    // Für eingeloggte User: Erste nicht-abgeschlossene Lektion finden
     foreach ($modules as $module) {
         foreach ($module['lessons'] as $lesson) {
             if (!$lesson['completed']) {
@@ -157,30 +190,24 @@ if (!$current_lesson) {
 }
 
 if (!$current_lesson && count($modules) > 0 && count($modules[0]['lessons']) > 0) {
-    // Wenn alle abgeschlossen: erste Lektion
+    // Wenn alle abgeschlossen oder Lead: erste Lektion
     $current_lesson = $modules[0]['lessons'][0];
 }
 
-// Video URL parsen - VERBESSERTE VERSION
+// Video URL parsen
 function parseVideoUrl($url) {
     if (empty($url)) {
         return null;
     }
     
-    // Vimeo Patterns
-    // https://vimeo.com/123456789
-    // https://vimeo.com/123456789?h=abc123
-    // https://player.vimeo.com/video/123456789
+    // Vimeo
     if (preg_match('/vimeo\.com\/(?:video\/)?(\d+)(?:\?h=([a-zA-Z0-9]+))?/', $url, $matches)) {
         $video_id = $matches[1];
         $hash = isset($matches[2]) ? '?h=' . $matches[2] : '';
         return "https://player.vimeo.com/video/{$video_id}{$hash}";
     }
     
-    // YouTube Patterns
-    // https://www.youtube.com/watch?v=VIDEO_ID
-    // https://youtu.be/VIDEO_ID
-    // https://www.youtube.com/embed/VIDEO_ID
+    // YouTube
     if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/', $url, $matches)) {
         return "https://www.youtube.com/embed/" . $matches[1];
     }
@@ -196,126 +223,6 @@ $video_embed = $current_lesson ? parseVideoUrl($current_lesson['video_url']) : n
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($course['title']); ?> - Kurs</title>
-    <link rel="stylesheet" href="styles/course-view.css">
-</head>
-<body>
-    <div class="course-view">
-        <!-- Sidebar: Module & Lektionen -->
-        <div class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <h2><?php echo htmlspecialchars($course['title']); ?></h2>
-                <button class="sidebar-toggle" onclick="toggleSidebar()">
-                    <span id="toggleIcon">←</span>
-                </button>
-            </div>
-            
-            <div class="modules-container">
-                <?php foreach ($modules as $module): ?>
-                    <div class="module">
-                        <div class="module-header">
-                            <h3><?php echo htmlspecialchars($module['title']); ?></h3>
-                            <?php if ($module['description']): ?>
-                                <p><?php echo htmlspecialchars($module['description']); ?></p>
-                            <?php endif; ?>
-                        </div>
-                        
-                        <div class="lessons">
-                            <?php foreach ($module['lessons'] as $lesson): ?>
-                                <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $lesson['id']; ?>" 
-                                   class="lesson-item <?php echo $current_lesson && $current_lesson['id'] == $lesson['id'] ? 'active' : ''; ?> <?php echo $lesson['completed'] ? 'completed' : ''; ?>">
-                                    <div class="lesson-icon">
-                                        <?php if ($lesson['completed']): ?>
-                                            ✅
-                                        <?php elseif ($current_lesson && $current_lesson['id'] == $lesson['id']): ?>
-                                            ▶️
-                                        <?php else: ?>
-                                            ⚪
-                                        <?php endif; ?>
-                                    </div>
-                                    <div class="lesson-info">
-                                        <div class="lesson-title"><?php echo htmlspecialchars($lesson['title']); ?></div>
-                                        <?php if ($lesson['pdf_attachment']): ?>
-                                            <div class="lesson-meta">📄 PDF verfügbar</div>
-                                        <?php endif; ?>
-                                    </div>
-                                </a>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-            
-            <div class="sidebar-footer">
-                <a href="dashboard.php?page=kurse" class="btn-back">← Zurück zu meinen Kursen</a>
-            </div>
-        </div>
-        
-        <!-- Main Content: Video Player -->
-        <div class="main-content">
-            <?php if ($current_lesson): ?>
-                <!-- Video Player -->
-                <div class="video-container">
-                    <?php if ($video_embed): ?>
-                        <iframe src="<?php echo $video_embed; ?>" 
-                                frameborder="0" 
-                                allow="autoplay; fullscreen; picture-in-picture" 
-                                allowfullscreen>
-                        </iframe>
-                    <?php else: ?>
-                        <div class="no-video">
-                            <span style="font-size: 64px;">🎥</span>
-                            <p>Kein Video verfügbar</p>
-                        </div>
-                    <?php endif; ?>
-                </div>
-                
-                <!-- Lesson Info -->
-                <div class="lesson-content">
-                    <div class="lesson-header">
-                        <h1><?php echo htmlspecialchars($current_lesson['title']); ?></h1>
-                        
-                        <div class="lesson-actions">
-                            <?php if (!$current_lesson['completed']): ?>
-                                <button onclick="markAsComplete(<?php echo $current_lesson['id']; ?>)" 
-                                        class="btn-complete">
-                                    ✓ Als abgeschlossen markieren
-                                </button>
-                            <?php else: ?>
-                                <button onclick="markAsIncomplete(<?php echo $current_lesson['id']; ?>)" 
-                                        class="btn-incomplete">
-                                    ↺ Als nicht abgeschlossen markieren
-                                </button>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                    
-                    <?php if ($current_lesson['description']): ?>
-                        <div class="lesson-description">
-                            <?php echo nl2br(htmlspecialchars($current_lesson['description'])); ?>
-                        </div>
-                    <?php endif; ?>
-                    
-                    <?php if ($current_lesson['pdf_attachment']): ?>
-                        <div class="lesson-attachment">
-                            <a href="<?php echo htmlspecialchars($current_lesson['pdf_attachment']); ?>" 
-                               target="_blank" 
-                               class="btn-download">
-                                📄 PDF-Arbeitsblatt herunterladen
-                            </a>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            <?php else: ?>
-                <div class="no-lessons">
-                    <span style="font-size: 80px;">📚</span>
-                    <h2>Keine Lektionen verfügbar</h2>
-                    <p>Dieser Kurs enthält noch keine Lektionen.</p>
-                    <a href="dashboard.php?page=kurse" class="btn-primary">Zurück zur Übersicht</a>
-                </div>
-            <?php endif; ?>
-        </div>
-    </div>
-
     <style>
         * {
             margin: 0;
@@ -345,13 +252,11 @@ $video_embed = $current_lesson ? parseVideoUrl($current_lesson['video_url']) : n
             overflow: hidden;
         }
         
-        /* Layout */
         .course-view {
             display: flex;
             height: 100vh;
         }
         
-        /* Sidebar */
         .sidebar {
             width: 380px;
             background: var(--bg-secondary);
@@ -406,7 +311,6 @@ $video_embed = $current_lesson ? parseVideoUrl($current_lesson['video_url']) : n
             padding: 16px;
         }
         
-        /* Module */
         .module {
             margin-bottom: 20px;
         }
@@ -429,7 +333,6 @@ $video_embed = $current_lesson ? parseVideoUrl($current_lesson['video_url']) : n
             color: var(--text-secondary);
         }
         
-        /* Lessons */
         .lessons {
             display: flex;
             flex-direction: column;
@@ -506,7 +409,6 @@ $video_embed = $current_lesson ? parseVideoUrl($current_lesson['video_url']) : n
             border-color: var(--primary);
         }
         
-        /* Main Content */
         .main-content {
             flex: 1;
             display: flex;
@@ -514,12 +416,11 @@ $video_embed = $current_lesson ? parseVideoUrl($current_lesson['video_url']) : n
             overflow-y: auto;
         }
         
-        /* Video Container */
         .video-container {
             width: 100%;
             background: #000;
             position: relative;
-            padding-top: 56.25%; /* 16:9 aspect ratio */
+            padding-top: 56.25%;
         }
         
         .video-container iframe {
@@ -544,7 +445,6 @@ $video_embed = $current_lesson ? parseVideoUrl($current_lesson['video_url']) : n
             color: var(--text-secondary);
         }
         
-        /* Lesson Content */
         .lesson-content {
             padding: 40px;
         }
@@ -621,7 +521,6 @@ $video_embed = $current_lesson ? parseVideoUrl($current_lesson['video_url']) : n
             transform: translateY(-2px);
         }
         
-        /* No Lessons State */
         .no-lessons {
             display: flex;
             flex-direction: column;
@@ -658,7 +557,6 @@ $video_embed = $current_lesson ? parseVideoUrl($current_lesson['video_url']) : n
             box-shadow: 0 8px 24px rgba(168, 85, 247, 0.4);
         }
         
-        /* Responsive */
         @media (max-width: 1024px) {
             .sidebar {
                 position: fixed;
@@ -673,6 +571,126 @@ $video_embed = $current_lesson ? parseVideoUrl($current_lesson['video_url']) : n
             }
         }
     </style>
+</head>
+<body>
+    <div class="course-view">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2><?php echo htmlspecialchars($course['title']); ?></h2>
+                <button class="sidebar-toggle" onclick="toggleSidebar()">
+                    <span id="toggleIcon">←</span>
+                </button>
+            </div>
+            
+            <div class="modules-container">
+                <?php foreach ($modules as $module): ?>
+                    <div class="module">
+                        <div class="module-header">
+                            <h3><?php echo htmlspecialchars($module['title']); ?></h3>
+                            <?php if ($module['description']): ?>
+                                <p><?php echo htmlspecialchars($module['description']); ?></p>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <div class="lessons">
+                            <?php foreach ($module['lessons'] as $lesson): ?>
+                                <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $lesson['id']; ?>" 
+                                   class="lesson-item <?php echo $current_lesson && $current_lesson['id'] == $lesson['id'] ? 'active' : ''; ?> <?php echo ($is_logged_in && isset($lesson['completed']) && $lesson['completed']) ? 'completed' : ''; ?>">
+                                    <div class="lesson-icon">
+                                        <?php if ($is_logged_in && isset($lesson['completed']) && $lesson['completed']): ?>
+                                            ✅
+                                        <?php elseif ($current_lesson && $current_lesson['id'] == $lesson['id']): ?>
+                                            ▶️
+                                        <?php else: ?>
+                                            ⚪
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="lesson-info">
+                                        <div class="lesson-title"><?php echo htmlspecialchars($lesson['title']); ?></div>
+                                        <?php if ($lesson['pdf_attachment']): ?>
+                                            <div class="lesson-meta">📄 PDF verfügbar</div>
+                                        <?php endif; ?>
+                                    </div>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+            
+            <?php if ($is_logged_in): ?>
+            <div class="sidebar-footer">
+                <a href="dashboard.php?page=kurse" class="btn-back">← Zurück zu meinen Kursen</a>
+            </div>
+            <?php endif; ?>
+        </div>
+        
+        <div class="main-content">
+            <?php if ($current_lesson): ?>
+                <div class="video-container">
+                    <?php if ($video_embed): ?>
+                        <iframe src="<?php echo $video_embed; ?>" 
+                                frameborder="0" 
+                                allow="autoplay; fullscreen; picture-in-picture" 
+                                allowfullscreen>
+                        </iframe>
+                    <?php else: ?>
+                        <div class="no-video">
+                            <span style="font-size: 64px;">🎥</span>
+                            <p>Kein Video verfügbar</p>
+                        </div>
+                    <?php endif; ?>
+                </div>
+                
+                <div class="lesson-content">
+                    <div class="lesson-header">
+                        <h1><?php echo htmlspecialchars($current_lesson['title']); ?></h1>
+                        
+                        <?php if ($is_logged_in): ?>
+                        <div class="lesson-actions">
+                            <?php if (!$current_lesson['completed']): ?>
+                                <button onclick="markAsComplete(<?php echo $current_lesson['id']; ?>)" 
+                                        class="btn-complete">
+                                    ✓ Als abgeschlossen markieren
+                                </button>
+                            <?php else: ?>
+                                <button onclick="markAsIncomplete(<?php echo $current_lesson['id']; ?>)" 
+                                        class="btn-incomplete">
+                                    ↺ Als nicht abgeschlossen markieren
+                                </button>
+                            <?php endif; ?>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <?php if ($current_lesson['description']): ?>
+                        <div class="lesson-description">
+                            <?php echo nl2br(htmlspecialchars($current_lesson['description'])); ?>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <?php if ($current_lesson['pdf_attachment']): ?>
+                        <div class="lesson-attachment">
+                            <a href="<?php echo htmlspecialchars($current_lesson['pdf_attachment']); ?>" 
+                               target="_blank" 
+                               class="btn-download">
+                                📄 PDF-Arbeitsblatt herunterladen
+                            </a>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            <?php else: ?>
+                <div class="no-lessons">
+                    <span style="font-size: 80px;">📚</span>
+                    <h2>Keine Lektionen verfügbar</h2>
+                    <p>Dieser Kurs enthält noch keine Lektionen.</p>
+                    <?php if ($is_logged_in): ?>
+                        <a href="dashboard.php?page=kurse" class="btn-primary">Zurück zur Übersicht</a>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
 
     <script>
         function toggleSidebar() {
@@ -682,6 +700,7 @@ $video_embed = $current_lesson ? parseVideoUrl($current_lesson['video_url']) : n
             icon.textContent = sidebar.classList.contains('hidden') ? '→' : '←';
         }
         
+        <?php if ($is_logged_in): ?>
         async function markAsComplete(lessonId) {
             try {
                 const response = await fetch('/customer/api/mark-lesson-complete.php', {
@@ -721,6 +740,7 @@ $video_embed = $current_lesson ? parseVideoUrl($current_lesson['video_url']) : n
                 alert('Fehler beim Markieren: ' + error.message);
             }
         }
+        <?php endif; ?>
     </script>
 </body>
 </html>
