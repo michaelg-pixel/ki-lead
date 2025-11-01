@@ -74,14 +74,17 @@ foreach ($videos as $video) {
                                             </div>
                                         </div>
                                         <div class="video-actions">
-                                            <button class="btn-icon" onclick="editVideo(<?php echo $video['id']; ?>)" title="Bearbeiten">
+                                            <button class="action-btn btn-edit" onclick="editVideo(<?php echo $video['id']; ?>)" title="Video bearbeiten">
                                                 <i class="fas fa-edit"></i>
+                                                <span>Bearbeiten</span>
                                             </button>
-                                            <button class="btn-icon" onclick="previewVideo('<?php echo htmlspecialchars($video['vimeo_url']); ?>', '<?php echo htmlspecialchars($video['title']); ?>')" title="Vorschau">
+                                            <button class="action-btn btn-preview" onclick="previewVideo('<?php echo htmlspecialchars($video['vimeo_url']); ?>', '<?php echo htmlspecialchars($video['title']); ?>')" title="Video-Vorschau">
                                                 <i class="fas fa-eye"></i>
+                                                <span>Vorschau</span>
                                             </button>
-                                            <button class="btn-icon btn-danger" onclick="deleteVideo(<?php echo $video['id']; ?>)" title="Löschen">
-                                                <i class="fas fa-trash"></i>
+                                            <button class="action-btn btn-delete" onclick="deleteVideo(<?php echo $video['id']; ?>)" title="Video löschen">
+                                                <i class="fas fa-trash-alt"></i>
+                                                <span>Löschen</span>
                                             </button>
                                         </div>
                                     </div>
@@ -130,11 +133,13 @@ foreach ($videos as $video) {
                                 </span>
                             </div>
                             <div class="category-actions">
-                                <button class="btn-icon" onclick="editCategory(<?php echo $category['id']; ?>)" title="Bearbeiten">
+                                <button class="action-btn btn-edit" onclick="editCategory(<?php echo $category['id']; ?>)" title="Kategorie bearbeiten">
                                     <i class="fas fa-edit"></i>
+                                    <span>Bearbeiten</span>
                                 </button>
-                                <button class="btn-icon btn-danger" onclick="deleteCategory(<?php echo $category['id']; ?>)" title="Löschen">
-                                    <i class="fas fa-trash"></i>
+                                <button class="action-btn btn-delete" onclick="deleteCategory(<?php echo $category['id']; ?>)" title="Kategorie löschen">
+                                    <i class="fas fa-trash-alt"></i>
+                                    <span>Löschen</span>
                                 </button>
                             </div>
                         </div>
@@ -376,7 +381,6 @@ foreach ($videos as $video) {
     justify-content: center;
     color: white;
     font-size: 48px;
-    cursor: pointer;
 }
 
 .video-info {
@@ -419,12 +423,76 @@ foreach ($videos as $video) {
     color: var(--danger);
 }
 
+/* VERBESSERTE ACTION BUTTONS */
 .video-actions {
     display: flex;
     gap: 8px;
-    padding: 12px 16px;
-    background: rgba(0, 0, 0, 0.2);
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.3);
     border-top: 1px solid var(--border);
+}
+
+.action-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.action-btn i {
+    font-size: 14px;
+}
+
+.action-btn span {
+    display: block;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.btn-edit {
+    border-color: rgba(168, 85, 247, 0.5);
+    color: var(--primary-light);
+}
+
+.btn-edit:hover {
+    background: rgba(168, 85, 247, 0.15);
+    border-color: var(--primary);
+    color: white;
+}
+
+.btn-preview {
+    border-color: rgba(59, 130, 246, 0.5);
+    color: #60a5fa;
+}
+
+.btn-preview:hover {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: #3b82f6;
+    color: white;
+}
+
+.btn-delete {
+    border-color: rgba(251, 113, 133, 0.5);
+    color: var(--danger);
+}
+
+.btn-delete:hover {
+    background: rgba(251, 113, 133, 0.15);
+    border-color: var(--danger-dark);
+    color: white;
 }
 
 /* Categories List */
@@ -459,6 +527,7 @@ foreach ($videos as $video) {
     justify-content: center;
     font-size: 24px;
     color: white;
+    flex-shrink: 0;
 }
 
 .category-details {
@@ -503,30 +572,6 @@ foreach ($videos as $video) {
 }
 
 /* Buttons */
-.btn-icon {
-    width: 36px;
-    height: 36px;
-    background: rgba(168, 85, 247, 0.1);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    color: var(--text-secondary);
-}
-
-.btn-icon:hover {
-    background: rgba(168, 85, 247, 0.2);
-    color: var(--primary-light);
-}
-
-.btn-icon.btn-danger:hover {
-    background: rgba(251, 113, 133, 0.2);
-    color: var(--danger);
-}
-
 .btn-primary {
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
     color: white;
@@ -693,6 +738,24 @@ foreach ($videos as $video) {
     .category-actions {
         width: 100%;
         justify-content: flex-end;
+    }
+    
+    .action-btn span {
+        display: none;
+    }
+    
+    .action-btn {
+        padding: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .video-actions {
+        flex-direction: column;
+    }
+    
+    .action-btn span {
+        display: block;
     }
 }
 </style>
