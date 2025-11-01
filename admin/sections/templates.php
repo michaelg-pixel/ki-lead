@@ -81,6 +81,9 @@ $courses = $pdo->query("
                     
                     <!-- Actions -->
                     <div class="course-actions">
+                        <button onclick="previewCourse(<?php echo $course['id']; ?>)" class="btn-action btn-preview">
+                            👁️ Vorschau
+                        </button>
                         <button onclick="editCourse(<?php echo $course['id']; ?>)" class="btn-action btn-edit">
                             ✏️ Bearbeiten
                         </button>
@@ -329,19 +332,30 @@ $courses = $pdo->query("
     padding: 16px 20px;
     background: rgba(0, 0, 0, 0.2);
     border-top: 1px solid var(--border-light);
-    display: flex;
-    gap: 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
 }
 
 .btn-action {
-    flex: 1;
     padding: 10px;
     border: none;
     border-radius: 8px;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.btn-preview {
+    background: rgba(59, 130, 246, 0.1);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.btn-preview:hover {
+    background: rgba(59, 130, 246, 0.2);
 }
 
 .btn-edit {
@@ -625,12 +639,13 @@ $courses = $pdo->query("
     
     .course-actions {
         padding: 12px 16px;
+        grid-template-columns: 1fr;
         gap: 8px;
     }
     
     .btn-action {
-        font-size: 12px;
-        padding: 8px;
+        font-size: 13px;
+        padding: 10px;
     }
     
     /* Empty State */
@@ -714,12 +729,9 @@ $courses = $pdo->query("
         font-size: 11px;
     }
     
-    .course-actions {
-        flex-direction: column;
-    }
-    
     .btn-action {
-        width: 100%;
+        font-size: 12px;
+        padding: 8px;
     }
     
     .empty-state-courses {
@@ -791,6 +803,11 @@ function toggleCourseTypeFields() {
     } else {
         pdfField.style.display = 'none';
     }
+}
+
+// Preview Course - NEU!
+function previewCourse(courseId) {
+    window.open('/admin/preview_course.php?id=' + courseId, '_blank');
 }
 
 // Create Course
