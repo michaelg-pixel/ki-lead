@@ -1,13 +1,37 @@
 <?php
 /**
- * Freebie Public Page - OHNE AUTH-CHECK
- * URL: /freebie/{unique_id} oder /freebie/index.php?id={unique_id}
+ * Freebie Public Page - MIT DEBUG OUTPUT
  */
 
+// Debug-Ausgabe am Anfang
+$debug = [
+    'REQUEST_URI' => $_SERVER['REQUEST_URI'] ?? 'N/A',
+    'QUERY_STRING' => $_SERVER['QUERY_STRING'] ?? 'N/A',
+    'GET_id' => $_GET['id'] ?? 'NICHT VORHANDEN',
+    'SCRIPT_NAME' => $_SERVER['SCRIPT_NAME'] ?? 'N/A',
+    'PHP_SELF' => $_SERVER['PHP_SELF'] ?? 'N/A'
+];
+
+// Wenn kein id Parameter, zeige Debug
+if (!isset($_GET['id'])) {
+    echo "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Debug</title>";
+    echo "<style>body{font-family:monospace;padding:40px;background:#fee2e2;}</style></head><body>";
+    echo "<h1>❌ .htaccess Umleitung funktioniert NICHT</h1>";
+    echo "<p>Die index.php wurde aufgerufen, aber ohne id Parameter!</p>";
+    echo "<h3>Debug Info:</h3><pre>" . print_r($debug, true) . "</pre>";
+    echo "<hr><h3>Was bedeutet das?</h3>";
+    echo "<p>Die .htaccess hat die URL NICHT korrekt umgeschrieben.</p>";
+    echo "<p>Erwarteter GET Parameter: <code>id=08385ca983cb6dfdffca575e84e22e93</code></p>";
+    echo "<p>Tatsächlicher GET Parameter: <code>" . htmlspecialchars($_GET['id'] ?? 'NICHT VORHANDEN') . "</code></p>";
+    echo "</body></html>";
+    exit;
+}
+
+// WENN wir hier ankommen, funktioniert die .htaccess
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// DIREKTE DB-VERBINDUNG (keine includes die Auth-Check haben könnten)
+// DIREKTE DB-VERBINDUNG
 $host = 'localhost';
 $database = 'lumisaas';
 $username = 'lumisaas52';
@@ -23,33 +47,11 @@ try {
     die('DB Connection Error');
 }
 
-// Get the identifier from URL
-$identifier = $_GET['id'] ?? null;
-
-// Fallback: Parse from REQUEST_URI for clean URLs
-if (!$identifier) {
-    $requestUri = $_SERVER['REQUEST_URI'];
-    $path = parse_url($requestUri, PHP_URL_PATH);
-    $segments = explode('/', trim($path, '/'));
-    
-    foreach ($segments as $index => $segment) {
-        if ($segment === 'freebie' && isset($segments[$index + 1])) {
-            $identifier = $segments[$index + 1];
-            break;
-        }
-    }
-}
-
-// Error if no identifier
-if (!$identifier) {
-    http_response_code(404);
-    die('No Freebie ID provided');
-}
+$identifier = $_GET['id'];
 
 // Find the freebie
 $customer_id = null;
 try {
-    // Check customer_freebies first
     $stmt = $pdo->prepare("SELECT cf.*, u.id as customer_id FROM customer_freebies cf LEFT JOIN users u ON cf.customer_id = u.id WHERE cf.unique_id = ? LIMIT 1");
     $stmt->execute([$identifier]);
     $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -57,7 +59,6 @@ try {
     if ($freebie) {
         $customer_id = $freebie['customer_id'] ?? null;
     } else {
-        // Check template freebies
         $stmt = $pdo->prepare("SELECT * FROM freebies WHERE unique_id = ? OR url_slug = ? LIMIT 1");
         $stmt->execute([$identifier, $identifier]);
         $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -72,17 +73,12 @@ if (!$freebie) {
     die('Freebie not found');
 }
 
-// Get values with defaults
 $primaryColor = $freebie['primary_color'] ?? '#8B5CF6';
 $backgroundColor = $freebie['background_color'] ?? '#FFFFFF';
-
-// Parse bullet points
 $bulletPoints = [];
 if (!empty($freebie['bullet_points'])) {
     $bulletPoints = array_filter(explode("\n", $freebie['bullet_points']));
 }
-
-// Footer links with customer_id if available
 $impressum_link = $customer_id ? "/impressum.php?customer=" . $customer_id : "/impressum.php";
 $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id : "/datenschutz.php";
 ?>
@@ -94,19 +90,13 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
     <title><?php echo htmlspecialchars($freebie['headline'] ?? 'Freebie'); ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: <?php echo htmlspecialchars($backgroundColor); ?>;
             min-height: 100vh;
             padding: 40px 20px;
         }
-        
         .container {
             max-width: 800px;
             margin: 0 auto;
@@ -115,14 +105,12 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             overflow: hidden;
         }
-        
         .header {
             background: linear-gradient(135deg, <?php echo htmlspecialchars($primaryColor); ?> 0%, #667eea 100%);
             padding: 60px 40px;
             text-align: center;
             color: white;
         }
-        
         .preheadline {
             font-size: 13px;
             text-transform: uppercase;
@@ -131,29 +119,24 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             margin-bottom: 16px;
             font-weight: 600;
         }
-        
         h1 {
             font-size: 38px;
             margin-bottom: 16px;
             font-weight: 800;
             line-height: 1.2;
         }
-        
         .subheadline {
             font-size: 18px;
             opacity: 0.95;
             line-height: 1.6;
         }
-        
         .content {
             padding: 45px 40px;
         }
-        
         .bullet-points {
             list-style: none;
             margin-bottom: 35px;
         }
-        
         .bullet-points li {
             padding: 14px 0 14px 40px;
             position: relative;
@@ -161,7 +144,6 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             line-height: 1.6;
             color: #374151;
         }
-        
         .bullet-points li:before {
             content: "✓";
             position: absolute;
@@ -171,7 +153,6 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             font-weight: bold;
             font-size: 22px;
         }
-        
         .cta-button {
             display: inline-block;
             width: 100%;
@@ -190,18 +171,15 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             letter-spacing: 0.5px;
             box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
         }
-        
         .cta-button:hover {
             transform: translateY(-2px);
         }
-        
         .footer {
             background: #f9fafb;
             padding: 30px 40px;
             text-align: center;
             border-top: 1px solid #e5e7eb;
         }
-        
         .footer a {
             color: #6b7280;
             text-decoration: none;
@@ -209,25 +187,18 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             margin: 0 12px;
             transition: color 0.3s;
         }
-        
         .footer a:hover {
             color: <?php echo htmlspecialchars($primaryColor); ?>;
         }
-        
         .raw-code-container {
             margin: 30px 0;
             padding: 20px;
             background: #f9fafb;
             border-radius: 12px;
         }
-        
         @media (max-width: 768px) {
-            h1 {
-                font-size: 28px;
-            }
-            .header, .content {
-                padding: 40px 24px;
-            }
+            h1 { font-size: 28px; }
+            .header, .content { padding: 40px 24px; }
         }
     </style>
 </head>
