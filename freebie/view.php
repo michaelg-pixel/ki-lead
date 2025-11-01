@@ -32,12 +32,12 @@ try {
     
     // Customer-ID ermitteln
     $customer_id = null;
-    if (isset($freebie['customer_id'])) {
+    if (isset($freebie['customer_id']) && !empty($freebie['customer_id'])) {
         // Direktes Feld in freebies Tabelle
         $customer_id = $freebie['customer_id'];
     } else {
-        // Über customer_freebies Tabelle
-        $stmt_customer = $pdo->prepare("SELECT customer_id FROM customer_freebies WHERE freebie_id = ? LIMIT 1");
+        // Über customer_freebies Tabelle (template_id, nicht freebie_id!)
+        $stmt_customer = $pdo->prepare("SELECT customer_id FROM customer_freebies WHERE template_id = ? LIMIT 1");
         $stmt_customer->execute([$freebie_id]);
         $customer_relation = $stmt_customer->fetch(PDO::FETCH_ASSOC);
         if ($customer_relation) {
@@ -97,7 +97,7 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($freebie['name']); ?></title>
+    <title><?php echo htmlspecialchars($freebie['name'] ?? 'Freebie'); ?></title>
     
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&family=Montserrat:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&family=Open+Sans:wght@400;600;700&family=Lato:wght@400;700&family=Playfair+Display:wght@400;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
@@ -306,7 +306,7 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
                     <div class="preheadline"><?php echo htmlspecialchars($freebie['preheadline']); ?></div>
                 <?php endif; ?>
                 
-                <h1 class="headline"><?php echo htmlspecialchars($freebie['headline']); ?></h1>
+                <h1 class="headline"><?php echo htmlspecialchars($freebie['headline'] ?? 'Deine Überschrift'); ?></h1>
                 
                 <?php if (!empty($freebie['subheadline'])): ?>
                     <p class="subheadline"><?php echo htmlspecialchars($freebie['subheadline']); ?></p>
@@ -354,7 +354,7 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
                         <div class="preheadline"><?php echo htmlspecialchars($freebie['preheadline']); ?></div>
                     <?php endif; ?>
                     
-                    <h1 class="headline"><?php echo htmlspecialchars($freebie['headline']); ?></h1>
+                    <h1 class="headline"><?php echo htmlspecialchars($freebie['headline'] ?? 'Deine Überschrift'); ?></h1>
                     
                     <?php if (!empty($freebie['subheadline'])): ?>
                         <p class="subheadline"><?php echo htmlspecialchars($freebie['subheadline']); ?></p>
@@ -393,7 +393,7 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
                         <div class="preheadline"><?php echo htmlspecialchars($freebie['preheadline']); ?></div>
                     <?php endif; ?>
                     
-                    <h1 class="headline"><?php echo htmlspecialchars($freebie['headline']); ?></h1>
+                    <h1 class="headline"><?php echo htmlspecialchars($freebie['headline'] ?? 'Deine Überschrift'); ?></h1>
                     
                     <?php if (!empty($freebie['subheadline'])): ?>
                         <p class="subheadline"><?php echo htmlspecialchars($freebie['subheadline']); ?></p>
