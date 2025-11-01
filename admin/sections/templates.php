@@ -1,6 +1,6 @@
 <?php
 /**
- * Kursverwaltung - Templates Seite
+ * Kursverwaltung - Templates Seite - RESPONSIVE OPTIMIERT
  * Admin-Interface für Video-Kurse und PDF-Kurse
  */
 
@@ -306,12 +306,14 @@ $courses = $pdo->query("
     color: var(--text-secondary);
     padding-bottom: 12px;
     border-bottom: 1px solid var(--border-light);
+    flex-wrap: wrap;
 }
 
 .course-digistore {
     margin-top: 12px;
     font-size: 12px;
     color: var(--text-secondary);
+    word-break: break-all;
 }
 
 .course-digistore code {
@@ -470,6 +472,7 @@ $courses = $pdo->query("
     justify-content: center;
     border-radius: 6px;
     transition: all 0.2s;
+    flex-shrink: 0;
 }
 
 .modal-close:hover {
@@ -546,18 +549,221 @@ $courses = $pdo->query("
     cursor: pointer;
 }
 
-/* Responsive */
+/* ============================================
+   RESPONSIVE DESIGN - MOBILE OPTIMIERUNG
+   ============================================ */
+
+/* Tablets */
+@media (max-width: 1024px) {
+    .courses-grid {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+    }
+}
+
+/* Mobile Geräte */
 @media (max-width: 768px) {
+    .courses-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    
+    .courses-header h2 {
+        font-size: 24px !important;
+    }
+    
+    .courses-header p {
+        font-size: 13px;
+    }
+    
+    .btn-primary {
+        width: 100%;
+        justify-content: center;
+        padding: 14px 20px;
+    }
+    
     .courses-grid {
         grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    
+    .course-card {
+        border-radius: 12px;
+    }
+    
+    .course-thumbnail {
+        height: 180px;
+    }
+    
+    .course-type-badge,
+    .course-freebie-badge {
+        font-size: 11px;
+        padding: 5px 10px;
+    }
+    
+    .course-info {
+        padding: 16px;
+    }
+    
+    .course-title {
+        font-size: 16px;
+    }
+    
+    .course-description {
+        font-size: 13px;
+    }
+    
+    .course-stats {
+        font-size: 12px;
+        gap: 12px;
+    }
+    
+    .course-digistore {
+        font-size: 11px;
+    }
+    
+    .course-actions {
+        padding: 12px 16px;
+        gap: 8px;
+    }
+    
+    .btn-action {
+        font-size: 12px;
+        padding: 8px;
+    }
+    
+    /* Empty State */
+    .empty-state-courses {
+        padding: 60px 20px;
+    }
+    
+    .empty-state-courses h3 {
+        font-size: 20px;
+    }
+    
+    .empty-state-courses p {
+        font-size: 14px;
+    }
+    
+    /* Modal */
+    .modal {
+        padding: 20px 10px;
+    }
+    
+    .modal-content {
+        max-width: 100%;
+    }
+    
+    .modal-header {
+        padding: 20px 16px;
+    }
+    
+    .modal-header h3 {
+        font-size: 18px;
     }
     
     .form-grid {
+        padding: 20px 16px;
         grid-template-columns: 1fr;
+        gap: 16px;
     }
     
     .col-span-2 {
         grid-column: span 1;
+    }
+    
+    .modal-footer {
+        padding: 16px;
+        flex-direction: column;
+    }
+    
+    .modal-footer .btn-primary,
+    .modal-footer .btn-secondary {
+        width: 100%;
+    }
+}
+
+/* Sehr kleine Mobile Geräte */
+@media (max-width: 480px) {
+    .courses-header h2 {
+        font-size: 20px !important;
+    }
+    
+    .course-thumbnail {
+        height: 160px;
+    }
+    
+    .course-placeholder span {
+        font-size: 40px !important;
+    }
+    
+    .course-info {
+        padding: 12px;
+    }
+    
+    .course-title {
+        font-size: 15px;
+    }
+    
+    .course-description {
+        font-size: 12px;
+    }
+    
+    .course-stats {
+        font-size: 11px;
+    }
+    
+    .course-actions {
+        flex-direction: column;
+    }
+    
+    .btn-action {
+        width: 100%;
+    }
+    
+    .empty-state-courses {
+        padding: 40px 16px;
+    }
+    
+    .empty-state-courses > div {
+        font-size: 48px !important;
+        margin-bottom: 16px !important;
+    }
+    
+    .modal {
+        padding: 10px 5px;
+    }
+    
+    .modal-header {
+        padding: 16px 12px;
+    }
+    
+    .form-grid {
+        padding: 16px 12px;
+        gap: 12px;
+    }
+    
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 10px;
+        font-size: 13px;
+    }
+}
+
+/* Landscape Modus */
+@media (max-height: 600px) and (max-width: 768px) {
+    .modal {
+        padding: 10px;
+    }
+    
+    .modal-content {
+        margin: 10px 0;
+    }
+    
+    .form-grid {
+        padding: 16px;
     }
 }
 </style>
@@ -566,11 +772,13 @@ $courses = $pdo->query("
 // Modal Functions
 function showCreateCourseModal() {
     document.getElementById('createCourseModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
 }
 
 function closeCreateCourseModal() {
     document.getElementById('createCourseModal').classList.remove('active');
     document.getElementById('createCourseForm').reset();
+    document.body.style.overflow = '';
 }
 
 // Toggle fields based on course type
@@ -645,6 +853,16 @@ async function deleteCourse(courseId) {
 document.getElementById('createCourseModal')?.addEventListener('click', function(e) {
     if (e.target === this) {
         closeCreateCourseModal();
+    }
+});
+
+// ESC-Taste zum Schließen
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('createCourseModal');
+        if (modal && modal.classList.contains('active')) {
+            closeCreateCourseModal();
+        }
     }
 });
 </script>
