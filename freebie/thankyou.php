@@ -13,8 +13,18 @@ if ($freebie_id <= 0) {
     die('Ungültige Freebie-ID');
 }
 
-// Freebie aus Datenbank laden
-$stmt = $pdo->prepare("SELECT * FROM freebies WHERE id = ?");
+// Freebie aus Datenbank laden MIT verknüpftem Kurs
+$stmt = $pdo->prepare("
+    SELECT 
+        f.*,
+        c.id as course_id,
+        c.title as course_title,
+        c.slug as course_slug,
+        c.description as course_description
+    FROM freebies f
+    LEFT JOIN courses c ON f.course_id = c.id
+    WHERE f.id = ?
+");
 $stmt->execute([$freebie_id]);
 $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -34,8 +44,19 @@ $body_font = $freebie['body_font'] ?? 'Poppins';
 
 $thank_you_headline = $freebie['thank_you_headline'] ?? 'Vielen Dank!';
 $thank_you_text = $freebie['thank_you_text'] ?? 'Dein Freebie ist auf dem Weg zu dir. Schau in dein E-Mail-Postfach!';
+
+// Kurs-Button Text und URL
 $video_button_text = $freebie['video_button_text'] ?? 'Zum Videokurs';
-$video_course_url = $freebie['video_course_url'] ?? '#';
+
+// Kurs-URL aus verknüpftem Kurs generieren oder Fallback verwenden
+$video_course_url = '';
+if (!empty($freebie['course_id']) && !empty($freebie['course_slug'])) {
+    // Verknüpfter Kurs existiert - Link zum Kurs erstellen
+    $video_course_url = '/customer/course-view.php?slug=' . urlencode($freebie['course_slug']);
+} elseif (!empty($freebie['video_course_url'])) {
+    // Fallback auf manuelle URL
+    $video_course_url = $freebie['video_course_url'];
+}
 
 ?>
 <!DOCTYPE html>
@@ -171,6 +192,28 @@ $video_course_url = $freebie['video_course_url'] ?? '#';
             color: #6b7280;
         }
         
+        /* Course Info Card */
+        .course-info {
+            background: linear-gradient(135deg, <?php echo $primary_color; ?>15, <?php echo $primary_color; ?>25);
+            border: 2px solid <?php echo $primary_color; ?>40;
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 32px;
+            animation: fadeInUp 0.6s ease-out 0.7s both;
+        }
+        
+        .course-info h3 {
+            font-size: 24px;
+            color: #1F2937;
+            margin-bottom: 12px;
+        }
+        
+        .course-info p {
+            font-size: 16px;
+            color: #4b5563;
+            margin-bottom: 24px;
+        }
+        
         /* Video Button */
         .video-button {
             display: inline-flex;
@@ -215,6 +258,7 @@ $video_course_url = $freebie['video_course_url'] ?? '#';
             justify-content: center;
             gap: 24px;
             margin-top: 16px;
+            flex-wrap: wrap;
         }
         
         .footer-links a {
@@ -243,6 +287,19 @@ $video_course_url = $freebie['video_course_url'] ?? '#';
             
             .steps {
                 grid-template-columns: 1fr;
+            }
+            
+            .course-info {
+                padding: 24px;
+            }
+            
+            .course-info h3 {
+                font-size: 20px;
+            }
+            
+            .video-button {
+                padding: 16px 32px;
+                font-size: 18px;
             }
         }
     </style>
@@ -277,7 +334,22 @@ $video_course_url = $freebie['video_course_url'] ?? '#';
             </div>
         </div>
         
-        <?php if (!empty($video_course_url) && $video_course_url !== '#'): ?>
+        <?php if (!empty($video_course_url)): ?>
+            <?php if (!empty($freebie['course_title'])): ?>
+                <!-- Kurs-Info-Card -->
+                <div class="course-info">
+                    <h3>🎓 Dein nächster Schritt</h3>
+                    <p>
+                        <strong><?php echo htmlspecialchars($freebie['course_title']); ?></strong>
+                        <?php if (!empty($freebie['course_description'])): ?>
+                            <br>
+                            <?php echo htmlspecialchars(substr($freebie['course_description'], 0, 150)); ?>
+                            <?php echo strlen($freebie['course_description']) > 150 ? '...' : ''; ?>
+                        <?php endif; ?>
+                    </p>
+                </div>
+            <?php endif; ?>
+            
             <a href="<?php echo htmlspecialchars($video_course_url); ?>" class="video-button">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
