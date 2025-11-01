@@ -2,47 +2,97 @@
 
 ## Übersicht
 
-Das Rechtstexte-System ermöglicht es Kunden, ihr **Impressum** und ihre **Datenschutzerklärung** zentral zu verwalten. Die Texte werden automatisch auf allen Freebie-Seiten im Footer verlinkt und sind somit DSGVO-konform und rechtlich korrekt für jeden Kunden individuell verfügbar.
+Das Rechtstexte-System ermöglicht es Kunden, ihr **Impressum** und ihre **Datenschutzerklärung** zentral zu verwalten. Die Texte werden **automatisch auf allen Freebie-Seiten im Footer verlinkt** und sind somit DSGVO-konform und rechtlich korrekt für jeden Kunden individuell verfügbar.
 
 ## ✨ Features
 
 - ✅ **Zentrale Verwaltung** von Impressum und Datenschutzerklärung
 - ✅ **Kundenspezifische Rechtstexte** - jeder Kunde hat seine eigenen Texte
-- ✅ **Automatische Footer-Integration** auf allen Freebie-Seiten
+- ✅ **AUTOMATISCHE Footer-Integration** auf allen Freebie-Seiten
+- ✅ **Keine manuelle Konfiguration** - alles geschieht automatisch beim Speichern
 - ✅ **E-Recht24 Integration** mit direkten Links zu kostenlosen Generatoren
 - ✅ **Aktuelle DSGVO-Mustertexte** als Vorlage
 - ✅ **Einfache Navigation** - "Rechtstexte" an 3. Position im Menü
 
-## 🎯 Wo findet man die Rechtstexte?
+## 🎯 Wie funktioniert die automatische Verknüpfung?
 
-Im Kunden-Dashboard unter:
+### Workflow:
+
+1. **Kunde speichert Rechtstexte** unter `Dashboard → Rechtstexte`
+   - Impressum und Datenschutzerklärung werden in `legal_texts` Tabelle gespeichert
+   - Mit `customer_id` verknüpft
+
+2. **Kunde bearbeitet ein Freebie** im Editor
+   - Beim Speichern wird automatisch die `customer_id` im Template gesetzt
+   - Keine zusätzliche Konfiguration nötig
+
+3. **Freebie-Seite wird aufgerufen**
+   - System liest `customer_id` aus dem Freebie
+   - Footer-Links werden automatisch generiert:
+     - `/impressum.php?customer=123`
+     - `/datenschutz.php?customer=123`
+
+4. **Rechtstexte werden angezeigt**
+   - Besucher klickt auf "Impressum" oder "Datenschutz"
+   - System lädt die kundenspezifischen Texte aus der Datenbank
+
+### Das bedeutet:
+
+✅ **Einmal einrichten** → Funktioniert überall  
+✅ **Automatische Verknüpfung** → Kein manuelles Eintragen von IDs  
+✅ **Immer aktuell** → Änderungen erscheinen sofort auf allen Seiten  
+✅ **DSGVO-konform** → Jeder Kunde hat seine eigenen rechtlichen Texte  
+
+## 🚀 Für Kunden: So einfach geht's
+
+### Schritt 1: Rechtstexte einrichten (einmalig)
+
+1. Gehe zu `Dashboard → Rechtstexte` (3. Position im Menü)
+2. Nutze die **e-recht24 Generatoren** für professionelle Texte:
+   - [Impressum Generator](https://www.e-recht24.de/impressum-generator.html)
+   - [Datenschutz Generator](https://www.e-recht24.de/muster-datenschutzerklaerung.html)
+3. Kopiere die generierten Texte in die Felder
+4. Klicke auf "Rechtstexte speichern"
+
+### Schritt 2: Freebie bearbeiten
+
+1. Gehe zu `Dashboard → Lead-Magneten`
+2. Wähle ein Template und klicke auf "Nutzen" oder "Bearbeiten"
+3. Passe Texte, Farben und E-Mail-Optin an
+4. Klicke auf **"Freebie speichern & Rechtstexte verknüpfen"**
+
+### Schritt 3: Fertig! ✅
+
+**Deine Rechtstexte sind jetzt automatisch verknüpft!**
+
+- Freebie-Seite zeigt deine Links im Footer
+- Thank-You-Seite zeigt deine Links im Footer
+- Alle Template-Varianten nutzen deine Rechtstexte
+- Bei Änderungen werden sie überall aktualisiert
+
+## 📋 Datenbank-Struktur & Technische Details
+
+### Automatische Verknüpfung
+
+**Beim Speichern im Freebie-Editor (`customer/freebie-editor.php`):**
+
+```php
+// customer_id wird automatisch gesetzt
+UPDATE freebies SET
+    customer_id = ?  // Wichtig für Footer-Links!
+WHERE id = ?
 ```
-Dashboard → Rechtstexte (3. Position im Menü)
+
+**Bei der Anzeige (`freebie/view.php`, `freebie/thankyou.php`):**
+
+```php
+// customer_id wird automatisch gelesen
+$customer_id = $freebie['customer_id'];
+
+// Footer-Links werden automatisch generiert
+$impressum_link = "/impressum.php?customer=" . $customer_id;
+$datenschutz_link = "/datenschutz.php?customer=" . $customer_id;
 ```
-
-## 🚀 Installation
-
-### Option 1: Automatisches Setup (Empfohlen)
-
-Rufe einfach das Setup-Script auf:
-```
-https://app.mehr-infos-jetzt.de/setup/setup-legal-texts.php
-```
-
-Das Script:
-- Erstellt die `legal_texts` Tabelle
-- Fügt `customer_id` zur `freebies` Tabelle hinzu (falls nicht vorhanden)
-- Zeigt Erfolgsmeldung und nächste Schritte
-
-### Option 2: Manuelle Installation
-
-Führe das SQL-Script aus:
-```sql
--- In phpMyAdmin oder über die Konsole
-mysql -u username -p database_name < setup/legal-texts-setup.sql
-```
-
-## 📋 Datenbank-Struktur
 
 ### Tabelle: `legal_texts`
 
@@ -59,153 +109,99 @@ CREATE TABLE `legal_texts` (
 )
 ```
 
-## 🔗 Wie funktioniert die Verlinkung?
+### Erweiterte `freebies` Tabelle
 
-### 1. Freebie-Seiten (view.php)
-Die customer_id wird automatisch ermittelt:
-```php
-// Direktes Feld oder über customer_freebies Relation
-$customer_id = $freebie['customer_id'] ?? get_from_relation();
-
-// Footer-Links werden generiert
-$impressum_link = "/impressum.php?customer=" . $customer_id;
-$datenschutz_link = "/datenschutz.php?customer=" . $customer_id;
+```sql
+ALTER TABLE `freebies` 
+ADD COLUMN `customer_id` INT(11) DEFAULT NULL;
 ```
 
-### 2. Thank-You-Seiten (thankyou.php)
-Gleiche Logik wie bei den Freebie-Seiten
+## 🆘 Häufige Fragen (FAQ)
 
-### 3. Layout-Templates (layout1.php, layout2.php, layout3.php)
-Die Templates verwenden die gleiche customer_id Logik
+### "Muss ich für jedes Freebie die Rechtstexte neu verknüpfen?"
 
-## 📝 Für Kunden: So nutzt man die Rechtstexte
+**Nein!** Die Verknüpfung geschieht **automatisch beim Speichern** des Freebies. Du musst nichts Manuelles tun.
 
-### Schritt 1: Texte generieren
+### "Was passiert, wenn ich meine Rechtstexte ändere?"
 
-Nutze die **kostenlosen e-recht24 Generatoren**:
+Die Änderungen werden **sofort auf allen Freebie-Seiten** sichtbar. Du musst die Freebies nicht neu speichern.
 
-**Impressum Generator:**
+### "Kann ich unterschiedliche Rechtstexte für verschiedene Freebies haben?"
+
+Aktuell nutzen alle Freebies eines Kunden dieselben Rechtstexte. Das ist rechtlich auch sinnvoll, da die Rechtstexte für dein gesamtes Business gelten.
+
+### "Was zeigt der Footer, wenn ich noch keine Rechtstexte eingegeben habe?"
+
+Die Links werden trotzdem angezeigt, aber die Rechtstexte-Seiten zeigen "Nicht verfügbar". Füge daher am besten sofort nach der Registrierung deine Rechtstexte ein.
+
+### "Sind die Mustertexte rechtssicher?"
+
+Die Mustertexte sind **DSGVO-konforme Vorlagen**, aber du musst alle Platzhalter (z.B. [Dein Name]) durch deine echten Daten ersetzen. Wir empfehlen die Nutzung der **e-recht24 Generatoren** für professionelle, rechtssichere Texte.
+
+## 📂 Dateien & Änderungen
+
+### Geänderte Backend-Dateien:
+
+- ✅ `customer/dashboard.php` - "Rechtstexte" Menüpunkt an 3. Position
+- ✅ `customer/legal-texts.php` - Vollständig überarbeitet mit e-recht24 Integration
+- ✅ `customer/freebie-editor.php` - **Setzt customer_id automatisch beim Speichern**
+
+### Geänderte Frontend-Dateien:
+
+- ✅ `freebie/view.php` - Liest customer_id und generiert Footer-Links
+- ✅ `freebie/thankyou.php` - Liest customer_id und generiert Footer-Links
+- ✅ `freebie/templates/layout1.php` - Unterstützt kundenspezifische Links
+
+### Rechtstexte-Anzeige:
+
+- ✅ `impressum.php` - Zeigt kundenspezifisches Impressum
+- ✅ `datenschutz.php` - Zeigt kundenspezifische Datenschutzerklärung
+
+## 🚀 Installation
+
+### Automatisches Setup (Empfohlen)
+
 ```
-https://www.e-recht24.de/impressum-generator.html
-```
-
-**Datenschutz Generator:**
-```
-https://www.e-recht24.de/muster-datenschutzerklaerung.html
-```
-
-### Schritt 2: Texte einfügen
-
-1. Gehe zu: `Dashboard → Rechtstexte`
-2. Kopiere die generierten Texte in die entsprechenden Felder
-3. Klicke auf "Rechtstexte speichern"
-
-### Schritt 3: Fertig! ✅
-
-Die Texte werden automatisch auf **allen deinen Freebie-Seiten** im Footer verlinkt:
-- Freebie-Landingpages (`/freebie/view.php`)
-- Thank-You-Seiten (`/freebie/thankyou.php`)
-- Alle Template-Varianten
-
-## 🎨 Features der Rechtstexte-Seite
-
-### Prominente e-recht24 Box
-```
-┌─────────────────────────────────────────┐
-│ 🎯 Kostenlose Rechtstexte mit e-recht24 │
-│                                         │
-│ [Impressum Generator] [Datenschutz Gen.]│
-└─────────────────────────────────────────┘
-```
-
-### Mustertext-Buttons
-- **"Mustertext laden"** - Lädt aktuelle DSGVO-konforme Vorlage
-- Platzhalter müssen durch echte Daten ersetzt werden
-- Warnung vor dem Überschreiben
-
-### Wichtige Hinweise
-- ⚠️ Rechtliche Hinweise zur Bindungswirkung
-- ✅ Empfehlungen für professionelle Generatoren
-- 📋 Checklisten: "Was muss ins Impressum/Datenschutz?"
-
-### Vorschau-Links
-Direkte Links zu den eigenen Rechtstexten:
-```
-/impressum.php?customer=123
-/datenschutz.php?customer=123
+https://app.mehr-infos-jetzt.de/setup/setup-legal-texts.php
 ```
 
-## 🔐 Sicherheit & Datenschutz
+Das Script:
+- Erstellt die `legal_texts` Tabelle
+- Fügt `customer_id` zur `freebies` Tabelle hinzu
+- Zeigt Erfolgsmeldung und nächste Schritte
 
-- ✅ **Kundenspezifisch**: Jeder Kunde sieht nur seine eigenen Rechtstexte
-- ✅ **DSGVO-konform**: Mustertexte nach aktuellen Standards
-- ✅ **Eindeutige Zuordnung**: Via customer_id in URL-Parameter
-- ✅ **Sichere Speicherung**: UTF-8 encoding, prepared statements
+## ✅ Vorteile des Systems
 
-## 📂 Dateien & Struktur
+### Für Kunden:
+- ✅ **Keine technischen Kenntnisse** nötig
+- ✅ **Einmal einrichten**, überall nutzen
+- ✅ **Automatische Aktualisierung** bei Änderungen
+- ✅ **DSGVO-konform** und rechtssicher
+- ✅ **Professionelle Vorlagen** inklusive
 
-### Backend (Verwaltung)
-```
-customer/
-├── dashboard.php           # Navigation mit "Rechtstexte" an 3. Pos.
-├── legal-texts.php         # Hauptseite für Rechtstexte-Verwaltung
-└── includes/
-    └── navigation.php      # Kann auch Rechtstexte-Link enthalten
-```
+### Für Admins:
+- ✅ **Keine manuelle Konfiguration** pro Kunde
+- ✅ **Automatische Verknüpfung** beim Speichern
+- ✅ **Skalierbar** für viele Kunden
+- ✅ **Zentralisierte Verwaltung**
 
-### Frontend (Anzeige)
-```
-/
-├── impressum.php           # Zeigt kundenspezifisches Impressum
-├── datenschutz.php         # Zeigt kundenspezifische Datenschutzerklärung
-└── freebie/
-    ├── view.php            # Freebie-Seite mit Footer-Links
-    ├── thankyou.php        # Danke-Seite mit Footer-Links
-    └── templates/
-        ├── layout1.php     # Template 1 mit Footer
-        ├── layout2.php     # Template 2 mit Footer
-        └── layout3.php     # Template 3 mit Footer
-```
+### Für Besucher:
+- ✅ **Rechtskonforme Footer-Links** auf jeder Seite
+- ✅ **Schneller Zugriff** zu Impressum und Datenschutz
+- ✅ **Vertrauen** durch transparente Rechtstexte
 
-### Setup
-```
-setup/
-├── legal-texts-setup.sql       # SQL-Script
-└── setup-legal-texts.php       # Automatisches PHP-Setup
-```
+## 🎓 Best Practices
 
-## 🛠️ Technische Details
-
-### Customer-ID Ermittlung
-
-Das System unterstützt zwei Ansätze:
-
-**Variante 1: Direktes Feld (empfohlen)**
-```php
-$customer_id = $freebie['customer_id'];
-```
-
-**Variante 2: Über Relation**
-```php
-$stmt = $pdo->prepare("SELECT customer_id FROM customer_freebies WHERE freebie_id = ?");
-$stmt->execute([$freebie_id]);
-$customer_id = $stmt->fetchColumn();
-```
-
-### Footer-Integration
-
-Alle Templates verwenden:
-```html
-<footer>
-    <a href="/impressum.php?customer=<?= $customer_id ?>">Impressum</a>
-    <a href="/datenschutz.php?customer=<?= $customer_id ?>">Datenschutz</a>
-</footer>
-```
+1. **Rechtstexte zuerst einrichten**: Füge deine Rechtstexte direkt nach der Registrierung ein
+2. **E-recht24 nutzen**: Die Generatoren sind kostenlos und professionell
+3. **Regelmäßig aktualisieren**: Prüfe deine Texte jährlich auf Aktualität
+4. **Alle Platzhalter ersetzen**: Achte darauf, dass keine [Platzhalter] mehr im Text sind
+5. **Bei Änderungen im Business**: Aktualisiere deine Rechtstexte entsprechend
 
 ## 📖 DSGVO-Compliance
 
 ### Was muss ins Impressum?
-- Name und Anschrift
+- Name und Anschrift (vollständig)
 - Kontaktmöglichkeiten (E-Mail, Telefon)
 - Bei Unternehmen: Rechtsform, Vertretungsberechtigte, Handelsregister
 - Umsatzsteuer-ID (falls vorhanden)
@@ -214,61 +210,40 @@ Alle Templates verwenden:
 ### Was muss in die Datenschutzerklärung?
 - Verantwortlicher für Datenverarbeitung
 - Welche Daten werden erhoben? (E-Mail, Name, IP, etc.)
-- Zu welchem Zweck?
+- Zu welchem Zweck? (Newsletter, Lead-Magnet, etc.)
 - Rechtsgrundlage (Art. 6 DSGVO)
 - Speicherdauer
 - Betroffenenrechte (Auskunft, Löschung, etc.)
-- Cookies und Drittanbieter
+- Cookies und Drittanbieter (E-Mail-Tools, Analytics)
 - Widerrufsrecht
 
-## 🆘 Troubleshooting
+## 🔧 Updates & Wartung
 
-### Problem: "Ungültige Kunden-ID"
-**Lösung:** Prüfe ob:
-- Die `customer_id` in der `freebies` Tabelle gesetzt ist
-- Oder die Zuordnung über `customer_freebies` existiert
-
-### Problem: Footer-Links funktionieren nicht
-**Lösung:** 
-1. Prüfe ob `impressum.php` und `datenschutz.php` existieren
-2. Stelle sicher, dass die customer_id korrekt übergeben wird
-3. Teste die Links manuell: `/impressum.php?customer=1`
-
-### Problem: Rechtstexte werden nicht gespeichert
-**Lösung:**
-1. Prüfe ob die `legal_texts` Tabelle existiert
-2. Führe das Setup-Script aus: `/setup/setup-legal-texts.php`
-3. Prüfe Datenbank-Berechtigungen
-
-## ✅ Checkliste für neue Kunden
-
-- [ ] Kunde hat sich registriert
-- [ ] `legal_texts` Eintrag wurde automatisch erstellt
-- [ ] Kunde hat Rechtstexte-Seite besucht
-- [ ] Kunde hat e-recht24 Generatoren genutzt
-- [ ] Impressum eingefügt und gespeichert
-- [ ] Datenschutzerklärung eingefügt und gespeichert
-- [ ] Links im Footer getestet
-- [ ] Vorschau der Rechtstexte geprüft
-
-## 🎓 Best Practices
-
-1. **Empfehle e-recht24**: Die Generatoren sind kostenlos und DSGVO-konform
-2. **Regelmäßige Updates**: Erinnere Kunden daran, ihre Texte zu aktualisieren
-3. **Vollständigkeit prüfen**: Alle Platzhalter müssen ersetzt werden
-4. **Professionelle Beratung**: Bei geschäftlicher Nutzung rechtliche Beratung empfehlen
-
-## 🔄 Updates & Wartung
+### Version 1.1 (November 2025)
+- ✅ **Automatische Verknüpfung** beim Freebie-Speichern
+- ✅ customer_id wird automatisch gesetzt
+- ✅ Grüner Hinweis im Editor
+- ✅ Erfolgs-Nachricht mit Bestätigung
 
 ### Version 1.0 (November 2025)
 - ✅ Initiale Implementation
 - ✅ e-recht24 Integration
-- ✅ Automatische Footer-Links
+- ✅ Manuelle Footer-Links
 - ✅ DSGVO-konforme Mustertexte
-- ✅ Navigation an 3. Position
 
 ---
 
 **Entwickler:** Michael (Hostinger MCP Bridge)  
 **Stand:** November 2025  
 **Support:** Bei Fragen bitte im Repository ein Issue erstellen
+
+## 🎯 Zusammenfassung
+
+Das Rechtstexte-System ist **vollständig automatisiert**:
+
+1. Kunde speichert Rechtstexte → In Datenbank
+2. Kunde bearbeitet Freebie → customer_id wird automatisch gesetzt
+3. Freebie wird aufgerufen → Footer zeigt automatisch Rechtstexte-Links
+4. Besucher klickt Link → Sieht kundenspezifische Rechtstexte
+
+**Keine manuelle Konfiguration. Keine IDs eintragen. Alles automatisch.** 🚀
