@@ -6,50 +6,76 @@
 
 require_once __DIR__ . '/../config/database.php';
 
-// Freebie-ID aus URL holen
+// Freebie-ID und Customer-ID aus URL holen
 $freebie_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$customer_id_from_url = isset($_GET['customer']) ? (int)$_GET['customer'] : null;
 
 if ($freebie_id <= 0) {
     die('Ungültige Freebie-ID');
 }
 
-// Freebie aus Datenbank laden MIT verknüpftem Kurs und customer_id
-$stmt = $pdo->prepare("
-    SELECT 
-        f.*,
-        c.id as course_id,
-        c.title as course_title,
-        c.description as course_description,
-        c.mockup_url as course_mockup
-    FROM freebies f
-    LEFT JOIN courses c ON f.course_id = c.id
-    WHERE f.id = ?
-");
-$stmt->execute([$freebie_id]);
-$freebie = $stmt->fetch(PDO::FETCH_ASSOC);
+// Freebie aus Datenbank laden - ERST customer_freebies prüfen, dann templates
+$customer_id = $customer_id_from_url;
+$is_customer_freebie = false;
 
-if (!$freebie) {
-    die('Freebie nicht gefunden');
-}
-
-// Customer-ID ermitteln
-$customer_id = null;
-if (isset($freebie['customer_id']) && !empty($freebie['customer_id'])) {
-    // Direktes Feld in freebies Tabelle
-    $customer_id = $freebie['customer_id'];
-} else {
-    // Über customer_freebies Tabelle (template_id, nicht freebie_id!)
-    $stmt_customer = $pdo->prepare("SELECT customer_id FROM customer_freebies WHERE template_id = ? LIMIT 1");
-    $stmt_customer->execute([$freebie_id]);
-    $customer_relation = $stmt_customer->fetch(PDO::FETCH_ASSOC);
-    if ($customer_relation) {
-        $customer_id = $customer_relation['customer_id'];
+try {
+    // Zuerst prüfen, ob es ein Customer-Freebie ist
+    $stmt = $pdo->prepare("
+        SELECT 
+            cf.*,
+            cf.customer_id,
+            c.id as course_id,
+            c.title as course_title,
+            c.description as course_description,
+            c.mockup_url as course_mockup
+        FROM customer_freebies cf
+        LEFT JOIN freebies f ON cf.template_id = f.id
+        LEFT JOIN courses c ON f.course_id = c.id
+        WHERE cf.id = ?
+    ");
+    $stmt->execute([$freebie_id]);
+    $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($freebie) {
+        // Es ist ein Customer-Freebie
+        $customer_id = $freebie['customer_id'];
+        $is_customer_freebie = true;
+    } else {
+        // Es ist ein Template-Freebie
+        $stmt = $pdo->prepare("
+            SELECT 
+                f.*,
+                c.id as course_id,
+                c.title as course_title,
+                c.description as course_description,
+                c.mockup_url as course_mockup
+            FROM freebies f
+            LEFT JOIN courses c ON f.course_id = c.id
+            WHERE f.id = ?
+        ");
+        $stmt->execute([$freebie_id]);
+        $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$freebie) {
+            die('Freebie nicht gefunden');
+        }
+        
+        // Wenn customer_id in URL vorhanden, verwende diese
+        if ($customer_id_from_url) {
+            $customer_id = $customer_id_from_url;
+        }
     }
+} catch (PDOException $e) {
+    die('Datenbankfehler: ' . $e->getMessage());
 }
 
 // Klick-Tracking für Danke-Seite
 try {
-    $update = $pdo->prepare("UPDATE freebies SET thank_you_clicks = COALESCE(thank_you_clicks, 0) + 1 WHERE id = ?");
+    if ($is_customer_freebie) {
+        $update = $pdo->prepare("UPDATE customer_freebies SET thank_you_clicks = COALESCE(thank_you_clicks, 0) + 1 WHERE id = ?");
+    } else {
+        $update = $pdo->prepare("UPDATE freebies SET thank_you_clicks = COALESCE(thank_you_clicks, 0) + 1 WHERE id = ?");
+    }
     $update->execute([$freebie_id]);
 } catch (PDOException $e) {
     // Tracking-Fehler ignorieren
@@ -556,9 +582,9 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         <div class="footer-content">
             <p class="footer-text">&copy; <?php echo date('Y'); ?> - Alle Rechte vorbehalten</p>
             <div class="footer-links">
-                <a href="<?php echo $impressum_link; ?>">Impressum</a>
+                <a href="<?php echo htmlspecialchars($impressum_link); ?>">Impressum</a>
                 <span style="color: #d1d5db;">•</span>
-                <a href="<?php echo $datenschutz_link; ?>">Datenschutzerklärung</a>
+                <a href="<?php echo htmlspecialchars($datenschutz_link); ?>">Datenschutzerklärung</a>
             </div>
         </div>
     </div>
