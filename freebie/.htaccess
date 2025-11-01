@@ -1,16 +1,15 @@
 # .htaccess für Freebie-Bereich
-# Diese Datei gehört in: /htdocs/app.mehr-infos-jetzt.de/freebie/.htaccess
-
 RewriteEngine On
-RewriteBase /freebie/
 
-# WICHTIG: PHP-Dateien und Test-Dateien NICHT umleiten
-RewriteRule ^(test|debug|index)\.php$ - [L]
+# Wenn es eine echte Datei ist (wie test.php, debug.php), lass sie durch
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
 
-# Wenn die Datei oder das Verzeichnis existiert, keine Umleitung
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
+# Wenn es ein echtes Verzeichnis ist, lass es durch
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
 
-# Leite clean URLs an index.php weiter
-# z.B. /freebie/abc123 wird zu /freebie/index.php?id=abc123
-RewriteRule ^([a-zA-Z0-9]+)$ index.php?id=$1 [L,QSA]
+# Nur für URLs ohne Punkt (also keine .php, .html, etc.)
+# Leite an index.php weiter
+RewriteCond %{REQUEST_URI} !\.
+RewriteRule ^([a-zA-Z0-9]+)$ /freebie/index.php?id=$1 [L,QSA]
