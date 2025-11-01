@@ -288,6 +288,17 @@ try {
         background: rgba(102, 126, 234, 0.5);
     }
     
+    .link-notice {
+        font-size: 11px;
+        color: #aaa;
+        margin-top: 8px;
+        padding: 8px;
+        background: rgba(251, 191, 36, 0.1);
+        border: 1px solid rgba(251, 191, 36, 0.2);
+        border-radius: 6px;
+        text-align: center;
+    }
+    
     @media (max-width: 768px) {
         .freebies-grid {
             grid-template-columns: 1fr;
@@ -342,7 +353,7 @@ try {
             <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>2.</strong> Klicke auf "Nutzen" um es zu bearbeiten und anzupassen</p>
             <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>3.</strong> Füge deinen E-Mail-Optin Code ein und passe die Farben an</p>
             <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>4.</strong> Kopiere die Links und teile sie in deinem Marketing!</p>
-            <p style="color: #60a5fa; font-size: 13px; margin-top: 12px;">✨ Du kannst jedes Template individuell anpassen und mehrfach verwenden!</p>
+            <p style="color: #60a5fa; font-size: 13px; margin-top: 12px;">✨ Die Links werden erst verfügbar, nachdem du das Template bearbeitet und gespeichert hast!</p>
         </div>
         
         <!-- Freebies Grid -->
@@ -365,14 +376,14 @@ try {
                 // Editor URL
                 $editorUrl = '/customer/freebie-editor.php?template_id=' . $freebie['id'];
                 
-                // Öffentliche Links - IMMER basierend auf Template
+                // Öffentliche Links - CUSTOMER-VERSION wenn bearbeitet
                 $freebieLink = '';
                 $thankYouLink = '';
                 
-                if (!empty($freebie['unique_id'])) {
-                    // Template-Links (immer verfügbar)
-                    $freebieLink = $protocol . '://' . $domain . '/freebie/' . $freebie['unique_id'];
-                    $thankYouLink = $protocol . '://' . $domain . '/freebie/thankyou.php?id=' . $freebie['id'];
+                if ($isUsedByCustomer && $customer_freebie_data && !empty($customer_freebie_data['unique_id'])) {
+                    // Customer hat das Template bearbeitet - zeige SEINE Version
+                    $freebieLink = $protocol . '://' . $domain . '/freebie/' . $customer_freebie_data['unique_id'];
+                    $thankYouLink = $protocol . '://' . $domain . '/freebie/thankyou.php?id=' . $customer_freebie_data['id'] . '&customer=' . $customer_id;
                 }
                 
                 $bgColor = $freebie['background_color'] ?: '#667eea';
@@ -450,14 +461,14 @@ try {
                             </a>
                         </div>
                         
-                        <!-- LINKS SECTION - IMMER anzeigen -->
+                        <!-- LINKS SECTION - Nur wenn bearbeitet -->
                         <?php if (!empty($freebieLink)): ?>
                             <div class="link-sections">
                                 <!-- Freebie Link -->
                                 <div class="link-section">
                                     <div class="link-header">
                                         <span class="link-icon">🔗</span>
-                                        <span>Freebie-Link</span>
+                                        <span>Freebie-Link (Deine Version)</span>
                                     </div>
                                     <div class="link-item">
                                         <input type="text" 
@@ -492,6 +503,10 @@ try {
                                         </button>
                                     </div>
                                 </div>
+                            </div>
+                        <?php else: ?>
+                            <div class="link-notice">
+                                ⚠️ Klicke auf "Nutzen" und speichere deine Änderungen, um die Links zu aktivieren
                             </div>
                         <?php endif; ?>
                     </div>
