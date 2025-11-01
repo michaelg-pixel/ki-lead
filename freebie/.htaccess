@@ -2,12 +2,9 @@
 RewriteEngine On
 RewriteBase /freebie/
 
-# Schritt 1: Wenn Datei existiert oder Verzeichnis existiert -> STOP
-RewriteCond %{REQUEST_FILENAME} -f [OR]
-RewriteCond %{REQUEST_FILENAME} -d
+# Regel 1: Wenn die Anfrage auf .php endet -> durchlassen
+RewriteCond %{REQUEST_URI} \.php$
 RewriteRule ^ - [L]
 
-# Schritt 2: Nur für 32-stellige hex IDs (unique_id Format) -> an index.php
+# Regel 2: Alles andere (32-stellige hex IDs) -> zu index.php weiterleiten
 RewriteRule ^([a-f0-9]{32})$ index.php?id=$1 [L,QSA]
-
-# Alles andere -> 404 oder durchlassen
