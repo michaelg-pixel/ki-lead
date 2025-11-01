@@ -1,33 +1,8 @@
 <?php
 /**
- * Freebie Public Page - MIT DEBUG OUTPUT
+ * Freebie Public Page mit allen Layout-Varianten
  */
 
-// Debug-Ausgabe am Anfang
-$debug = [
-    'REQUEST_URI' => $_SERVER['REQUEST_URI'] ?? 'N/A',
-    'QUERY_STRING' => $_SERVER['QUERY_STRING'] ?? 'N/A',
-    'GET_id' => $_GET['id'] ?? 'NICHT VORHANDEN',
-    'SCRIPT_NAME' => $_SERVER['SCRIPT_NAME'] ?? 'N/A',
-    'PHP_SELF' => $_SERVER['PHP_SELF'] ?? 'N/A'
-];
-
-// Wenn kein id Parameter, zeige Debug
-if (!isset($_GET['id'])) {
-    echo "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Debug</title>";
-    echo "<style>body{font-family:monospace;padding:40px;background:#fee2e2;}</style></head><body>";
-    echo "<h1>❌ .htaccess Umleitung funktioniert NICHT</h1>";
-    echo "<p>Die index.php wurde aufgerufen, aber ohne id Parameter!</p>";
-    echo "<h3>Debug Info:</h3><pre>" . print_r($debug, true) . "</pre>";
-    echo "<hr><h3>Was bedeutet das?</h3>";
-    echo "<p>Die .htaccess hat die URL NICHT korrekt umgeschrieben.</p>";
-    echo "<p>Erwarteter GET Parameter: <code>id=08385ca983cb6dfdffca575e84e22e93</code></p>";
-    echo "<p>Tatsächlicher GET Parameter: <code>" . htmlspecialchars($_GET['id'] ?? 'NICHT VORHANDEN') . "</code></p>";
-    echo "</body></html>";
-    exit;
-}
-
-// WENN wir hier ankommen, funktioniert die .htaccess
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -47,7 +22,12 @@ try {
     die('DB Connection Error');
 }
 
-$identifier = $_GET['id'];
+$identifier = $_GET['id'] ?? null;
+
+if (!$identifier) {
+    http_response_code(404);
+    die('No Freebie ID provided');
+}
 
 // Find the freebie
 $customer_id = null;
@@ -73,12 +53,23 @@ if (!$freebie) {
     die('Freebie not found');
 }
 
-$primaryColor = $freebie['primary_color'] ?? '#8B5CF6';
+// Get values with defaults
+$layout = $freebie['layout'] ?? 'hybrid';
+$primaryColor = $freebie['primary_color'] ?? '#ed8936';
 $backgroundColor = $freebie['background_color'] ?? '#FFFFFF';
+$preheadline = $freebie['preheadline'] ?? '';
+$headline = $freebie['headline'] ?? 'Willkommen';
+$subheadline = $freebie['subheadline'] ?? '';
+$ctaText = $freebie['cta_text'] ?? 'JETZT KOSTENLOS SICHERN';
+$mockupUrl = $freebie['mockup_image_url'] ?? '';
+
+// Parse bullet points
 $bulletPoints = [];
 if (!empty($freebie['bullet_points'])) {
     $bulletPoints = array_filter(explode("\n", $freebie['bullet_points']));
 }
+
+// Footer links
 $impressum_link = $customer_id ? "/impressum.php?customer=" . $customer_id : "/impressum.php";
 $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id : "/datenschutz.php";
 ?>
@@ -87,17 +78,25 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($freebie['headline'] ?? 'Freebie'); ?></title>
+    <title><?php echo htmlspecialchars($headline); ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: <?php echo htmlspecialchars($backgroundColor); ?>;
             min-height: 100vh;
             padding: 40px 20px;
         }
+        
         .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        /* CENTERED LAYOUT */
+        .layout-centered {
             max-width: 800px;
             margin: 0 auto;
             background: white;
@@ -105,45 +104,127 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             overflow: hidden;
         }
-        .header {
+        
+        .layout-centered .header {
             background: linear-gradient(135deg, <?php echo htmlspecialchars($primaryColor); ?> 0%, #667eea 100%);
             padding: 60px 40px;
             text-align: center;
             color: white;
         }
+        
+        .layout-centered .content {
+            padding: 45px 40px;
+            text-align: center;
+        }
+        
+        .layout-centered .mockup-container {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        /* HYBRID LAYOUT */
+        .layout-hybrid {
+            background: white;
+            border-radius: 24px;
+            padding: 60px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .layout-hybrid .hybrid-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+        }
+        
+        .layout-hybrid .mockup-side {
+            text-align: center;
+        }
+        
+        .layout-hybrid .content-side {
+            text-align: left;
+        }
+        
+        /* SIDEBAR LAYOUT */
+        .layout-sidebar {
+            background: white;
+            border-radius: 24px;
+            padding: 60px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .layout-sidebar .sidebar-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+        }
+        
+        .layout-sidebar .content-side {
+            text-align: left;
+        }
+        
+        .layout-sidebar .mockup-side {
+            text-align: center;
+        }
+        
+        /* GEMEINSAME ELEMENTE */
         .preheadline {
-            font-size: 13px;
+            font-size: 12px;
             text-transform: uppercase;
             letter-spacing: 2px;
-            opacity: 0.9;
             margin-bottom: 16px;
-            font-weight: 600;
+            font-weight: 700;
+            color: <?php echo htmlspecialchars($primaryColor); ?>;
         }
+        
+        .layout-centered .preheadline {
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
         h1 {
-            font-size: 38px;
-            margin-bottom: 16px;
+            font-size: 42px;
+            margin-bottom: 20px;
             font-weight: 800;
             line-height: 1.2;
+            color: #1a1a2e;
         }
+        
+        .layout-centered h1 {
+            color: white;
+        }
+        
         .subheadline {
-            font-size: 18px;
-            opacity: 0.95;
+            font-size: 20px;
+            margin-bottom: 32px;
             line-height: 1.6;
+            color: #6b7280;
         }
-        .content {
-            padding: 45px 40px;
+        
+        .layout-centered .subheadline {
+            color: rgba(255, 255, 255, 0.95);
         }
+        
+        .mockup-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+        }
+        
         .bullet-points {
             list-style: none;
-            margin-bottom: 35px;
+            margin-bottom: 40px;
         }
+        
         .bullet-points li {
             padding: 14px 0 14px 40px;
             position: relative;
-            font-size: 16px;
+            font-size: 17px;
             line-height: 1.6;
             color: #374151;
         }
+        
         .bullet-points li:before {
             content: "✓";
             position: absolute;
@@ -151,17 +232,22 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             top: 14px;
             color: <?php echo htmlspecialchars($primaryColor); ?>;
             font-weight: bold;
-            font-size: 22px;
+            font-size: 24px;
         }
+        
+        .layout-centered .bullet-points {
+            text-align: left;
+            display: inline-block;
+        }
+        
         .cta-button {
             display: inline-block;
-            width: 100%;
-            padding: 18px 24px;
+            padding: 20px 50px;
             background: <?php echo htmlspecialchars($primaryColor); ?>;
             color: white;
             border: none;
             border-radius: 12px;
-            font-size: 17px;
+            font-size: 18px;
             font-weight: 700;
             cursor: pointer;
             transition: transform 0.2s;
@@ -169,17 +255,39 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             text-decoration: none;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
         }
+        
         .cta-button:hover {
-            transform: translateY(-2px);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
         }
-        .footer {
+        
+        .layout-hybrid .cta-button,
+        .layout-sidebar .cta-button {
+            width: 100%;
+        }
+        
+        .raw-code-container {
+            margin: 30px 0;
+            padding: 20px;
             background: #f9fafb;
-            padding: 30px 40px;
-            text-align: center;
-            border-top: 1px solid #e5e7eb;
+            border-radius: 12px;
         }
+        
+        .footer {
+            margin-top: 60px;
+            padding-top: 30px;
+            border-top: 1px solid #e5e7eb;
+            text-align: center;
+        }
+        
+        .layout-centered .footer {
+            background: #f9fafb;
+            margin-top: 0;
+            border-top: none;
+        }
+        
         .footer a {
             color: #6b7280;
             text-decoration: none;
@@ -187,61 +295,198 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             margin: 0 12px;
             transition: color 0.3s;
         }
+        
         .footer a:hover {
             color: <?php echo htmlspecialchars($primaryColor); ?>;
         }
-        .raw-code-container {
-            margin: 30px 0;
-            padding: 20px;
-            background: #f9fafb;
-            border-radius: 12px;
-        }
+        
         @media (max-width: 768px) {
-            h1 { font-size: 28px; }
-            .header, .content { padding: 40px 24px; }
+            body { padding: 20px 16px; }
+            
+            h1 { font-size: 32px; }
+            
+            .layout-hybrid .hybrid-grid,
+            .layout-sidebar .sidebar-grid {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+            
+            .layout-hybrid .content-side,
+            .layout-sidebar .content-side {
+                text-align: center;
+            }
+            
+            .layout-hybrid,
+            .layout-sidebar {
+                padding: 40px 24px;
+            }
+            
+            .layout-centered .header,
+            .layout-centered .content {
+                padding: 40px 24px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <?php if (!empty($freebie['preheadline'])): ?>
-                <div class="preheadline"><?php echo htmlspecialchars($freebie['preheadline']); ?></div>
-            <?php endif; ?>
-            
-            <h1><?php echo htmlspecialchars($freebie['headline']); ?></h1>
-            
-            <?php if (!empty($freebie['subheadline'])): ?>
-                <p class="subheadline"><?php echo htmlspecialchars($freebie['subheadline']); ?></p>
-            <?php endif; ?>
-        </div>
         
-        <div class="content">
-            <?php if (!empty($bulletPoints)): ?>
-                <ul class="bullet-points">
-                    <?php foreach ($bulletPoints as $point): ?>
-                        <?php $cleanPoint = preg_replace('/^[✓✔︎•-]\s*/', '', trim($point)); ?>
-                        <li><?php echo htmlspecialchars($cleanPoint); ?></li>
-                    <?php endforeach; ?>
-                </ul>
-            <?php endif; ?>
-            
-            <?php if (!empty($freebie['raw_code'])): ?>
-                <div class="raw-code-container">
-                    <?php echo $freebie['raw_code']; ?>
+        <?php if ($layout === 'centered'): ?>
+            <!-- CENTERED LAYOUT -->
+            <div class="layout-centered">
+                <div class="header">
+                    <?php if ($preheadline): ?>
+                        <div class="preheadline"><?php echo htmlspecialchars($preheadline); ?></div>
+                    <?php endif; ?>
+                    
+                    <h1><?php echo htmlspecialchars($headline); ?></h1>
+                    
+                    <?php if ($subheadline): ?>
+                        <p class="subheadline"><?php echo htmlspecialchars($subheadline); ?></p>
+                    <?php endif; ?>
                 </div>
-            <?php else: ?>
-                <a href="#" class="cta-button">
-                    <?php echo htmlspecialchars($freebie['cta_text'] ?? 'JETZT KOSTENLOS SICHERN'); ?>
-                </a>
-            <?php endif; ?>
-        </div>
+                
+                <div class="content">
+                    <?php if ($mockupUrl): ?>
+                        <div class="mockup-container">
+                            <img src="<?php echo htmlspecialchars($mockupUrl); ?>" alt="Mockup" class="mockup-image" style="max-width: 400px;">
+                        </div>
+                    <?php endif; ?>
+                    
+                    <?php if (!empty($bulletPoints)): ?>
+                        <ul class="bullet-points">
+                            <?php foreach ($bulletPoints as $point): ?>
+                                <?php $cleanPoint = preg_replace('/^[✓✔︎•-]\s*/', '', trim($point)); ?>
+                                <li><?php echo htmlspecialchars($cleanPoint); ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                    
+                    <?php if (!empty($freebie['raw_code'])): ?>
+                        <div class="raw-code-container">
+                            <?php echo $freebie['raw_code']; ?>
+                        </div>
+                    <?php else: ?>
+                        <a href="#" class="cta-button">
+                            <?php echo htmlspecialchars($ctaText); ?>
+                        </a>
+                    <?php endif; ?>
+                </div>
+                
+                <div class="footer">
+                    <a href="<?php echo htmlspecialchars($impressum_link); ?>">Impressum</a>
+                    <span style="color: #d1d5db;">•</span>
+                    <a href="<?php echo htmlspecialchars($datenschutz_link); ?>">Datenschutzerklärung</a>
+                </div>
+            </div>
+            
+        <?php elseif ($layout === 'hybrid'): ?>
+            <!-- HYBRID LAYOUT -->
+            <div class="layout-hybrid">
+                <div class="hybrid-grid">
+                    <div class="mockup-side">
+                        <?php if ($mockupUrl): ?>
+                            <img src="<?php echo htmlspecialchars($mockupUrl); ?>" alt="Mockup" class="mockup-image">
+                        <?php else: ?>
+                            <div style="width: 100%; height: 400px; background: linear-gradient(135deg, <?php echo htmlspecialchars($primaryColor); ?> 0%, #667eea 100%); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 80px; color: white;">
+                                🎁
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <div class="content-side">
+                        <?php if ($preheadline): ?>
+                            <div class="preheadline"><?php echo htmlspecialchars($preheadline); ?></div>
+                        <?php endif; ?>
+                        
+                        <h1><?php echo htmlspecialchars($headline); ?></h1>
+                        
+                        <?php if ($subheadline): ?>
+                            <p class="subheadline"><?php echo htmlspecialchars($subheadline); ?></p>
+                        <?php endif; ?>
+                        
+                        <?php if (!empty($bulletPoints)): ?>
+                            <ul class="bullet-points">
+                                <?php foreach ($bulletPoints as $point): ?>
+                                    <?php $cleanPoint = preg_replace('/^[✓✔︎•-]\s*/', '', trim($point)); ?>
+                                    <li><?php echo htmlspecialchars($cleanPoint); ?></li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php endif; ?>
+                        
+                        <?php if (!empty($freebie['raw_code'])): ?>
+                            <div class="raw-code-container">
+                                <?php echo $freebie['raw_code']; ?>
+                            </div>
+                        <?php else: ?>
+                            <a href="#" class="cta-button">
+                                <?php echo htmlspecialchars($ctaText); ?>
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <div class="footer">
+                    <a href="<?php echo htmlspecialchars($impressum_link); ?>">Impressum</a>
+                    <span style="color: #d1d5db;">•</span>
+                    <a href="<?php echo htmlspecialchars($datenschutz_link); ?>">Datenschutzerklärung</a>
+                </div>
+            </div>
+            
+        <?php else: // sidebar ?>
+            <!-- SIDEBAR LAYOUT -->
+            <div class="layout-sidebar">
+                <div class="sidebar-grid">
+                    <div class="content-side">
+                        <?php if ($preheadline): ?>
+                            <div class="preheadline"><?php echo htmlspecialchars($preheadline); ?></div>
+                        <?php endif; ?>
+                        
+                        <h1><?php echo htmlspecialchars($headline); ?></h1>
+                        
+                        <?php if ($subheadline): ?>
+                            <p class="subheadline"><?php echo htmlspecialchars($subheadline); ?></p>
+                        <?php endif; ?>
+                        
+                        <?php if (!empty($bulletPoints)): ?>
+                            <ul class="bullet-points">
+                                <?php foreach ($bulletPoints as $point): ?>
+                                    <?php $cleanPoint = preg_replace('/^[✓✔︎•-]\s*/', '', trim($point)); ?>
+                                    <li><?php echo htmlspecialchars($cleanPoint); ?></li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php endif; ?>
+                        
+                        <?php if (!empty($freebie['raw_code'])): ?>
+                            <div class="raw-code-container">
+                                <?php echo $freebie['raw_code']; ?>
+                            </div>
+                        <?php else: ?>
+                            <a href="#" class="cta-button">
+                                <?php echo htmlspecialchars($ctaText); ?>
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <div class="mockup-side">
+                        <?php if ($mockupUrl): ?>
+                            <img src="<?php echo htmlspecialchars($mockupUrl); ?>" alt="Mockup" class="mockup-image">
+                        <?php else: ?>
+                            <div style="width: 100%; height: 400px; background: linear-gradient(135deg, <?php echo htmlspecialchars($primaryColor); ?> 0%, #667eea 100%); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 80px; color: white;">
+                                🎁
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <div class="footer">
+                    <a href="<?php echo htmlspecialchars($impressum_link); ?>">Impressum</a>
+                    <span style="color: #d1d5db;">•</span>
+                    <a href="<?php echo htmlspecialchars($datenschutz_link); ?>">Datenschutzerklärung</a>
+                </div>
+            </div>
+        <?php endif; ?>
         
-        <div class="footer">
-            <a href="<?php echo htmlspecialchars($impressum_link); ?>">Impressum</a>
-            <span style="color: #d1d5db;">•</span>
-            <a href="<?php echo htmlspecialchars($datenschutz_link); ?>">Datenschutzerklärung</a>
-        </div>
     </div>
 </body>
 </html>
