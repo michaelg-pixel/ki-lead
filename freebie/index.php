@@ -79,11 +79,23 @@ if (!isset($pdo) || !$pdo) {
     ');
 }
 
-// Find the freebie
+// Find the freebie - first check customer_freebies, then template freebies
+$customer_id = null;
 try {
-    $stmt = $pdo->prepare("SELECT * FROM freebies WHERE unique_id = ? OR url_slug = ? LIMIT 1");
-    $stmt->execute([$identifier, $identifier]);
+    // First check if this is a customer-specific freebie
+    $stmt = $pdo->prepare("SELECT cf.*, u.id as customer_id FROM customer_freebies cf LEFT JOIN users u ON cf.customer_id = u.id WHERE cf.unique_id = ? LIMIT 1");
+    $stmt->execute([$identifier]);
     $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($freebie) {
+        // This is a customer-specific freebie
+        $customer_id = $freebie['customer_id'] ?? null;
+    } else {
+        // Check if this is a template freebie
+        $stmt = $pdo->prepare("SELECT * FROM freebies WHERE unique_id = ? OR url_slug = ? LIMIT 1");
+        $stmt->execute([$identifier, $identifier]);
+        $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
 } catch (PDOException $e) {
     die('
     <!DOCTYPE html>
@@ -180,6 +192,10 @@ if (!empty($freebie['bullet_points'])) {
         $bulletPoints = array_filter(explode("\n", $freebie['bullet_points']));
     }
 }
+
+// Footer-Links mit customer_id falls vorhanden
+$impressum_link = $customer_id ? "/impressum.php?customer=" . $customer_id : "/impressum.php";
+$datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id : "/datenschutz.php";
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -390,7 +406,7 @@ if (!empty($freebie['bullet_points'])) {
         /* Footer Styles */
         .footer {
             background: rgba(255, 255, 255, 0.95);
-            backdrop-blur: 10px;
+            backdrop-filter: blur(10px);
             padding: 30px 20px;
             border-radius: 16px;
             max-width: 650px;
@@ -631,12 +647,12 @@ if (!empty($freebie['bullet_points'])) {
         </div>
     </div>
     
-    <!-- Footer -->
+    <!-- Footer mit kundenspezifischen Links -->
     <div class="footer">
         <div class="footer-links">
-            <a href="/impressum.php">Impressum</a>
+            <a href="<?php echo htmlspecialchars($impressum_link); ?>">Impressum</a>
             <span class="footer-separator">•</span>
-            <a href="/datenschutz.php">Datenschutzerklärung</a>
+            <a href="<?php echo htmlspecialchars($datenschutz_link); ?>">Datenschutzerklärung</a>
         </div>
     </div>
     
@@ -647,7 +663,7 @@ if (!empty($freebie['bullet_points'])) {
                 <h3>🍪 Wir respektieren deine Privatsphäre</h3>
                 <p>
                     Wir verwenden Cookies, um dein Erlebnis zu verbessern und Inhalte zu personalisieren. 
-                    <a href="/datenschutz.php">Mehr erfahren</a>
+                    <a href="<?php echo htmlspecialchars($datenschutz_link); ?>">Mehr erfahren</a>
                 </p>
             </div>
             <div class="cookie-actions">
@@ -680,7 +696,7 @@ if (!empty($freebie['bullet_points'])) {
         
         function showCookieSettings() {
             // Zur Datenschutzseite mit Cookie-Einstellungen navigieren
-            window.location.href = '/datenschutz.php#cookie-einstellungen';
+            window.location.href = '<?php echo htmlspecialchars($datenschutz_link); ?>#cookie-einstellungen';
         }
         
         function hideCookieBanner() {
