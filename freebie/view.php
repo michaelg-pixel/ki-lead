@@ -18,19 +18,36 @@ if ($freebie_id <= 0) {
     die('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fehler</title></head><body style="font-family:Arial;padding:50px;text-align:center;"><h1>❌ Ungültige Freebie-ID</h1><p>Bitte überprüfen Sie den Link.</p></body></html>');
 }
 
-// Freebie aus Datenbank laden
+// Freebie aus Datenbank laden MIT customer_id
 try {
+    // Erst versuchen, customer_id direkt aus freebies zu holen
     $stmt = $pdo->prepare("SELECT * FROM freebies WHERE id = ?");
     $stmt->execute([$freebie_id]);
     $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$freebie) {
+        http_response_code(404);
+        die('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Nicht gefunden</title></head><body style="font-family:Arial;padding:50px;text-align:center;"><h1>❌ Freebie nicht gefunden</h1><p>Dieses Freebie existiert nicht.</p></body></html>');
+    }
+    
+    // Customer-ID ermitteln
+    $customer_id = null;
+    if (isset($freebie['customer_id'])) {
+        // Direktes Feld in freebies Tabelle
+        $customer_id = $freebie['customer_id'];
+    } else {
+        // Über customer_freebies Tabelle
+        $stmt_customer = $pdo->prepare("SELECT customer_id FROM customer_freebies WHERE freebie_id = ? LIMIT 1");
+        $stmt_customer->execute([$freebie_id]);
+        $customer_relation = $stmt_customer->fetch(PDO::FETCH_ASSOC);
+        if ($customer_relation) {
+            $customer_id = $customer_relation['customer_id'];
+        }
+    }
+    
 } catch (PDOException $e) {
     http_response_code(500);
     die('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fehler</title></head><body style="font-family:Arial;padding:50px;text-align:center;"><h1>❌ Datenbankfehler</h1><p>' . htmlspecialchars($e->getMessage()) . '</p></body></html>');
-}
-
-if (!$freebie) {
-    http_response_code(404);
-    die('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Nicht gefunden</title></head><body style="font-family:Arial;padding:50px;text-align:center;"><h1>❌ Freebie nicht gefunden</h1><p>Dieses Freebie existiert nicht.</p></body></html>');
 }
 
 // Klick-Tracking
@@ -69,6 +86,10 @@ $bulletpoints_size = $freebie['bulletpoints_size'] ?? $body_size;
 // Mockup
 $show_mockup = !empty($freebie['mockup_image_url']);
 $mockup_url = $freebie['mockup_image_url'] ?? '';
+
+// Footer-Links mit customer_id
+$impressum_link = $customer_id ? "/impressum.php?customer=" . $customer_id : "/impressum.php";
+$datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id : "/datenschutz.php";
 
 ?>
 <!DOCTYPE html>
@@ -411,12 +432,12 @@ $mockup_url = $freebie['mockup_image_url'] ?? '';
         <?php endif; ?>
     </div>
     
-    <!-- Footer -->
+    <!-- Footer mit kundenspezifischen Links -->
     <div class="footer">
         <p>&copy; <?php echo date('Y'); ?> - Alle Rechte vorbehalten</p>
         <div class="footer-links">
-            <a href="/impressum.php">Impressum</a>
-            <a href="/datenschutz.php">Datenschutz</a>
+            <a href="<?php echo $impressum_link; ?>">Impressum</a>
+            <a href="<?php echo $datenschutz_link; ?>">Datenschutz</a>
         </div>
     </div>
     
