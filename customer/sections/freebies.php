@@ -39,7 +39,6 @@ try {
             c.thumbnail as course_thumbnail
         FROM freebies f
         LEFT JOIN courses c ON f.course_id = c.id
-        WHERE f.is_active = 1
         ORDER BY f.created_at DESC
     ");
     $freebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
