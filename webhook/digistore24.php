@@ -1,7 +1,7 @@
 <?php
 /**
- * Digistore24 Webhook Handler
- * Empfängt Kunden von Digistore24 und erstellt automatisch Accounts
+ * Digistore24 Webhook Handler - MIT KURS-FREISCHALTUNG
+ * Empfängt Kunden von Digistore24 und erstellt automatisch Accounts + Kurs-Zugang
  */
 
 require_once '../config/database.php';
@@ -39,6 +39,7 @@ try {
     switch ($eventType) {
         case 'payment.success':
         case 'subscription.created':
+        case 'purchase':
             handleNewCustomer($pdo, $webhookData);
             break;
             
@@ -63,7 +64,7 @@ try {
 }
 
 /**
- * Neuen Kunden anlegen
+ * Neuen Kunden anlegen + Kurs-Zugang gewähren
  */
 function handleNewCustomer($pdo, $data) {
     // Digistore24 Daten extrahieren
@@ -82,11 +83,34 @@ function handleNewCustomer($pdo, $data) {
     $stmt->execute([$email]);
     $existingUser = $stmt->fetch();
     
+    $userId = null;
+    $isNewUser = false;
+    
     if ($existingUser) {
-        logWebhook(['message' => 'User already exists', 'email' => $email], 'info');
-        return;
+        $userId = $existingUser['id'];
+        logWebhook(['message' => 'User already exists, granting course access', 'email' => $email, 'user_id' => $userId], 'info');
+    } else {
+        // Neuen User erstellen
+        $userId = createNewUser($pdo, $email, $name, $orderId, $productId, $productName);
+        $isNewUser = true;
     }
     
+    // KURS-ZUGANG GEWÄHREN
+    grantCourseAccess($pdo, $userId, $productId, $email);
+    
+    logWebhook([
+        'message' => 'Customer processed successfully',
+        'user_id' => $userId,
+        'email' => $email,
+        'new_user' => $isNewUser,
+        'product_id' => $productId
+    ], 'success');
+}
+
+/**
+ * Neuen User erstellen
+ */
+function createNewUser($pdo, $email, $name, $orderId, $productId, $productName) {
     // RAW-Code generieren
     $rawCode = 'RAW-' . date('Y') . '-' . str_pad(rand(1, 999), 3, '0', STR_PAD_LEFT);
     
@@ -123,7 +147,7 @@ function handleNewCustomer($pdo, $data) {
     
     $userId = $pdo->lastInsertId();
     
-    // Willkommens-E-Mail senden (optional)
+    // Willkommens-E-Mail senden
     sendWelcomeEmail($email, $name, $password, $rawCode);
     
     logWebhook([
@@ -132,6 +156,65 @@ function handleNewCustomer($pdo, $data) {
         'email' => $email,
         'raw_code' => $rawCode
     ], 'success');
+    
+    return $userId;
+}
+
+/**
+ * Kurs-Zugang gewähren basierend auf Produkt-ID
+ */
+function grantCourseAccess($pdo, $userId, $productId, $email) {
+    if (empty($productId)) {
+        logWebhook(['warning' => 'No product_id provided, cannot grant course access'], 'warning');
+        return;
+    }
+    
+    // Kurs anhand der Digistore-Produkt-ID finden
+    $stmt = $pdo->prepare("SELECT id, title FROM courses WHERE digistore_product_id = ? AND is_active = 1");
+    $stmt->execute([$productId]);
+    $course = $stmt->fetch();
+    
+    if (!$course) {
+        logWebhook([
+            'warning' => 'No course found for this product_id',
+            'product_id' => $productId,
+            'user_id' => $userId
+        ], 'warning');
+        return;
+    }
+    
+    // Prüfen ob Zugang bereits existiert
+    $stmt = $pdo->prepare("SELECT id FROM course_access WHERE user_id = ? AND course_id = ?");
+    $stmt->execute([$userId, $course['id']]);
+    $existingAccess = $stmt->fetch();
+    
+    if ($existingAccess) {
+        logWebhook([
+            'info' => 'Course access already exists',
+            'user_id' => $userId,
+            'course_id' => $course['id'],
+            'course_title' => $course['title']
+        ], 'info');
+        return;
+    }
+    
+    // Zugang gewähren
+    $stmt = $pdo->prepare("
+        INSERT INTO course_access (user_id, course_id, access_source, granted_at)
+        VALUES (?, ?, 'digistore24', NOW())
+    ");
+    $stmt->execute([$userId, $course['id']]);
+    
+    logWebhook([
+        'success' => 'Course access granted',
+        'user_id' => $userId,
+        'course_id' => $course['id'],
+        'course_title' => $course['title'],
+        'product_id' => $productId
+    ], 'success');
+    
+    // E-Mail mit Kurs-Zugang senden
+    sendCourseAccessEmail($email, $course['title']);
 }
 
 /**
@@ -139,17 +222,48 @@ function handleNewCustomer($pdo, $data) {
  */
 function handleRefund($pdo, $data) {
     $email = $data['buyer']['email'] ?? '';
+    $productId = $data['product_id'] ?? '';
     
     if (empty($email)) {
         throw new Exception('Email is required');
     }
     
-    // Kunden deaktivieren
-    $stmt = $pdo->prepare("UPDATE users SET is_active = 0, refund_date = NOW() WHERE email = ?");
+    // User-ID finden
+    $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
     $stmt->execute([$email]);
+    $user = $stmt->fetch();
+    
+    if (!$user) {
+        logWebhook(['warning' => 'User not found for refund', 'email' => $email], 'warning');
+        return;
+    }
+    
+    $userId = $user['id'];
+    
+    // Kunden deaktivieren
+    $stmt = $pdo->prepare("UPDATE users SET is_active = 0, refund_date = NOW() WHERE id = ?");
+    $stmt->execute([$userId]);
+    
+    // Kurs-Zugang entfernen (falls Product-ID vorhanden)
+    if (!empty($productId)) {
+        $stmt = $pdo->prepare("
+            DELETE ca FROM course_access ca
+            JOIN courses c ON ca.course_id = c.id
+            WHERE ca.user_id = ? AND c.digistore_product_id = ?
+        ");
+        $stmt->execute([$userId, $productId]);
+        
+        logWebhook([
+            'message' => 'Course access revoked due to refund',
+            'user_id' => $userId,
+            'email' => $email,
+            'product_id' => $productId
+        ], 'info');
+    }
     
     logWebhook([
         'message' => 'User deactivated due to refund',
+        'user_id' => $userId,
         'email' => $email
     ], 'info');
 }
@@ -184,6 +298,49 @@ function sendWelcomeEmail($email, $name, $password, $rawCode) {
             
             <p style='color: #888; font-size: 14px; margin-top: 20px;'>
                 Bitte ändere dein Passwort nach dem ersten Login!
+            </p>
+        </div>
+    </body>
+    </html>
+    ";
+    
+    $headers = "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+    $headers .= "From: KI Leadsystem <noreply@mehr-infos-jetzt.de>\r\n";
+    
+    mail($email, $subject, $message, $headers);
+}
+
+/**
+ * E-Mail mit Kurs-Zugang senden
+ */
+function sendCourseAccessEmail($email, $courseTitle) {
+    $subject = "Dein Kurs ist jetzt freigeschaltet!";
+    
+    $message = "
+    <html>
+    <body style='font-family: Arial, sans-serif; line-height: 1.6;'>
+        <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
+            <h2 style='color: #667eea;'>🎉 Dein Kurs wurde freigeschaltet!</h2>
+            <p>Gute Neuigkeiten! Du hast jetzt Zugang zu:</p>
+            
+            <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                        padding: 20px; border-radius: 8px; margin: 20px 0; color: white;'>
+                <h3 style='margin: 0;'>📚 $courseTitle</h3>
+            </div>
+            
+            <p>Du kannst jetzt sofort mit dem Kurs beginnen!</p>
+            
+            <p>
+                <a href='https://app.mehr-infos-jetzt.de/customer/dashboard.php?page=kurse' 
+                   style='display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                          color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px;'>
+                    Zum Kurs
+                </a>
+            </p>
+            
+            <p style='color: #888; font-size: 14px; margin-top: 20px;'>
+                Viel Erfolg beim Lernen! 🚀
             </p>
         </div>
     </body>
