@@ -9,17 +9,17 @@
                 <a href="dashboard.php" class="text-gray-600 hover:text-purple-600 <?php echo basename($_SERVER['PHP_SELF']) == 'dashboard.php' ? 'text-purple-600 font-semibold' : ''; ?>">
                     <i class="fas fa-home mr-2"></i> Dashboard
                 </a>
+                <a href="tutorials.php" class="text-gray-600 hover:text-purple-600 <?php echo basename($_SERVER['PHP_SELF']) == 'tutorials.php' ? 'text-purple-600 font-semibold' : ''; ?>">
+                    <i class="fas fa-graduation-cap mr-2"></i> Anleitungen & Tutorials
+                </a>
                 <a href="courses.php" class="text-gray-600 hover:text-purple-600 <?php echo basename($_SERVER['PHP_SELF']) == 'courses.php' ? 'text-purple-600 font-semibold' : ''; ?>">
-                    <i class="fas fa-graduation-cap mr-2"></i> Kurse
+                    <i class="fas fa-book mr-2"></i> Kurse
                 </a>
                 <a href="freebies.php" class="text-gray-600 hover:text-purple-600 <?php echo basename($_SERVER['PHP_SELF']) == 'freebies.php' ? 'text-purple-600 font-semibold' : ''; ?>">
                     <i class="fas fa-gift mr-2"></i> Templates
                 </a>
                 <a href="my-freebies.php" class="text-gray-600 hover:text-purple-600 <?php echo basename($_SERVER['PHP_SELF']) == 'my-freebies.php' ? 'text-purple-600 font-semibold' : ''; ?>">
                     <i class="fas fa-folder mr-2"></i> Meine Freebies
-                </a>
-                <a href="tutorials.php" class="text-gray-600 hover:text-purple-600 <?php echo basename($_SERVER['PHP_SELF']) == 'tutorials.php' ? 'text-purple-600 font-semibold' : ''; ?>">
-                    <i class="fas fa-question-circle mr-2"></i> Anleitungen
                 </a>
                 <a href="dashboard.php?page=einstellungen" class="text-gray-600 hover:text-purple-600 <?php echo isset($_GET['page']) && $_GET['page'] == 'einstellungen' ? 'text-purple-600 font-semibold' : ''; ?>">
                     <i class="fas fa-cog mr-2"></i> Einstellungen
