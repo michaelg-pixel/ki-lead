@@ -434,36 +434,37 @@ $freebie_url = $protocol . '://' . $domain . '/freebie/' . ($freebie['url_slug']
                 // Layout rendern
                 if ($layout === 'centered') {
                     echo '<div class="layout-centered">';
-                    echo $mockup_html;
                     echo $preheadline_html;
                     echo $headline_html;
                     echo $subheadline_html;
+                    echo $mockup_html;
                     echo $bullets_html;
                     echo $form_html;
                     echo $cta_html;
                     echo '</div>';
                 } elseif ($layout === 'hybrid') {
-                    // GEÄNDERT: Text LINKS, Mockup RECHTS
+                    // HYBRID: Mockup LINKS, Text RECHTS (wie in Screenshot 1)
                     echo '<div class="layout-hybrid">';
+                    echo '<div>' . $mockup_html . '</div>';
                     echo '<div>';
                     echo $preheadline_html;
-                    echo str_replace('text-align: center;', 'text-align: left;', $headline_html);
-                    echo str_replace('text-align: center;', 'text-align: left;', $subheadline_html);
+                    echo str_replace('text-align: center;', 'text-align: center;', $headline_html);
+                    echo str_replace('text-align: center;', 'text-align: center;', $subheadline_html);
                     echo $bullets_html;
                     echo $form_html;
-                    echo str_replace('text-align: center;', 'text-align: left;', $cta_html);
+                    echo str_replace('text-align: center;', 'text-align: center;', $cta_html);
                     echo '</div>';
-                    echo '<div>' . $mockup_html . '</div>';
                     echo '</div>';
                 } else { // sidebar
+                    // SIDEBAR: Text LINKS, Mockup RECHTS (wie in Screenshot 2)
                     echo '<div class="layout-sidebar">';
                     echo '<div>';
                     echo $preheadline_html;
-                    echo str_replace('text-align: center;', 'text-align: left;', $headline_html);
-                    echo str_replace('text-align: center;', 'text-align: left;', $subheadline_html);
+                    echo str_replace('text-align: center;', 'text-align: center;', $headline_html);
+                    echo str_replace('text-align: center;', 'text-align: center;', $subheadline_html);
                     echo $bullets_html;
                     echo $form_html;
-                    echo str_replace('text-align: center;', 'text-align: left;', $cta_html);
+                    echo str_replace('text-align: center;', 'text-align: center;', $cta_html);
                     echo '</div>';
                     echo '<div>' . $mockup_html . '</div>';
                     echo '</div>';
