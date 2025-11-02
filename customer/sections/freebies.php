@@ -91,7 +91,7 @@ try {
         }
     }
     
-    // EIGENE FREEBIES LADEN (custom type) - NUR vorhandene Spalten!
+    // EIGENE FREEBIES LADEN (custom type) - mockup_image_url hinzugefügt!
     $stmt_custom = $pdo->prepare("
         SELECT 
             cf.id,
@@ -101,6 +101,7 @@ try {
             cf.primary_color,
             cf.unique_id,
             cf.layout,
+            cf.mockup_image_url,
             cf.created_at
         FROM customer_freebies cf
         WHERE cf.customer_id = ? AND cf.freebie_type = 'custom'
@@ -755,9 +756,15 @@ try {
                             <div class="freebie-badges">
                                 <span class="freebie-badge badge-custom">✨ Eigenes Freebie</span>
                             </div>
-                            <div class="freebie-preview-placeholder" style="color: <?php echo htmlspecialchars($primaryColor); ?>;">
-                                🎁
-                            </div>
+                            
+                            <?php if (!empty($custom['mockup_image_url'])): ?>
+                                <img src="<?php echo htmlspecialchars($custom['mockup_image_url']); ?>" 
+                                     alt="<?php echo htmlspecialchars($custom['headline']); ?>">
+                            <?php else: ?>
+                                <div class="freebie-preview-placeholder" style="color: <?php echo htmlspecialchars($primaryColor); ?>;">
+                                    🎁
+                                </div>
+                            <?php endif; ?>
                         </div>
                         
                         <div class="freebie-content">
