@@ -1,6 +1,6 @@
 <?php
 /**
- * Freebie Public Page mit Cookie-Banner
+ * Freebie Public Page mit Cookie-Banner - Optimierte Version
  */
 
 error_reporting(E_ALL);
@@ -72,81 +72,120 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: <?php echo htmlspecialchars($backgroundColor); ?>;
             min-height: 100vh;
-            padding: 60px 20px;
+            padding: 40px 20px;
         }
-        .container { max-width: 1100px; margin: 0 auto; }
-        .header { text-align: center; margin-bottom: 60px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 50px; }
         .preheadline {
-            font-size: 14px;
+            font-size: 13px;
             text-transform: uppercase;
             letter-spacing: 2px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             font-weight: 700;
             color: <?php echo htmlspecialchars($primaryColor); ?>;
         }
         h1 {
-            font-size: 48px;
-            margin-bottom: 24px;
+            font-size: 42px;
+            margin-bottom: 20px;
             font-weight: 800;
             line-height: 1.2;
             color: #1a202c;
         }
         .subheadline {
-            font-size: 22px;
-            line-height: 1.6;
+            font-size: 18px;
+            line-height: 1.5;
             color: #4a5568;
-            max-width: 800px;
+            max-width: 750px;
             margin: 0 auto;
         }
         .main-content {
             display: grid;
-            grid-template-columns: 400px 1fr;
-            gap: 60px;
+            grid-template-columns: 420px 1fr;
+            gap: 50px;
             align-items: start;
-            margin-bottom: 60px;
+            margin-bottom: 50px;
         }
         .mockup-container { text-align: center; }
         .mockup-image {
             max-width: 100%;
             height: auto;
-            border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            display: block;
         }
         .content-container { display: flex; flex-direction: column; }
-        .bullet-points { list-style: none; margin-bottom: 40px; }
+        .bullet-points { list-style: none; margin-bottom: 35px; }
         .bullet-points li {
-            padding: 16px 0;
+            padding: 10px 0;
             position: relative;
-            padding-left: 40px;
-            font-size: 18px;
-            line-height: 1.6;
+            padding-left: 35px;
+            font-size: 17px;
+            line-height: 1.5;
             color: #2d3748;
         }
         .bullet-points li:before {
             content: "✓";
             position: absolute;
             left: 0;
-            top: 16px;
+            top: 10px;
             color: <?php echo htmlspecialchars($primaryColor); ?>;
             font-weight: bold;
-            font-size: 24px;
+            font-size: 22px;
         }
         .optin-section {
             background: white;
             padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border-radius: 8px;
         }
-        .raw-code-container { margin-bottom: 20px; }
-        .cta-button {
-            display: block;
+        
+        /* Styled Form Elemente */
+        .optin-section form { display: flex; flex-direction: column; gap: 15px; }
+        .optin-section form > div > div { display: flex; flex-direction: column; gap: 15px; }
+        .optin-section label { display: none; }
+        .optin-section input[type="text"],
+        .optin-section input[type="email"] {
             width: 100%;
-            padding: 20px 40px;
+            padding: 14px 18px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 15px;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s;
+            background: white;
+        }
+        .optin-section input:focus {
+            outline: none;
+            border-color: <?php echo htmlspecialchars($primaryColor); ?>;
+            box-shadow: 0 0 0 3px rgba(91, 141, 239, 0.1);
+        }
+        .optin-section button[type="submit"] {
+            width: 100%;
+            padding: 16px 40px;
             background: <?php echo htmlspecialchars($primaryColor); ?>;
             color: white;
             border: none;
-            border-radius: 10px;
-            font-size: 18px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-family: 'Inter', sans-serif;
+        }
+        .optin-section button[type="submit"]:hover {
+            transform: translateY(-2px);
+            background: <?php echo htmlspecialchars($primaryColor); ?>;
+            filter: brightness(1.1);
+        }
+        
+        .cta-button {
+            display: block;
+            width: 100%;
+            padding: 16px 40px;
+            background: <?php echo htmlspecialchars($primaryColor); ?>;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.3s;
@@ -154,23 +193,22 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             text-decoration: none;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            box-shadow: 0 8px 20px rgba(91, 141, 239, 0.3);
         }
         .cta-button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 28px rgba(91, 141, 239, 0.4);
+            transform: translateY(-2px);
+            filter: brightness(1.1);
         }
         .footer {
-            margin-top: 80px;
-            padding-top: 30px;
+            margin-top: 60px;
+            padding-top: 25px;
             border-top: 1px solid #e2e8f0;
             text-align: center;
         }
         .footer a {
             color: #718096;
             text-decoration: none;
-            font-size: 14px;
-            margin: 0 15px;
+            font-size: 13px;
+            margin: 0 12px;
             transition: color 0.3s;
         }
         .footer a:hover { color: <?php echo htmlspecialchars($primaryColor); ?>; }
@@ -253,15 +291,15 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
         .cookie-btn-settings:hover { background: rgba(91, 141, 239, 0.15); }
         
         @media (max-width: 968px) {
-            .main-content { grid-template-columns: 1fr; gap: 40px; }
-            .mockup-container { max-width: 400px; margin: 0 auto; }
+            .main-content { grid-template-columns: 1fr; gap: 35px; }
+            .mockup-container { max-width: 420px; margin: 0 auto; }
         }
         @media (max-width: 768px) {
-            body { padding: 40px 16px; }
-            h1 { font-size: 36px; }
-            .subheadline { font-size: 18px; }
-            .header { margin-bottom: 40px; }
-            .bullet-points li { font-size: 16px; }
+            body { padding: 30px 16px; }
+            h1 { font-size: 32px; }
+            .subheadline { font-size: 16px; }
+            .header { margin-bottom: 35px; }
+            .bullet-points li { font-size: 15px; padding: 8px 0; }
             .optin-section { padding: 20px; }
             .cookie-content { flex-direction: column; align-items: stretch; }
             .cookie-actions { flex-direction: column; }
@@ -303,8 +341,9 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
                 <div class="optin-section">
                     <?php if (!empty($freebie['raw_code'])): ?>
                         <div class="raw-code-container"><?php echo $freebie['raw_code']; ?></div>
+                    <?php else: ?>
+                        <a href="#" class="cta-button"><?php echo htmlspecialchars($ctaText); ?></a>
                     <?php endif; ?>
-                    <a href="#" class="cta-button"><?php echo htmlspecialchars($ctaText); ?></a>
                 </div>
             </div>
         </div>
@@ -337,11 +376,19 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
         function hideCookieBanner(){const b=document.getElementById('cookie-banner');if(b){b.classList.remove('show');setTimeout(()=>b.classList.add('hidden'),400);}}
         function enableTracking(){console.log('Tracking enabled');}
         function disableTracking(){console.log('Tracking disabled');}
+        
+        // Auto-add placeholders to form inputs
         document.addEventListener('DOMContentLoaded',function(){
             const c=localStorage.getItem('cookieConsent');
             const b=document.getElementById('cookie-banner');
             if(!c&&b){setTimeout(()=>b.classList.add('show'),1000);}
             else if(c==='accepted'){enableTracking();}
+            
+            // Add placeholders automatically
+            const firstNameInput = document.querySelector('input[name="first_name"]');
+            const emailInput = document.querySelector('input[name="mail"]');
+            if(firstNameInput && !firstNameInput.placeholder) firstNameInput.placeholder = 'Vorname';
+            if(emailInput && !emailInput.placeholder) emailInput.placeholder = 'E-Mail';
         });
     </script>
 </body>
