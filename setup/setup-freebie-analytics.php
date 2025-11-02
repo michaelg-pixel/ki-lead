@@ -13,8 +13,8 @@ try {
     $pdo = getDBConnection();
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     
-    // ===== SCHRITT 0: SPALTENTYPEN ERMITTELN =====
-    echo "🔍 Detecting column types...\n";
+    // ===== SCHRITT 0: SPALTENTYPEN UND NAMEN ERMITTELN =====
+    echo "🔍 Detecting column types and names...\n";
     
     // users.id Typ ermitteln
     $stmt = $pdo->query("SHOW COLUMNS FROM users WHERE Field = 'id'");
@@ -26,18 +26,46 @@ try {
     $freebies_id_column = $stmt->fetch(PDO::FETCH_ASSOC);
     $freebies_id_type = $freebies_id_column['Type'];
     
-    // customer_freebies.customer_id Typ ermitteln (für Konsistenz)
+    // customer_freebies.customer_id Typ ermitteln
     $stmt = $pdo->query("SHOW COLUMNS FROM customer_freebies WHERE Field = 'customer_id'");
     $cf_customer_id_column = $stmt->fetch(PDO::FETCH_ASSOC);
     $cf_customer_id_type = $cf_customer_id_column['Type'];
     
+    // Alle Spalten von customer_freebies anzeigen um Namen zu finden
+    $stmt = $pdo->query("SHOW COLUMNS FROM customer_freebies");
+    $cf_columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Name-Spalte finden (könnte 'name', 'title', 'freebie_name' sein)
+    $name_column = null;
+    $slug_column = null;
+    
+    foreach ($cf_columns as $col) {
+        if (in_array($col['Field'], ['freebie_name', 'name', 'title'])) {
+            $name_column = $col['Field'];
+        }
+        if (in_array($col['Field'], ['url_slug', 'slug'])) {
+            $slug_column = $col['Field'];
+        }
+    }
+    
+    if (!$name_column) {
+        $name_column = 'id'; // Fallback auf ID wenn kein Name gefunden
+        echo "⚠️  No name column found, using 'id' as fallback\n";
+    }
+    if (!$slug_column) {
+        $slug_column = 'id'; // Fallback
+        echo "⚠️  No slug column found, using 'id' as fallback\n";
+    }
+    
     echo "✅ users.id type: $users_id_type\n";
     echo "✅ customer_freebies.id type: $freebies_id_type\n";
-    echo "✅ customer_freebies.customer_id type: $cf_customer_id_type\n\n";
+    echo "✅ customer_freebies.customer_id type: $cf_customer_id_type\n";
+    echo "✅ customer_freebies name column: $name_column\n";
+    echo "✅ customer_freebies slug column: $slug_column\n\n";
     
     // Verwende die gleichen Typen wie die Originaltabellen
-    $customer_id_type = $cf_customer_id_type; // Gleich wie in customer_freebies
-    $freebie_id_type = $freebies_id_type;     // Gleich wie customer_freebies.id
+    $customer_id_type = $cf_customer_id_type;
+    $freebie_id_type = $freebies_id_type;
     
     // ===== SCHRITT 1: TABELLEN ERSTELLEN =====
     echo "📊 Creating Analytics Tables...\n";
@@ -101,8 +129,10 @@ try {
         ");
         echo "✅ FK: freebie_click_analytics -> users\n";
     } catch (PDOException $e) {
-        if (strpos($e->getMessage(), 'Duplicate') === false) {
+        if (strpos($e->getMessage(), 'Duplicate') !== false || strpos($e->getMessage(), 'already exists') !== false) {
             echo "⚠️  FK already exists: freebie_click_analytics -> users\n";
+        } else {
+            throw $e;
         }
     }
     
@@ -114,8 +144,10 @@ try {
         ");
         echo "✅ FK: freebie_click_analytics -> customer_freebies\n";
     } catch (PDOException $e) {
-        if (strpos($e->getMessage(), 'Duplicate') === false) {
+        if (strpos($e->getMessage(), 'Duplicate') !== false || strpos($e->getMessage(), 'already exists') !== false) {
             echo "⚠️  FK already exists: freebie_click_analytics -> customer_freebies\n";
+        } else {
+            throw $e;
         }
     }
     
@@ -128,8 +160,10 @@ try {
         ");
         echo "✅ FK: freebie_click_logs -> users\n";
     } catch (PDOException $e) {
-        if (strpos($e->getMessage(), 'Duplicate') === false) {
+        if (strpos($e->getMessage(), 'Duplicate') !== false || strpos($e->getMessage(), 'already exists') !== false) {
             echo "⚠️  FK already exists: freebie_click_logs -> users\n";
+        } else {
+            throw $e;
         }
     }
     
@@ -141,8 +175,10 @@ try {
         ");
         echo "✅ FK: freebie_click_logs -> customer_freebies\n";
     } catch (PDOException $e) {
-        if (strpos($e->getMessage(), 'Duplicate') === false) {
+        if (strpos($e->getMessage(), 'Duplicate') !== false || strpos($e->getMessage(), 'already exists') !== false) {
             echo "⚠️  FK already exists: freebie_click_logs -> customer_freebies\n";
+        } else {
+            throw $e;
         }
     }
     
@@ -151,13 +187,14 @@ try {
     // ===== SCHRITT 2: VIEW ERSTELLEN =====
     echo "📈 Creating Analytics View...\n";
     
+    // View mit den tatsächlich vorhandenen Spaltennamen
     $sql_view = "
     CREATE OR REPLACE VIEW `v_freebie_analytics_summary` AS
     SELECT 
         ca.customer_id,
         ca.freebie_id,
-        cf.freebie_name,
-        cf.url_slug,
+        cf.$name_column as freebie_name,
+        cf.$slug_column as url_slug,
         SUM(ca.click_count) as total_clicks,
         SUM(ca.unique_clicks) as total_unique_clicks,
         SUM(ca.conversion_count) as total_conversions,
@@ -204,8 +241,7 @@ try {
         
         -- Update Gesamt-Counter in customer_freebies
         UPDATE customer_freebies 
-        SET clicks = clicks + 1,
-            updated_at = NOW()
+        SET clicks = clicks + 1
         WHERE id = p_freebie_id;
         
         -- Detailliertes Log speichern
@@ -312,25 +348,29 @@ try {
     echo "Analytics System installed successfully:\n";
     echo "  ✓ Tables created with correct column types\n";
     echo "  ✓ Foreign keys added\n";
-    echo "  ✓ Views created\n";
+    echo "  ✓ Views created (using $name_column as name)\n";
     echo "  ✓ Stored procedures created\n";
     echo "  ✓ Existing data migrated ($migrated freebies)\n";
     echo "  ✓ Automatic cleanup configured\n\n";
     echo "Column Types Used:\n";
     echo "  • customer_id: $customer_id_type\n";
-    echo "  • freebie_id: $freebie_id_type\n\n";
+    echo "  • freebie_id: $freebie_id_type\n";
+    echo "  • name column: $name_column\n";
+    echo "  • slug column: $slug_column\n\n";
     echo "You can now track real-time analytics!\n";
+    echo "Test URL: /customer/dashboard.php?page=fortschritt\n";
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
     
 } catch (PDOException $e) {
     echo "❌ ERROR: " . $e->getMessage() . "\n";
     echo "\nDebug Info:\n";
     echo "Error Code: " . $e->getCode() . "\n";
-    echo "SQL State: " . $e->errorInfo[0] . "\n\n";
-    
-    echo "Troubleshooting:\n";
+    if (isset($e->errorInfo)) {
+        echo "SQL State: " . $e->errorInfo[0] . "\n";
+    }
+    echo "\nTroubleshooting:\n";
     echo "1. Check database user permissions\n";
-    echo "2. Verify table structures with SHOW COLUMNS\n";
+    echo "2. Verify table structures with SHOW COLUMNS FROM customer_freebies\n";
     echo "3. Check for existing tables/constraints\n";
     echo "4. Review error log above\n";
     exit(1);
