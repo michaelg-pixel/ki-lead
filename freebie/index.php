@@ -1,6 +1,6 @@
 <?php
 /**
- * Freebie Public Page mit Cookie-Banner - Kompakte Version mit 40/60 Grid
+ * Freebie Public Page mit Cookie-Banner - Multi-Layout Support
  */
 
 error_reporting(E_ALL);
@@ -50,6 +50,7 @@ $headline = $freebie['headline'] ?? 'Willkommen';
 $subheadline = $freebie['subheadline'] ?? '';
 $ctaText = $freebie['cta_text'] ?? 'JETZT KOSTENLOS DOWNLOADEN';
 $mockupUrl = $freebie['mockup_image_url'] ?? '';
+$layout = $freebie['layout'] ?? 'hybrid';
 
 $bulletPoints = [];
 if (!empty($freebie['bullet_points'])) {
@@ -98,13 +99,41 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             max-width: 650px;
             margin: 0 auto;
         }
+        
+        /* HYBRID & SIDEBAR LAYOUTS */
         .main-content {
             display: grid;
-            grid-template-columns: 40% 60%;
             gap: 35px;
             align-items: start;
             margin-bottom: 25px;
         }
+        .main-content.layout-hybrid {
+            grid-template-columns: 40% 60%;
+        }
+        .main-content.layout-sidebar {
+            grid-template-columns: 60% 40%;
+        }
+        
+        /* CENTERED LAYOUT */
+        .main-content.layout-centered {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 700px;
+            margin: 0 auto 25px;
+        }
+        .layout-centered .mockup-container {
+            margin-bottom: 30px;
+        }
+        .layout-centered .bullet-points {
+            text-align: left;
+            width: 100%;
+        }
+        .layout-centered .optin-section {
+            width: 100%;
+            max-width: 500px;
+        }
+        
         .mockup-container { 
             text-align: center;
             display: flex;
@@ -297,7 +326,11 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
         .cookie-btn-settings:hover { background: rgba(91, 141, 239, 0.15); }
         
         @media (max-width: 968px) {
-            .main-content { grid-template-columns: 1fr; gap: 25px; }
+            .main-content.layout-hybrid,
+            .main-content.layout-sidebar { 
+                grid-template-columns: 1fr; 
+                gap: 25px; 
+            }
             .mockup-container .mockup-image { max-width: 260px; margin: 0 auto; }
             .optin-section { max-width: 100%; }
         }
@@ -326,16 +359,17 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             <?php endif; ?>
         </div>
         
-        <div class="main-content">
-            <div class="mockup-container">
-                <?php if ($mockupUrl): ?>
-                    <img src="<?php echo htmlspecialchars($mockupUrl); ?>" alt="Mockup" class="mockup-image">
-                <?php else: ?>
-                    <div style="width:260px;height:300px;background:linear-gradient(135deg,<?php echo htmlspecialchars($primaryColor); ?> 0%,#667eea 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:60px;color:white;">🎁</div>
-                <?php endif; ?>
-            </div>
-            
-            <div class="content-container">
+        <?php if ($layout === 'centered'): ?>
+            <!-- ZENTRIERTES LAYOUT -->
+            <div class="main-content layout-centered">
+                <div class="mockup-container">
+                    <?php if ($mockupUrl): ?>
+                        <img src="<?php echo htmlspecialchars($mockupUrl); ?>" alt="Mockup" class="mockup-image">
+                    <?php else: ?>
+                        <div style="width:260px;height:300px;background:linear-gradient(135deg,<?php echo htmlspecialchars($primaryColor); ?> 0%,#667eea 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:60px;color:white;">🎁</div>
+                    <?php endif; ?>
+                </div>
+                
                 <?php if (!empty($bulletPoints)): ?>
                     <ul class="bullet-points">
                         <?php foreach ($bulletPoints as $point): ?>
@@ -345,7 +379,7 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
                     </ul>
                 <?php endif; ?>
                 
-                <div class="optin-section">
+                <div class="optin-section" style="max-width: 500px;">
                     <?php if (!empty($freebie['raw_code'])): ?>
                         <div class="raw-code-container"><?php echo $freebie['raw_code']; ?></div>
                     <?php else: ?>
@@ -353,7 +387,69 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
                     <?php endif; ?>
                 </div>
             </div>
-        </div>
+            
+        <?php elseif ($layout === 'sidebar'): ?>
+            <!-- SIDEBAR LAYOUT (Content links, Mockup rechts) -->
+            <div class="main-content layout-sidebar">
+                <div class="content-container">
+                    <?php if (!empty($bulletPoints)): ?>
+                        <ul class="bullet-points">
+                            <?php foreach ($bulletPoints as $point): ?>
+                                <?php $cleanPoint = preg_replace('/^[✓✔︎•-]\s*/', '', trim($point)); ?>
+                                <li><?php echo htmlspecialchars($cleanPoint); ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                    
+                    <div class="optin-section">
+                        <?php if (!empty($freebie['raw_code'])): ?>
+                            <div class="raw-code-container"><?php echo $freebie['raw_code']; ?></div>
+                        <?php else: ?>
+                            <a href="#" class="cta-button"><?php echo htmlspecialchars($ctaText); ?></a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <div class="mockup-container">
+                    <?php if ($mockupUrl): ?>
+                        <img src="<?php echo htmlspecialchars($mockupUrl); ?>" alt="Mockup" class="mockup-image">
+                    <?php else: ?>
+                        <div style="width:260px;height:300px;background:linear-gradient(135deg,<?php echo htmlspecialchars($primaryColor); ?> 0%,#667eea 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:60px;color:white;">🎁</div>
+                    <?php endif; ?>
+                </div>
+            </div>
+            
+        <?php else: ?>
+            <!-- HYBRID LAYOUT (Mockup links, Content rechts) -->
+            <div class="main-content layout-hybrid">
+                <div class="mockup-container">
+                    <?php if ($mockupUrl): ?>
+                        <img src="<?php echo htmlspecialchars($mockupUrl); ?>" alt="Mockup" class="mockup-image">
+                    <?php else: ?>
+                        <div style="width:260px;height:300px;background:linear-gradient(135deg,<?php echo htmlspecialchars($primaryColor); ?> 0%,#667eea 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:60px;color:white;">🎁</div>
+                    <?php endif; ?>
+                </div>
+                
+                <div class="content-container">
+                    <?php if (!empty($bulletPoints)): ?>
+                        <ul class="bullet-points">
+                            <?php foreach ($bulletPoints as $point): ?>
+                                <?php $cleanPoint = preg_replace('/^[✓✔︎•-]\s*/', '', trim($point)); ?>
+                                <li><?php echo htmlspecialchars($cleanPoint); ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                    
+                    <div class="optin-section">
+                        <?php if (!empty($freebie['raw_code'])): ?>
+                            <div class="raw-code-container"><?php echo $freebie['raw_code']; ?></div>
+                        <?php else: ?>
+                            <a href="#" class="cta-button"><?php echo htmlspecialchars($ctaText); ?></a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
         
         <div class="footer">
             <a href="<?php echo htmlspecialchars($impressum_link); ?>">Impressum</a>
