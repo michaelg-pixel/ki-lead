@@ -428,82 +428,83 @@ $form_data = [
             background: #f9fafb;
             border: 2px dashed #d1d5db;
             border-radius: 12px;
-            padding: 40px;
-            min-height: 600px;
+            padding: 20px;
+            min-height: 400px;
         }
         
         .preview-content {
             background: white;
-            border-radius: 12px;
-            padding: 60px 40px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            padding: 30px 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transform: scale(0.65);
+            transform-origin: top center;
         }
         
         .preview-mockup {
             text-align: center;
-            margin-bottom: 32px;
+            margin-bottom: 20px;
         }
         
         .preview-mockup img {
             max-width: 100%;
             height: auto;
-            border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            border-radius: 8px;
         }
         
         .preview-preheadline {
-            font-size: 12px;
+            font-size: 9px;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 16px;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
             text-align: center;
         }
         
         .preview-headline {
-            font-size: 36px;
+            font-size: 22px;
             font-weight: 800;
             line-height: 1.2;
-            margin-bottom: 16px;
+            margin-bottom: 10px;
             text-align: center;
         }
         
         .preview-subheadline {
-            font-size: 18px;
+            font-size: 13px;
             color: #6b7280;
-            margin-bottom: 32px;
+            margin-bottom: 18px;
             text-align: center;
-            line-height: 1.6;
+            line-height: 1.5;
         }
         
         .preview-bullets {
-            margin-bottom: 32px;
+            margin-bottom: 18px;
             text-align: left;
         }
         
         .preview-bullet {
             display: flex;
             align-items: start;
-            gap: 12px;
-            margin-bottom: 16px;
+            gap: 8px;
+            margin-bottom: 10px;
         }
         
         .preview-bullet-icon {
-            font-size: 20px;
+            font-size: 14px;
             flex-shrink: 0;
         }
         
         .preview-bullet-text {
-            font-size: 16px;
+            font-size: 12px;
             color: #374151;
-            line-height: 1.5;
+            line-height: 1.4;
         }
         
         .preview-form {
             background: rgba(0, 0, 0, 0.02);
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 24px;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 15px;
         }
         
         .preview-cta {
@@ -512,18 +513,17 @@ $form_data = [
         
         .preview-button {
             display: inline-block;
-            padding: 16px 48px;
+            padding: 10px 30px;
             border: none;
-            border-radius: 8px;
-            font-size: 18px;
+            border-radius: 6px;
+            font-size: 12px;
             font-weight: 700;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
             transition: transform 0.2s;
         }
         
         .preview-button:hover {
-            transform: translateY(-2px);
+            transform: translateY(-1px);
         }
         
         .save-button {
@@ -843,7 +843,7 @@ $form_data = [
             if (mockupUrl) {
                 mockupHTML = `
                     <div class="preview-mockup">
-                        <img src="${escapeHtml(mockupUrl)}" alt="Mockup" style="max-width: 380px;">
+                        <img src="${escapeHtml(mockupUrl)}" alt="Mockup" style="max-width: 180px;">
                     </div>
                 `;
             }
@@ -879,7 +879,7 @@ $form_data = [
                 `;
             } else if (layout === 'hybrid') {
                 layoutHTML = `
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
                         <div>
                             ${mockupHTML}
                         </div>
@@ -900,7 +900,7 @@ $form_data = [
                 `;
             } else { // sidebar
                 layoutHTML = `
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
                         <div>
                             ${preheadlineHTML}
                             <div class="preview-headline" style="color: ${primaryColor}; text-align: left;">
