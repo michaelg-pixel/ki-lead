@@ -482,22 +482,76 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             box-shadow: 0 4px 12px rgba(91, 141, 239, 0.4);
         }
         
+        /* ========================================
+           MOBILE RESPONSIVE - STANDARDISIERTES LAYOUT
+           Alle Freebies haben in mobiler Ansicht die gleiche Reihenfolge:
+           1. Preheadline, 2. Headline, 3. Subheadline, 4. Mockup, 
+           5. Bulletpoints, 6. Email Optin, 7. Footer
+        ======================================== */
         @media (max-width: 968px) {
+            /* Alle Layout-Typen werden zu einer einzigen Spalte */
             .main-content.layout-hybrid,
-            .main-content.layout-sidebar { 
-                grid-template-columns: 1fr; 
-                gap: 25px; 
+            .main-content.layout-sidebar,
+            .main-content.layout-centered { 
+                display: flex !important;
+                flex-direction: column !important;
+                grid-template-columns: none !important;
+                gap: 25px;
+                align-items: center;
+                max-width: 100%;
             }
-            .mockup-container .mockup-image { max-width: 260px; margin: 0 auto; }
-            .optin-section { max-width: 100%; }
+            
+            /* Mockup kommt nach Header, zentriert */
+            .mockup-container {
+                order: 1;
+                width: 100%;
+                max-width: 280px;
+                margin: 0 auto;
+            }
+            
+            .mockup-container .mockup-image { 
+                max-width: 100%;
+                margin: 0 auto;
+            }
+            
+            /* Content Container kommt nach Mockup */
+            .content-container {
+                order: 2;
+                width: 100%;
+            }
+            
+            /* Bulletpoints ohne Haken-Icons in mobiler Ansicht */
+            .bullet-points {
+                text-align: left;
+                width: 100%;
+                margin-bottom: 20px;
+            }
+            
+            .bullet-points li {
+                padding-left: 0 !important;
+                font-size: 14px;
+                padding: 8px 0;
+                line-height: 1.5;
+            }
+            
+            /* Haken-Icons in mobiler Ansicht entfernen */
+            .bullet-points li:before {
+                content: none !important;
+            }
+            
+            /* Optin Section volle Breite */
+            .optin-section { 
+                max-width: 100% !important;
+                width: 100%;
+            }
         }
+        
         @media (max-width: 768px) {
             body { padding: 20px 16px 15px; }
             h1 { font-size: 26px; }
             .subheadline { font-size: 14px; }
             .header { margin-bottom: 20px; }
-            .bullet-points li { font-size: 14px; padding: 5px 0; }
-            .optin-section { padding: 18px; max-width: 100%; }
+            .optin-section { padding: 18px; }
             .cookie-content { flex-direction: column; align-items: stretch; }
             .cookie-actions { flex-direction: column; }
             .cookie-btn { width: 100%; justify-content: center; }
