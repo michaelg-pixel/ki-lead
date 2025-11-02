@@ -1,11 +1,12 @@
 -- ===================================================
 -- CUSTOMER TRACKING SYSTEM
 -- Tabelle für echtes Benutzer-Tracking
+-- KORRIGIERT: Verwendet user_id statt customer_id
 -- ===================================================
 
 CREATE TABLE IF NOT EXISTS `customer_tracking` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
-  `customer_id` INT(11) NOT NULL,
+  `user_id` INT(11) NOT NULL,
   `type` ENUM('page_view', 'click', 'event', 'time_spent') NOT NULL,
   `page` VARCHAR(255) DEFAULT NULL,
   `element` VARCHAR(255) DEFAULT NULL,
@@ -18,22 +19,22 @@ CREATE TABLE IF NOT EXISTS `customer_tracking` (
   `ip_address` VARCHAR(45) DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  INDEX `idx_customer_type` (`customer_id`, `type`),
+  INDEX `idx_user_type` (`user_id`, `type`),
   INDEX `idx_created_at` (`created_at`),
-  INDEX `idx_customer_date` (`customer_id`, `created_at`),
-  FOREIGN KEY (`customer_id`) REFERENCES `customers`(`id`) ON DELETE CASCADE
+  INDEX `idx_user_date` (`user_id`, `created_at`),
+  FOREIGN KEY (`user_id`) REFERENCES `customers`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ===================================================
 -- BEISPIEL-ABFRAGEN FÜR REPORTING
 -- ===================================================
 
--- Gesamte Seitenaufrufe pro Kunde (Letzte 30 Tage)
--- SELECT customer_id, COUNT(*) as page_views
+-- Gesamte Seitenaufrufe pro User (Letzte 30 Tage)
+-- SELECT user_id, COUNT(*) as page_views
 -- FROM customer_tracking
 -- WHERE type = 'page_view' 
 -- AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
--- GROUP BY customer_id;
+-- GROUP BY user_id;
 
 -- Top 10 meistbesuchte Seiten
 -- SELECT page, COUNT(*) as visits
@@ -52,7 +53,7 @@ CREATE TABLE IF NOT EXISTS `customer_tracking` (
 -- Tägliche Aktivität eines Kunden
 -- SELECT DATE(created_at) as date, COUNT(*) as activities
 -- FROM customer_tracking
--- WHERE customer_id = ?
+-- WHERE user_id = ?
 -- AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
 -- GROUP BY DATE(created_at)
 -- ORDER BY date ASC;
