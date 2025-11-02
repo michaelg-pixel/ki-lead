@@ -48,7 +48,7 @@ $freebie_url = $protocol . '://' . $domain . '/freebie/' . ($freebie['url_slug']
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Freebie Vorschau - <?php echo htmlspecialchars($freebie['headline']); ?></title>
+    <title>Freebie Vorschau - <?php echo htmlspecialchars($freebie['headline'] ?? 'Freebie'); ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * {
@@ -109,6 +109,7 @@ $freebie_url = $protocol . '://' . $domain . '/freebie/' . ($freebie['url_slug']
             display: flex;
             gap: 16px;
             flex-wrap: wrap;
+            margin-top: 20px;
         }
         
         .action-button {
@@ -148,7 +149,7 @@ $freebie_url = $protocol . '://' . $domain . '/freebie/' . ($freebie['url_slug']
         }
         
         .freebie-content {
-            background: <?php echo htmlspecialchars($freebie['background_color']); ?>;
+            background: <?php echo htmlspecialchars($freebie['background_color'] ?? '#FFFFFF'); ?>;
             border-radius: 12px;
             padding: 80px 60px;
             min-height: 600px;
@@ -167,7 +168,7 @@ $freebie_url = $protocol . '://' . $domain . '/freebie/' . ($freebie['url_slug']
         }
         
         .freebie-preheadline {
-            color: <?php echo htmlspecialchars($freebie['primary_color']); ?>;
+            color: <?php echo htmlspecialchars($freebie['primary_color'] ?? '#667eea'); ?>;
             font-size: 14px;
             font-weight: 700;
             text-transform: uppercase;
@@ -177,7 +178,7 @@ $freebie_url = $protocol . '://' . $domain . '/freebie/' . ($freebie['url_slug']
         }
         
         .freebie-headline {
-            color: <?php echo htmlspecialchars($freebie['primary_color']); ?>;
+            color: <?php echo htmlspecialchars($freebie['primary_color'] ?? '#667eea'); ?>;
             font-size: 48px;
             font-weight: 800;
             line-height: 1.2;
@@ -205,7 +206,7 @@ $freebie_url = $protocol . '://' . $domain . '/freebie/' . ($freebie['url_slug']
         }
         
         .bullet-icon {
-            color: <?php echo htmlspecialchars($freebie['primary_color']); ?>;
+            color: <?php echo htmlspecialchars($freebie['primary_color'] ?? '#667eea'); ?>;
             font-size: 24px;
             flex-shrink: 0;
         }
@@ -223,12 +224,47 @@ $freebie_url = $protocol . '://' . $domain . '/freebie/' . ($freebie['url_slug']
             margin-bottom: 32px;
         }
         
+        .freebie-form form {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .freebie-form input[type="text"],
+        .freebie-form input[type="email"] {
+            width: 100%;
+            padding: 14px 18px;
+            margin-bottom: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+        }
+        
+        .freebie-form button,
+        .freebie-form input[type="submit"] {
+            width: 100%;
+            padding: 14px 18px;
+            background: <?php echo htmlspecialchars($freebie['primary_color'] ?? '#667eea'); ?>;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .freebie-form button:hover,
+        .freebie-form input[type="submit"]:hover {
+            transform: translateY(-2px);
+        }
+        
         .freebie-cta {
             text-align: center;
         }
         
         .freebie-button {
-            background: <?php echo htmlspecialchars($freebie['primary_color']); ?>;
+            background: <?php echo htmlspecialchars($freebie['primary_color'] ?? '#667eea'); ?>;
             color: white;
             padding: 20px 60px;
             border: none;
@@ -238,55 +274,11 @@ $freebie_url = $protocol . '://' . $domain . '/freebie/' . ($freebie['url_slug']
             cursor: pointer;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
             transition: transform 0.2s;
+            display: inline-block;
         }
         
         .freebie-button:hover {
             transform: translateY(-2px);
-        }
-        
-        .url-box {
-            background: rgba(16, 185, 129, 0.1);
-            border: 2px solid rgba(16, 185, 129, 0.3);
-            border-radius: 12px;
-            padding: 20px;
-            margin-top: 24px;
-        }
-        
-        .url-box h3 {
-            color: #047857;
-            font-size: 16px;
-            font-weight: 700;
-            margin-bottom: 12px;
-        }
-        
-        .url-input-wrapper {
-            display: flex;
-            gap: 12px;
-        }
-        
-        .url-input {
-            flex: 1;
-            padding: 12px 16px;
-            border: 2px solid rgba(16, 185, 129, 0.3);
-            border-radius: 8px;
-            font-size: 14px;
-            font-family: 'Courier New', monospace;
-            background: white;
-        }
-        
-        .copy-button {
-            padding: 12px 24px;
-            background: #10b981;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        
-        .copy-button:hover {
-            background: #059669;
         }
         
         /* Layout-Styles */
@@ -360,25 +352,15 @@ $freebie_url = $protocol . '://' . $domain . '/freebie/' . ($freebie['url_slug']
                 ← Zurück zur Übersicht
             </a>
             <h1>👁️ Freebie Vorschau</h1>
-            <p>Template: <?php echo htmlspecialchars($freebie['template_name']); ?></p>
+            <p>Template: <?php echo htmlspecialchars($freebie['template_name'] ?? 'Unbekannt'); ?></p>
             
-            <div style="margin-top: 20px;">
-                <div class="action-bar">
-                    <a href="freebie-editor.php?template_id=<?php echo $freebie['template_id']; ?>" class="action-button action-primary">
-                        ✏️ Bearbeiten
-                    </a>
-                    <a href="<?php echo $freebie_url; ?>" target="_blank" class="action-button action-secondary">
-                        🔗 Live-Ansicht öffnen
-                    </a>
-                </div>
-                
-                <div class="url-box">
-                    <h3>🎯 Dein Freebie-Link</h3>
-                    <div class="url-input-wrapper">
-                        <input type="text" class="url-input" value="<?php echo htmlspecialchars($freebie_url); ?>" readonly id="freebieUrl">
-                        <button class="copy-button" onclick="copyUrl()">📋 Kopieren</button>
-                    </div>
-                </div>
+            <div class="action-bar">
+                <a href="freebie-editor.php?template_id=<?php echo $freebie['template_id']; ?>" class="action-button action-primary">
+                    ✏️ Bearbeiten
+                </a>
+                <a href="<?php echo htmlspecialchars($freebie_url); ?>" target="_blank" class="action-button action-secondary">
+                    🔗 Live-Ansicht öffnen
+                </a>
             </div>
         </div>
         
@@ -389,10 +371,11 @@ $freebie_url = $protocol . '://' . $domain . '/freebie/' . ($freebie['url_slug']
                 
                 // Mockup HTML
                 $mockup_html = '';
-                if (!empty($freebie['mockup_image_url'])) {
+                $mockup_url = $freebie['mockup_image_url'] ?? '';
+                if (!empty($mockup_url)) {
                     $mockup_html = '
                         <div class="freebie-mockup">
-                            <img src="' . htmlspecialchars($freebie['mockup_image_url']) . '" alt="Mockup" style="max-width: 380px;">
+                            <img src="' . htmlspecialchars($mockup_url) . '" alt="Mockup" style="max-width: 380px;">
                         </div>
                     ';
                 }
@@ -404,7 +387,7 @@ $freebie_url = $protocol . '://' . $domain . '/freebie/' . ($freebie['url_slug']
                 }
                 
                 // Headline
-                $headline_html = '<div class="freebie-headline">' . htmlspecialchars($freebie['headline']) . '</div>';
+                $headline_html = '<div class="freebie-headline">' . htmlspecialchars($freebie['headline'] ?? 'Freebie Headline') . '</div>';
                 
                 // Subheadline HTML
                 $subheadline_html = '';
@@ -431,18 +414,22 @@ $freebie_url = $protocol . '://' . $domain . '/freebie/' . ($freebie['url_slug']
                     }
                 }
                 
-                // Form HTML (falls Raw Code vorhanden)
+                // Form HTML (Raw Code richtig einbinden)
                 $form_html = '';
                 if (!empty($freebie['raw_code'])) {
                     $form_html = '<div class="freebie-form">' . $freebie['raw_code'] . '</div>';
                 }
                 
-                // CTA Button
-                $cta_html = '
-                    <div class="freebie-cta">
-                        <button class="freebie-button">' . htmlspecialchars($freebie['cta_text']) . '</button>
-                    </div>
-                ';
+                // CTA Button (nur wenn KEIN raw_code vorhanden)
+                $cta_html = '';
+                if (empty($freebie['raw_code'])) {
+                    $cta_text = $freebie['cta_text'] ?? 'JETZT KOSTENLOS SICHERN';
+                    $cta_html = '
+                        <div class="freebie-cta">
+                            <a href="#" class="freebie-button">' . htmlspecialchars($cta_text) . '</a>
+                        </div>
+                    ';
+                }
                 
                 // Layout rendern
                 if ($layout === 'centered') {
@@ -484,28 +471,5 @@ $freebie_url = $protocol . '://' . $domain . '/freebie/' . ($freebie['url_slug']
             </div>
         </div>
     </div>
-    
-    <script>
-        function copyUrl() {
-            const input = document.getElementById('freebieUrl');
-            input.select();
-            input.setSelectionRange(0, 99999);
-            
-            try {
-                document.execCommand('copy');
-                const button = document.querySelector('.copy-button');
-                const originalText = button.innerHTML;
-                button.innerHTML = '✅ Kopiert!';
-                button.style.background = '#059669';
-                
-                setTimeout(() => {
-                    button.innerHTML = originalText;
-                    button.style.background = '';
-                }, 2000);
-            } catch (err) {
-                alert('Fehler beim Kopieren. Bitte manuell kopieren.');
-            }
-        }
-    </script>
 </body>
 </html>
