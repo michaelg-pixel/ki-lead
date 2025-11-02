@@ -875,18 +875,19 @@ $form_data = [
             let layoutHTML = '';
             
             if (layout === 'centered') {
+                // KORRIGIERT: Mockup ZWISCHEN Subheadline und Bullets
                 layoutHTML = `
                     <div style="max-width: 800px; margin: 0 auto;">
-                        ${mockupHTML}
                         ${preheadlineHTML}
                         ${headlineHTML}
                         ${subheadlineHTML}
+                        ${mockupHTML}
                         ${bulletHTML}
                         ${ctaHTML}
                     </div>
                 `;
             } else if (layout === 'hybrid') {
-                // GEÄNDERT: Text LINKS, Mockup RECHTS
+                // Text LINKS, Mockup RECHTS
                 layoutHTML = `
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
                         <div>
