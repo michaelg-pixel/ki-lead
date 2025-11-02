@@ -177,7 +177,8 @@ $page = $_GET['page'] ?? 'overview';
                         'templates' => 'Kursverwaltung',
                         'course-edit' => 'Kurs bearbeiten',
                         'tutorials' => 'Anleitungen & Tutorials verwalten',
-                        'settings' => 'Einstellungen'
+                        'settings' => 'Einstellungen',
+                        'profile' => 'Admin-Profil'
                     ];
                     echo $titles[$page] ?? 'Dashboard';
                 ?></h2>
@@ -303,6 +304,9 @@ $page = $_GET['page'] ?? 'overview';
             
             <?php elseif ($page === 'settings'): ?>
                 <?php include 'sections/settings.php'; ?>
+            
+            <?php elseif ($page === 'profile'): ?>
+                <?php include 'sections/profile.php'; ?>
             
             <?php endif; ?>
         </div>
