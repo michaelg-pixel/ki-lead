@@ -2,6 +2,7 @@
 /**
  * Customer Dashboard - Overview Section
  * Modernes SaaS-Dashboard mit ECHTEN Tracking-Statistiken
+ * KORRIGIERT: Verwendet user_id wie die Datenbank-Struktur
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -11,92 +12,122 @@ if (!isset($customer_id)) {
 
 // ===== ECHTE TRACKING-STATISTIKEN ABRUFEN =====
 try {
-    // Freigeschaltete Freebies
-    $stmt_freebies = $pdo->prepare("SELECT COUNT(*) FROM customer_freebies WHERE customer_id = ?");
+    // Freigeschaltete Freebies (verwendet user_id)
+    $stmt_freebies = $pdo->prepare("SELECT COUNT(*) FROM customer_freebies WHERE user_id = ?");
     $stmt_freebies->execute([$customer_id]);
     $freebies_unlocked = $stmt_freebies->fetchColumn();
     
-    // Videokurse (Zugewiesene Kurse für diesen Kunden)
+    // Videokurse (verwendet user_id, kein has_access - nur Anzahl der Einträge)
     $stmt_courses = $pdo->prepare("
         SELECT COUNT(*) FROM course_access 
-        WHERE customer_id = ? AND has_access = 1
+        WHERE user_id = ?
     ");
     $stmt_courses->execute([$customer_id]);
     $courses_count = $stmt_courses->fetchColumn();
     
-    // ECHTE KLICKS aus Tracking (Letzte 30 Tage)
-    $stmt_clicks = $pdo->prepare("
-        SELECT COUNT(*) FROM customer_tracking 
-        WHERE customer_id = ? 
-        AND type = 'click'
-        AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-    ");
-    $stmt_clicks->execute([$customer_id]);
-    $total_clicks = $stmt_clicks->fetchColumn();
+    // ECHTE KLICKS aus Tracking (Letzte 30 Tage) - falls Tabelle existiert
+    try {
+        $stmt_clicks = $pdo->prepare("
+            SELECT COUNT(*) FROM customer_tracking 
+            WHERE user_id = ? 
+            AND type = 'click'
+            AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        ");
+        $stmt_clicks->execute([$customer_id]);
+        $total_clicks = $stmt_clicks->fetchColumn();
+    } catch (PDOException $e) {
+        // Fallback: Clicks aus customer_freebies summieren
+        $stmt_clicks = $pdo->prepare("
+            SELECT COALESCE(SUM(freebie_clicks), 0) FROM customer_freebies 
+            WHERE user_id = ?
+        ");
+        $stmt_clicks->execute([$customer_id]);
+        $total_clicks = $stmt_clicks->fetchColumn();
+    }
     
     // ECHTE SEITENAUFRUFE (Letzte 30 Tage)
-    $stmt_page_views = $pdo->prepare("
-        SELECT COUNT(*) FROM customer_tracking 
-        WHERE customer_id = ? 
-        AND type = 'page_view'
-        AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-    ");
-    $stmt_page_views->execute([$customer_id]);
-    $total_page_views = $stmt_page_views->fetchColumn();
+    try {
+        $stmt_page_views = $pdo->prepare("
+            SELECT COUNT(*) FROM customer_tracking 
+            WHERE user_id = ? 
+            AND type = 'page_view'
+            AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        ");
+        $stmt_page_views->execute([$customer_id]);
+        $total_page_views = $stmt_page_views->fetchColumn();
+    } catch (PDOException $e) {
+        $total_page_views = 0;
+    }
     
     // Durchschnittliche Verweildauer (in Sekunden)
-    $stmt_avg_time = $pdo->prepare("
-        SELECT AVG(duration) FROM customer_tracking 
-        WHERE customer_id = ? 
-        AND type = 'time_spent'
-        AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-    ");
-    $stmt_avg_time->execute([$customer_id]);
-    $avg_time_spent = round($stmt_avg_time->fetchColumn() ?? 0);
+    try {
+        $stmt_avg_time = $pdo->prepare("
+            SELECT AVG(duration) FROM customer_tracking 
+            WHERE user_id = ? 
+            AND type = 'time_spent'
+            AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        ");
+        $stmt_avg_time->execute([$customer_id]);
+        $avg_time_spent = round($stmt_avg_time->fetchColumn() ?? 0);
+    } catch (PDOException $e) {
+        $avg_time_spent = 0;
+    }
     
     // Heute's Aktivitäten
-    $stmt_today = $pdo->prepare("
-        SELECT COUNT(*) FROM customer_tracking 
-        WHERE customer_id = ? 
-        AND DATE(created_at) = CURDATE()
-    ");
-    $stmt_today->execute([$customer_id]);
-    $today_activities = $stmt_today->fetchColumn();
+    try {
+        $stmt_today = $pdo->prepare("
+            SELECT COUNT(*) FROM customer_tracking 
+            WHERE user_id = ? 
+            AND DATE(created_at) = CURDATE()
+        ");
+        $stmt_today->execute([$customer_id]);
+        $today_activities = $stmt_today->fetchColumn();
+    } catch (PDOException $e) {
+        $today_activities = 0;
+    }
     
     // Top 5 meistbesuchte Seiten
-    $stmt_top_pages = $pdo->prepare("
-        SELECT page, COUNT(*) as visits 
-        FROM customer_tracking 
-        WHERE customer_id = ? 
-        AND type = 'page_view'
-        AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-        GROUP BY page 
-        ORDER BY visits DESC 
-        LIMIT 5
-    ");
-    $stmt_top_pages->execute([$customer_id]);
-    $top_pages = $stmt_top_pages->fetchAll(PDO::FETCH_ASSOC);
+    try {
+        $stmt_top_pages = $pdo->prepare("
+            SELECT page, COUNT(*) as visits 
+            FROM customer_tracking 
+            WHERE user_id = ? 
+            AND type = 'page_view'
+            AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            GROUP BY page 
+            ORDER BY visits DESC 
+            LIMIT 5
+        ");
+        $stmt_top_pages->execute([$customer_id]);
+        $top_pages = $stmt_top_pages->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        $top_pages = [];
+    }
     
     // Aktivitätsverlauf (Letzte 7 Tage)
-    $stmt_activity_chart = $pdo->prepare("
-        SELECT DATE(created_at) as date, COUNT(*) as count
-        FROM customer_tracking 
-        WHERE customer_id = ? 
-        AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-        GROUP BY DATE(created_at)
-        ORDER BY date ASC
-    ");
-    $stmt_activity_chart->execute([$customer_id]);
-    $activity_chart_data = $stmt_activity_chart->fetchAll(PDO::FETCH_ASSOC);
+    try {
+        $stmt_activity_chart = $pdo->prepare("
+            SELECT DATE(created_at) as date, COUNT(*) as count
+            FROM customer_tracking 
+            WHERE user_id = ? 
+            AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+        ");
+        $stmt_activity_chart->execute([$customer_id]);
+        $activity_chart_data = $stmt_activity_chart->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        $activity_chart_data = [];
+    }
     
     // Neue Kurse prüfen (Kurse, die in den letzten 30 Tagen erstellt wurden)
     $stmt_new_courses = $pdo->prepare("
         SELECT c.id, c.title, c.description, c.thumbnail, c.is_premium 
         FROM courses c
-        LEFT JOIN course_access ca ON c.id = ca.course_id AND ca.customer_id = ?
+        LEFT JOIN course_access ca ON c.id = ca.course_id AND ca.user_id = ?
         WHERE c.is_active = 1 
         AND c.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-        AND (ca.customer_id IS NULL OR ca.has_access = 0)
+        AND ca.user_id IS NULL
         ORDER BY c.created_at DESC
         LIMIT 3
     ");
@@ -140,6 +171,9 @@ foreach ($activity_chart_data as $day) {
     $chart_labels[] = date('d.m', strtotime($day['date']));
     $chart_values[] = $day['count'];
 }
+
+// Tracking verfügbar?
+$tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
 ?>
 
 <!DOCTYPE html>
@@ -230,12 +264,14 @@ foreach ($activity_chart_data as $day) {
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         <!-- ===== LIVE TRACKING INDICATOR ===== -->
+        <?php if ($tracking_available): ?>
         <div class="mb-4 animate-fade-in-up">
             <div class="flex items-center gap-2 text-sm text-gray-400">
                 <span class="live-indicator"></span>
                 <span>Live Tracking aktiv • Heute <?php echo $today_activities; ?> Aktivitäten</span>
             </div>
         </div>
+        <?php endif; ?>
         
         <!-- ===== WILLKOMMENSBEREICH ===== -->
         <div class="mb-8 animate-fade-in-up">
@@ -244,7 +280,11 @@ foreach ($activity_chart_data as $day) {
                     Willkommen zurück, <?php echo htmlspecialchars($customer_name); ?>! 👋
                 </h1>
                 <p class="text-purple-100 text-lg mb-6">
+                    <?php if ($tracking_available): ?>
                     Deine Aktivitäten der letzten 30 Tage werden in Echtzeit erfasst.
+                    <?php else: ?>
+                    Hier siehst du deine Erfolge und nächsten Schritte.
+                    <?php endif; ?>
                 </p>
                 <a href="?page=tutorials" 
                    class="inline-flex items-center gap-2 bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-purple-50 transition-all transform hover:scale-105 shadow-lg"
@@ -257,7 +297,42 @@ foreach ($activity_chart_data as $day) {
         
         <!-- ===== ECHTZEIT STATISTIKÜBERSICHT ===== -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <!-- Seitenaufrufe -->
+            <!-- Freebies -->
+            <div class="stat-card bg-gradient-to-br from-green-500 to-green-700 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1 animate-fade-in-up opacity-0">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="bg-white/20 backdrop-blur-sm rounded-xl p-3">
+                        <i class="fas fa-gift text-white text-2xl"></i>
+                    </div>
+                </div>
+                <div class="text-white">
+                    <div class="text-4xl font-bold mb-2 count-animation">
+                        <?php echo number_format($freebies_unlocked); ?>
+                    </div>
+                    <div class="text-green-100 text-sm font-medium">
+                        Freigeschaltete Freebies
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Kurse -->
+            <div class="stat-card bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1 animate-fade-in-up opacity-0">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="bg-white/20 backdrop-blur-sm rounded-xl p-3">
+                        <i class="fas fa-graduation-cap text-white text-2xl"></i>
+                    </div>
+                </div>
+                <div class="text-white">
+                    <div class="text-4xl font-bold mb-2 count-animation">
+                        <?php echo number_format($courses_count); ?>
+                    </div>
+                    <div class="text-purple-100 text-sm font-medium">
+                        Deine Videokurse
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Seitenaufrufe oder Klicks -->
+            <?php if ($tracking_available): ?>
             <div class="stat-card bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1 animate-fade-in-up opacity-0">
                 <div class="flex items-center justify-between mb-4">
                     <div class="bg-white/20 backdrop-blur-sm rounded-xl p-3">
@@ -276,57 +351,56 @@ foreach ($activity_chart_data as $day) {
             </div>
             
             <!-- Klicks -->
-            <div class="stat-card bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1 animate-fade-in-up opacity-0">
+            <div class="stat-card bg-gradient-to-br from-pink-500 to-pink-700 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1 animate-fade-in-up opacity-0">
                 <div class="flex items-center justify-between mb-4">
                     <div class="bg-white/20 backdrop-blur-sm rounded-xl p-3">
                         <i class="fas fa-mouse-pointer text-white text-2xl"></i>
                     </div>
-                    <span class="text-xs text-purple-100 font-medium">30 Tage</span>
+                    <span class="text-xs text-pink-100 font-medium">30 Tage</span>
                 </div>
                 <div class="text-white">
                     <div class="text-4xl font-bold mb-2 count-animation" id="stat-clicks">
                         <?php echo number_format($total_clicks); ?>
                     </div>
-                    <div class="text-purple-100 text-sm font-medium">
+                    <div class="text-pink-100 text-sm font-medium">
                         Klicks erfasst
                     </div>
                 </div>
             </div>
+            <?php else: ?>
+            <!-- Fallback wenn kein Tracking -->
+            <div class="stat-card bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1 animate-fade-in-up opacity-0">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="bg-white/20 backdrop-blur-sm rounded-xl p-3">
+                        <i class="fas fa-mouse-pointer text-white text-2xl"></i>
+                    </div>
+                </div>
+                <div class="text-white">
+                    <div class="text-4xl font-bold mb-2 count-animation">
+                        <?php echo number_format($total_clicks); ?>
+                    </div>
+                    <div class="text-blue-100 text-sm font-medium">
+                        Freebie Klicks
+                    </div>
+                </div>
+            </div>
             
-            <!-- Durchschnittliche Zeit -->
             <div class="stat-card bg-gradient-to-br from-pink-500 to-pink-700 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1 animate-fade-in-up opacity-0">
                 <div class="flex items-center justify-between mb-4">
                     <div class="bg-white/20 backdrop-blur-sm rounded-xl p-3">
-                        <i class="fas fa-clock text-white text-2xl"></i>
+                        <i class="fas fa-chart-line text-white text-2xl"></i>
                     </div>
-                    <span class="text-xs text-pink-100 font-medium">⌀ Zeit</span>
                 </div>
                 <div class="text-white">
                     <div class="text-4xl font-bold mb-2 count-animation">
-                        <?php echo gmdate("i:s", $avg_time_spent); ?>
+                        Start
                     </div>
                     <div class="text-pink-100 text-sm font-medium">
-                        Verweildauer (Min:Sek)
+                        Tracking läuft an
                     </div>
                 </div>
             </div>
-            
-            <!-- Freebies -->
-            <div class="stat-card bg-gradient-to-br from-green-500 to-green-700 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1 animate-fade-in-up opacity-0">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="bg-white/20 backdrop-blur-sm rounded-xl p-3">
-                        <i class="fas fa-gift text-white text-2xl"></i>
-                    </div>
-                </div>
-                <div class="text-white">
-                    <div class="text-4xl font-bold mb-2 count-animation">
-                        <?php echo number_format($freebies_unlocked); ?>
-                    </div>
-                    <div class="text-green-100 text-sm font-medium">
-                        Freigeschaltete Freebies
-                    </div>
-                </div>
-            </div>
+            <?php endif; ?>
         </div>
         
         <!-- ===== AKTIVITÄTS-CHART ===== -->
@@ -543,7 +617,6 @@ foreach ($activity_chart_data as $day) {
             apiUrl: '/customer/api/tracking.php',
             pageStartTime: Date.now(),
             
-            // Seitenaufruf tracken
             trackPageView: function() {
                 this.sendTrackingData({
                     type: 'page_view',
@@ -554,7 +627,6 @@ foreach ($activity_chart_data as $day) {
                 });
             },
             
-            // Klick tracken
             trackClick: function(element, target = '') {
                 this.sendTrackingData({
                     type: 'click',
@@ -566,7 +638,6 @@ foreach ($activity_chart_data as $day) {
                 });
             },
             
-            // Event tracken
             trackEvent: function(eventName, eventData = {}) {
                 this.sendTrackingData({
                     type: 'event',
@@ -578,7 +649,6 @@ foreach ($activity_chart_data as $day) {
                 });
             },
             
-            // Verweildauer tracken
             trackTimeSpent: function() {
                 const duration = Math.floor((Date.now() - this.pageStartTime) / 1000);
                 this.sendTrackingData({
@@ -590,7 +660,6 @@ foreach ($activity_chart_data as $day) {
                 });
             },
             
-            // Daten an API senden
             sendTrackingData: function(data) {
                 fetch(this.apiUrl, {
                     method: 'POST',
