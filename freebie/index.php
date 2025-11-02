@@ -484,12 +484,17 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
         
         /* ========================================
            MOBILE RESPONSIVE - STANDARDISIERTES LAYOUT
-           Alle Freebies haben in mobiler Ansicht die gleiche Reihenfolge:
-           1. Preheadline, 2. Headline, 3. Subheadline, 4. Mockup, 
-           5. Bulletpoints, 6. Email Optin, 7. Footer
+           Reihenfolge für ALLE Freebies in mobiler Ansicht:
+           1. Preheadline
+           2. Headline
+           3. Subheadline
+           4. Mockup
+           5. Bulletpoints (OHNE Haken-Icons)
+           6. Email Optin + Button
+           7. Footer
         ======================================== */
         @media (max-width: 968px) {
-            /* Alle Layout-Typen werden zu einer einzigen Spalte */
+            /* Alle Layout-Typen werden zu einer einheitlichen Spalte */
             .main-content.layout-hybrid,
             .main-content.layout-sidebar,
             .main-content.layout-centered { 
@@ -499,64 +504,177 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
                 gap: 25px;
                 align-items: center;
                 max-width: 100%;
+                margin: 0 auto 25px;
             }
             
-            /* Mockup kommt nach Header, zentriert */
+            /* Mockup erscheint nach Header (Order 1) */
             .mockup-container {
                 order: 1;
                 width: 100%;
-                max-width: 280px;
-                margin: 0 auto;
+                max-width: 320px;
+                margin: 0 auto 10px;
             }
             
             .mockup-container .mockup-image { 
                 max-width: 100%;
+                height: auto;
                 margin: 0 auto;
+                display: block;
             }
             
-            /* Content Container kommt nach Mockup */
+            /* Content Container erscheint nach Mockup (Order 2) */
             .content-container {
                 order: 2;
                 width: 100%;
+                max-width: 100%;
             }
             
-            /* Bulletpoints ohne Haken-Icons in mobiler Ansicht */
+            /* Bulletpoints OHNE Haken-Icons - einfache Liste */
             .bullet-points {
+                list-style: disc inside;
                 text-align: left;
                 width: 100%;
                 margin-bottom: 20px;
+                padding-left: 0;
             }
             
             .bullet-points li {
+                padding: 8px 0 8px 0 !important;
                 padding-left: 0 !important;
                 font-size: 14px;
-                padding: 8px 0;
-                line-height: 1.5;
+                line-height: 1.6;
+                color: #2d3748;
+                position: relative;
+                margin-left: 20px;
             }
             
-            /* Haken-Icons in mobiler Ansicht entfernen */
+            /* Haken-Icons komplett entfernen in mobiler Ansicht */
             .bullet-points li:before {
-                content: none !important;
+                display: none !important;
+                content: "" !important;
             }
             
-            /* Optin Section volle Breite */
+            /* Optin Section volle Breite in Mobile */
             .optin-section { 
                 max-width: 100% !important;
                 width: 100%;
+                padding: 20px;
+            }
+            
+            .optin-section input[type="text"],
+            .optin-section input[type="email"] {
+                font-size: 16px;
+                padding: 12px 16px;
+            }
+            
+            .optin-section button[type="submit"],
+            .cta-button {
+                padding: 14px 24px;
+                font-size: 14px;
             }
         }
         
         @media (max-width: 768px) {
             body { padding: 20px 16px 15px; }
-            h1 { font-size: 26px; }
-            .subheadline { font-size: 14px; }
+            
+            h1 { 
+                font-size: 26px;
+                line-height: 1.3;
+            }
+            
+            .preheadline {
+                font-size: 10px;
+                letter-spacing: 1.2px;
+            }
+            
+            .subheadline { 
+                font-size: 14px;
+                line-height: 1.5;
+            }
+            
             .header { margin-bottom: 20px; }
-            .optin-section { padding: 18px; }
-            .cookie-content { flex-direction: column; align-items: stretch; }
-            .cookie-actions { flex-direction: column; }
-            .cookie-btn { width: 100%; justify-content: center; }
-            .cookie-settings-footer { flex-direction: column; }
-            .btn-settings-save { width: 100%; }
+            
+            .mockup-container {
+                max-width: 280px;
+            }
+            
+            .bullet-points li {
+                font-size: 13px;
+                padding: 7px 0 7px 0 !important;
+            }
+            
+            .optin-section { 
+                padding: 18px;
+            }
+            
+            .footer {
+                margin-top: 25px;
+                padding-top: 15px;
+            }
+            
+            .footer a {
+                font-size: 11px;
+                margin: 0 8px;
+            }
+            
+            /* Cookie Banner Mobile */
+            .cookie-content { 
+                flex-direction: column; 
+                align-items: stretch;
+                gap: 16px;
+            }
+            
+            .cookie-text h3 {
+                font-size: 16px;
+            }
+            
+            .cookie-text p {
+                font-size: 13px;
+            }
+            
+            .cookie-actions { 
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .cookie-btn { 
+                width: 100%;
+                justify-content: center;
+                padding: 11px 20px;
+            }
+            
+            .cookie-settings-footer { 
+                flex-direction: column;
+            }
+            
+            .btn-settings-save { 
+                width: 100%;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            body { padding: 16px 12px; }
+            
+            h1 { 
+                font-size: 22px;
+            }
+            
+            .subheadline {
+                font-size: 13px;
+            }
+            
+            .mockup-container {
+                max-width: 240px;
+            }
+            
+            .bullet-points {
+                margin-bottom: 16px;
+            }
+            
+            .bullet-points li {
+                font-size: 13px;
+                padding: 6px 0 6px 0 !important;
+            }
         }
     </style>
 </head>
