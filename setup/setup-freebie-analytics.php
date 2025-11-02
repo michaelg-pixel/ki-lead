@@ -2,7 +2,7 @@
 /**
  * Setup Script für Freebie Click Analytics System
  * Installiert Tabellen, Views, Stored Procedures und migriert bestehende Daten
- * Mit automatischer Spaltentyp-Erkennung für Kompatibilität
+ * Mit automatischer Spaltentyp-Erkennung und intelligenter Migration
  */
 
 require_once __DIR__ . '/../config/database.php';
@@ -31,37 +31,50 @@ try {
     $cf_customer_id_column = $stmt->fetch(PDO::FETCH_ASSOC);
     $cf_customer_id_type = $cf_customer_id_column['Type'];
     
-    // Alle Spalten von customer_freebies anzeigen um Namen zu finden
+    // Alle Spalten von customer_freebies anzeigen
     $stmt = $pdo->query("SHOW COLUMNS FROM customer_freebies");
     $cf_columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Name-Spalte finden (könnte 'name', 'title', 'freebie_name' sein)
-    $name_column = null;
-    $slug_column = null;
+    // Verfügbare Spalten sammeln
+    $available_columns = array_column($cf_columns, 'Field');
     
-    foreach ($cf_columns as $col) {
-        if (in_array($col['Field'], ['freebie_name', 'name', 'title'])) {
-            $name_column = $col['Field'];
-        }
-        if (in_array($col['Field'], ['url_slug', 'slug'])) {
-            $slug_column = $col['Field'];
+    // Name-Spalte finden
+    $name_column = null;
+    foreach (['freebie_name', 'name', 'title', 'headline'] as $possible_name) {
+        if (in_array($possible_name, $available_columns)) {
+            $name_column = $possible_name;
+            break;
         }
     }
-    
     if (!$name_column) {
-        $name_column = 'id'; // Fallback auf ID wenn kein Name gefunden
+        $name_column = 'id';
         echo "⚠️  No name column found, using 'id' as fallback\n";
     }
+    
+    // Slug-Spalte finden
+    $slug_column = null;
+    foreach (['url_slug', 'slug', 'unique_id'] as $possible_slug) {
+        if (in_array($possible_slug, $available_columns)) {
+            $slug_column = $possible_slug;
+            break;
+        }
+    }
     if (!$slug_column) {
-        $slug_column = 'id'; // Fallback
+        $slug_column = 'id';
         echo "⚠️  No slug column found, using 'id' as fallback\n";
     }
+    
+    // Clicks-Spalte prüfen (für Migration)
+    $has_clicks_column = in_array('clicks', $available_columns);
+    $has_created_at = in_array('created_at', $available_columns);
     
     echo "✅ users.id type: $users_id_type\n";
     echo "✅ customer_freebies.id type: $freebies_id_type\n";
     echo "✅ customer_freebies.customer_id type: $cf_customer_id_type\n";
     echo "✅ customer_freebies name column: $name_column\n";
-    echo "✅ customer_freebies slug column: $slug_column\n\n";
+    echo "✅ customer_freebies slug column: $slug_column\n";
+    echo ($has_clicks_column ? "✅" : "⚠️ ") . " clicks column: " . ($has_clicks_column ? "exists" : "not found") . "\n";
+    echo ($has_created_at ? "✅" : "⚠️ ") . " created_at column: " . ($has_created_at ? "exists" : "not found") . "\n\n";
     
     // Verwende die gleichen Typen wie die Originaltabellen
     $customer_id_type = $cf_customer_id_type;
@@ -117,77 +130,45 @@ try {
     $pdo->exec($sql_logs_table);
     echo "✅ freebie_click_logs table created\n";
     
-    // Jetzt Foreign Keys NACHTRÄGLICH hinzufügen (sicherer)
+    // Foreign Keys hinzufügen
     echo "🔗 Adding Foreign Keys...\n";
     
-    try {
-        // FK für freebie_click_analytics
-        $pdo->exec("
-            ALTER TABLE freebie_click_analytics 
-            ADD CONSTRAINT fk_fca_customer 
-            FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
-        ");
-        echo "✅ FK: freebie_click_analytics -> users\n";
-    } catch (PDOException $e) {
-        if (strpos($e->getMessage(), 'Duplicate') !== false || strpos($e->getMessage(), 'already exists') !== false) {
-            echo "⚠️  FK already exists: freebie_click_analytics -> users\n";
-        } else {
-            throw $e;
+    $fk_queries = [
+        ['table' => 'freebie_click_analytics', 'name' => 'fk_fca_customer', 'ref' => 'users(id)', 'column' => 'customer_id'],
+        ['table' => 'freebie_click_analytics', 'name' => 'fk_fca_freebie', 'ref' => 'customer_freebies(id)', 'column' => 'freebie_id'],
+        ['table' => 'freebie_click_logs', 'name' => 'fk_fcl_customer', 'ref' => 'users(id)', 'column' => 'customer_id'],
+        ['table' => 'freebie_click_logs', 'name' => 'fk_fcl_freebie', 'ref' => 'customer_freebies(id)', 'column' => 'freebie_id']
+    ];
+    
+    foreach ($fk_queries as $fk) {
+        try {
+            $pdo->exec("ALTER TABLE {$fk['table']} ADD CONSTRAINT {$fk['name']} FOREIGN KEY ({$fk['column']}) REFERENCES {$fk['ref']} ON DELETE CASCADE");
+            echo "✅ FK: {$fk['table']} -> {$fk['ref']}\n";
+        } catch (PDOException $e) {
+            if (strpos($e->getMessage(), 'Duplicate') !== false || strpos($e->getMessage(), 'already exists') !== false) {
+                echo "⚠️  FK already exists: {$fk['table']} -> {$fk['ref']}\n";
+            } else {
+                throw $e;
+            }
         }
     }
-    
-    try {
-        $pdo->exec("
-            ALTER TABLE freebie_click_analytics 
-            ADD CONSTRAINT fk_fca_freebie 
-            FOREIGN KEY (freebie_id) REFERENCES customer_freebies(id) ON DELETE CASCADE
-        ");
-        echo "✅ FK: freebie_click_analytics -> customer_freebies\n";
-    } catch (PDOException $e) {
-        if (strpos($e->getMessage(), 'Duplicate') !== false || strpos($e->getMessage(), 'already exists') !== false) {
-            echo "⚠️  FK already exists: freebie_click_analytics -> customer_freebies\n";
-        } else {
-            throw $e;
-        }
-    }
-    
-    try {
-        // FK für freebie_click_logs
-        $pdo->exec("
-            ALTER TABLE freebie_click_logs 
-            ADD CONSTRAINT fk_fcl_customer 
-            FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
-        ");
-        echo "✅ FK: freebie_click_logs -> users\n";
-    } catch (PDOException $e) {
-        if (strpos($e->getMessage(), 'Duplicate') !== false || strpos($e->getMessage(), 'already exists') !== false) {
-            echo "⚠️  FK already exists: freebie_click_logs -> users\n";
-        } else {
-            throw $e;
-        }
-    }
-    
-    try {
-        $pdo->exec("
-            ALTER TABLE freebie_click_logs 
-            ADD CONSTRAINT fk_fcl_freebie 
-            FOREIGN KEY (freebie_id) REFERENCES customer_freebies(id) ON DELETE CASCADE
-        ");
-        echo "✅ FK: freebie_click_logs -> customer_freebies\n";
-    } catch (PDOException $e) {
-        if (strpos($e->getMessage(), 'Duplicate') !== false || strpos($e->getMessage(), 'already exists') !== false) {
-            echo "⚠️  FK already exists: freebie_click_logs -> customer_freebies\n";
-        } else {
-            throw $e;
-        }
-    }
-    
     echo "\n";
     
-    // ===== SCHRITT 2: VIEW ERSTELLEN =====
+    // ===== SCHRITT 2: CLICKS SPALTE HINZUFÜGEN (falls nicht vorhanden) =====
+    if (!$has_clicks_column) {
+        echo "📊 Adding clicks column to customer_freebies...\n";
+        try {
+            $pdo->exec("ALTER TABLE customer_freebies ADD COLUMN clicks INT(11) UNSIGNED DEFAULT 0 AFTER customer_id");
+            echo "✅ clicks column added\n\n";
+            $has_clicks_column = true;
+        } catch (PDOException $e) {
+            echo "⚠️  Could not add clicks column: " . $e->getMessage() . "\n\n";
+        }
+    }
+    
+    // ===== SCHRITT 3: VIEW ERSTELLEN =====
     echo "📈 Creating Analytics View...\n";
     
-    // View mit den tatsächlich vorhandenen Spaltennamen
     $sql_view = "
     CREATE OR REPLACE VIEW `v_freebie_analytics_summary` AS
     SELECT 
@@ -210,10 +191,9 @@ try {
     $pdo->exec($sql_view);
     echo "✅ v_freebie_analytics_summary view created\n\n";
     
-    // ===== SCHRITT 3: STORED PROCEDURE =====
+    // ===== SCHRITT 4: STORED PROCEDURE =====
     echo "⚙️  Creating Stored Procedure...\n";
     
-    // Alte Procedure löschen falls vorhanden
     $pdo->exec("DROP PROCEDURE IF EXISTS sp_track_freebie_click");
     
     $sql_procedure = "
@@ -230,7 +210,7 @@ try {
         DECLARE v_click_date DATE;
         SET v_click_date = CURDATE();
         
-        -- Update oder Insert in Analytics-Tabelle
+        -- Analytics-Tabelle aktualisieren
         INSERT INTO freebie_click_analytics 
             (customer_id, freebie_id, click_date, click_count, unique_clicks)
         VALUES 
@@ -239,126 +219,137 @@ try {
             click_count = click_count + 1,
             unique_clicks = unique_clicks + IF(p_is_unique, 1, 0);
         
-        -- Update Gesamt-Counter in customer_freebies
+        -- Gesamt-Counter aktualisieren
         UPDATE customer_freebies 
         SET clicks = clicks + 1
         WHERE id = p_freebie_id;
         
-        -- Detailliertes Log speichern
+        -- Log speichern
         INSERT INTO freebie_click_logs 
             (freebie_id, customer_id, ip_address, user_agent, referrer, session_id, is_unique)
         VALUES 
             (p_freebie_id, p_customer_id, p_ip_address, p_user_agent, p_referrer, p_session_id, p_is_unique);
-        
     END
     ";
     
     $pdo->exec($sql_procedure);
     echo "✅ sp_track_freebie_click procedure created\n\n";
     
-    // ===== SCHRITT 4: BESTEHENDE DATEN MIGRIEREN =====
-    echo "🔄 Migrating existing click data...\n";
-    
-    // Alle Freebies mit Klicks holen
-    $stmt = $pdo->query("
-        SELECT 
-            cf.id as freebie_id,
-            cf.customer_id,
-            cf.clicks,
-            cf.created_at
-        FROM customer_freebies cf
-        WHERE cf.clicks > 0
-    ");
-    
-    $freebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // ===== SCHRITT 5: BESTEHENDE DATEN MIGRIEREN =====
     $migrated = 0;
     
-    foreach ($freebies as $freebie) {
-        // Klicks auf die letzten 30 Tage verteilen (simuliert)
-        $total_clicks = $freebie['clicks'];
-        $days_to_distribute = min(30, ceil((time() - strtotime($freebie['created_at'])) / 86400));
+    if ($has_clicks_column && $has_created_at) {
+        echo "🔄 Migrating existing click data...\n";
         
-        if ($days_to_distribute <= 0) {
-            $days_to_distribute = 1;
+        $stmt = $pdo->query("
+            SELECT 
+                cf.id as freebie_id,
+                cf.customer_id,
+                cf.clicks,
+                cf.created_at
+            FROM customer_freebies cf
+            WHERE cf.clicks > 0
+        ");
+        
+        $freebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        foreach ($freebies as $freebie) {
+            $total_clicks = $freebie['clicks'];
+            $days_to_distribute = min(30, ceil((time() - strtotime($freebie['created_at'])) / 86400));
+            
+            if ($days_to_distribute <= 0) $days_to_distribute = 1;
+            
+            $clicks_per_day = max(1, floor($total_clicks / $days_to_distribute));
+            $remaining_clicks = $total_clicks;
+            
+            for ($i = $days_to_distribute - 1; $i >= 0; $i--) {
+                $click_date = date('Y-m-d', strtotime("-$i days"));
+                $day_clicks = min($remaining_clicks, $clicks_per_day + rand(-1, 2));
+                
+                if ($day_clicks <= 0) continue;
+                
+                $stmt_insert = $pdo->prepare("
+                    INSERT INTO freebie_click_analytics 
+                    (customer_id, freebie_id, click_date, click_count, unique_clicks)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE
+                        click_count = click_count + VALUES(click_count),
+                        unique_clicks = unique_clicks + VALUES(unique_clicks)
+                ");
+                
+                $stmt_insert->execute([
+                    $freebie['customer_id'],
+                    $freebie['freebie_id'],
+                    $click_date,
+                    $day_clicks,
+                    round($day_clicks * 0.7)
+                ]);
+                
+                $remaining_clicks -= $day_clicks;
+            }
+            
+            $migrated++;
         }
         
-        $clicks_per_day = max(1, floor($total_clicks / $days_to_distribute));
-        $remaining_clicks = $total_clicks;
-        
-        for ($i = $days_to_distribute - 1; $i >= 0; $i--) {
-            $click_date = date('Y-m-d', strtotime("-$i days"));
-            $day_clicks = min($remaining_clicks, $clicks_per_day + rand(-1, 2));
-            
-            if ($day_clicks <= 0) continue;
-            
-            // In Analytics-Tabelle einfügen
-            $stmt_insert = $pdo->prepare("
-                INSERT INTO freebie_click_analytics 
-                (customer_id, freebie_id, click_date, click_count, unique_clicks)
-                VALUES (?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                    click_count = click_count + VALUES(click_count),
-                    unique_clicks = unique_clicks + VALUES(unique_clicks)
-            ");
-            
-            $stmt_insert->execute([
-                $freebie['customer_id'],
-                $freebie['freebie_id'],
-                $click_date,
-                $day_clicks,
-                round($day_clicks * 0.7) // 70% unique clicks (geschätzt)
-            ]);
-            
-            $remaining_clicks -= $day_clicks;
-        }
-        
-        $migrated++;
+        echo "✅ Migrated data from $migrated freebies\n\n";
+    } else {
+        echo "⚠️  Skipping migration (clicks or created_at column not found)\n";
+        echo "   Data will be tracked starting from now.\n\n";
     }
     
-    echo "✅ Migrated data from $migrated freebies\n\n";
-    
-    // ===== SCHRITT 5: EVENT FÜR AUTOMATISCHE BEREINIGUNG =====
+    // ===== SCHRITT 6: AUTOMATISCHE BEREINIGUNG =====
     echo "🗑️  Setting up automatic cleanup...\n";
     
     try {
         $pdo->exec("DROP EVENT IF EXISTS cleanup_old_click_logs");
-        
-        $sql_event = "
-        CREATE EVENT IF NOT EXISTS cleanup_old_click_logs
-        ON SCHEDULE EVERY 1 DAY
-        STARTS CURRENT_TIMESTAMP
-        DO
-        BEGIN
-            DELETE FROM freebie_click_logs 
-            WHERE click_timestamp < DATE_SUB(NOW(), INTERVAL 90 DAY);
-        END
-        ";
-        
-        $pdo->exec($sql_event);
+        $pdo->exec("
+            CREATE EVENT IF NOT EXISTS cleanup_old_click_logs
+            ON SCHEDULE EVERY 1 DAY
+            STARTS CURRENT_TIMESTAMP
+            DO
+            BEGIN
+                DELETE FROM freebie_click_logs 
+                WHERE click_timestamp < DATE_SUB(NOW(), INTERVAL 90 DAY);
+            END
+        ");
         $pdo->exec("SET GLOBAL event_scheduler = ON");
         echo "✅ Automatic cleanup event created\n\n";
     } catch (PDOException $e) {
-        echo "⚠️  Could not create event (may require SUPER privilege): " . $e->getMessage() . "\n";
-        echo "   You can manually create it later or run cleanup periodically.\n\n";
+        echo "⚠️  Could not create event (requires SUPER privilege)\n";
+        echo "   You can manually clean up old logs periodically.\n\n";
     }
     
     // ===== FERTIG =====
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
     echo "🎉 Setup Complete!\n\n";
     echo "Analytics System installed successfully:\n";
-    echo "  ✓ Tables created with correct column types\n";
+    echo "  ✓ Tables created\n";
     echo "  ✓ Foreign keys added\n";
-    echo "  ✓ Views created (using $name_column as name)\n";
+    echo "  ✓ Views created\n";
     echo "  ✓ Stored procedures created\n";
-    echo "  ✓ Existing data migrated ($migrated freebies)\n";
+    if ($migrated > 0) {
+        echo "  ✓ Existing data migrated ($migrated freebies)\n";
+    } else {
+        echo "  ℹ️  No existing data to migrate (tracking starts now)\n";
+    }
     echo "  ✓ Automatic cleanup configured\n\n";
-    echo "Column Types Used:\n";
-    echo "  • customer_id: $customer_id_type\n";
-    echo "  • freebie_id: $freebie_id_type\n";
+    
+    echo "Configuration:\n";
+    echo "  • customer_id type: $customer_id_type\n";
+    echo "  • freebie_id type: $freebie_id_type\n";
     echo "  • name column: $name_column\n";
-    echo "  • slug column: $slug_column\n\n";
-    echo "You can now track real-time analytics!\n";
-    echo "Test URL: /customer/dashboard.php?page=fortschritt\n";
+    echo "  • slug column: $slug_column\n";
+    if (!$has_clicks_column) {
+        echo "  • clicks column: ADDED\n";
+    }
+    echo "\n";
+    
+    echo "Next Steps:\n";
+    echo "  1. Visit any freebie page to start tracking\n";
+    echo "  2. Check dashboard: /customer/dashboard.php?page=fortschritt\n";
+    echo "  3. View analytics: /customer/dashboard.php?page=fortschritt\n\n";
+    
+    echo "🚀 Analytics tracking is now active!\n";
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
     
 } catch (PDOException $e) {
@@ -369,9 +360,8 @@ try {
         echo "SQL State: " . $e->errorInfo[0] . "\n";
     }
     echo "\nTroubleshooting:\n";
-    echo "1. Check database user permissions\n";
-    echo "2. Verify table structures with SHOW COLUMNS FROM customer_freebies\n";
-    echo "3. Check for existing tables/constraints\n";
-    echo "4. Review error log above\n";
+    echo "1. Run: SHOW COLUMNS FROM customer_freebies;\n";
+    echo "2. Check database user permissions\n";
+    echo "3. Verify table structures\n";
     exit(1);
 }
