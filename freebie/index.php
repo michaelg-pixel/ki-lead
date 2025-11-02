@@ -1,6 +1,6 @@
 <?php
 /**
- * Freebie Public Page mit Cookie-Banner - Optimiertes 40/60 Grid
+ * Freebie Public Page mit Cookie-Banner - Kompakte Version mit 40/60 Grid
  */
 
 error_reporting(E_ALL);
@@ -72,38 +72,38 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: <?php echo htmlspecialchars($backgroundColor); ?>;
             min-height: 100vh;
-            padding: 25px 20px 20px;
+            padding: 20px 20px 15px;
         }
         .container { max-width: 1100px; margin: 0 auto; }
-        .header { text-align: center; margin-bottom: 30px; }
+        .header { text-align: center; margin-bottom: 25px; }
         .preheadline {
-            font-size: 12px;
+            font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 1.5px;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
             font-weight: 700;
             color: <?php echo htmlspecialchars($primaryColor); ?>;
         }
         h1 {
-            font-size: 36px;
-            margin-bottom: 15px;
+            font-size: 32px;
+            margin-bottom: 12px;
             font-weight: 800;
             line-height: 1.2;
             color: #1a202c;
         }
         .subheadline {
-            font-size: 16px;
+            font-size: 15px;
             line-height: 1.4;
             color: #4a5568;
-            max-width: 700px;
+            max-width: 650px;
             margin: 0 auto;
         }
         .main-content {
             display: grid;
             grid-template-columns: 40% 60%;
-            gap: 40px;
+            gap: 35px;
             align-items: start;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
         }
         .mockup-container { 
             text-align: center;
@@ -112,43 +112,44 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             justify-content: center;
         }
         .mockup-image {
-            max-width: 100%;
+            max-width: 260px;
             height: auto;
             display: block;
         }
         .content-container { display: flex; flex-direction: column; }
-        .bullet-points { list-style: none; margin-bottom: 25px; }
+        .bullet-points { list-style: none; margin-bottom: 20px; }
         .bullet-points li {
-            padding: 7px 0;
+            padding: 6px 0;
             position: relative;
-            padding-left: 30px;
-            font-size: 16px;
-            line-height: 1.45;
+            padding-left: 28px;
+            font-size: 15px;
+            line-height: 1.4;
             color: #2d3748;
         }
         .bullet-points li:before {
             content: "✓";
             position: absolute;
             left: 0;
-            top: 7px;
+            top: 6px;
             color: <?php echo htmlspecialchars($primaryColor); ?>;
             font-weight: bold;
-            font-size: 20px;
+            font-size: 19px;
         }
         .optin-section {
             background: white;
-            padding: 25px;
+            padding: 22px;
             border-radius: 8px;
+            max-width: 70%;
         }
         
         /* Styled Form Elemente */
-        .optin-section form { display: flex; flex-direction: column; gap: 12px; }
-        .optin-section form > div > div { display: flex; flex-direction: column; gap: 12px; }
+        .optin-section form { display: flex; flex-direction: column; gap: 11px; }
+        .optin-section form > div > div { display: flex; flex-direction: column; gap: 11px; }
         .optin-section label { display: none; }
         .optin-section input[type="text"],
         .optin-section input[type="email"] {
             width: 100%;
-            padding: 12px 16px;
+            padding: 11px 15px;
             border: 1px solid #e2e8f0;
             border-radius: 6px;
             font-size: 14px;
@@ -163,12 +164,12 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
         }
         .optin-section button[type="submit"] {
             width: 100%;
-            padding: 14px 35px;
+            padding: 13px 32px;
             background: <?php echo htmlspecialchars($primaryColor); ?>;
             color: white;
             border: none;
             border-radius: 8px;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.3s;
@@ -185,12 +186,12 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
         .cta-button {
             display: block;
             width: 100%;
-            padding: 14px 35px;
+            padding: 13px 32px;
             background: <?php echo htmlspecialchars($primaryColor); ?>;
             color: white;
             border: none;
             border-radius: 8px;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.3s;
@@ -204,8 +205,8 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             filter: brightness(1.1);
         }
         .footer {
-            margin-top: 40px;
-            padding-top: 20px;
+            margin-top: 30px;
+            padding-top: 18px;
             border-top: 1px solid #e2e8f0;
             text-align: center;
         }
@@ -296,16 +297,17 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
         .cookie-btn-settings:hover { background: rgba(91, 141, 239, 0.15); }
         
         @media (max-width: 968px) {
-            .main-content { grid-template-columns: 1fr; gap: 30px; }
-            .mockup-container { max-width: 350px; margin: 0 auto; }
+            .main-content { grid-template-columns: 1fr; gap: 25px; }
+            .mockup-container .mockup-image { max-width: 260px; margin: 0 auto; }
+            .optin-section { max-width: 100%; }
         }
         @media (max-width: 768px) {
-            body { padding: 25px 16px 20px; }
-            h1 { font-size: 28px; }
-            .subheadline { font-size: 15px; }
-            .header { margin-bottom: 25px; }
-            .bullet-points li { font-size: 15px; padding: 6px 0; }
-            .optin-section { padding: 20px; }
+            body { padding: 20px 16px 15px; }
+            h1 { font-size: 26px; }
+            .subheadline { font-size: 14px; }
+            .header { margin-bottom: 20px; }
+            .bullet-points li { font-size: 14px; padding: 5px 0; }
+            .optin-section { padding: 18px; max-width: 100%; }
             .cookie-content { flex-direction: column; align-items: stretch; }
             .cookie-actions { flex-direction: column; }
             .cookie-btn { width: 100%; justify-content: center; }
@@ -329,7 +331,7 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
                 <?php if ($mockupUrl): ?>
                     <img src="<?php echo htmlspecialchars($mockupUrl); ?>" alt="Mockup" class="mockup-image">
                 <?php else: ?>
-                    <div style="width:100%;height:350px;background:linear-gradient(135deg,<?php echo htmlspecialchars($primaryColor); ?> 0%,#667eea 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:70px;color:white;">🎁</div>
+                    <div style="width:260px;height:300px;background:linear-gradient(135deg,<?php echo htmlspecialchars($primaryColor); ?> 0%,#667eea 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:60px;color:white;">🎁</div>
                 <?php endif; ?>
             </div>
             
