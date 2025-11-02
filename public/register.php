@@ -42,12 +42,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ");
                 $stmt->execute([$name, $email, $hashed_password]);
                 
-                // Auto-Login nach Registrierung
+                // Auto-Login nach Registrierung - KORRIGIERTE Session-Variablen
                 $user_id = $pdo->lastInsertId();
                 $_SESSION['user_id'] = $user_id;
-                $_SESSION['user_name'] = $name;
-                $_SESSION['user_email'] = $email;
-                $_SESSION['user_role'] = 'customer';
+                $_SESSION['name'] = $name;        // Korrigiert von 'user_name'
+                $_SESSION['email'] = $email;      // Korrigiert von 'user_email'
+                $_SESSION['role'] = 'customer';   // Korrigiert von 'user_role'
+                $_SESSION['logged_in'] = true;    // NEU: für isLoggedIn() Funktion
                 
                 // Weiterleitung zum Dashboard
                 header('Location: /customer/dashboard.php');
