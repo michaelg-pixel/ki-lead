@@ -16,21 +16,6 @@ $customer_email = $_SESSION['email'] ?? '';
 
 // Aktuelle Seite bestimmen
 $page = $_GET['page'] ?? 'overview';
-
-// Statistiken für Übersicht
-if ($page === 'overview') {
-    try {
-        $stats = [
-            'courses' => $pdo->query("SELECT COUNT(*) FROM courses WHERE is_active = 1")->fetchColumn(),
-            'my_freebies' => $pdo->prepare("SELECT COUNT(*) FROM customer_freebies WHERE customer_id = ?"),
-            'tutorials' => $pdo->query("SELECT COUNT(*) FROM tutorials WHERE is_active = 1")->fetchColumn()
-        ];
-        $stats['my_freebies']->execute([$customer_id]);
-        $stats['my_freebies'] = $stats['my_freebies']->fetchColumn();
-    } catch (PDOException $e) {
-        $stats = ['courses' => 0, 'my_freebies' => 0, 'tutorials' => 0];
-    }
-}
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -256,65 +241,7 @@ if ($page === 'overview') {
             -webkit-overflow-scrolling: touch;
         }
         
-        /* Stats Cards */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 24px;
-            padding: 32px;
-        }
-        
-        .stat-card {
-            background: linear-gradient(135deg, #1e1e3f 0%, #2a2a4f 100%);
-            border: 1px solid rgba(102, 126, 234, 0.2);
-            border-radius: 16px;
-            padding: 24px;
-            transition: transform 0.2s;
-        }
-        
-        .stat-card:hover {
-            transform: translateY(-4px);
-        }
-        
-        .stat-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-        
-        .stat-icon {
-            width: 48px;
-            height: 48px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-        }
-        
-        .stat-value {
-            font-size: 36px;
-            font-weight: 700;
-            color: white;
-            margin-bottom: 8px;
-        }
-        
-        .stat-label {
-            font-size: 14px;
-            color: #888;
-        }
-        
         /* Responsive Styles */
-        @media (max-width: 1024px) {
-            .stats-grid {
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 16px;
-                padding: 24px;
-            }
-        }
-        
         @media (max-width: 768px) {
             body {
                 flex-direction: column;
@@ -344,44 +271,11 @@ if ($page === 'overview') {
             .main-content {
                 margin-top: 60px;
             }
-            
-            .stats-grid {
-                grid-template-columns: 1fr;
-                gap: 16px;
-                padding: 16px;
-            }
-            
-            .stat-card {
-                padding: 20px;
-            }
-            
-            .stat-value {
-                font-size: 28px;
-            }
-            
-            .stat-icon {
-                width: 40px;
-                height: 40px;
-                font-size: 20px;
-            }
         }
         
         @media (max-width: 480px) {
             .mobile-logo-text {
                 font-size: 14px;
-            }
-            
-            .stats-grid {
-                padding: 12px;
-                gap: 12px;
-            }
-            
-            .stat-card {
-                padding: 16px;
-            }
-            
-            .stat-value {
-                font-size: 24px;
             }
             
             .logo-text h1 {
@@ -402,10 +296,6 @@ if ($page === 'overview') {
         }
         
         @media (hover: none) and (pointer: coarse) {
-            .stat-card:hover {
-                transform: none;
-            }
-            
             .nav-item:active {
                 background: rgba(102, 126, 234, 0.2);
             }
@@ -480,32 +370,14 @@ if ($page === 'overview') {
     <div class="main-content">
         <div class="content-area">
             <?php if ($page === 'overview'): ?>
-                <!-- Übersicht -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <div class="stat-icon">🎓</div>
-                        </div>
-                        <div class="stat-value"><?php echo $stats['courses']; ?></div>
-                        <div class="stat-label">Verfügbare Kurse</div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <div class="stat-icon">🎁</div>
-                        </div>
-                        <div class="stat-value"><?php echo $stats['my_freebies']; ?></div>
-                        <div class="stat-label">Meine Freebies</div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <div class="stat-icon">📖</div>
-                        </div>
-                        <div class="stat-value"><?php echo $stats['tutorials']; ?></div>
-                        <div class="stat-label">Tutorials</div>
-                    </div>
-                </div>
+                <?php 
+                $section_file = __DIR__ . '/sections/overview.php';
+                if (file_exists($section_file)) {
+                    include $section_file;
+                } else {
+                    echo '<div style="padding: 32px; text-align: center;"><h3>Dashboard wird geladen...</h3></div>';
+                }
+                ?>
             
             <?php elseif ($page === 'tutorials'): ?>
                 <?php 
