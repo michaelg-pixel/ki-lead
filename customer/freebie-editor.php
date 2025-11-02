@@ -89,13 +89,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
             
             $success_message = "✅ Freebie erfolgreich aktualisiert!";
         } else {
-            // Create new in customer_freebies
+            // Create new in customer_freebies - MIT freebie_type = 'template'
             $stmt = $pdo->prepare("
                 INSERT INTO customer_freebies (
                     customer_id, template_id, headline, subheadline, preheadline,
                     bullet_points, cta_text, layout, background_color, primary_color,
-                    raw_code, unique_id, url_slug, mockup_image_url, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                    raw_code, unique_id, url_slug, mockup_image_url, freebie_type, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'template', NOW())
             ");
             $stmt->execute([
                 $customer_id, $template_id, $headline, $subheadline, $preheadline,
@@ -117,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
     }
 }
 
-// Daten für Formular vorbereiten (Customer-Version hat Vorrang, sonst Template-Defaults)
+// Rest of the PHP code stays the same...
 $form_data = [
     'headline' => $customer_freebie['headline'] ?? $template['headline'] ?? 'Sichere dir jetzt deinen kostenlosen Kurs',
     'subheadline' => $customer_freebie['subheadline'] ?? $template['subheadline'] ?? '',
@@ -139,6 +139,7 @@ $form_data = [
     <title>Freebie Editor - <?php echo htmlspecialchars($template['name']); ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+        /* All the CSS stays exactly the same - no changes needed */
         * {
             margin: 0;
             padding: 0;
@@ -562,7 +563,6 @@ $form_data = [
             color: #dc2626;
         }
         
-        /* RECHTSTEXTE INFO */
         .legal-info {
             background: linear-gradient(135deg, #10B981, #059669);
             border-radius: 12px;
@@ -821,7 +821,6 @@ $form_data = [
             const previewContent = document.getElementById('previewContent');
             previewContent.style.background = backgroundColor;
             
-            // Textausrichtung: centered = center, sonst left
             const textAlign = (layout === 'centered') ? 'center' : 'center';
             
             let bulletHTML = '';
@@ -875,7 +874,6 @@ $form_data = [
             let layoutHTML = '';
             
             if (layout === 'centered') {
-                // Alles zentriert, Mockup zwischen Subheadline und Bullets
                 layoutHTML = `
                     <div style="max-width: 800px; margin: 0 auto;">
                         ${preheadlineHTML}
@@ -887,7 +885,6 @@ $form_data = [
                     </div>
                 `;
             } else if (layout === 'hybrid') {
-                // HYBRID: Mockup LINKS, Text RECHTS (wie in Screenshot 1)
                 layoutHTML = `
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
                         <div>
@@ -903,7 +900,6 @@ $form_data = [
                     </div>
                 `;
             } else { // sidebar
-                // SIDEBAR: Text LINKS, Mockup RECHTS (wie in Screenshot 2)
                 layoutHTML = `
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
                         <div>
