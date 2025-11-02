@@ -1,6 +1,6 @@
 <?php
 /**
- * Freebie Public Page mit Cookie-Banner - Kompakte Version
+ * Freebie Public Page mit Cookie-Banner - Optimiertes 40/60 Grid
  */
 
 error_reporting(E_ALL);
@@ -100,14 +100,16 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
         }
         .main-content {
             display: grid;
-            grid-template-columns: 280px 1fr;
-            gap: 50px;
+            grid-template-columns: 40% 60%;
+            gap: 40px;
             align-items: start;
             margin-bottom: 30px;
         }
         .mockup-container { 
             text-align: center;
-            max-width: 280px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .mockup-image {
             max-width: 100%;
@@ -137,7 +139,6 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             background: white;
             padding: 25px;
             border-radius: 8px;
-            max-width: 65%;
         }
         
         /* Styled Form Elemente */
@@ -296,8 +297,7 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
         
         @media (max-width: 968px) {
             .main-content { grid-template-columns: 1fr; gap: 30px; }
-            .mockup-container { max-width: 280px; margin: 0 auto; }
-            .optin-section { max-width: 100%; }
+            .mockup-container { max-width: 350px; margin: 0 auto; }
         }
         @media (max-width: 768px) {
             body { padding: 25px 16px 20px; }
@@ -305,7 +305,7 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             .subheadline { font-size: 15px; }
             .header { margin-bottom: 25px; }
             .bullet-points li { font-size: 15px; padding: 6px 0; }
-            .optin-section { padding: 20px; max-width: 100%; }
+            .optin-section { padding: 20px; }
             .cookie-content { flex-direction: column; align-items: stretch; }
             .cookie-actions { flex-direction: column; }
             .cookie-btn { width: 100%; justify-content: center; }
