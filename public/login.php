@@ -23,11 +23,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (isset($user['is_active']) && $user['is_active'] == 0) {
                     $error = 'Dein Account wurde deaktiviert';
                 } else {
-                    // Login erfolgreich
+                    // Login erfolgreich - Session-Variablen setzen
                     $_SESSION['user_id'] = $user['id'];
                     $_SESSION['email'] = $user['email'];
                     $_SESSION['role'] = $user['role'];
                     $_SESSION['name'] = $user['name'] ?? $user['email'];
+                    $_SESSION['logged_in'] = true; // WICHTIG: für isLoggedIn() Funktion
                     
                     // Try to update last login (if column exists)
                     try {
