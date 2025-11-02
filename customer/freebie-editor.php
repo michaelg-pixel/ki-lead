@@ -886,17 +886,18 @@ $form_data = [
                     </div>
                 `;
             } else if (layout === 'hybrid') {
+                // GEÄNDERT: Text LINKS, Mockup RECHTS
                 layoutHTML = `
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
-                        <div>
-                            ${mockupHTML}
-                        </div>
                         <div>
                             ${preheadlineHTML}
                             ${headlineHTML}
                             ${subheadlineHTML}
                             ${bulletHTML}
                             ${ctaHTML}
+                        </div>
+                        <div>
+                            ${mockupHTML}
                         </div>
                     </div>
                 `;
