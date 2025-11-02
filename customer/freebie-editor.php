@@ -821,8 +821,8 @@ $form_data = [
             const previewContent = document.getElementById('previewContent');
             previewContent.style.background = backgroundColor;
             
-            // FIX: Textausrichtung basierend auf Layout
-            const textAlign = (layout === 'centered') ? 'center' : 'left';
+            // Textausrichtung: centered = center, sonst left
+            const textAlign = (layout === 'centered') ? 'center' : 'center';
             
             let bulletHTML = '';
             if (bulletPoints.trim()) {
@@ -875,7 +875,7 @@ $form_data = [
             let layoutHTML = '';
             
             if (layout === 'centered') {
-                // KORRIGIERT: Mockup ZWISCHEN Subheadline und Bullets
+                // Alles zentriert, Mockup zwischen Subheadline und Bullets
                 layoutHTML = `
                     <div style="max-width: 800px; margin: 0 auto;">
                         ${preheadlineHTML}
@@ -887,9 +887,12 @@ $form_data = [
                     </div>
                 `;
             } else if (layout === 'hybrid') {
-                // Text LINKS, Mockup RECHTS
+                // HYBRID: Mockup LINKS, Text RECHTS (wie in Screenshot 1)
                 layoutHTML = `
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
+                        <div>
+                            ${mockupHTML}
+                        </div>
                         <div>
                             ${preheadlineHTML}
                             ${headlineHTML}
@@ -897,12 +900,10 @@ $form_data = [
                             ${bulletHTML}
                             ${ctaHTML}
                         </div>
-                        <div>
-                            ${mockupHTML}
-                        </div>
                     </div>
                 `;
             } else { // sidebar
+                // SIDEBAR: Text LINKS, Mockup RECHTS (wie in Screenshot 2)
                 layoutHTML = `
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
                         <div>
