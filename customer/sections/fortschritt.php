@@ -23,11 +23,11 @@ try {
     $stmt_courses->execute([$customer_id]);
     $total_courses = $stmt_courses->fetchColumn();
     
-    // Freebie Performance Details
+    // Freebie Performance Details - MIT KORREKTEM SPALTENNAMEN
     $stmt_freebie_details = $pdo->prepare("
         SELECT 
             cf.id,
-            cf.freebie_name,
+            cf.headline as freebie_name,
             cf.clicks,
             cf.created_at,
             cf.url_slug
@@ -63,9 +63,9 @@ try {
     // Aktivitäts-Timeline (letzte 10 Aktivitäten)
     $activities = [];
     
-    // Freebies erstellt
+    // Freebies erstellt - MIT KORREKTEM SPALTENNAMEN
     $stmt_freebie_activity = $pdo->prepare("
-        SELECT 'freebie_created' as type, freebie_name as name, created_at 
+        SELECT 'freebie_created' as type, headline as name, created_at 
         FROM customer_freebies 
         WHERE customer_id = ? 
         ORDER BY created_at DESC 
@@ -129,7 +129,7 @@ try {
             $chart_data[$row['date']] = (int)$row['clicks'];
         }
     } else {
-        // Fallback: Simulierte Daten wenn Tabelle noch nicht existiert
+        // Fallback: Leere Daten wenn Tabelle noch nicht existiert
         for ($i = 29; $i >= 0; $i--) {
             $date = date('Y-m-d', strtotime("-$i days"));
             $chart_data[$date] = 0;
@@ -217,31 +217,13 @@ $achievement_percentage = round((count($unlocked_achievements) / count($achievem
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        .achievement-card {
-            transition: all 0.3s ease;
-        }
-        .achievement-card:hover {
-            transform: translateY(-4px);
-        }
-        .achievement-locked {
-            opacity: 0.5;
-            filter: grayscale(100%);
-        }
-        .achievement-unlocked {
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-        .activity-item {
-            border-left: 3px solid #667eea;
-            transition: all 0.2s;
-        }
-        .activity-item:hover {
-            background: rgba(102, 126, 234, 0.1);
-            border-left-color: #764ba2;
-        }
+        .achievement-card { transition: all 0.3s ease; }
+        .achievement-card:hover { transform: translateY(-4px); }
+        .achievement-locked { opacity: 0.5; filter: grayscale(100); }
+        .achievement-unlocked { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        .activity-item { border-left: 3px solid #667eea; transition: all 0.2s; }
+        .activity-item:hover { background: rgba(102, 126, 234, 0.1); border-left-color: #764ba2; }
     </style>
 </head>
 <body class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
@@ -303,7 +285,7 @@ $achievement_percentage = round((count($unlocked_achievements) / count($achievem
                     <i class="fas fa-chart-area text-blue-400 mr-2"></i>
                     Performance Übersicht
                     <?php if (!$table_exists): ?>
-                    <span class="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded ml-2">Beta</span>
+                    <span class="text-xs bg-green-500/20 text-green-300 px-2 py-1 rounded ml-2">Aktiv</span>
                     <?php endif; ?>
                 </h3>
                 <div class="bg-gray-900 rounded-xl p-4">
@@ -397,7 +379,7 @@ $achievement_percentage = round((count($unlocked_achievements) / count($achievem
                     <?php else: ?>
                         <div class="w-full bg-gray-700 rounded-full h-2">
                             <div class="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full" 
-                                 style="width: <?php echo $achievement['progress']; ?>%">
+                                 style="width: <?php echo round($achievement['progress']); ?>%">
                             </div>
                         </div>
                     <?php endif; ?>
@@ -442,7 +424,7 @@ $achievement_percentage = round((count($unlocked_achievements) / count($achievem
                                     </div>
                                     <div class="w-full bg-gray-700 rounded-full h-2">
                                         <div class="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all" 
-                                             style="width: <?php echo $percentage; %>%">
+                                             style="width: <?php echo $percentage; ?>%">
                                         </div>
                                     </div>
                                 </div>
