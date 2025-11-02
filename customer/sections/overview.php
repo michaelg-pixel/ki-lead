@@ -1,7 +1,7 @@
 <?php
 /**
  * Customer Dashboard - Overview Section
- * Modernes SaaS-Dashboard mit Statistiken, Checkliste und Motivationssprüchen
+ * Modernes SaaS-Dashboard mit ECHTEN Tracking-Statistiken
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -9,7 +9,7 @@ if (!isset($customer_id)) {
     die('Nicht autorisiert');
 }
 
-// ===== STATISTIKEN ABRUFEN =====
+// ===== ECHTE TRACKING-STATISTIKEN ABRUFEN =====
 try {
     // Freigeschaltete Freebies
     $stmt_freebies = $pdo->prepare("SELECT COUNT(*) FROM customer_freebies WHERE customer_id = ?");
@@ -24,13 +24,70 @@ try {
     $stmt_courses->execute([$customer_id]);
     $courses_count = $stmt_courses->fetchColumn();
     
-    // Gesamte Klicks (aus customer_freebies Tabelle)
+    // ECHTE KLICKS aus Tracking (Letzte 30 Tage)
     $stmt_clicks = $pdo->prepare("
-        SELECT COALESCE(SUM(clicks), 0) FROM customer_freebies 
-        WHERE customer_id = ?
+        SELECT COUNT(*) FROM customer_tracking 
+        WHERE customer_id = ? 
+        AND type = 'click'
+        AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
     ");
     $stmt_clicks->execute([$customer_id]);
     $total_clicks = $stmt_clicks->fetchColumn();
+    
+    // ECHTE SEITENAUFRUFE (Letzte 30 Tage)
+    $stmt_page_views = $pdo->prepare("
+        SELECT COUNT(*) FROM customer_tracking 
+        WHERE customer_id = ? 
+        AND type = 'page_view'
+        AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    ");
+    $stmt_page_views->execute([$customer_id]);
+    $total_page_views = $stmt_page_views->fetchColumn();
+    
+    // Durchschnittliche Verweildauer (in Sekunden)
+    $stmt_avg_time = $pdo->prepare("
+        SELECT AVG(duration) FROM customer_tracking 
+        WHERE customer_id = ? 
+        AND type = 'time_spent'
+        AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    ");
+    $stmt_avg_time->execute([$customer_id]);
+    $avg_time_spent = round($stmt_avg_time->fetchColumn() ?? 0);
+    
+    // Heute's Aktivitäten
+    $stmt_today = $pdo->prepare("
+        SELECT COUNT(*) FROM customer_tracking 
+        WHERE customer_id = ? 
+        AND DATE(created_at) = CURDATE()
+    ");
+    $stmt_today->execute([$customer_id]);
+    $today_activities = $stmt_today->fetchColumn();
+    
+    // Top 5 meistbesuchte Seiten
+    $stmt_top_pages = $pdo->prepare("
+        SELECT page, COUNT(*) as visits 
+        FROM customer_tracking 
+        WHERE customer_id = ? 
+        AND type = 'page_view'
+        AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        GROUP BY page 
+        ORDER BY visits DESC 
+        LIMIT 5
+    ");
+    $stmt_top_pages->execute([$customer_id]);
+    $top_pages = $stmt_top_pages->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Aktivitätsverlauf (Letzte 7 Tage)
+    $stmt_activity_chart = $pdo->prepare("
+        SELECT DATE(created_at) as date, COUNT(*) as count
+        FROM customer_tracking 
+        WHERE customer_id = ? 
+        AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        GROUP BY DATE(created_at)
+        ORDER BY date ASC
+    ");
+    $stmt_activity_chart->execute([$customer_id]);
+    $activity_chart_data = $stmt_activity_chart->fetchAll(PDO::FETCH_ASSOC);
     
     // Neue Kurse prüfen (Kurse, die in den letzten 30 Tagen erstellt wurden)
     $stmt_new_courses = $pdo->prepare("
@@ -51,6 +108,11 @@ try {
     $freebies_unlocked = 0;
     $courses_count = 0;
     $total_clicks = 0;
+    $total_page_views = 0;
+    $avg_time_spent = 0;
+    $today_activities = 0;
+    $top_pages = [];
+    $activity_chart_data = [];
     $new_courses = [];
 }
 
@@ -68,9 +130,16 @@ $motivational_quotes = [
     "Glaube an dich – deine Leads warten schon! 💫"
 ];
 
-// Täglicher Spruch basierend auf dem aktuellen Tag
 $day_of_year = date('z');
 $daily_quote = $motivational_quotes[$day_of_year % count($motivational_quotes)];
+
+// Format für Chart-Daten
+$chart_labels = [];
+$chart_values = [];
+foreach ($activity_chart_data as $day) {
+    $chart_labels[] = date('d.m', strtotime($day['date']));
+    $chart_values[] = $day['count'];
+}
 ?>
 
 <!DOCTYPE html>
@@ -80,6 +149,7 @@ $daily_quote = $motivational_quotes[$day_of_year % count($motivational_quotes)];
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @keyframes fadeInUp {
             from {
@@ -99,6 +169,7 @@ $daily_quote = $motivational_quotes[$day_of_year % count($motivational_quotes)];
         .stat-card:nth-child(1) { animation-delay: 0.1s; }
         .stat-card:nth-child(2) { animation-delay: 0.2s; }
         .stat-card:nth-child(3) { animation-delay: 0.3s; }
+        .stat-card:nth-child(4) { animation-delay: 0.4s; }
         
         @keyframes countUp {
             from { opacity: 0; transform: scale(0.5); }
@@ -139,10 +210,32 @@ $daily_quote = $motivational_quotes[$day_of_year % count($motivational_quotes)];
             font-size: 16px;
             font-weight: bold;
         }
+        
+        .live-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #22c55e;
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 min-h-screen">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- ===== LIVE TRACKING INDICATOR ===== -->
+        <div class="mb-4 animate-fade-in-up">
+            <div class="flex items-center gap-2 text-sm text-gray-400">
+                <span class="live-indicator"></span>
+                <span>Live Tracking aktiv • Heute <?php echo $today_activities; ?> Aktivitäten</span>
+            </div>
+        </div>
         
         <!-- ===== WILLKOMMENSBEREICH ===== -->
         <div class="mb-8 animate-fade-in-up">
@@ -151,73 +244,138 @@ $daily_quote = $motivational_quotes[$day_of_year % count($motivational_quotes)];
                     Willkommen zurück, <?php echo htmlspecialchars($customer_name); ?>! 👋
                 </h1>
                 <p class="text-purple-100 text-lg mb-6">
-                    Hier siehst du deine Erfolge und nächsten Schritte.
+                    Deine Aktivitäten der letzten 30 Tage werden in Echtzeit erfasst.
                 </p>
                 <a href="?page=tutorials" 
-                   class="inline-flex items-center gap-2 bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-purple-50 transition-all transform hover:scale-105 shadow-lg">
+                   class="inline-flex items-center gap-2 bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-purple-50 transition-all transform hover:scale-105 shadow-lg"
+                   data-track="button-tutorials">
                     <i class="fas fa-rocket"></i>
                     Jetzt starten
                 </a>
             </div>
         </div>
         
-        <!-- ===== STATISTIKÜBERSICHT ===== -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <!-- Freigeschaltete Freebies -->
+        <!-- ===== ECHTZEIT STATISTIKÜBERSICHT ===== -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- Seitenaufrufe -->
             <div class="stat-card bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1 animate-fade-in-up opacity-0">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="bg-white/20 backdrop-blur-sm rounded-xl p-3">
+                        <i class="fas fa-eye text-white text-2xl"></i>
+                    </div>
+                    <span class="text-xs text-blue-100 font-medium">30 Tage</span>
+                </div>
+                <div class="text-white">
+                    <div class="text-4xl font-bold mb-2 count-animation" id="stat-views">
+                        <?php echo number_format($total_page_views); ?>
+                    </div>
+                    <div class="text-blue-100 text-sm font-medium">
+                        Seitenaufrufe
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Klicks -->
+            <div class="stat-card bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1 animate-fade-in-up opacity-0">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="bg-white/20 backdrop-blur-sm rounded-xl p-3">
+                        <i class="fas fa-mouse-pointer text-white text-2xl"></i>
+                    </div>
+                    <span class="text-xs text-purple-100 font-medium">30 Tage</span>
+                </div>
+                <div class="text-white">
+                    <div class="text-4xl font-bold mb-2 count-animation" id="stat-clicks">
+                        <?php echo number_format($total_clicks); ?>
+                    </div>
+                    <div class="text-purple-100 text-sm font-medium">
+                        Klicks erfasst
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Durchschnittliche Zeit -->
+            <div class="stat-card bg-gradient-to-br from-pink-500 to-pink-700 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1 animate-fade-in-up opacity-0">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="bg-white/20 backdrop-blur-sm rounded-xl p-3">
+                        <i class="fas fa-clock text-white text-2xl"></i>
+                    </div>
+                    <span class="text-xs text-pink-100 font-medium">⌀ Zeit</span>
+                </div>
+                <div class="text-white">
+                    <div class="text-4xl font-bold mb-2 count-animation">
+                        <?php echo gmdate("i:s", $avg_time_spent); ?>
+                    </div>
+                    <div class="text-pink-100 text-sm font-medium">
+                        Verweildauer (Min:Sek)
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Freebies -->
+            <div class="stat-card bg-gradient-to-br from-green-500 to-green-700 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1 animate-fade-in-up opacity-0">
                 <div class="flex items-center justify-between mb-4">
                     <div class="bg-white/20 backdrop-blur-sm rounded-xl p-3">
                         <i class="fas fa-gift text-white text-2xl"></i>
                     </div>
                 </div>
                 <div class="text-white">
-                    <div class="text-5xl font-bold mb-2 count-animation">
+                    <div class="text-4xl font-bold mb-2 count-animation">
                         <?php echo number_format($freebies_unlocked); ?>
                     </div>
-                    <div class="text-blue-100 text-sm font-medium">
+                    <div class="text-green-100 text-sm font-medium">
                         Freigeschaltete Freebies
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Deine Videokurse -->
-            <div class="stat-card bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1 animate-fade-in-up opacity-0">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="bg-white/20 backdrop-blur-sm rounded-xl p-3">
-                        <i class="fas fa-play-circle text-white text-2xl"></i>
-                    </div>
-                </div>
-                <div class="text-white">
-                    <div class="text-5xl font-bold mb-2 count-animation">
-                        <?php echo number_format($courses_count); ?>
-                    </div>
-                    <div class="text-purple-100 text-sm font-medium">
-                        Deine Videokurse
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Gesamte Klicks -->
-            <div class="stat-card bg-gradient-to-br from-pink-500 to-pink-700 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1 animate-fade-in-up opacity-0">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="bg-white/20 backdrop-blur-sm rounded-xl p-3">
-                        <i class="fas fa-mouse-pointer text-white text-2xl"></i>
-                    </div>
-                </div>
-                <div class="text-white">
-                    <div class="text-5xl font-bold mb-2 count-animation">
-                        <?php echo number_format($total_clicks); ?>
-                    </div>
-                    <div class="text-pink-100 text-sm font-medium">
-                        Gesamte Klicks
                     </div>
                 </div>
             </div>
         </div>
         
+        <!-- ===== AKTIVITÄTS-CHART ===== -->
+        <?php if (!empty($activity_chart_data)): ?>
+        <div class="mb-8 animate-fade-in-up opacity-0" style="animation-delay: 0.5s;">
+            <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 shadow-xl border border-blue-500/20">
+                <h2 class="text-xl font-bold text-white mb-4">
+                    <i class="fas fa-chart-line text-blue-400 mr-2"></i>
+                    Deine Aktivität (Letzte 7 Tage)
+                </h2>
+                <div class="h-64">
+                    <canvas id="activityChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+        
+        <!-- ===== TOP SEITEN ===== -->
+        <?php if (!empty($top_pages)): ?>
+        <div class="mb-8 animate-fade-in-up opacity-0" style="animation-delay: 0.6s;">
+            <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 shadow-xl border border-purple-500/20">
+                <h2 class="text-xl font-bold text-white mb-4">
+                    <i class="fas fa-fire text-orange-400 mr-2"></i>
+                    Meistbesuchte Seiten
+                </h2>
+                <div class="space-y-3">
+                    <?php foreach ($top_pages as $index => $page_data): ?>
+                    <div class="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold">
+                                <?php echo $index + 1; ?>
+                            </div>
+                            <span class="text-white font-medium">
+                                <?php echo htmlspecialchars($page_data['page']); ?>
+                            </span>
+                        </div>
+                        <span class="text-gray-400 text-sm">
+                            <?php echo number_format($page_data['visits']); ?> Besuche
+                        </span>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+        
         <!-- ===== NEUE KURSE (OPTIONAL) ===== -->
         <?php if (!empty($new_courses)): ?>
-        <div class="mb-8 animate-fade-in-up opacity-0" style="animation-delay: 0.4s;">
+        <div class="mb-8 animate-fade-in-up opacity-0" style="animation-delay: 0.7s;">
             <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 shadow-xl border border-purple-500/20">
                 <div class="flex items-center justify-between mb-6">
                     <div>
@@ -227,7 +385,7 @@ $daily_quote = $motivational_quotes[$day_of_year % count($motivational_quotes)];
                         </h2>
                         <p class="text-gray-400">Entdecke die neuesten Lerninhalte</p>
                     </div>
-                    <a href="?page=kurse" class="text-purple-400 hover:text-purple-300 font-semibold">
+                    <a href="?page=kurse" class="text-purple-400 hover:text-purple-300 font-semibold" data-track="link-courses">
                         Alle ansehen →
                     </a>
                 </div>
@@ -264,7 +422,8 @@ $daily_quote = $motivational_quotes[$day_of_year % count($motivational_quotes)];
                                 <?php echo htmlspecialchars($course['description'] ?? 'Neuer Kurs verfügbar'); ?>
                             </p>
                             <a href="?page=kurse" 
-                               class="block text-center bg-purple-600 hover:bg-purple-700 text-white text-sm py-2 rounded-lg transition-colors">
+                               class="block text-center bg-purple-600 hover:bg-purple-700 text-white text-sm py-2 rounded-lg transition-colors"
+                               data-track="button-course">
                                 Jetzt ansehen
                             </a>
                         </div>
@@ -278,7 +437,7 @@ $daily_quote = $motivational_quotes[$day_of_year % count($motivational_quotes)];
         <!-- ===== CHECKLISTE & MOTIVATIONSSPRUCH ===== -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- Checkliste -->
-            <div class="lg:col-span-2 animate-fade-in-up opacity-0" style="animation-delay: 0.5s;">
+            <div class="lg:col-span-2 animate-fade-in-up opacity-0" style="animation-delay: 0.8s;">
                 <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 shadow-xl border border-blue-500/20">
                     <h2 class="text-2xl font-bold text-white mb-2">
                         <i class="fas fa-list-check text-blue-400 mr-2"></i>
@@ -361,7 +520,7 @@ $daily_quote = $motivational_quotes[$day_of_year % count($motivational_quotes)];
             </div>
             
             <!-- Motivationsspruch -->
-            <div class="animate-fade-in-up opacity-0" style="animation-delay: 0.6s;">
+            <div class="animate-fade-in-up opacity-0" style="animation-delay: 0.9s;">
                 <div class="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 rounded-2xl p-6 shadow-xl border border-yellow-500/30 h-full flex flex-col justify-center">
                     <div class="text-center">
                         <div class="text-6xl mb-4">💡</div>
@@ -379,10 +538,164 @@ $daily_quote = $motivational_quotes[$day_of_year % count($motivational_quotes)];
     </div>
     
     <script>
-        // LocalStorage für Checklisten-Fortschritt
+        // ===== TRACKING SYSTEM =====
+        const TrackingSystem = {
+            apiUrl: '/customer/api/tracking.php',
+            pageStartTime: Date.now(),
+            
+            // Seitenaufruf tracken
+            trackPageView: function() {
+                this.sendTrackingData({
+                    type: 'page_view',
+                    data: {
+                        page: 'overview',
+                        referrer: document.referrer
+                    }
+                });
+            },
+            
+            // Klick tracken
+            trackClick: function(element, target = '') {
+                this.sendTrackingData({
+                    type: 'click',
+                    data: {
+                        page: 'overview',
+                        element: element,
+                        target: target
+                    }
+                });
+            },
+            
+            // Event tracken
+            trackEvent: function(eventName, eventData = {}) {
+                this.sendTrackingData({
+                    type: 'event',
+                    data: {
+                        page: 'overview',
+                        event_name: eventName,
+                        event_data: eventData
+                    }
+                });
+            },
+            
+            // Verweildauer tracken
+            trackTimeSpent: function() {
+                const duration = Math.floor((Date.now() - this.pageStartTime) / 1000);
+                this.sendTrackingData({
+                    type: 'time_spent',
+                    data: {
+                        page: 'overview',
+                        duration: duration
+                    }
+                });
+            },
+            
+            // Daten an API senden
+            sendTrackingData: function(data) {
+                fetch(this.apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                }).catch(err => console.error('Tracking error:', err));
+            }
+        };
+        
+        // ===== AUTO-TRACKING SETUP =====
+        document.addEventListener('DOMContentLoaded', function() {
+            // Seitenaufruf tracken
+            TrackingSystem.trackPageView();
+            
+            // Alle trackbaren Elemente finden
+            document.querySelectorAll('[data-track]').forEach(element => {
+                element.addEventListener('click', function(e) {
+                    const trackId = this.getAttribute('data-track');
+                    const href = this.getAttribute('href') || '';
+                    TrackingSystem.trackClick(trackId, href);
+                });
+            });
+            
+            // Checkbox-Changes tracken
+            document.querySelectorAll('.checkbox-custom').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    TrackingSystem.trackEvent('checklist_update', {
+                        task: this.getAttribute('data-task'),
+                        checked: this.checked
+                    });
+                });
+            });
+            
+            // Verweildauer bei Seitenwechsel/Schließen tracken
+            window.addEventListener('beforeunload', function() {
+                TrackingSystem.trackTimeSpent();
+            });
+            
+            // Verweildauer alle 30 Sekunden tracken
+            setInterval(function() {
+                TrackingSystem.trackTimeSpent();
+            }, 30000);
+            
+            // Checklist-Fortschritt laden
+            loadProgress();
+            
+            // Chart initialisieren
+            <?php if (!empty($activity_chart_data)): ?>
+            initActivityChart();
+            <?php endif; ?>
+        });
+        
+        // ===== ACTIVITY CHART =====
+        function initActivityChart() {
+            const ctx = document.getElementById('activityChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: <?php echo json_encode($chart_labels); ?>,
+                    datasets: [{
+                        label: 'Aktivitäten',
+                        data: <?php echo json_encode($chart_values); ?>,
+                        borderColor: 'rgb(102, 126, 234)',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#9ca3af'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: '#9ca3af'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // ===== CHECKLIST MANAGEMENT =====
         const STORAGE_KEY = 'customer_checklist_progress';
         
-        // Fortschritt beim Laden wiederherstellen
         function loadProgress() {
             const saved = localStorage.getItem(STORAGE_KEY);
             if (saved) {
@@ -397,13 +710,11 @@ $daily_quote = $motivational_quotes[$day_of_year % count($motivational_quotes)];
             updateProgress();
         }
         
-        // Fortschritt aktualisieren
         function updateProgress() {
             const checkboxes = document.querySelectorAll('#checklist input[type="checkbox"]');
             const total = checkboxes.length;
             let checked = 0;
             
-            // Fortschritt speichern
             const progress = {};
             checkboxes.forEach(checkbox => {
                 const task = checkbox.dataset.task;
@@ -412,7 +723,6 @@ $daily_quote = $motivational_quotes[$day_of_year % count($motivational_quotes)];
             });
             localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
             
-            // Fortschrittsbalken aktualisieren
             const percentage = Math.round((checked / total) * 100);
             const progressBar = document.getElementById('progress-bar');
             const progressText = document.getElementById('progress-percentage');
@@ -420,11 +730,6 @@ $daily_quote = $motivational_quotes[$day_of_year % count($motivational_quotes)];
             progressBar.style.width = percentage + '%';
             progressText.textContent = percentage + '%';
         }
-        
-        // Beim Laden ausführen
-        document.addEventListener('DOMContentLoaded', function() {
-            loadProgress();
-        });
     </script>
 </body>
 </html>
