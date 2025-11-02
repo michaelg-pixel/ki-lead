@@ -26,7 +26,15 @@ if (!$identifier) { http_response_code(404); die('No ID'); }
 
 $customer_id = null;
 try {
-    $stmt = $pdo->prepare("SELECT cf.*, u.id as customer_id FROM customer_freebies cf LEFT JOIN users u ON cf.customer_id = u.id WHERE cf.unique_id = ? LIMIT 1");
+    // FIX: Auch mockup_image_url aus dem Template laden
+    $stmt = $pdo->prepare("
+        SELECT cf.*, u.id as customer_id, f.mockup_image_url 
+        FROM customer_freebies cf 
+        LEFT JOIN users u ON cf.customer_id = u.id 
+        LEFT JOIN freebies f ON cf.template_id = f.id 
+        WHERE cf.unique_id = ? 
+        LIMIT 1
+    ");
     $stmt->execute([$identifier]);
     $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -571,7 +579,7 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             </div>
             
         <?php else: ?>
-            <!-- HYBRID LAYOUT (Content links, Mockup rechts) - GEÄNDERT -->
+            <!-- HYBRID LAYOUT (Content links, Mockup rechts) -->
             <div class="main-content layout-hybrid">
                 <div class="content-container">
                     <?php if (!empty($bulletPoints)): ?>
