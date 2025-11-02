@@ -66,31 +66,6 @@
             flex-shrink: 0;
         }
         
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: #333;
-        }
-        
-        input[type="password"] {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: all 0.3s;
-        }
-        
-        input[type="password"]:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
         .btn {
             width: 100%;
             padding: 15px;
@@ -190,47 +165,65 @@
         .info-box li {
             margin-bottom: 5px;
         }
+
+        .success-box {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .success-box.active {
+            display: block;
+        }
+
+        .success-box h2 {
+            color: #155724;
+            margin-bottom: 15px;
+        }
+
+        .success-box .icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>🗄️ Database Migration Runner</h1>
-            <p>Führe die Tracking-System Migration aus</p>
+            <p>Tracking-System einmalig installieren</p>
         </div>
         
         <div class="content">
             <div class="warning">
                 <div class="warning-icon">⚠️</div>
                 <div>
-                    <strong>Wichtig:</strong> Dieses Script sollte nur einmal ausgeführt werden. 
-                    Bitte lösche oder schütze diese Datei nach erfolgreicher Ausführung!
+                    <strong>Wichtig:</strong> Diese Migration sollte nur einmal ausgeführt werden. 
+                    Bitte lösche diese Datei nach erfolgreicher Installation!
                 </div>
             </div>
             
-            <form id="migrationForm">
-                <div class="form-group">
-                    <label for="password">Admin-Passwort:</label>
-                    <input 
-                        type="password" 
-                        id="password" 
-                        name="password" 
-                        placeholder="Gib das Admin-Passwort ein"
-                        required
-                    >
-                    <small style="color: #666; display: block; margin-top: 5px;">
-                        Standard: "dein-sicheres-passwort-2024" (ändern in run-migrations.php)
-                    </small>
-                </div>
-                
-                <button type="submit" class="btn" id="submitBtn">
-                    🚀 Migration starten
-                </button>
-            </form>
+            <button class="btn" id="startBtn" onclick="runMigration()">
+                🚀 Migration jetzt starten
+            </button>
             
             <div class="loading" id="loading">
                 <div class="spinner"></div>
                 <div>Migration wird ausgeführt...</div>
+            </div>
+
+            <div class="success-box" id="successBox">
+                <div class="icon">✅</div>
+                <h2>Migration erfolgreich!</h2>
+                <p style="color: #155724; margin-bottom: 15px;">
+                    Das Tracking-System wurde erfolgreich installiert.
+                </p>
+                <button class="btn" onclick="window.location.href='/customer/dashboard.php?page=overview'">
+                    Zum Dashboard
+                </button>
             </div>
             
             <div class="result" id="result"></div>
@@ -238,69 +231,62 @@
             <div class="info-box">
                 <h3>ℹ️ Was wird installiert:</h3>
                 <ul>
-                    <li>Tracking-Tabelle für Seitenaufrufe</li>
-                    <li>Tracking-Tabelle für Klicks</li>
-                    <li>Tracking-Tabelle für Verweildauer</li>
-                    <li>Tracking-Tabelle für Custom Events</li>
-                    <li>Migrations-Tracking-System</li>
+                    <li>✅ Tracking-Tabelle für Seitenaufrufe</li>
+                    <li>✅ Tracking-Tabelle für Klicks</li>
+                    <li>✅ Tracking-Tabelle für Verweildauer</li>
+                    <li>✅ Tracking-Tabelle für Custom Events</li>
+                    <li>✅ Migrations-Tracking-System</li>
                 </ul>
             </div>
         </div>
     </div>
     
     <script>
-        document.getElementById('migrationForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const password = document.getElementById('password').value;
-            const submitBtn = document.getElementById('submitBtn');
+        async function runMigration() {
+            const startBtn = document.getElementById('startBtn');
             const loading = document.getElementById('loading');
             const result = document.getElementById('result');
+            const successBox = document.getElementById('successBox');
             
             // UI Reset
-            submitBtn.disabled = true;
+            startBtn.disabled = true;
+            startBtn.textContent = '⏳ Migration läuft...';
             loading.classList.add('active');
             result.style.display = 'none';
             result.className = 'result';
+            successBox.classList.remove('active');
             
             try {
-                const response = await fetch(`run-migrations.php?password=${encodeURIComponent(password)}`);
+                const response = await fetch('run-migrations.php');
                 const text = await response.text();
                 
                 // Prüfen ob erfolgreich
                 if (text.includes('✨ Migration abgeschlossen') || text.includes('Fertig')) {
                     result.className = 'result success';
                     result.textContent = text;
-                    
-                    // Success Message
-                    setTimeout(() => {
-                        if (confirm('✅ Migration erfolgreich!\n\nMöchtest du zum Dashboard?')) {
-                            window.location.href = '/customer/dashboard.php?page=overview';
-                        }
-                    }, 1000);
-                } else if (text.includes('Zugriff verweigert')) {
-                    result.className = 'result error';
-                    result.textContent = '❌ Falsches Passwort!\n\nBitte überprüfe das Passwort in run-migrations.php';
+                    successBox.classList.add('active');
+                    startBtn.style.display = 'none';
                 } else {
                     result.className = 'result error';
                     result.textContent = text;
+                    startBtn.disabled = false;
+                    startBtn.textContent = '🔄 Migration erneut versuchen';
                 }
                 
             } catch (error) {
                 result.className = 'result error';
                 result.textContent = '❌ Fehler beim Ausführen der Migration:\n\n' + error.message;
+                startBtn.disabled = false;
+                startBtn.textContent = '🔄 Migration erneut versuchen';
             } finally {
                 loading.classList.remove('active');
-                submitBtn.disabled = false;
             }
-        });
-        
-        // Enter-Key Support
-        document.getElementById('password').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                document.getElementById('migrationForm').dispatchEvent(new Event('submit'));
-            }
-        });
+        }
+
+        // Auto-Start beim Laden (optional auskommentieren)
+        // window.addEventListener('load', () => {
+        //     setTimeout(runMigration, 1000);
+        // });
     </script>
 </body>
 </html>
