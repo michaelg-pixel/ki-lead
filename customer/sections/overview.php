@@ -1,8 +1,7 @@
 <?php
 /**
  * Customer Dashboard - Overview Section
- * Modernes SaaS-Dashboard mit ECHTEN Tracking-Statistiken
- * KORRIGIERT: Verwendet user_id wie die Datenbank-Struktur
+ * KORRIGIERT: Verwendet die richtigen Tabellen (user_freebies, freebie_click_analytics, etc.)
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -10,14 +9,14 @@ if (!isset($customer_id)) {
     die('Nicht autorisiert');
 }
 
-// ===== ECHTE TRACKING-STATISTIKEN ABRUFEN =====
+// ===== ECHTE STATISTIKEN ABRUFEN =====
 try {
-    // Freigeschaltete Freebies (verwendet user_id)
-    $stmt_freebies = $pdo->prepare("SELECT COUNT(*) FROM customer_freebies WHERE user_id = ?");
+    // Freigeschaltete Freebies - KORRIGIERT: user_freebies Tabelle
+    $stmt_freebies = $pdo->prepare("SELECT COUNT(*) FROM user_freebies WHERE user_id = ?");
     $stmt_freebies->execute([$customer_id]);
     $freebies_unlocked = $stmt_freebies->fetchColumn();
     
-    // Videokurse (verwendet user_id, kein has_access - nur Anzahl der Einträge)
+    // Videokurse
     $stmt_courses = $pdo->prepare("
         SELECT COUNT(*) FROM course_access 
         WHERE user_id = ?
@@ -25,27 +24,33 @@ try {
     $stmt_courses->execute([$customer_id]);
     $courses_count = $stmt_courses->fetchColumn();
     
-    // ECHTE KLICKS aus Tracking (Letzte 30 Tage) - falls Tabelle existiert
+    // ECHTE KLICKS aus freebie_click_analytics - KORRIGIERT
     try {
         $stmt_clicks = $pdo->prepare("
-            SELECT COUNT(*) FROM customer_tracking 
-            WHERE user_id = ? 
-            AND type = 'click'
-            AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            SELECT COALESCE(SUM(click_count), 0) 
+            FROM freebie_click_analytics 
+            WHERE customer_id = ?
+            AND click_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
         ");
         $stmt_clicks->execute([$customer_id]);
         $total_clicks = $stmt_clicks->fetchColumn();
     } catch (PDOException $e) {
-        // Fallback: Clicks aus customer_freebies summieren
-        $stmt_clicks = $pdo->prepare("
-            SELECT COALESCE(SUM(freebie_clicks), 0) FROM customer_freebies 
-            WHERE user_id = ?
-        ");
-        $stmt_clicks->execute([$customer_id]);
-        $total_clicks = $stmt_clicks->fetchColumn();
+        // Fallback: customer_tracking
+        try {
+            $stmt_clicks = $pdo->prepare("
+                SELECT COUNT(*) FROM customer_tracking 
+                WHERE user_id = ? 
+                AND type = 'click'
+                AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            ");
+            $stmt_clicks->execute([$customer_id]);
+            $total_clicks = $stmt_clicks->fetchColumn();
+        } catch (PDOException $e2) {
+            $total_clicks = 0;
+        }
     }
     
-    // ECHTE SEITENAUFRUFE (Letzte 30 Tage)
+    // ECHTE SEITENAUFRUFE
     try {
         $stmt_page_views = $pdo->prepare("
             SELECT COUNT(*) FROM customer_tracking 
@@ -59,7 +64,7 @@ try {
         $total_page_views = 0;
     }
     
-    // Durchschnittliche Verweildauer (in Sekunden)
+    // Durchschnittliche Verweildauer
     try {
         $stmt_avg_time = $pdo->prepare("
             SELECT AVG(duration) FROM customer_tracking 
@@ -120,7 +125,7 @@ try {
         $activity_chart_data = [];
     }
     
-    // Neue Kurse prüfen (Kurse, die in den letzten 30 Tagen erstellt wurden)
+    // Neue Kurse prüfen
     $stmt_new_courses = $pdo->prepare("
         SELECT c.id, c.title, c.description, c.thumbnail, c.is_premium 
         FROM courses c
@@ -305,7 +310,7 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
                     </div>
                 </div>
                 <div class="text-white">
-                    <div class="text-4xl font-bold mb-2 count-animation">
+                    <div class="text-5xl font-bold mb-2 count-animation">
                         <?php echo number_format($freebies_unlocked); ?>
                     </div>
                     <div class="text-green-100 text-sm font-medium">
@@ -322,7 +327,7 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
                     </div>
                 </div>
                 <div class="text-white">
-                    <div class="text-4xl font-bold mb-2 count-animation">
+                    <div class="text-5xl font-bold mb-2 count-animation">
                         <?php echo number_format($courses_count); ?>
                     </div>
                     <div class="text-purple-100 text-sm font-medium">
@@ -341,7 +346,7 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
                     <span class="text-xs text-blue-100 font-medium">30 Tage</span>
                 </div>
                 <div class="text-white">
-                    <div class="text-4xl font-bold mb-2 count-animation" id="stat-views">
+                    <div class="text-5xl font-bold mb-2 count-animation">
                         <?php echo number_format($total_page_views); ?>
                     </div>
                     <div class="text-blue-100 text-sm font-medium">
@@ -359,11 +364,11 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
                     <span class="text-xs text-pink-100 font-medium">30 Tage</span>
                 </div>
                 <div class="text-white">
-                    <div class="text-4xl font-bold mb-2 count-animation" id="stat-clicks">
+                    <div class="text-5xl font-bold mb-2 count-animation">
                         <?php echo number_format($total_clicks); ?>
                     </div>
                     <div class="text-pink-100 text-sm font-medium">
-                        Klicks erfasst
+                        Freebie Klicks
                     </div>
                 </div>
             </div>
@@ -376,7 +381,7 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
                     </div>
                 </div>
                 <div class="text-white">
-                    <div class="text-4xl font-bold mb-2 count-animation">
+                    <div class="text-5xl font-bold mb-2 count-animation">
                         <?php echo number_format($total_clicks); ?>
                     </div>
                     <div class="text-blue-100 text-sm font-medium">
@@ -392,7 +397,7 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
                     </div>
                 </div>
                 <div class="text-white">
-                    <div class="text-4xl font-bold mb-2 count-animation">
+                    <div class="text-5xl font-bold mb-2 count-animation">
                         Start
                     </div>
                     <div class="text-pink-100 text-sm font-medium">
@@ -447,7 +452,7 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
         </div>
         <?php endif; ?>
         
-        <!-- ===== NEUE KURSE (OPTIONAL) ===== -->
+        <!-- ===== NEUE KURSE ===== -->
         <?php if (!empty($new_courses)): ?>
         <div class="mb-8 animate-fade-in-up opacity-0" style="animation-delay: 0.7s;">
             <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 shadow-xl border border-purple-500/20">
@@ -685,13 +690,29 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
                 });
             });
             
-            // Checkbox-Changes tracken
+            // Checkbox-Changes tracken UND in DB speichern
             document.querySelectorAll('.checkbox-custom').forEach(checkbox => {
                 checkbox.addEventListener('change', function() {
+                    const task = this.getAttribute('data-task');
+                    const completed = this.checked;
+                    
+                    // Event tracken
                     TrackingSystem.trackEvent('checklist_update', {
-                        task: this.getAttribute('data-task'),
-                        checked: this.checked
+                        task: task,
+                        checked: completed
                     });
+                    
+                    // In Datenbank speichern
+                    fetch('/customer/api/checklist.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            task_id: task,
+                            completed: completed
+                        })
+                    }).catch(err => console.error('Checklist save error:', err));
                 });
             });
             
@@ -762,21 +783,26 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
             });
         }
         
-        // ===== CHECKLIST MANAGEMENT =====
-        const STORAGE_KEY = 'customer_checklist_progress';
-        
+        // ===== CHECKLIST MANAGEMENT - AUS DATENBANK LADEN =====
         function loadProgress() {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
-                const progress = JSON.parse(saved);
-                Object.keys(progress).forEach(task => {
-                    const checkbox = document.querySelector(`[data-task="${task}"]`);
-                    if (checkbox) {
-                        checkbox.checked = progress[task];
+            // Von Datenbank laden
+            fetch('/customer/api/checklist.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.progress) {
+                        Object.keys(data.progress).forEach(task => {
+                            const checkbox = document.querySelector(`[data-task="${task}"]`);
+                            if (checkbox) {
+                                checkbox.checked = data.progress[task];
+                            }
+                        });
                     }
+                    updateProgress();
+                })
+                .catch(err => {
+                    console.error('Load progress error:', err);
+                    updateProgress();
                 });
-            }
-            updateProgress();
         }
         
         function updateProgress() {
@@ -784,13 +810,9 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
             const total = checkboxes.length;
             let checked = 0;
             
-            const progress = {};
             checkboxes.forEach(checkbox => {
-                const task = checkbox.dataset.task;
-                progress[task] = checkbox.checked;
                 if (checkbox.checked) checked++;
             });
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
             
             const percentage = Math.round((checked / total) * 100);
             const progressBar = document.getElementById('progress-bar');
