@@ -7,18 +7,6 @@
  * oder im Browser: https://app.mehr-infos-jetzt.de/database/run-migrations.php
  */
 
-// Sicherheitscheck: Nur vom CLI oder mit Admin-Passwort
-$CLI_MODE = php_sapi_name() === 'cli';
-$ADMIN_PASSWORD = 'dein-sicheres-passwort-2024'; // ÄNDERE DIES!
-
-if (!$CLI_MODE) {
-    // Im Browser: Passwort-Schutz
-    $input_password = $_GET['password'] ?? '';
-    if ($input_password !== $ADMIN_PASSWORD) {
-        die('❌ Zugriff verweigert. Passwort erforderlich: ?password=DEIN_PASSWORT');
-    }
-}
-
 echo "🚀 Database Migration Runner\n";
 echo "============================\n\n";
 
@@ -153,3 +141,4 @@ try {
 }
 
 echo "\n🎉 Fertig!\n";
+echo "\n⚠️  WICHTIG: Lösche diese Datei nach erfolgreicher Migration!\n";
