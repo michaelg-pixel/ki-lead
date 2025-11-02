@@ -116,7 +116,7 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             margin-bottom: 25px;
         }
         .main-content.layout-hybrid {
-            grid-template-columns: 60% 40%;
+            grid-template-columns: 40% 60%;
         }
         .main-content.layout-sidebar {
             grid-template-columns: 60% 40%;
@@ -579,8 +579,16 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             </div>
             
         <?php else: ?>
-            <!-- HYBRID LAYOUT (Content links, Mockup rechts) -->
+            <!-- HYBRID LAYOUT (Mockup LINKS, Content RECHTS) -->
             <div class="main-content layout-hybrid">
+                <div class="mockup-container">
+                    <?php if ($mockupUrl): ?>
+                        <img src="<?php echo htmlspecialchars($mockupUrl); ?>" alt="Mockup" class="mockup-image">
+                    <?php else: ?>
+                        <div style="width:260px;height:300px;background:linear-gradient(135deg,<?php echo htmlspecialchars($primaryColor); ?> 0%,#667eea 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:60px;color:white;">🎁</div>
+                    <?php endif; ?>
+                </div>
+                
                 <div class="content-container">
                     <?php if (!empty($bulletPoints)): ?>
                         <ul class="bullet-points">
@@ -598,14 +606,6 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
                             <a href="#" class="cta-button"><?php echo htmlspecialchars($ctaText); ?></a>
                         <?php endif; ?>
                     </div>
-                </div>
-                
-                <div class="mockup-container">
-                    <?php if ($mockupUrl): ?>
-                        <img src="<?php echo htmlspecialchars($mockupUrl); ?>" alt="Mockup" class="mockup-image">
-                    <?php else: ?>
-                        <div style="width:260px;height:300px;background:linear-gradient(135deg,<?php echo htmlspecialchars($primaryColor); ?> 0%,#667eea 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:60px;color:white;">🎁</div>
-                    <?php endif; ?>
                 </div>
             </div>
         <?php endif; ?>
