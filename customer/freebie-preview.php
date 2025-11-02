@@ -37,11 +37,6 @@ try {
 } catch (PDOException $e) {
     die('Datenbankfehler: ' . $e->getMessage());
 }
-
-// Freebie-URL erstellen
-$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-$domain = $_SERVER['HTTP_HOST'];
-$freebie_url = $protocol . '://' . $domain . '/freebie/' . ($freebie['url_slug'] ?: $freebie['unique_id']);
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -133,11 +128,6 @@ $freebie_url = $protocol . '://' . $domain . '/freebie/' . ($freebie['url_slug']
         .action-primary {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-        }
-        
-        .action-secondary {
-            background: rgba(255, 255, 255, 0.9);
-            color: #667eea;
         }
         
         .preview-wrapper {
@@ -357,9 +347,6 @@ $freebie_url = $protocol . '://' . $domain . '/freebie/' . ($freebie['url_slug']
             <div class="action-bar">
                 <a href="freebie-editor.php?template_id=<?php echo $freebie['template_id']; ?>" class="action-button action-primary">
                     ✏️ Bearbeiten
-                </a>
-                <a href="<?php echo htmlspecialchars($freebie_url); ?>" target="_blank" class="action-button action-secondary">
-                    🔗 Live-Ansicht öffnen
                 </a>
             </div>
         </div>
