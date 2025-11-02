@@ -458,7 +458,6 @@ $form_data = [
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-bottom: 10px;
-            text-align: center;
         }
         
         .preview-headline {
@@ -466,14 +465,12 @@ $form_data = [
             font-weight: 800;
             line-height: 1.2;
             margin-bottom: 10px;
-            text-align: center;
         }
         
         .preview-subheadline {
             font-size: 13px;
             color: #6b7280;
             margin-bottom: 18px;
-            text-align: center;
             line-height: 1.5;
         }
         
@@ -824,6 +821,9 @@ $form_data = [
             const previewContent = document.getElementById('previewContent');
             previewContent.style.background = backgroundColor;
             
+            // ALLE LAYOUTS HABEN ZENTRIERTE TEXTE
+            const textAlign = 'center';
+            
             let bulletHTML = '';
             if (bulletPoints.trim()) {
                 const bullets = bulletPoints.split('\n').filter(b => b.trim());
@@ -849,14 +849,28 @@ $form_data = [
             }
             
             const preheadlineHTML = preheadline ? `
-                <div class="preview-preheadline" style="color: ${primaryColor};">
+                <div class="preview-preheadline" style="color: ${primaryColor}; text-align: ${textAlign};">
                     ${escapeHtml(preheadline)}
                 </div>
             ` : '';
             
+            const headlineHTML = `
+                <div class="preview-headline" style="color: ${primaryColor}; text-align: ${textAlign};">
+                    ${escapeHtml(headline || 'Deine Hauptüberschrift')}
+                </div>
+            `;
+            
             const subheadlineHTML = subheadline ? `
-                <div class="preview-subheadline">${escapeHtml(subheadline)}</div>
+                <div class="preview-subheadline" style="text-align: ${textAlign};">${escapeHtml(subheadline)}</div>
             ` : '';
+            
+            const ctaHTML = `
+                <div class="preview-cta" style="text-align: ${textAlign};">
+                    <button class="preview-button" style="background: ${primaryColor}; color: white;">
+                        ${escapeHtml(ctaText || 'BUTTON TEXT')}
+                    </button>
+                </div>
+            `;
             
             let layoutHTML = '';
             
@@ -865,16 +879,10 @@ $form_data = [
                     <div style="max-width: 800px; margin: 0 auto;">
                         ${mockupHTML}
                         ${preheadlineHTML}
-                        <div class="preview-headline" style="color: ${primaryColor};">
-                            ${escapeHtml(headline || 'Deine Hauptüberschrift')}
-                        </div>
+                        ${headlineHTML}
                         ${subheadlineHTML}
                         ${bulletHTML}
-                        <div class="preview-cta">
-                            <button class="preview-button" style="background: ${primaryColor}; color: white;">
-                                ${escapeHtml(ctaText || 'BUTTON TEXT')}
-                            </button>
-                        </div>
+                        ${ctaHTML}
                     </div>
                 `;
             } else if (layout === 'hybrid') {
@@ -885,16 +893,10 @@ $form_data = [
                         </div>
                         <div>
                             ${preheadlineHTML}
-                            <div class="preview-headline" style="color: ${primaryColor}; text-align: left;">
-                                ${escapeHtml(headline || 'Deine Hauptüberschrift')}
-                            </div>
-                            ${subheadlineHTML ? `<div class="preview-subheadline" style="text-align: left;">${escapeHtml(subheadline)}</div>` : ''}
+                            ${headlineHTML}
+                            ${subheadlineHTML}
                             ${bulletHTML}
-                            <div class="preview-cta" style="text-align: left;">
-                                <button class="preview-button" style="background: ${primaryColor}; color: white;">
-                                    ${escapeHtml(ctaText || 'BUTTON TEXT')}
-                                </button>
-                            </div>
+                            ${ctaHTML}
                         </div>
                     </div>
                 `;
@@ -903,16 +905,10 @@ $form_data = [
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
                         <div>
                             ${preheadlineHTML}
-                            <div class="preview-headline" style="color: ${primaryColor}; text-align: left;">
-                                ${escapeHtml(headline || 'Deine Hauptüberschrift')}
-                            </div>
-                            ${subheadlineHTML ? `<div class="preview-subheadline" style="text-align: left;">${escapeHtml(subheadline)}</div>` : ''}
+                            ${headlineHTML}
+                            ${subheadlineHTML}
                             ${bulletHTML}
-                            <div class="preview-cta" style="text-align: left;">
-                                <button class="preview-button" style="background: ${primaryColor}; color: white;">
-                                    ${escapeHtml(ctaText || 'BUTTON TEXT')}
-                                </button>
-                            </div>
+                            ${ctaHTML}
                         </div>
                         <div>
                             ${mockupHTML}
