@@ -443,8 +443,8 @@ $freebie_url = $protocol . '://' . $domain . '/freebie/' . ($freebie['url_slug']
                     echo $cta_html;
                     echo '</div>';
                 } elseif ($layout === 'hybrid') {
+                    // GEÄNDERT: Text LINKS, Mockup RECHTS
                     echo '<div class="layout-hybrid">';
-                    echo '<div>' . $mockup_html . '</div>';
                     echo '<div>';
                     echo $preheadline_html;
                     echo str_replace('text-align: center;', 'text-align: left;', $headline_html);
@@ -453,6 +453,7 @@ $freebie_url = $protocol . '://' . $domain . '/freebie/' . ($freebie['url_slug']
                     echo $form_html;
                     echo str_replace('text-align: center;', 'text-align: left;', $cta_html);
                     echo '</div>';
+                    echo '<div>' . $mockup_html . '</div>';
                     echo '</div>';
                 } else { // sidebar
                     echo '<div class="layout-sidebar">';
