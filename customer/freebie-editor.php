@@ -821,8 +821,8 @@ $form_data = [
             const previewContent = document.getElementById('previewContent');
             previewContent.style.background = backgroundColor;
             
-            // ALLE LAYOUTS HABEN ZENTRIERTE TEXTE
-            const textAlign = 'center';
+            // FIX: Textausrichtung basierend auf Layout
+            const textAlign = (layout === 'centered') ? 'center' : 'left';
             
             let bulletHTML = '';
             if (bulletPoints.trim()) {
