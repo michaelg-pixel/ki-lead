@@ -1,6 +1,6 @@
 <?php
 /**
- * Database Debug Script
+ * Database Debug Script - FIXED
  * Zeigt alle relevanten Daten für das Dashboard
  */
 
@@ -112,36 +112,131 @@ $customer_name = $_SESSION['name'] ?? 'Unbekannt';
         </p>
 
         <?php
-        // ===== TABELLEN PRÜFEN =====
-        echo "<h2>📋 Vorhandene Tabellen</h2>";
+        // ===== CUSTOMER_FREEBIES STRUKTUR PRÜFEN =====
+        echo "<h2>🎁 Customer Freebies - Tabellen-Struktur</h2>";
         try {
-            $stmt = $pdo->query("SHOW TABLES");
-            $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            $stmt = $pdo->query("DESCRIBE customer_freebies");
+            $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
-            echo "<div class='info-box'>";
-            echo "<strong>Gefundene Tabellen (" . count($tables) . "):</strong><br>";
-            foreach ($tables as $table) {
-                $highlight = in_array($table, ['customer_freebies', 'customer_tracking', 'customers', 'courses', 'course_access']) ? 'success' : '';
-                echo "<span class='$highlight'>• $table</span><br>";
+            echo "<table>";
+            echo "<tr><th>Spalte</th><th>Typ</th><th>Null</th><th>Key</th><th>Default</th></tr>";
+            foreach ($columns as $col) {
+                echo "<tr>";
+                echo "<td><strong>{$col['Field']}</strong></td>";
+                echo "<td>{$col['Type']}</td>";
+                echo "<td>{$col['Null']}</td>";
+                echo "<td>{$col['Key']}</td>";
+                echo "<td>" . ($col['Default'] ?? 'NULL') . "</td>";
+                echo "</tr>";
             }
+            echo "</table>";
+            
+            // Alle Spaltennamen sammeln
+            $column_names = array_column($columns, 'Field');
+            echo "<div class='info-box'>";
+            echo "<strong>Verfügbare Spalten:</strong> " . implode(', ', $column_names);
             echo "</div>";
+            
         } catch (PDOException $e) {
             echo "<div class='info-box error'>❌ Fehler: " . $e->getMessage() . "</div>";
         }
 
-        // ===== CUSTOMER_FREEBIES PRÜFEN =====
-        echo "<h2>🎁 Customer Freebies</h2>";
+        // ===== CUSTOMER_FREEBIES DATEN =====
+        echo "<h2>📊 Deine Freebies (Rohdaten)</h2>";
         try {
-            // Struktur prüfen
+            $stmt = $pdo->query("SELECT * FROM customer_freebies LIMIT 10");
+            $all_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            if (empty($all_data)) {
+                echo "<div class='info-box warning'>⚠️ Tabelle ist leer</div>";
+            } else {
+                echo "<h3>Erste 10 Einträge aus customer_freebies:</h3>";
+                echo "<table>";
+                
+                // Header dynamisch generieren
+                $first_row = $all_data[0];
+                echo "<tr>";
+                foreach (array_keys($first_row) as $column) {
+                    echo "<th>$column</th>";
+                }
+                echo "</tr>";
+                
+                // Daten ausgeben
+                foreach ($all_data as $row) {
+                    echo "<tr>";
+                    foreach ($row as $value) {
+                        echo "<td>" . htmlspecialchars($value ?? 'NULL') . "</td>";
+                    }
+                    echo "</tr>";
+                }
+                echo "</table>";
+            }
+            
+        } catch (PDOException $e) {
+            echo "<div class='info-box error'>❌ Fehler: " . $e->getMessage() . "</div>";
+        }
+
+        // ===== FILTERN NACH CUSTOMER ID =====
+        echo "<h2>🔍 Filter: Nur deine Freebies</h2>";
+        try {
+            // Prüfen welche Spalte für Customer ID verwendet wird
             $stmt = $pdo->query("DESCRIBE customer_freebies");
             $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $column_names = array_column($columns, 'Field');
             
-            echo "<h3>Tabellen-Struktur:</h3>";
+            $customer_column = null;
+            if (in_array('customer_id', $column_names)) {
+                $customer_column = 'customer_id';
+            } elseif (in_array('user_id', $column_names)) {
+                $customer_column = 'user_id';
+            }
+            
+            if ($customer_column) {
+                $stmt = $pdo->prepare("SELECT * FROM customer_freebies WHERE $customer_column = ?");
+                $stmt->execute([$customer_id]);
+                $my_freebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                echo "<div class='info-box success'>";
+                echo "<strong>✅ Gefunden:</strong> " . count($my_freebies) . " Freebies für Customer ID $customer_id";
+                echo "</div>";
+                
+                if (!empty($my_freebies)) {
+                    echo "<table>";
+                    $first_row = $my_freebies[0];
+                    echo "<tr>";
+                    foreach (array_keys($first_row) as $column) {
+                        echo "<th>$column</th>";
+                    }
+                    echo "</tr>";
+                    
+                    foreach ($my_freebies as $row) {
+                        echo "<tr>";
+                        foreach ($row as $value) {
+                            echo "<td>" . htmlspecialchars($value ?? 'NULL') . "</td>";
+                        }
+                        echo "</tr>";
+                    }
+                    echo "</table>";
+                }
+            } else {
+                echo "<div class='info-box error'>❌ Keine customer_id oder user_id Spalte gefunden!</div>";
+            }
+            
+        } catch (PDOException $e) {
+            echo "<div class='info-box error'>❌ Fehler: " . $e->getMessage() . "</div>";
+        }
+
+        // ===== COURSE_ACCESS STRUKTUR =====
+        echo "<h2>🎓 Course Access - Tabellen-Struktur</h2>";
+        try {
+            $stmt = $pdo->query("DESCRIBE course_access");
+            $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
             echo "<table>";
             echo "<tr><th>Spalte</th><th>Typ</th><th>Null</th><th>Key</th></tr>";
             foreach ($columns as $col) {
                 echo "<tr>";
-                echo "<td>{$col['Field']}</td>";
+                echo "<td><strong>{$col['Field']}</strong></td>";
                 echo "<td>{$col['Type']}</td>";
                 echo "<td>{$col['Null']}</td>";
                 echo "<td>{$col['Key']}</td>";
@@ -149,180 +244,90 @@ $customer_name = $_SESSION['name'] ?? 'Unbekannt';
             }
             echo "</table>";
             
-            // Daten für aktuellen Kunden
-            $stmt = $pdo->prepare("SELECT * FROM customer_freebies WHERE customer_id = ?");
-            $stmt->execute([$customer_id]);
-            $freebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            echo "<h3>Deine Freebies (" . count($freebies) . "):</h3>";
-            if (empty($freebies)) {
-                echo "<div class='info-box warning'>⚠️ Keine Freebies gefunden für Customer ID: $customer_id</div>";
-            } else {
-                echo "<table>";
-                echo "<tr><th>ID</th><th>Freebie ID</th><th>Clicks</th><th>Erstellt am</th></tr>";
-                foreach ($freebies as $freebie) {
-                    echo "<tr>";
-                    echo "<td>{$freebie['id']}</td>";
-                    echo "<td>{$freebie['freebie_id']}</td>";
-                    echo "<td>" . ($freebie['clicks'] ?? 0) . "</td>";
-                    echo "<td>" . ($freebie['created_at'] ?? 'N/A') . "</td>";
-                    echo "</tr>";
-                }
-                echo "</table>";
-            }
-            
-            // Alle Freebies in der Tabelle
-            $stmt = $pdo->query("SELECT customer_id, COUNT(*) as count FROM customer_freebies GROUP BY customer_id");
-            $all_freebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            if (!empty($all_freebies)) {
-                echo "<h3>Alle Kunden mit Freebies:</h3>";
-                echo "<table>";
-                echo "<tr><th>Customer ID</th><th>Anzahl Freebies</th></tr>";
-                foreach ($all_freebies as $row) {
-                    $highlight = $row['customer_id'] == $customer_id ? 'success' : '';
-                    echo "<tr class='$highlight'>";
-                    echo "<td>{$row['customer_id']}</td>";
-                    echo "<td>{$row['count']}</td>";
-                    echo "</tr>";
-                }
-                echo "</table>";
-            }
-            
         } catch (PDOException $e) {
-            echo "<div class='info-box error'>❌ Fehler beim Abrufen von customer_freebies: " . $e->getMessage() . "</div>";
+            echo "<div class='info-box warning'>⚠️ Tabelle course_access existiert nicht: " . $e->getMessage() . "</div>";
         }
 
-        // ===== COURSES / COURSE_ACCESS =====
-        echo "<h2>🎓 Kurse</h2>";
+        // ===== TRACKING TABELLE =====
+        echo "<h2>📊 Customer Tracking - Tabellen-Struktur</h2>";
         try {
-            // Kurszugriff prüfen
-            $stmt = $pdo->prepare("
-                SELECT c.id, c.title, ca.has_access 
-                FROM courses c
-                LEFT JOIN course_access ca ON c.id = ca.course_id AND ca.customer_id = ?
-                WHERE c.is_active = 1
-            ");
-            $stmt->execute([$customer_id]);
-            $courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $stmt = $pdo->query("DESCRIBE customer_tracking");
+            $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
-            if (empty($courses)) {
-                echo "<div class='info-box warning'>⚠️ Keine Kurse gefunden</div>";
-            } else {
-                echo "<table>";
-                echo "<tr><th>Kurs ID</th><th>Titel</th><th>Zugriff</th></tr>";
-                foreach ($courses as $course) {
-                    $access = $course['has_access'] ? '<span class="success">✅ Ja</span>' : '<span class="error">❌ Nein</span>';
-                    echo "<tr>";
-                    echo "<td>{$course['id']}</td>";
-                    echo "<td>" . htmlspecialchars($course['title']) . "</td>";
-                    echo "<td>$access</td>";
-                    echo "</tr>";
-                }
-                echo "</table>";
+            echo "<div class='info-box success'>✅ Tabelle customer_tracking existiert!</div>";
+            
+            echo "<table>";
+            echo "<tr><th>Spalte</th><th>Typ</th><th>Null</th><th>Key</th></tr>";
+            foreach ($columns as $col) {
+                echo "<tr>";
+                echo "<td><strong>{$col['Field']}</strong></td>";
+                echo "<td>{$col['Type']}</td>";
+                echo "<td>{$col['Null']}</td>";
+                echo "<td>{$col['Key']}</td>";
+                echo "</tr>";
             }
+            echo "</table>";
+            
+            // Anzahl Tracking-Einträge
+            $stmt = $pdo->query("SELECT COUNT(*) FROM customer_tracking");
+            $count = $stmt->fetchColumn();
+            echo "<div class='info-box'>Tracking-Einträge gesamt: <strong>$count</strong></div>";
+            
         } catch (PDOException $e) {
-            echo "<div class='info-box error'>❌ Fehler beim Abrufen von Kursen: " . $e->getMessage() . "</div>";
+            echo "<div class='info-box warning'>⚠️ Tabelle customer_tracking existiert nicht: " . $e->getMessage() . "</div>";
         }
 
-        // ===== TRACKING DATEN =====
-        echo "<h2>📊 Tracking Daten</h2>";
+        // ===== ZUSAMMENFASSUNG & LÖSUNG =====
+        echo "<h2>💡 Diagnose & Lösung</h2>";
+        
         try {
-            // Gesamte Tracking-Einträge
-            $stmt = $pdo->prepare("
-                SELECT type, COUNT(*) as count 
-                FROM customer_tracking 
-                WHERE customer_id = ?
-                GROUP BY type
-            ");
-            $stmt->execute([$customer_id]);
-            $tracking_stats = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            if (empty($tracking_stats)) {
-                echo "<div class='info-box warning'>⚠️ Noch keine Tracking-Daten vorhanden</div>";
-            } else {
-                echo "<table>";
-                echo "<tr><th>Typ</th><th>Anzahl</th></tr>";
-                foreach ($tracking_stats as $stat) {
-                    echo "<tr>";
-                    echo "<td>{$stat['type']}</td>";
-                    echo "<td>{$stat['count']}</td>";
-                    echo "</tr>";
-                }
-                echo "</table>";
-            }
-            
-            // Letzte 10 Tracking-Events
-            $stmt = $pdo->prepare("
-                SELECT type, page, element, created_at 
-                FROM customer_tracking 
-                WHERE customer_id = ?
-                ORDER BY created_at DESC
-                LIMIT 10
-            ");
-            $stmt->execute([$customer_id]);
-            $recent_tracking = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            if (!empty($recent_tracking)) {
-                echo "<h3>Letzte 10 Aktivitäten:</h3>";
-                echo "<table>";
-                echo "<tr><th>Typ</th><th>Seite</th><th>Element</th><th>Zeit</th></tr>";
-                foreach ($recent_tracking as $track) {
-                    echo "<tr>";
-                    echo "<td>{$track['type']}</td>";
-                    echo "<td>" . ($track['page'] ?? '-') . "</td>";
-                    echo "<td>" . ($track['element'] ?? '-') . "</td>";
-                    echo "<td>" . date('d.m.Y H:i:s', strtotime($track['created_at'])) . "</td>";
-                    echo "</tr>";
-                }
-                echo "</table>";
-            }
-        } catch (PDOException $e) {
-            echo "<div class='info-box warning'>⚠️ customer_tracking Tabelle existiert noch nicht oder ist leer</div>";
-        }
-
-        // ===== SQL QUERIES ZUM TESTEN =====
-        echo "<h2>🔧 Test-Queries</h2>";
-        echo "<div class='info-box'>";
-        echo "<p><strong>Wenn du 3 Freebies haben solltest, kannst du diese SQL-Queries manuell ausführen:</strong></p>";
-        echo "<pre>";
-        echo "-- Beispiel: 3 Test-Freebies für dich erstellen\n";
-        echo "INSERT INTO customer_freebies (customer_id, freebie_id, clicks, created_at) VALUES\n";
-        echo "($customer_id, 1, 0, NOW()),\n";
-        echo "($customer_id, 2, 5, NOW()),\n";
-        echo "($customer_id, 3, 12, NOW());\n\n";
-        echo "-- Oder prüfe, ob Daten vorhanden sind:\n";
-        echo "SELECT * FROM customer_freebies WHERE customer_id = $customer_id;";
-        echo "</pre>";
-        echo "</div>";
-
-        // ===== ZUSAMMENFASSUNG =====
-        echo "<h2>📊 Zusammenfassung</h2>";
-        try {
-            $stmt_freebies = $pdo->prepare("SELECT COUNT(*) FROM customer_freebies WHERE customer_id = ?");
-            $stmt_freebies->execute([$customer_id]);
-            $freebies_count = $stmt_freebies->fetchColumn();
-            
-            $stmt_courses = $pdo->prepare("SELECT COUNT(*) FROM course_access WHERE customer_id = ? AND has_access = 1");
-            $stmt_courses->execute([$customer_id]);
-            $courses_count = $stmt_courses->fetchColumn();
-            
-            $stmt_tracking = $pdo->prepare("SELECT COUNT(*) FROM customer_tracking WHERE customer_id = ?");
-            $stmt_tracking->execute([$customer_id]);
-            $tracking_count = $stmt_tracking->fetchColumn();
+            // Prüfen welche Spalte für Customer ID in customer_freebies existiert
+            $stmt = $pdo->query("DESCRIBE customer_freebies");
+            $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $column_names = array_column($columns, 'Field');
             
             echo "<div class='info-box'>";
-            echo "<strong>🎁 Freigeschaltete Freebies:</strong> <span class='success'>$freebies_count</span><br>";
-            echo "<strong>🎓 Kurse mit Zugriff:</strong> <span class='success'>$courses_count</span><br>";
-            echo "<strong>📊 Tracking-Einträge:</strong> <span class='success'>$tracking_count</span><br>";
+            echo "<h3>Status:</h3>";
+            
+            // 1. Customer ID Spalte prüfen
+            if (in_array('customer_id', $column_names)) {
+                echo "✅ Spalte 'customer_id' existiert<br>";
+                $customer_column = 'customer_id';
+            } elseif (in_array('user_id', $column_names)) {
+                echo "✅ Spalte 'user_id' existiert (wird als customer_id verwendet)<br>";
+                $customer_column = 'user_id';
+            } else {
+                echo "❌ Keine customer_id oder user_id Spalte gefunden!<br>";
+                $customer_column = null;
+            }
+            
+            // 2. Freebies zählen
+            if ($customer_column) {
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM customer_freebies WHERE $customer_column = ?");
+                $stmt->execute([$customer_id]);
+                $freebie_count = $stmt->fetchColumn();
+                
+                echo "📊 Deine Freebies: <strong class='success'>$freebie_count</strong><br>";
+                
+                if ($freebie_count > 0) {
+                    echo "<br><strong class='success'>🎉 Perfekt! Du hast $freebie_count Freebies!</strong><br>";
+                    echo "Diese sollten im Dashboard angezeigt werden.";
+                } else {
+                    echo "<br><strong class='warning'>⚠️ Du hast noch keine Freebies erstellt.</strong><br>";
+                    echo "Gehe zu 'Freebies' im Dashboard und erstelle dein erstes Freebie!";
+                }
+            }
+            
             echo "</div>";
             
-            if ($freebies_count == 0) {
-                echo "<div class='info-box warning'>";
-                echo "<strong>⚠️ Problem identifiziert:</strong><br>";
-                echo "Du hast noch keine Einträge in der <code>customer_freebies</code> Tabelle.<br>";
-                echo "Die Freebies müssen erst freigeschaltet/erstellt werden.<br><br>";
-                echo "<strong>Lösung:</strong> Gehe zu 'Freebies' im Dashboard und erstelle deine ersten Freebies!";
+            // SQL FIX für overview.php generieren
+            if ($customer_column && $customer_column !== 'customer_id') {
+                echo "<div class='info-box error'>";
+                echo "<h3>🔧 Problem gefunden!</h3>";
+                echo "Die Tabelle verwendet '<strong>$customer_column</strong>' statt 'customer_id'.<br>";
+                echo "Die overview.php muss angepasst werden!<br><br>";
+                echo "<strong>SQL Query sollte sein:</strong><br>";
+                echo "<code>SELECT COUNT(*) FROM customer_freebies WHERE $customer_column = ?</code>";
                 echo "</div>";
             }
             
