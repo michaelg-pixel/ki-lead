@@ -151,6 +151,7 @@ try {
     $activities = [];
     $chart_data = [];
     $avg_clicks_per_day = 0;
+    $table_exists = false;
 }
 
 // Achievement-Berechnung
