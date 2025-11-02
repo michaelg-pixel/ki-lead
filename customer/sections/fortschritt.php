@@ -1,7 +1,7 @@
 <?php
 /**
  * Customer Dashboard - Fortschritt & Analytics Section
- * Umfassende Performance-Übersicht mit Charts, Stats und Achievements
+ * Umfassende Performance-Übersicht mit ECHTEN Charts, Stats und Achievements
  */
 
 if (!isset($customer_id)) {
@@ -92,15 +92,54 @@ try {
     });
     $activities = array_slice($activities, 0, 10);
     
-    // Klick-Daten für Chart (letzte 30 Tage)
-    $chart_data = [];
-    for ($i = 29; $i >= 0; $i--) {
-        $date = date('Y-m-d', strtotime("-$i days"));
-        $chart_data[$date] = 0;
+    // ===== ECHTE HISTORISCHE KLICK-DATEN FÜR CHART =====
+    // Prüfen ob Analytics-Tabelle existiert
+    $table_exists = false;
+    try {
+        $pdo->query("SELECT 1 FROM freebie_click_analytics LIMIT 1");
+        $table_exists = true;
+    } catch (PDOException $e) {
+        error_log("Analytics table not found, using fallback");
     }
     
-    // Berechnung von durchschnittlichen Klicks pro Tag (simuliert, da wir keine historischen Daten haben)
-    $avg_clicks_per_day = $total_clicks > 0 ? round($total_clicks / 30) : 0;
+    $chart_data = [];
+    if ($table_exists) {
+        // ECHTE DATEN aus Analytics-Tabelle (letzte 30 Tage)
+        $stmt_chart = $pdo->prepare("
+            SELECT 
+                click_date as date,
+                SUM(click_count) as clicks
+            FROM freebie_click_analytics
+            WHERE customer_id = ?
+            AND click_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            GROUP BY click_date
+            ORDER BY click_date ASC
+        ");
+        $stmt_chart->execute([$customer_id]);
+        $chart_results = $stmt_chart->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Alle 30 Tage mit 0 vorbefüllen
+        for ($i = 29; $i >= 0; $i--) {
+            $date = date('Y-m-d', strtotime("-$i days"));
+            $chart_data[$date] = 0;
+        }
+        
+        // Echte Werte eintragen
+        foreach ($chart_results as $row) {
+            $chart_data[$row['date']] = (int)$row['clicks'];
+        }
+    } else {
+        // Fallback: Simulierte Daten wenn Tabelle noch nicht existiert
+        for ($i = 29; $i >= 0; $i--) {
+            $date = date('Y-m-d', strtotime("-$i days"));
+            $chart_data[$date] = 0;
+        }
+    }
+    
+    // Durchschnittliche Klicks pro Tag berechnen
+    $total_chart_clicks = array_sum($chart_data);
+    $days_with_clicks = count(array_filter($chart_data));
+    $avg_clicks_per_day = $days_with_clicks > 0 ? round($total_chart_clicks / $days_with_clicks, 1) : 0;
     
 } catch (PDOException $e) {
     error_log("Fortschritt Error: " . $e->getMessage());
@@ -110,6 +149,8 @@ try {
     $freebie_performance = [];
     $course_progress = [];
     $activities = [];
+    $chart_data = [];
+    $avg_clicks_per_day = 0;
 }
 
 // Achievement-Berechnung
@@ -261,13 +302,16 @@ $achievement_percentage = round((count($unlocked_achievements) / count($achievem
                 <h3 class="text-xl font-bold text-white mb-4">
                     <i class="fas fa-chart-area text-blue-400 mr-2"></i>
                     Performance Übersicht
+                    <?php if (!$table_exists): ?>
+                    <span class="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded ml-2">Beta</span>
+                    <?php endif; ?>
                 </h3>
                 <div class="bg-gray-900 rounded-xl p-4">
                     <canvas id="performanceChart" height="200"></canvas>
                 </div>
                 <div class="mt-4 grid grid-cols-2 gap-4">
                     <div class="text-center">
-                        <div class="text-2xl font-bold text-blue-400"><?php echo number_format($avg_clicks_per_day); ?></div>
+                        <div class="text-2xl font-bold text-blue-400"><?php echo number_format($avg_clicks_per_day, 1); ?></div>
                         <div class="text-sm text-gray-400">Ø Klicks/Tag</div>
                     </div>
                     <div class="text-center">
@@ -398,7 +442,7 @@ $achievement_percentage = round((count($unlocked_achievements) / count($achievem
                                     </div>
                                     <div class="w-full bg-gray-700 rounded-full h-2">
                                         <div class="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all" 
-                                             style="width: <?php echo $percentage; ?>%">
+                                             style="width: <?php echo $percentage; %>%">
                                         </div>
                                     </div>
                                 </div>
@@ -475,7 +519,7 @@ $achievement_percentage = round((count($unlocked_achievements) / count($achievem
     </div>
     
     <script>
-        // Performance Chart
+        // Performance Chart mit ECHTEN DATEN
         const ctx = document.getElementById('performanceChart').getContext('2d');
         const chart = new Chart(ctx, {
             type: 'line',
@@ -483,15 +527,7 @@ $achievement_percentage = round((count($unlocked_achievements) / count($achievem
                 labels: <?php echo json_encode(array_keys($chart_data)); ?>,
                 datasets: [{
                     label: 'Klicks',
-                    data: [<?php 
-                        // Simulierte Daten mit realistischem Verlauf
-                        $simulation = [];
-                        $base = max(1, floor($avg_clicks_per_day * 0.8));
-                        for ($i = 0; $i < 30; $i++) {
-                            $simulation[] = $base + rand(-floor($base * 0.3), floor($base * 0.5));
-                        }
-                        echo implode(',', $simulation);
-                    ?>],
+                    data: <?php echo json_encode(array_values($chart_data)); ?>,
                     borderColor: 'rgb(102, 126, 234)',
                     backgroundColor: 'rgba(102, 126, 234, 0.1)',
                     tension: 0.4,
@@ -513,7 +549,8 @@ $achievement_percentage = round((count($unlocked_achievements) / count($achievem
                             color: 'rgba(255, 255, 255, 0.05)'
                         },
                         ticks: {
-                            color: '#888'
+                            color: '#888',
+                            precision: 0
                         }
                     },
                     x: {
