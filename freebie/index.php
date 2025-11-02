@@ -1,6 +1,6 @@
 <?php
 /**
- * Freebie Public Page mit Cookie-Banner - Multi-Layout Support
+ * Freebie Public Page mit Cookie-Banner - Multi-Layout Support + Click Tracking
  */
 
 error_reporting(E_ALL);
@@ -25,6 +25,8 @@ $identifier = $_GET['id'] ?? null;
 if (!$identifier) { http_response_code(404); die('No ID'); }
 
 $customer_id = null;
+$freebie_db_id = null;
+
 try {
     // FIX: mockup_image_url bevorzugt aus customer_freebies, fallback zu freebies Template
     $stmt = $pdo->prepare("
@@ -44,6 +46,7 @@ try {
         $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
     } else {
         $customer_id = $freebie['customer_id'] ?? null;
+        $freebie_db_id = $freebie['id'] ?? null;
     }
 } catch (PDOException $e) {
     http_response_code(500); die('DB Error');
@@ -858,6 +861,33 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
     </div>
     
     <script>
+        // ===== CLICK TRACKING =====
+        <?php if ($freebie_db_id && $customer_id): ?>
+        (function() {
+            const trackingData = {
+                freebie_id: <?php echo json_encode($freebie_db_id); ?>,
+                customer_id: <?php echo json_encode($customer_id); ?>
+            };
+            
+            // Track Page View
+            fetch('/api/track-freebie-click.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams(trackingData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Tracking:', data.success ? '✓ Tracked' : '✗ Failed');
+            })
+            .catch(error => {
+                console.error('Tracking Error:', error);
+            });
+        })();
+        <?php endif; ?>
+        
+        // ===== COOKIE FUNCTIONS =====
         function acceptCookies(){
             localStorage.setItem('cookieConsent','accepted');
             localStorage.setItem('analyticsCookies','true');
