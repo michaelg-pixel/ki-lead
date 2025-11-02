@@ -1,7 +1,7 @@
 <?php
 /**
  * Tracking API - Erfasst echte Nutzeraktivitäten
- * Endpoints: page_view, click, event
+ * KORRIGIERT: Verwendet user_id statt customer_id
  */
 
 header('Content-Type: application/json');
@@ -37,9 +37,9 @@ if (!$input || !isset($input['type'])) {
 
 $pdo = getDBConnection();
 
-// Customer ID aus Session
-$customer_id = $_SESSION['user_id'] ?? null;
-if (!$customer_id) {
+// User ID aus Session (verwendet user_id wie die anderen Tabellen)
+$user_id = $_SESSION['user_id'] ?? null;
+if (!$user_id) {
     http_response_code(401);
     echo json_encode(['error' => 'Not authenticated']);
     exit;
@@ -60,10 +60,10 @@ try {
             
             $stmt = $pdo->prepare("
                 INSERT INTO customer_tracking 
-                (customer_id, type, page, referrer, user_agent, ip_address, created_at) 
+                (user_id, type, page, referrer, user_agent, ip_address, created_at) 
                 VALUES (?, 'page_view', ?, ?, ?, ?, NOW())
             ");
-            $stmt->execute([$customer_id, $page, $referrer, $user_agent, $ip_address]);
+            $stmt->execute([$user_id, $page, $referrer, $user_agent, $ip_address]);
             
             echo json_encode([
                 'success' => true,
@@ -79,10 +79,10 @@ try {
             
             $stmt = $pdo->prepare("
                 INSERT INTO customer_tracking 
-                (customer_id, type, page, element, target, created_at) 
+                (user_id, type, page, element, target, created_at) 
                 VALUES (?, 'click', ?, ?, ?, NOW())
             ");
-            $stmt->execute([$customer_id, $page, $element, $target]);
+            $stmt->execute([$user_id, $page, $element, $target]);
             
             echo json_encode([
                 'success' => true,
@@ -98,10 +98,10 @@ try {
             
             $stmt = $pdo->prepare("
                 INSERT INTO customer_tracking 
-                (customer_id, type, page, event_name, event_data, created_at) 
+                (user_id, type, page, event_name, event_data, created_at) 
                 VALUES (?, 'event', ?, ?, ?, NOW())
             ");
-            $stmt->execute([$customer_id, $page, $event_name, $event_data]);
+            $stmt->execute([$user_id, $page, $event_name, $event_data]);
             
             echo json_encode([
                 'success' => true,
@@ -116,10 +116,10 @@ try {
             
             $stmt = $pdo->prepare("
                 INSERT INTO customer_tracking 
-                (customer_id, type, page, duration, created_at) 
+                (user_id, type, page, duration, created_at) 
                 VALUES (?, 'time_spent', ?, ?, NOW())
             ");
-            $stmt->execute([$customer_id, $page, $duration]);
+            $stmt->execute([$user_id, $page, $duration]);
             
             echo json_encode([
                 'success' => true,
