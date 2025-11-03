@@ -16,7 +16,7 @@ if (!isset($_SESSION['is_admin']) || !$_SESSION['is_admin']) {
     exit;
 }
 
-$customerId = $_GET['customer_id'] ?? null;
+$userId = $_GET['user_id'] ?? null;
 
 try {
     $db = Database::getInstance()->getConnection();
@@ -30,16 +30,16 @@ try {
         FROM referral_fraud_log
     ";
     
-    if ($customerId) {
-        $query .= " WHERE customer_id = ?";
+    if ($userId) {
+        $query .= " WHERE user_id = ?";
     }
     
     $query .= " ORDER BY created_at DESC LIMIT 100";
     
     $stmt = $db->prepare($query);
     
-    if ($customerId) {
-        $stmt->execute([$customerId]);
+    if ($userId) {
+        $stmt->execute([$userId]);
     } else {
         $stmt->execute();
     }
