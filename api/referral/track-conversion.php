@@ -32,7 +32,7 @@ try {
     $input = json_decode(file_get_contents('php://input'), true);
     
     $refCode = $input['ref'] ?? $_GET['ref'] ?? null;
-    $customerId = $input['customer_id'] ?? $_GET['customer_id'] ?? null;
+    $userId = $input['user_id'] ?? $_GET['user_id'] ?? null;
     $source = $input['source'] ?? 'thankyou';
     
     if (!$refCode) {
@@ -44,11 +44,11 @@ try {
         throw new Exception('Ungültiger oder inaktiver Referral-Code');
     }
     
-    // Hole Customer-ID wenn nicht übergeben
-    if (!$customerId) {
-        $customerId = $referral->getCustomerIdFromRefCode($refCode);
-        if (!$customerId) {
-            throw new Exception('Customer nicht gefunden');
+    // Hole User-ID wenn nicht übergeben
+    if (!$userId) {
+        $userId = $referral->getUserIdFromRefCode($refCode);
+        if (!$userId) {
+            throw new Exception('User nicht gefunden');
         }
     }
     
@@ -62,7 +62,7 @@ try {
     
     // Tracking durchführen
     $result = $referral->trackConversion(
-        $customerId,
+        $userId,
         $refCode,
         $ipHash,
         $userAgent,
