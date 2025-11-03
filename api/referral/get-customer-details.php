@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin API: Get Customer Referral Details
+ * Admin API: Get User Referral Details
  */
 
 header('Content-Type: application/json');
@@ -16,28 +16,28 @@ if (!isset($_SESSION['is_admin']) || !$_SESSION['is_admin']) {
     exit;
 }
 
-$customerId = $_GET['customer_id'] ?? null;
+$userId = $_GET['user_id'] ?? null;
 
-if (!$customerId) {
+if (!$userId) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'customer_id_required']);
+    echo json_encode(['success' => false, 'error' => 'user_id_required']);
     exit;
 }
 
 try {
     $db = Database::getInstance()->getConnection();
     
-    // Hole Customer-Daten
+    // Hole User-Daten
     $stmt = $db->prepare("
         SELECT email, company_name, referral_code
         FROM customers
         WHERE id = ?
     ");
-    $stmt->execute([$customerId]);
-    $customer = $stmt->fetch(PDO::FETCH_ASSOC);
+    $stmt->execute([$userId]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    if (!$customer) {
-        throw new Exception('Customer nicht gefunden');
+    if (!$user) {
+        throw new Exception('User nicht gefunden');
     }
     
     // Hole letzte Klicks
@@ -46,11 +46,11 @@ try {
             DATE_FORMAT(created_at, '%d.%m.%Y %H:%i') as date,
             ref_code
         FROM referral_clicks
-        WHERE customer_id = ?
+        WHERE user_id = ?
         ORDER BY created_at DESC
         LIMIT 10
     ");
-    $stmt->execute([$customerId]);
+    $stmt->execute([$userId]);
     $recentClicks = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Hole letzte Conversions
@@ -62,11 +62,11 @@ try {
             suspicious,
             time_to_convert
         FROM referral_conversions
-        WHERE customer_id = ?
+        WHERE user_id = ?
         ORDER BY created_at DESC
         LIMIT 10
     ");
-    $stmt->execute([$customerId]);
+    $stmt->execute([$userId]);
     $recentConversions = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Hole Leads
@@ -76,17 +76,17 @@ try {
             email,
             confirmed
         FROM referral_leads
-        WHERE customer_id = ?
+        WHERE user_id = ?
         ORDER BY created_at DESC
         LIMIT 20
     ");
-    $stmt->execute([$customerId]);
+    $stmt->execute([$userId]);
     $leads = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     http_response_code(200);
     echo json_encode([
         'success' => true,
-        'data' => array_merge($customer, [
+        'data' => array_merge($user, [
             'recent_clicks' => $recentClicks,
             'recent_conversions' => $recentConversions,
             'leads' => $leads
@@ -94,7 +94,7 @@ try {
     ]);
     
 } catch (Exception $e) {
-    error_log("Admin Customer Details Error: " . $e->getMessage());
+    error_log("Admin User Details Error: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'success' => false,
