@@ -4,6 +4,10 @@
  * Aufruf: https://app.mehr-infos-jetzt.de/fix-customer-freebies-table.php
  */
 
+// Error Reporting aktivieren
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 require_once __DIR__ . '/config/database.php';
 
 header('Content-Type: text/html; charset=utf-8');
@@ -28,7 +32,7 @@ echo '<!DOCTYPE html>
             background: white;
             border-radius: 16px;
             padding: 40px;
-            max-width: 800px;
+            max-width: 900px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         }
         h1 {
@@ -40,7 +44,7 @@ echo '<!DOCTYPE html>
             border-radius: 8px;
             margin: 15px 0;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             gap: 10px;
         }
         .success {
@@ -58,12 +62,18 @@ echo '<!DOCTYPE html>
             border: 1px solid #93c5fd;
             color: #1e40af;
         }
+        .warning {
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
+            color: #92400e;
+        }
         pre {
             background: #f3f4f6;
             padding: 15px;
             border-radius: 8px;
             overflow-x: auto;
-            font-size: 13px;
+            font-size: 12px;
+            margin-top: 10px;
         }
         .button {
             display: inline-block;
@@ -74,6 +84,13 @@ echo '<!DOCTYPE html>
             text-decoration: none;
             font-weight: 600;
             margin-top: 20px;
+        }
+        .step {
+            margin: 16px 0;
+            padding: 12px;
+            background: #f9fafb;
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
         }
     </style>
 </head>
@@ -92,7 +109,19 @@ try {
     echo '✅ Datenbankverbindung erfolgreich';
     echo '</div>';
     
-    // Prüfe ob Tabelle existiert
+    // Schritt 1: Prüfe users Tabelle
+    echo '<div class="step">Schritt 1: Prüfe users Tabelle...</div>';
+    $stmt = $pdo->query("SHOW TABLES LIKE 'users'");
+    $usersTableExists = $stmt->rowCount() > 0;
+    
+    if ($usersTableExists) {
+        echo '<div class="status success">✅ users Tabelle existiert</div>';
+    } else {
+        echo '<div class="status warning">⚠️ users Tabelle nicht gefunden - Foreign Keys werden übersprungen</div>';
+    }
+    
+    // Schritt 2: customer_freebies Tabelle
+    echo '<div class="step">Schritt 2: Erstelle customer_freebies Tabelle...</div>';
     $stmt = $pdo->query("SHOW TABLES LIKE 'customer_freebies'");
     $table_exists = $stmt->rowCount() > 0;
     
@@ -104,80 +133,168 @@ try {
         echo 'Die Tabelle customer_freebies ist bereits vorhanden.';
         echo '</div>';
         echo '</div>';
-    } else {
-        echo '<div class="status info">';
-        echo '📝 Erstelle customer_freebies Tabelle...';
-        echo '</div>';
         
-        $pdo->exec("
-            CREATE TABLE customer_freebies (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                customer_id INT NOT NULL,
-                template_id INT DEFAULT NULL,
-                headline VARCHAR(255) NOT NULL,
-                subheadline VARCHAR(500),
-                preheadline VARCHAR(255),
-                bullet_points TEXT,
-                cta_text VARCHAR(255) NOT NULL,
-                layout VARCHAR(50) DEFAULT 'hybrid',
-                background_color VARCHAR(20) DEFAULT '#FFFFFF',
-                primary_color VARCHAR(20) DEFAULT '#8B5CF6',
-                raw_code TEXT,
-                unique_id VARCHAR(100) NOT NULL,
-                url_slug VARCHAR(255),
-                mockup_image_url VARCHAR(500),
-                freebie_clicks INT DEFAULT 0,
-                thank_you_clicks INT DEFAULT 0,
-                freebie_type ENUM('template', 'custom') DEFAULT 'template',
-                thank_you_message TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                INDEX idx_customer (customer_id),
-                INDEX idx_template (template_id),
-                INDEX idx_unique (unique_id),
-                INDEX idx_freebie_type (freebie_type),
-                INDEX idx_customer_type (customer_id, freebie_type),
-                FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ");
+        // Prüfe Spalten
+        echo '<div class="step">Schritt 2a: Prüfe Spalten...</div>';
+        $requiredColumns = ['freebie_type', 'thank_you_message'];
+        $missingColumns = [];
+        
+        foreach ($requiredColumns as $col) {
+            $stmt = $pdo->query("SHOW COLUMNS FROM customer_freebies LIKE '$col'");
+            if ($stmt->rowCount() === 0) {
+                $missingColumns[] = $col;
+            }
+        }
+        
+        if (!empty($missingColumns)) {
+            echo '<div class="status info">📝 Fehlende Spalten werden hinzugefügt...</div>';
+            
+            if (in_array('freebie_type', $missingColumns)) {
+                try {
+                    $pdo->exec("ALTER TABLE customer_freebies ADD COLUMN freebie_type ENUM('template', 'custom') DEFAULT 'template' AFTER customer_id");
+                    echo '<div class="status success">✅ Spalte freebie_type hinzugefügt</div>';
+                } catch (PDOException $e) {
+                    echo '<div class="status error">❌ Fehler bei freebie_type: ' . htmlspecialchars($e->getMessage()) . '</div>';
+                }
+            }
+            
+            if (in_array('thank_you_message', $missingColumns)) {
+                try {
+                    $pdo->exec("ALTER TABLE customer_freebies ADD COLUMN thank_you_message TEXT AFTER freebie_type");
+                    echo '<div class="status success">✅ Spalte thank_you_message hinzugefügt</div>';
+                } catch (PDOException $e) {
+                    echo '<div class="status error">❌ Fehler bei thank_you_message: ' . htmlspecialchars($e->getMessage()) . '</div>';
+                }
+            }
+        } else {
+            echo '<div class="status success">✅ Alle Spalten vorhanden</div>';
+        }
+        
+    } else {
+        echo '<div class="status info">📝 Erstelle customer_freebies Tabelle...</div>';
+        
+        // Erstelle Tabelle OHNE Foreign Key wenn users nicht existiert
+        if ($usersTableExists) {
+            $sql = "
+                CREATE TABLE customer_freebies (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    customer_id INT NOT NULL,
+                    freebie_type ENUM('template', 'custom') DEFAULT 'template',
+                    template_id INT DEFAULT NULL,
+                    headline VARCHAR(255) NOT NULL,
+                    subheadline VARCHAR(500),
+                    preheadline VARCHAR(255),
+                    bullet_points TEXT,
+                    cta_text VARCHAR(255) NOT NULL,
+                    layout VARCHAR(50) DEFAULT 'hybrid',
+                    background_color VARCHAR(20) DEFAULT '#FFFFFF',
+                    primary_color VARCHAR(20) DEFAULT '#8B5CF6',
+                    raw_code TEXT,
+                    unique_id VARCHAR(100) NOT NULL,
+                    url_slug VARCHAR(255),
+                    mockup_image_url VARCHAR(500),
+                    freebie_clicks INT DEFAULT 0,
+                    thank_you_clicks INT DEFAULT 0,
+                    thank_you_message TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_customer (customer_id),
+                    INDEX idx_template (template_id),
+                    INDEX idx_unique (unique_id),
+                    INDEX idx_freebie_type (freebie_type),
+                    INDEX idx_customer_type (customer_id, freebie_type),
+                    FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ";
+        } else {
+            $sql = "
+                CREATE TABLE customer_freebies (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    customer_id INT NOT NULL,
+                    freebie_type ENUM('template', 'custom') DEFAULT 'template',
+                    template_id INT DEFAULT NULL,
+                    headline VARCHAR(255) NOT NULL,
+                    subheadline VARCHAR(500),
+                    preheadline VARCHAR(255),
+                    bullet_points TEXT,
+                    cta_text VARCHAR(255) NOT NULL,
+                    layout VARCHAR(50) DEFAULT 'hybrid',
+                    background_color VARCHAR(20) DEFAULT '#FFFFFF',
+                    primary_color VARCHAR(20) DEFAULT '#8B5CF6',
+                    raw_code TEXT,
+                    unique_id VARCHAR(100) NOT NULL,
+                    url_slug VARCHAR(255),
+                    mockup_image_url VARCHAR(500),
+                    freebie_clicks INT DEFAULT 0,
+                    thank_you_clicks INT DEFAULT 0,
+                    thank_you_message TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_customer (customer_id),
+                    INDEX idx_template (template_id),
+                    INDEX idx_unique (unique_id),
+                    INDEX idx_freebie_type (freebie_type),
+                    INDEX idx_customer_type (customer_id, freebie_type)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ";
+        }
+        
+        $pdo->exec($sql);
         
         echo '<div class="status success">';
         echo '✅ Tabelle customer_freebies erfolgreich erstellt';
         echo '</div>';
     }
     
-    // Prüfe customer_freebie_limits
+    // Schritt 3: customer_freebie_limits
+    echo '<div class="step">Schritt 3: Prüfe customer_freebie_limits Tabelle...</div>';
     $stmt = $pdo->query("SHOW TABLES LIKE 'customer_freebie_limits'");
     if ($stmt->rowCount() === 0) {
-        echo '<div class="status info">';
-        echo '📝 Erstelle customer_freebie_limits Tabelle...';
-        echo '</div>';
+        echo '<div class="status info">📝 Erstelle customer_freebie_limits Tabelle...</div>';
         
-        $pdo->exec("
-            CREATE TABLE customer_freebie_limits (
-                id INT PRIMARY KEY AUTO_INCREMENT,
-                customer_id INT NOT NULL,
-                freebie_limit INT DEFAULT 0,
-                product_id VARCHAR(100),
-                product_name VARCHAR(255),
-                granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE,
-                UNIQUE KEY unique_customer (customer_id)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ");
+        if ($usersTableExists) {
+            $sql = "
+                CREATE TABLE customer_freebie_limits (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    customer_id INT NOT NULL,
+                    freebie_limit INT DEFAULT 0,
+                    product_id VARCHAR(100),
+                    product_name VARCHAR(255),
+                    granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE,
+                    UNIQUE KEY unique_customer (customer_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ";
+        } else {
+            $sql = "
+                CREATE TABLE customer_freebie_limits (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    customer_id INT NOT NULL,
+                    freebie_limit INT DEFAULT 0,
+                    product_id VARCHAR(100),
+                    product_name VARCHAR(255),
+                    granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE KEY unique_customer (customer_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ";
+        }
+        
+        $pdo->exec($sql);
         
         echo '<div class="status success">';
         echo '✅ Tabelle customer_freebie_limits erfolgreich erstellt';
         echo '</div>';
+    } else {
+        echo '<div class="status success">✅ Tabelle customer_freebie_limits existiert bereits</div>';
     }
     
-    // Prüfe product_freebie_config
+    // Schritt 4: product_freebie_config
+    echo '<div class="step">Schritt 4: Prüfe product_freebie_config Tabelle...</div>';
     $stmt = $pdo->query("SHOW TABLES LIKE 'product_freebie_config'");
     if ($stmt->rowCount() === 0) {
-        echo '<div class="status info">';
-        echo '📝 Erstelle product_freebie_config Tabelle...';
-        echo '</div>';
+        echo '<div class="status info">📝 Erstelle product_freebie_config Tabelle...</div>';
         
         $pdo->exec("
             CREATE TABLE product_freebie_config (
@@ -206,12 +323,14 @@ try {
         echo '<div class="status success">';
         echo '✅ Tabelle product_freebie_config erfolgreich erstellt';
         echo '</div>';
+    } else {
+        echo '<div class="status success">✅ Tabelle product_freebie_config existiert bereits</div>';
     }
     
     echo '<div class="status success" style="border-left-color: #10b981; background: #d1fae5; margin-top: 30px;">';
     echo '<span style="font-size: 24px;">🎉</span>';
     echo '<div>';
-    echo '<strong style="color: #065f46; font-size: 18px;">Tabellen erfolgreich erstellt!</strong><br>';
+    echo '<strong style="color: #065f46; font-size: 18px;">Setup erfolgreich abgeschlossen!</strong><br>';
     echo 'Alle benötigten Tabellen sind jetzt vorhanden.';
     echo '</div>';
     echo '</div>';
@@ -220,18 +339,26 @@ try {
     echo '<div class="status info">';
     echo '<span style="font-size: 24px;">📊</span>';
     echo '<div>';
-    echo '<strong>Tabellen-Übersicht:</strong>';
+    echo '<strong>Tabellen-Übersicht:</strong><br>';
     
     $tables = ['customer_freebies', 'customer_freebie_limits', 'product_freebie_config'];
     foreach ($tables as $table) {
         $stmt = $pdo->query("SHOW TABLES LIKE '$table'");
         $exists = $stmt->rowCount() > 0 ? '✅' : '❌';
-        echo "<br>$exists $table";
+        
+        if ($exists === '✅') {
+            $stmt = $pdo->query("SELECT COUNT(*) as count FROM $table");
+            $result = $stmt->fetch();
+            $count = $result['count'];
+            echo "$exists <strong>$table</strong> ($count Einträge)<br>";
+        } else {
+            echo "$exists <strong>$table</strong><br>";
+        }
     }
     echo '</div>';
     echo '</div>';
     
-    echo '<a href="/customer/dashboard.php?page=freebies" class="button">Zu den Freebies</a>';
+    echo '<a href="/customer/dashboard.php?page=freebies" class="button">Zu den Freebies →</a>';
     
 } catch (Exception $e) {
     echo '<div class="status error">';
@@ -242,9 +369,7 @@ try {
     echo '</div>';
     echo '</div>';
     
-    if (isset($e)) {
-        echo '<pre>Stack Trace:' . "\n" . htmlspecialchars($e->getTraceAsString()) . '</pre>';
-    }
+    echo '<pre>Stack Trace:' . "\n" . htmlspecialchars($e->getTraceAsString()) . '</pre>';
 }
 
 echo '</div></body></html>';
