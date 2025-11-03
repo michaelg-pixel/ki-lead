@@ -54,6 +54,11 @@ try {
         throw new Exception('Mindestens 1 Empfehlung erforderlich');
     }
     
+    // Boolean-Werte konvertieren
+    $is_active = isset($input['is_active']) && $input['is_active'] ? 1 : 0;
+    $is_featured = isset($input['is_featured']) && $input['is_featured'] ? 1 : 0;
+    $auto_deliver = isset($input['auto_deliver']) && $input['auto_deliver'] ? 1 : 0;
+    
     // Falls Freebie-ID angegeben, prüfen ob User Zugriff hat
     if ($freebie_id) {
         $stmt = $pdo->prepare("
@@ -115,9 +120,9 @@ try {
             $input['reward_instructions'] ?? null,
             $input['reward_icon'] ?? 'fa-gift',
             $input['reward_color'] ?? '#667eea',
-            $input['is_active'] ?? true,
-            $input['is_featured'] ?? false,
-            $input['auto_deliver'] ?? false,
+            $is_active,
+            $is_featured,
+            $auto_deliver,
             $input['notification_subject'] ?? null,
             $input['notification_body'] ?? null,
             $input['sort_order'] ?? 0,
@@ -156,9 +161,9 @@ try {
             $input['reward_instructions'] ?? null,
             $input['reward_icon'] ?? 'fa-gift',
             $input['reward_color'] ?? '#667eea',
-            $input['is_active'] ?? true,
-            $input['is_featured'] ?? false,
-            $input['auto_deliver'] ?? false,
+            $is_active,
+            $is_featured,
+            $auto_deliver,
             $input['notification_subject'] ?? null,
             $input['notification_body'] ?? null,
             $input['sort_order'] ?? 0
