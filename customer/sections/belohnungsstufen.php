@@ -2,6 +2,7 @@
 /**
  * Customer Dashboard - Belohnungsstufen verwalten
  * Mit Freebie-Verknüpfung aus Empfehlungsprogramm
+ * UPDATED: Unterstützt nun unique_id als Parameter
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -9,13 +10,35 @@ if (!isset($customer_id)) {
     die('Nicht autorisiert');
 }
 
-// Freebie-ID aus URL oder Session holen
-$freebie_id = isset($_GET['freebie_id']) ? (int)$_GET['freebie_id'] : null;
+// Freebie-ID aus URL oder Session holen - KANN JETZT unique_id oder numerische ID sein
+$freebie_param = isset($_GET['freebie_id']) ? trim($_GET['freebie_id']) : null;
+$freebie_id = null; // Numerische ID für Datenbank-Abfragen
 
-// Wenn Freebie-ID in URL, in Session speichern
-if ($freebie_id) {
-    $_SESSION['selected_freebie_id'] = $freebie_id;
+// Wenn Parameter vorhanden, versuche die numerische ID zu ermitteln
+if ($freebie_param) {
+    try {
+        // Prüfe ob es eine numerische ID oder unique_id ist
+        if (is_numeric($freebie_param)) {
+            $freebie_id = (int)$freebie_param;
+        } else {
+            // Es ist eine unique_id - hole die numerische ID
+            $stmt = $pdo->prepare("SELECT id FROM freebies WHERE unique_id = ? LIMIT 1");
+            $stmt->execute([$freebie_param]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($result) {
+                $freebie_id = (int)$result['id'];
+            }
+        }
+        
+        // In Session speichern
+        if ($freebie_id) {
+            $_SESSION['selected_freebie_id'] = $freebie_id;
+        }
+    } catch (PDOException $e) {
+        error_log("Freebie ID Resolution Error: " . $e->getMessage());
+    }
 } elseif (isset($_SESSION['selected_freebie_id'])) {
+    // Aus Session holen
     $freebie_id = $_SESSION['selected_freebie_id'];
 }
 
@@ -26,6 +49,7 @@ if ($freebie_id) {
         $stmt = $pdo->prepare("
             SELECT 
                 f.id,
+                f.unique_id,
                 f.name as title,
                 f.description,
                 f.mockup_image_url as image_path,
