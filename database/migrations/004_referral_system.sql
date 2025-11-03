@@ -1,15 +1,26 @@
 -- =====================================================
 -- Referral System Database Migration
 -- DSGVO-konform mit IP-Hashing und Anti-Fraud
+-- MySQL-kompatible Version (ohne IF NOT EXISTS bei ALTER)
 -- =====================================================
 
--- 1. Erweitere customers Tabelle
-ALTER TABLE customers 
-ADD COLUMN IF NOT EXISTS referral_enabled BOOLEAN DEFAULT FALSE AFTER status,
-ADD COLUMN IF NOT EXISTS company_name VARCHAR(255) DEFAULT NULL AFTER referral_enabled,
-ADD COLUMN IF NOT EXISTS company_email VARCHAR(255) DEFAULT NULL AFTER company_name,
-ADD COLUMN IF NOT EXISTS company_imprint_html TEXT DEFAULT NULL AFTER company_email,
-ADD COLUMN IF NOT EXISTS referral_code VARCHAR(50) UNIQUE DEFAULT NULL AFTER company_imprint_html;
+-- 1. Erweitere customers Tabelle (einzelne ALTER statements)
+-- Falls die Spalten bereits existieren, werden sie übersprungen
+
+-- referral_enabled
+ALTER TABLE customers ADD COLUMN referral_enabled BOOLEAN DEFAULT FALSE AFTER status;
+
+-- company_name
+ALTER TABLE customers ADD COLUMN company_name VARCHAR(255) DEFAULT NULL AFTER referral_enabled;
+
+-- company_email
+ALTER TABLE customers ADD COLUMN company_email VARCHAR(255) DEFAULT NULL AFTER company_name;
+
+-- company_imprint_html
+ALTER TABLE customers ADD COLUMN company_imprint_html TEXT DEFAULT NULL AFTER company_email;
+
+-- referral_code
+ALTER TABLE customers ADD COLUMN referral_code VARCHAR(50) UNIQUE DEFAULT NULL AFTER company_imprint_html;
 
 -- Generiere unique Referral-Codes für existierende Kunden
 UPDATE customers 
