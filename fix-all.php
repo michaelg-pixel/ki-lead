@@ -39,26 +39,25 @@ try {
         }
     }
     
-    // PROBLEM 3: customer_freebies Tabelle erstellen/reparieren
+    // PROBLEM 3: customer_freebies is_unlocked Spalte hinzufügen
     if (isset($_POST['fix_customer_freebies'])) {
         try {
-            // Tabelle neu erstellen
-            $pdo->exec("DROP TABLE IF EXISTS customer_freebies");
-            $pdo->exec("
-                CREATE TABLE customer_freebies (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    customer_id INT NOT NULL,
-                    freebie_id INT NOT NULL,
-                    is_unlocked TINYINT(1) DEFAULT 0,
-                    unlocked_at TIMESTAMP NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    UNIQUE KEY unique_customer_freebie (customer_id, freebie_id),
-                    KEY idx_customer_id (customer_id),
-                    KEY idx_freebie_id (freebie_id)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            ");
-            $result[] = "✅ Tabelle customer_freebies erstellt";
+            // Prüfen ob Spalte existiert
+            $stmt = $pdo->query("SHOW COLUMNS FROM customer_freebies LIKE 'is_unlocked'");
+            if ($stmt->rowCount() == 0) {
+                $pdo->exec("ALTER TABLE customer_freebies ADD COLUMN is_unlocked TINYINT(1) DEFAULT 0 AFTER freebie_id");
+                $result[] = "✅ Spalte is_unlocked zu customer_freebies hinzugefügt";
+            } else {
+                $result[] = "ℹ️ Spalte is_unlocked bereits vorhanden";
+            }
+            
+            // Andere fehlende Spalten hinzufügen
+            $stmt = $pdo->query("SHOW COLUMNS FROM customer_freebies LIKE 'unlocked_at'");
+            if ($stmt->rowCount() == 0) {
+                $pdo->exec("ALTER TABLE customer_freebies ADD COLUMN unlocked_at TIMESTAMP NULL");
+                $result[] = "✅ Spalte unlocked_at hinzugefügt";
+            }
+            
         } catch (PDOException $e) {
             $error = "Fehler bei customer_freebies: " . $e->getMessage();
         }
@@ -72,36 +71,68 @@ try {
             // 1. Freebie zuweisen
             $stmt = $pdo->prepare("UPDATE freebies SET user_id = 4 WHERE id = 16");
             $stmt->execute();
-            $result[] = "✅ Freebie zugewiesen";
+            $result[] = "✅ Freebie ID 16 → User ID 4 zugewiesen";
             
-            // 2. is_active hinzufügen
+            // 2. is_active hinzufügen (falls fehlt)
             $stmt = $pdo->query("SHOW COLUMNS FROM freebies LIKE 'is_active'");
             if ($stmt->rowCount() == 0) {
                 $pdo->exec("ALTER TABLE freebies ADD COLUMN is_active TINYINT(1) DEFAULT 1");
                 $pdo->exec("UPDATE freebies SET is_active = 1");
-                $result[] = "✅ is_active hinzugefügt";
+                $result[] = "✅ Spalte is_active hinzugefügt";
+            } else {
+                $result[] = "ℹ️ is_active bereits vorhanden";
             }
             
-            // 3. customer_freebies erstellen
-            $pdo->exec("DROP TABLE IF EXISTS customer_freebies");
-            $pdo->exec("
-                CREATE TABLE customer_freebies (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    customer_id INT NOT NULL,
-                    freebie_id INT NOT NULL,
-                    is_unlocked TINYINT(1) DEFAULT 0,
-                    unlocked_at TIMESTAMP NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    UNIQUE KEY unique_customer_freebie (customer_id, freebie_id),
-                    KEY idx_customer_id (customer_id),
-                    KEY idx_freebie_id (freebie_id)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            ");
-            $result[] = "✅ customer_freebies Tabelle erstellt";
+            // 3. customer_freebies Tabelle prüfen und Spalten hinzufügen
+            $stmt = $pdo->query("SHOW TABLES LIKE 'customer_freebies'");
+            if ($stmt->rowCount() == 0) {
+                // Tabelle existiert nicht - neu erstellen
+                $pdo->exec("
+                    CREATE TABLE customer_freebies (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        customer_id INT NOT NULL,
+                        freebie_id INT NOT NULL,
+                        is_unlocked TINYINT(1) DEFAULT 0,
+                        unlocked_at TIMESTAMP NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        UNIQUE KEY unique_customer_freebie (customer_id, freebie_id),
+                        KEY idx_customer_id (customer_id),
+                        KEY idx_freebie_id (freebie_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ");
+                $result[] = "✅ Tabelle customer_freebies erstellt";
+            } else {
+                // Tabelle existiert - fehlende Spalten hinzufügen
+                $stmt = $pdo->query("SHOW COLUMNS FROM customer_freebies LIKE 'is_unlocked'");
+                if ($stmt->rowCount() == 0) {
+                    $pdo->exec("ALTER TABLE customer_freebies ADD COLUMN is_unlocked TINYINT(1) DEFAULT 0 AFTER freebie_id");
+                    $result[] = "✅ Spalte is_unlocked hinzugefügt";
+                } else {
+                    $result[] = "ℹ️ is_unlocked bereits vorhanden";
+                }
+                
+                $stmt = $pdo->query("SHOW COLUMNS FROM customer_freebies LIKE 'unlocked_at'");
+                if ($stmt->rowCount() == 0) {
+                    $pdo->exec("ALTER TABLE customer_freebies ADD COLUMN unlocked_at TIMESTAMP NULL");
+                    $result[] = "✅ Spalte unlocked_at hinzugefügt";
+                }
+                
+                $stmt = $pdo->query("SHOW COLUMNS FROM customer_freebies LIKE 'created_at'");
+                if ($stmt->rowCount() == 0) {
+                    $pdo->exec("ALTER TABLE customer_freebies ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+                    $result[] = "✅ Spalte created_at hinzugefügt";
+                }
+                
+                $stmt = $pdo->query("SHOW COLUMNS FROM customer_freebies LIKE 'updated_at'");
+                if ($stmt->rowCount() == 0) {
+                    $pdo->exec("ALTER TABLE customer_freebies ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+                    $result[] = "✅ Spalte updated_at hinzugefügt";
+                }
+            }
             
             $pdo->commit();
-            $result[] = "✅✅✅ ALLES ERFOLGREICH REPARIERT!";
+            $result[] = "<strong>🎉 ALLES ERFOLGREICH REPARIERT!</strong>";
             
         } catch (PDOException $e) {
             $pdo->rollBack();
@@ -119,7 +150,13 @@ try {
     $stmt = $pdo->query("SHOW TABLES LIKE 'customer_freebies'");
     $has_customer_freebies = $stmt->rowCount() > 0;
     
-    $all_fixed = ($freebie['user_id'] == 4) && $has_is_active && $has_customer_freebies;
+    $has_is_unlocked = false;
+    if ($has_customer_freebies) {
+        $stmt = $pdo->query("SHOW COLUMNS FROM customer_freebies LIKE 'is_unlocked'");
+        $has_is_unlocked = $stmt->rowCount() > 0;
+    }
+    
+    $all_fixed = ($freebie['user_id'] == 4) && $has_is_active && $has_customer_freebies && $has_is_unlocked;
     
 } catch (PDOException $e) {
     $error = "Datenbankfehler: " . $e->getMessage();
@@ -229,6 +266,8 @@ try {
             cursor: pointer;
             transition: all 0.3s;
             margin: 0.5rem 0;
+            text-decoration: none;
+            text-align: center;
         }
         
         .btn-primary {
@@ -278,13 +317,17 @@ try {
             <?php endforeach; ?>
             
             <?php if ($all_fixed): ?>
-            <div class="alert alert-success" style="font-size: 1.25rem; text-align: center;">
+            <div class="alert alert-success" style="font-size: 1.25rem; text-align: center; padding: 1.5rem;">
                 🎉 ALLES REPARIERT! 🎉
             </div>
             
-            <a href="/customer/dashboard.php?page=empfehlungsprogramm" class="btn btn-success" style="text-decoration: none;">
+            <a href="/customer/dashboard.php?page=empfehlungsprogramm" class="btn btn-success">
                 ✅ Zum Empfehlungsprogramm
             </a>
+            
+            <div style="margin-top: 1rem; text-align: center; color: #6b7280; font-size: 0.875rem;">
+                <p>💡 <strong>Tipp:</strong> Drücke Strg + Shift + R für einen Hard-Refresh der Seite!</p>
+            </div>
             
             <?php else: ?>
             
@@ -311,6 +354,13 @@ try {
                         <?php echo $has_customer_freebies ? '✅ Existiert' : '❌ Fehlt'; ?>
                     </span>
                 </div>
+                
+                <div class="status-item">
+                    <span>4. Spalte is_unlocked:</span>
+                    <span class="<?php echo $has_is_unlocked ? 'status-ok' : 'status-error'; ?>">
+                        <?php echo $has_is_unlocked ? '✅ Vorhanden' : '❌ Fehlt'; ?>
+                    </span>
+                </div>
             </div>
             
             <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 0.75rem; padding: 1.5rem; margin: 1.5rem 0;">
@@ -321,13 +371,14 @@ try {
                 
                 <ul style="color: #856404; margin: 1rem 0 1rem 1.5rem;">
                     <li>Freebie ID 16 → User ID 4 zuweisen</li>
-                    <li>Spalte is_active hinzufügen</li>
-                    <li>Tabelle customer_freebies erstellen</li>
+                    <li>Spalte is_active hinzufügen (falls fehlt)</li>
+                    <li>Spalte is_unlocked zu customer_freebies hinzufügen</li>
+                    <li>Weitere fehlende Spalten ergänzen</li>
                 </ul>
             </div>
             
             <form method="POST">
-                <button type="submit" name="fix_all" class="btn btn-primary" onclick="return confirm('Alles reparieren?')">
+                <button type="submit" name="fix_all" class="btn btn-primary" onclick="return confirm('Alles reparieren?\n\nDies wird:\n- Freebie ID 16 User ID 4 zuweisen\n- Fehlende Spalten hinzufügen\n- KEINE Daten löschen')">
                     🚀 ALLES JETZT REPARIEREN
                 </button>
             </form>
