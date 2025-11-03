@@ -2,7 +2,7 @@
 /**
  * Lead Login & Registrierung System
  * Für Empfehlungsprogramm Teilnehmer
- * Verbesserte Version mit User-Zuordnung
+ * Automatische User-ID Ermittlung vom ref_code
  */
 
 require_once __DIR__ . '/config/database.php';
@@ -18,13 +18,22 @@ if (isset($_SESSION['lead_id'])) {
 $error = '';
 $success = '';
 
-// Registrierung über Referral Code + User ID
+// Registrierung über Referral Code
 if (isset($_GET['ref'])) {
     $_SESSION['referral_code'] = $_GET['ref'];
     
-    // User ID aus Link übernehmen
-    if (isset($_GET['uid'])) {
-        $_SESSION['referral_user_id'] = intval($_GET['uid']);
+    // User ID automatisch vom ref_code ermitteln
+    try {
+        $db = getDBConnection();
+        $stmt = $db->prepare("SELECT id FROM users WHERE ref_code = ? LIMIT 1");
+        $stmt->execute([$_GET['ref']]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($user) {
+            $_SESSION['referral_user_id'] = $user['id'];
+        }
+    } catch (Exception $e) {
+        error_log("Error finding user_id from ref_code: " . $e->getMessage());
     }
     
     $success = 'Du wurdest eingeladen! Registriere dich jetzt und profitiere vom Empfehlungsprogramm.';
