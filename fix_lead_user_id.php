@@ -25,7 +25,7 @@ try {
     // Finde die richtige Spalte für den Referral-Code
     $referrer_column = null;
     foreach ($columns as $col) {
-        if (in_array($col['Field'], ['referred_by', 'referrer_code', 'ref_code', 'referral_code'])) {
+        if (in_array($col['Field'], ['referrer_code', 'referred_by', 'ref_code'])) {
             $referrer_column = $col['Field'];
             break;
         }
@@ -37,7 +37,7 @@ try {
         exit(1);
     }
     
-    echo "✓ Verwende Spalte: {$referrer_column}\n\n";
+    echo "✓ Verwende Spalte für Referrer: {$referrer_column}\n\n";
     
     // Schritt 1: Finde alle Leads ohne user_id aber mit Referrer-Code
     $query = "
@@ -47,11 +47,12 @@ try {
             lu.name,
             lu.{$referrer_column} as referrer_code,
             lu.user_id,
-            lu.created_at
+            lu.registered_at
         FROM lead_users lu
         WHERE lu.user_id IS NULL 
         AND lu.{$referrer_column} IS NOT NULL
-        ORDER BY lu.created_at DESC
+        AND lu.{$referrer_column} != ''
+        ORDER BY lu.registered_at DESC
     ";
     
     $stmt = $db->query($query);
@@ -64,7 +65,7 @@ try {
         echo "✅ Keine Leads zum Aktualisieren gefunden.\n";
         
         // Zeige trotzdem Beispiel-Leads
-        echo "\n=== Aktuelle Leads (erste 5) ===\n";
+        echo "\n=== Aktuelle Leads (erste 10) ===\n";
         $stmt = $db->query("
             SELECT 
                 lu.id,
@@ -74,8 +75,8 @@ try {
                 u.company_name
             FROM lead_users lu
             LEFT JOIN users u ON lu.user_id = u.id
-            ORDER BY lu.created_at DESC
-            LIMIT 5
+            ORDER BY lu.registered_at DESC
+            LIMIT 10
         ");
         $examples = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
@@ -166,8 +167,8 @@ try {
             u.company_name
         FROM lead_users lu
         LEFT JOIN users u ON lu.user_id = u.id
-        ORDER BY lu.created_at DESC
-        LIMIT 5
+        ORDER BY lu.registered_at DESC
+        LIMIT 10
     ");
     $examples = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
@@ -184,6 +185,7 @@ try {
     
 } catch (Exception $e) {
     echo "❌ Fehler: " . $e->getMessage() . "\n";
+    echo "Stack Trace:\n" . $e->getTraceAsString() . "\n";
     error_log("Lead Migration Error: " . $e->getMessage());
     exit(1);
 }
