@@ -17,7 +17,7 @@ $db = getDBConnection();
 
 // Lead Daten laden
 $stmt = $db->prepare("
-    SELECT * FROM referral_leads 
+    SELECT * FROM lead_users 
     WHERE id = ?
 ");
 $stmt->execute([$_SESSION['lead_id']]);
@@ -31,17 +31,17 @@ if (!$lead) {
 
 // Empfohlene Leads laden
 $stmt = $db->prepare("
-    SELECT name, email, status, registered_at 
-    FROM referral_leads 
-    WHERE referrer_code = ?
-    ORDER BY registered_at DESC
+    SELECT referred_name as name, referred_email as email, status, invited_at as registered_at 
+    FROM lead_referrals 
+    WHERE referrer_id = ?
+    ORDER BY invited_at DESC
 ");
-$stmt->execute([$lead['referral_code']]);
+$stmt->execute([$lead['id']]);
 $referrals = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Eingelöste Belohnungen laden
 $stmt = $db->prepare("
-    SELECT reward_id, claimed_at 
+    SELECT reward_id, reward_name, claimed_at 
     FROM referral_claimed_rewards 
     WHERE lead_id = ?
     ORDER BY claimed_at DESC
@@ -328,8 +328,15 @@ $reward_tiers = [
     
     <div class="rewards-section">
         <h2>🎁 Belohnungs-Stufen</h2>
-        <?php foreach ($reward_tiers as $tier): 
-            $is_claimed = in_array($tier['referrals'], array_column($claimed_rewards, 'reward_id'));
+        <?php foreach ($reward_tiers as $tier_index => $tier): 
+            $tier_id = $tier_index + 1;
+            $is_claimed = false;
+            foreach ($claimed_rewards as $claimed) {
+                if ($claimed['reward_id'] == $tier_id) {
+                    $is_claimed = true;
+                    break;
+                }
+            }
             $is_unlocked = $lead['successful_referrals'] >= $tier['referrals'];
             $status = $is_claimed ? 'claimed' : ($is_unlocked ? 'unlocked' : 'locked');
         ?>
