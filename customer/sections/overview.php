@@ -1,7 +1,7 @@
 <?php
 /**
  * Customer Dashboard - Overview Section
- * KORRIGIERT: Verwendet customer_freebies statt user_freebies
+ * KORRIGIERT: Zählt ALLE freigeschalteten Freebies ohne Type-Filter
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -11,12 +11,11 @@ if (!isset($customer_id)) {
 
 // ===== ECHTE STATISTIKEN ABRUFEN =====
 try {
-    // Freigeschaltete Freebies - KORRIGIERT: customer_freebies Tabelle!
+    // Freigeschaltete Freebies - KORRIGIERT: Alle Freebies zählen!
     $stmt_freebies = $pdo->prepare("
         SELECT COUNT(*) 
         FROM customer_freebies 
-        WHERE customer_id = ? 
-        AND (freebie_type = 'template' OR freebie_type IS NULL)
+        WHERE customer_id = ?
     ");
     $stmt_freebies->execute([$customer_id]);
     $freebies_unlocked = $stmt_freebies->fetchColumn();
