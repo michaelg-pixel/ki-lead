@@ -215,26 +215,115 @@ for ($i = 6; $i >= 0; $i--) {
         input:checked + .toggle-slider:before {
             transform: translateX(30px);
         }
+        
+        /* Responsive Typography */
+        .page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 0.5rem;
+        }
+        
+        .page-subtitle {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1rem;
+        }
+        
+        .stat-value {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.875rem;
+        }
+        
+        .section-title {
+            color: white;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+        
+        .section-text {
+            color: #9ca3af;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+        }
+        
+        /* Mobile Responsive */
+        @media (max-width: 640px) {
+            .page-title {
+                font-size: 1.5rem;
+            }
+            
+            .page-subtitle {
+                font-size: 0.875rem;
+            }
+            
+            .stat-value {
+                font-size: 2rem;
+            }
+            
+            .stat-label {
+                font-size: 0.75rem;
+            }
+            
+            .section-title {
+                font-size: 1.125rem;
+            }
+            
+            .section-text {
+                font-size: 0.8125rem;
+            }
+            
+            .toggle-switch {
+                width: 50px;
+                height: 26px;
+            }
+            
+            .toggle-slider:before {
+                height: 18px;
+                width: 18px;
+            }
+            
+            input:checked + .toggle-slider:before {
+                transform: translateX(24px);
+            }
+        }
+        
+        /* Tablet Responsive */
+        @media (min-width: 641px) and (max-width: 768px) {
+            .page-title {
+                font-size: 1.75rem;
+            }
+            
+            .stat-value {
+                font-size: 2.5rem;
+            }
+        }
     </style>
 </head>
 <body style="background: linear-gradient(to bottom right, #1f2937, #111827, #1f2937); min-height: 100vh;">
-    <div style="max-width: 1280px; margin: 0 auto; padding: 2rem 1rem;">
+    <div style="max-width: 1280px; margin: 0 auto; padding: 1rem;">
         
         <!-- Header -->
-        <div class="animate-fade-in-up" style="opacity: 0; margin-bottom: 2rem;">
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 1rem; padding: 2rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);">
+        <div class="animate-fade-in-up" style="opacity: 0; margin-bottom: 1.5rem;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 1rem; padding: 1.5rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);">
                 <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem;">
-                    <div>
-                        <h1 style="font-size: 2rem; font-weight: 700; color: white; margin-bottom: 0.5rem;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <h1 class="page-title">
                             <i class="fas fa-rocket"></i> Empfehlungsprogramm
                         </h1>
-                        <p style="color: rgba(255, 255, 255, 0.9);">
+                        <p class="page-subtitle">
                             Teile deine Freebies und verdiene automatisch Provisionen
                         </p>
                     </div>
                     
-                    <div style="display: flex; align-items: center; gap: 1rem;">
-                        <span style="color: white; font-weight: 600;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <span style="color: white; font-weight: 600; font-size: 0.875rem;">
                             <?php echo $referralEnabled ? 'Aktiviert' : 'Deaktiviert'; ?>
                         </span>
                         <label class="toggle-switch">
@@ -250,76 +339,76 @@ for ($i = 6; $i >= 0; $i--) {
         </div>
         
         <!-- Statistiken -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
             <!-- Klicks -->
-            <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.1s; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 1rem; padding: 1.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-                <div style="display: flex; align-items: center; justify-between; margin-bottom: 1rem;">
-                    <div style="background: rgba(255, 255, 255, 0.2); border-radius: 0.75rem; padding: 0.75rem;">
-                        <i class="fas fa-mouse-pointer" style="color: white; font-size: 1.5rem;"></i>
+            <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.1s; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+                    <div style="background: rgba(255, 255, 255, 0.2); border-radius: 0.5rem; padding: 0.625rem;">
+                        <i class="fas fa-mouse-pointer" style="color: white; font-size: 1.25rem;"></i>
                     </div>
-                    <span style="color: rgba(255, 255, 255, 0.7); font-size: 0.75rem;"><?php echo number_format($stats['unique_clicks']); ?> unique</span>
+                    <span style="color: rgba(255, 255, 255, 0.7); font-size: 0.6875rem;"><?php echo number_format($stats['unique_clicks']); ?> unique</span>
                 </div>
                 <div style="color: white;">
-                    <div style="font-size: 3rem; font-weight: 700; margin-bottom: 0.5rem;">
+                    <div class="stat-value">
                         <?php echo number_format($stats['total_clicks']); ?>
                     </div>
-                    <div style="color: rgba(255, 255, 255, 0.8);">
-                        Link-Klicks gesamt
+                    <div class="stat-label">
+                        Link-Klicks
                     </div>
                 </div>
             </div>
             
             <!-- Conversions -->
-            <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.2s; background: linear-gradient(135deg, #8b5cf6, #7c3aed); border-radius: 1rem; padding: 1.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-                <div style="display: flex; align-items: center; justify-between; margin-bottom: 1rem;">
-                    <div style="background: rgba(255, 255, 255, 0.2); border-radius: 0.75rem; padding: 0.75rem;">
-                        <i class="fas fa-check-circle" style="color: white; font-size: 1.5rem;"></i>
+            <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.2s; background: linear-gradient(135deg, #8b5cf6, #7c3aed); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+                    <div style="background: rgba(255, 255, 255, 0.2); border-radius: 0.5rem; padding: 0.625rem;">
+                        <i class="fas fa-check-circle" style="color: white; font-size: 1.25rem;"></i>
                     </div>
                     <?php if ($stats['suspicious_conversions'] > 0): ?>
-                    <span style="color: rgba(255, 255, 255, 0.7); font-size: 0.75rem;">⚠️ <?php echo $stats['suspicious_conversions']; ?> verdächtig</span>
+                    <span style="color: rgba(255, 255, 255, 0.7); font-size: 0.6875rem;">⚠️ <?php echo $stats['suspicious_conversions']; ?></span>
                     <?php endif; ?>
                 </div>
                 <div style="color: white;">
-                    <div style="font-size: 3rem; font-weight: 700; margin-bottom: 0.5rem;">
+                    <div class="stat-value">
                         <?php echo number_format($stats['total_conversions']); ?>
                     </div>
-                    <div style="color: rgba(255, 255, 255, 0.8);">
+                    <div class="stat-label">
                         Conversions
                     </div>
                 </div>
             </div>
             
             <!-- Leads -->
-            <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.3s; background: linear-gradient(135deg, #10b981, #059669); border-radius: 1rem; padding: 1.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-                <div style="display: flex; align-items: center; justify-between; margin-bottom: 1rem;">
-                    <div style="background: rgba(255, 255, 255, 0.2); border-radius: 0.75rem; padding: 0.75rem;">
-                        <i class="fas fa-users" style="color: white; font-size: 1.5rem;"></i>
+            <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.3s; background: linear-gradient(135deg, #10b981, #059669); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+                <div style="display: flex; align-items: center; justify-between; margin-bottom: 0.75rem;">
+                    <div style="background: rgba(255, 255, 255, 0.2); border-radius: 0.5rem; padding: 0.625rem;">
+                        <i class="fas fa-users" style="color: white; font-size: 1.25rem;"></i>
                     </div>
-                    <span style="color: rgba(255, 255, 255, 0.7); font-size: 0.75rem;"><?php echo number_format($stats['confirmed_leads']); ?> bestätigt</span>
+                    <span style="color: rgba(255, 255, 255, 0.7); font-size: 0.6875rem;"><?php echo number_format($stats['confirmed_leads']); ?> bestätigt</span>
                 </div>
                 <div style="color: white;">
-                    <div style="font-size: 3rem; font-weight: 700; margin-bottom: 0.5rem;">
+                    <div class="stat-value">
                         <?php echo number_format($stats['total_leads']); ?>
                     </div>
-                    <div style="color: rgba(255, 255, 255, 0.8);">
-                        Registrierte Leads
+                    <div class="stat-label">
+                        Leads
                     </div>
                 </div>
             </div>
             
             <!-- Conversion Rate -->
-            <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.4s; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 1rem; padding: 1.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-                <div style="display: flex; align-items: center; justify-between; margin-bottom: 1rem;">
-                    <div style="background: rgba(255, 255, 255, 0.2); border-radius: 0.75rem; padding: 0.75rem;">
-                        <i class="fas fa-percentage" style="color: white; font-size: 1.5rem;"></i>
+            <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.4s; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+                    <div style="background: rgba(255, 255, 255, 0.2); border-radius: 0.5rem; padding: 0.625rem;">
+                        <i class="fas fa-percentage" style="color: white; font-size: 1.25rem;"></i>
                     </div>
                 </div>
                 <div style="color: white;">
-                    <div style="font-size: 3rem; font-weight: 700; margin-bottom: 0.5rem;">
+                    <div class="stat-value">
                         <?php echo number_format($stats['conversion_rate'], 2); ?>%
                     </div>
-                    <div style="color: rgba(255, 255, 255, 0.8);">
-                        Conversion Rate
+                    <div class="stat-label">
+                        Rate
                     </div>
                 </div>
             </div>
@@ -327,22 +416,22 @@ for ($i = 6; $i >= 0; $i--) {
         
         <!-- Referral Link -->
         <?php if ($referralEnabled && $referralLink): ?>
-        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.5s; margin-bottom: 2rem;">
-            <div style="background: linear-gradient(to bottom right, #1f2937, #374151); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 1rem; padding: 1.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-                <h3 style="color: white; font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem;">
+        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.5s; margin-bottom: 1.5rem;">
+            <div style="background: linear-gradient(to bottom right, #1f2937, #374151); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+                <h3 class="section-title">
                     <i class="fas fa-link"></i> Dein Empfehlungslink
                 </h3>
-                <p style="color: #9ca3af; margin-bottom: 1rem; font-size: 0.875rem;">
-                    Teile diesen Link und erhalte automatisch Provisionen für jeden generierten Lead
+                <p class="section-text">
+                    Teile diesen Link und erhalte automatisch Provisionen
                 </p>
-                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                     <input type="text" 
                            id="referralLinkInput" 
                            value="<?php echo htmlspecialchars($referralLink); ?>" 
                            readonly
-                           style="flex: 1; min-width: 300px; padding: 0.75rem 1rem; background: #1f2937; border: 1px solid #374151; border-radius: 0.5rem; color: white; font-family: monospace;">
+                           style="flex: 1; min-width: 200px; padding: 0.625rem 0.875rem; background: #1f2937; border: 1px solid #374151; border-radius: 0.5rem; color: white; font-family: monospace; font-size: 0.8125rem;">
                     <button onclick="copyReferralLink()" 
-                            style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
+                            style="padding: 0.625rem 1.25rem; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem;">
                         <i class="fas fa-copy"></i>
                         <span id="copyButtonText">Kopieren</span>
                     </button>
@@ -353,12 +442,12 @@ for ($i = 6; $i >= 0; $i--) {
         
         <!-- Aktivitätsgraph -->
         <?php if (!empty($clicks_chart_data) || !empty($conv_chart_data)): ?>
-        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.6s; margin-bottom: 2rem;">
-            <div style="background: linear-gradient(to bottom right, #1f2937, #374151); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 1rem; padding: 1.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-                <h3 style="color: white; font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem;">
+        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.6s; margin-bottom: 1.5rem;">
+            <div style="background: linear-gradient(to bottom right, #1f2937, #374151); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+                <h3 class="section-title">
                     <i class="fas fa-chart-line"></i> Aktivität (Letzte 7 Tage)
                 </h3>
-                <div style="height: 300px;">
+                <div style="height: 250px;">
                     <canvas id="activityChart"></canvas>
                 </div>
             </div>
@@ -366,55 +455,55 @@ for ($i = 6; $i >= 0; $i--) {
         <?php endif; ?>
         
         <!-- Firmendaten -->
-        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.7s;">
-            <div style="background: linear-gradient(to bottom right, #1f2937, #374151); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 1rem; padding: 1.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-                <h3 style="color: white; font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem;">
+        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.7s; margin-bottom: 1.5rem;">
+            <div style="background: linear-gradient(to bottom right, #1f2937, #374151); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+                <h3 class="section-title">
                     <i class="fas fa-building"></i> Firmendaten
                 </h3>
-                <p style="color: #9ca3af; margin-bottom: 1.5rem; font-size: 0.875rem;">
-                    Diese Daten werden in E-Mails an deine Leads verwendet (für Impressum)
+                <p class="section-text">
+                    Diese Daten werden in E-Mails an deine Leads verwendet
                 </p>
                 
                 <form id="companyForm" onsubmit="saveCompanyData(event)">
                     <div style="display: grid; gap: 1rem;">
                         <div>
-                            <label style="display: block; color: #9ca3af; margin-bottom: 0.5rem; font-size: 0.875rem; font-weight: 500;">
+                            <label style="display: block; color: #9ca3af; margin-bottom: 0.5rem; font-size: 0.8125rem; font-weight: 500;">
                                 Firmenname *
                             </label>
                             <input type="text" 
                                    name="company_name" 
                                    value="<?php echo htmlspecialchars($companyName); ?>"
                                    required
-                                   style="width: 100%; padding: 0.75rem 1rem; background: #1f2937; border: 1px solid #374151; border-radius: 0.5rem; color: white;">
+                                   style="width: 100%; padding: 0.625rem 0.875rem; background: #1f2937; border: 1px solid #374151; border-radius: 0.5rem; color: white; font-size: 0.875rem;">
                         </div>
                         
                         <div>
-                            <label style="display: block; color: #9ca3af; margin-bottom: 0.5rem; font-size: 0.875rem; font-weight: 500;">
+                            <label style="display: block; color: #9ca3af; margin-bottom: 0.5rem; font-size: 0.8125rem; font-weight: 500;">
                                 E-Mail-Adresse *
                             </label>
                             <input type="email" 
                                    name="company_email" 
                                    value="<?php echo htmlspecialchars($companyEmail); ?>"
                                    required
-                                   style="width: 100%; padding: 0.75rem 1rem; background: #1f2937; border: 1px solid #374151; border-radius: 0.5rem; color: white;">
+                                   style="width: 100%; padding: 0.625rem 0.875rem; background: #1f2937; border: 1px solid #374151; border-radius: 0.5rem; color: white; font-size: 0.875rem;">
                         </div>
                         
                         <div>
-                            <label style="display: block; color: #9ca3af; margin-bottom: 0.5rem; font-size: 0.875rem; font-weight: 500;">
+                            <label style="display: block; color: #9ca3af; margin-bottom: 0.5rem; font-size: 0.8125rem; font-weight: 500;">
                                 Impressum (HTML erlaubt) *
                             </label>
                             <textarea name="company_imprint_html" 
-                                      rows="6"
+                                      rows="5"
                                       required
-                                      placeholder="z.B.: Max Mustermann<br>Musterstraße 1<br>12345 Musterstadt<br>Deutschland<br>UID: DE123456789"
-                                      style="width: 100%; padding: 0.75rem 1rem; background: #1f2937; border: 1px solid #374151; border-radius: 0.5rem; color: white; resize: vertical; font-family: monospace; font-size: 0.875rem;"><?php echo htmlspecialchars($companyImprint); ?></textarea>
-                            <p style="color: #6b7280; font-size: 0.75rem; margin-top: 0.5rem;">
-                                HTML-Tags erlaubt: &lt;p&gt;, &lt;br&gt;, &lt;strong&gt;, &lt;b&gt;, &lt;em&gt;, &lt;i&gt;
+                                      placeholder="z.B.: Max Mustermann<br>Musterstraße 1<br>12345 Musterstadt"
+                                      style="width: 100%; padding: 0.625rem 0.875rem; background: #1f2937; border: 1px solid #374151; border-radius: 0.5rem; color: white; resize: vertical; font-family: monospace; font-size: 0.8125rem;"><?php echo htmlspecialchars($companyImprint); ?></textarea>
+                            <p style="color: #6b7280; font-size: 0.6875rem; margin-top: 0.5rem;">
+                                HTML-Tags: &lt;p&gt;, &lt;br&gt;, &lt;strong&gt;, &lt;b&gt;, &lt;em&gt;, &lt;i&gt;
                             </p>
                         </div>
                         
                         <button type="submit" 
-                                style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer; transition: all 0.3s;">
+                                style="padding: 0.625rem 1.25rem; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer; transition: all 0.3s; font-size: 0.875rem;">
                             <i class="fas fa-save"></i> Speichern
                         </button>
                     </div>
@@ -423,22 +512,22 @@ for ($i = 6; $i >= 0; $i--) {
         </div>
         
         <!-- Info Box -->
-        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.8s; margin-top: 2rem;">
-            <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.1)); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 1rem; padding: 1.5rem;">
+        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.8s;">
+            <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.1)); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 1rem; padding: 1.25rem;">
                 <div style="display: flex; gap: 1rem;">
-                    <div style="color: #3b82f6; font-size: 1.5rem;">
+                    <div style="color: #3b82f6; font-size: 1.25rem; flex-shrink: 0;">
                         <i class="fas fa-info-circle"></i>
                     </div>
                     <div>
-                        <h4 style="color: white; font-weight: 600; margin-bottom: 0.5rem;">
+                        <h4 style="color: white; font-weight: 600; margin-bottom: 0.5rem; font-size: 1rem;">
                             So funktioniert's
                         </h4>
-                        <ul style="color: #9ca3af; list-style: none; padding: 0; margin: 0;">
-                            <li style="margin-bottom: 0.5rem;">✓ Aktiviere das Programm oben</li>
-                            <li style="margin-bottom: 0.5rem;">✓ Fülle deine Firmendaten aus</li>
-                            <li style="margin-bottom: 0.5rem;">✓ Kopiere deinen Empfehlungslink</li>
-                            <li style="margin-bottom: 0.5rem;">✓ Teile den Link per E-Mail, Social Media oder auf deiner Website</li>
-                            <li style="margin-bottom: 0.5rem;">✓ Verdiene automatisch für jeden registrierten Lead</li>
+                        <ul style="color: #9ca3af; list-style: none; padding: 0; margin: 0; font-size: 0.8125rem;">
+                            <li style="margin-bottom: 0.375rem;">✓ Aktiviere das Programm oben</li>
+                            <li style="margin-bottom: 0.375rem;">✓ Fülle deine Firmendaten aus</li>
+                            <li style="margin-bottom: 0.375rem;">✓ Kopiere deinen Link</li>
+                            <li style="margin-bottom: 0.375rem;">✓ Teile ihn mit deinen Kontakten</li>
+                            <li>✓ Verdiene für jeden Lead</li>
                         </ul>
                     </div>
                 </div>
@@ -548,12 +637,13 @@ for ($i = 6; $i >= 0; $i--) {
                 right: 20px;
                 background: ${colors[type]};
                 color: white;
-                padding: 1rem 1.5rem;
+                padding: 0.875rem 1.25rem;
                 border-radius: 0.5rem;
                 box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
                 z-index: 9999;
                 animation: slideIn 0.3s ease-out;
-                max-width: 300px;
+                max-width: 90%;
+                font-size: 0.875rem;
             `;
             notification.textContent = message;
             
@@ -600,7 +690,10 @@ for ($i = 6; $i >= 0; $i--) {
                     plugins: {
                         legend: {
                             labels: {
-                                color: '#9ca3af'
+                                color: '#9ca3af',
+                                font: {
+                                    size: window.innerWidth < 640 ? 10 : 12
+                                }
                             }
                         }
                     },
@@ -608,7 +701,10 @@ for ($i = 6; $i >= 0; $i--) {
                         y: {
                             beginAtZero: true,
                             ticks: {
-                                color: '#9ca3af'
+                                color: '#9ca3af',
+                                font: {
+                                    size: window.innerWidth < 640 ? 9 : 11
+                                }
                             },
                             grid: {
                                 color: 'rgba(255, 255, 255, 0.1)'
@@ -616,7 +712,10 @@ for ($i = 6; $i >= 0; $i--) {
                         },
                         x: {
                             ticks: {
-                                color: '#9ca3af'
+                                color: '#9ca3af',
+                                font: {
+                                    size: window.innerWidth < 640 ? 9 : 11
+                                }
                             },
                             grid: {
                                 color: 'rgba(255, 255, 255, 0.1)'
