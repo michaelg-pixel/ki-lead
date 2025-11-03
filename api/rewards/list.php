@@ -1,6 +1,6 @@
 <?php
 /**
- * API: Alle Belohnungsstufen eines Users abrufen
+ * API: Alle Belohnungsstufen eines Users abrufen - VEREINFACHT
  * GET /api/rewards/list.php
  */
 
@@ -40,23 +40,14 @@ try {
         exit;
     }
     
-    // Alle Belohnungsstufen des Users laden
+    // Einfache Abfrage ohne komplexe JOINs
+    // (Statistiken werden später hinzugefügt wenn das Lead-System vollständig ist)
     $stmt = $pdo->prepare("
         SELECT 
             rd.*,
-            COALESCE(achieved.leads_count, 0) as leads_achieved,
-            COALESCE(claimed.claims_count, 0) as times_claimed
+            0 as leads_achieved,
+            0 as times_claimed
         FROM reward_definitions rd
-        LEFT JOIN (
-            SELECT tier_id, COUNT(DISTINCT lead_id) as leads_count
-            FROM referral_reward_tiers
-            GROUP BY tier_id
-        ) achieved ON rd.tier_level = achieved.tier_id
-        LEFT JOIN (
-            SELECT reward_id, COUNT(*) as claims_count
-            FROM referral_claimed_rewards
-            GROUP BY reward_id
-        ) claimed ON rd.id = claimed.reward_id
         WHERE rd.user_id = ?
         ORDER BY rd.tier_level ASC, rd.sort_order ASC
     ");
