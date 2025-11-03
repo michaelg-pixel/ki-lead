@@ -20,7 +20,7 @@ session_start();
 
 // Basis-Pfade
 define('BASE_PATH', __DIR__);
-define('LOG_PATH', '/home/lumisaas/logs');
+define('LOG_PATH', BASE_PATH . '/logs'); // Logs jetzt unter public_html/logs
 
 // Datenbank-Credentials
 define('DB_HOST', 'localhost');
@@ -149,27 +149,73 @@ function checkRequirements() {
 }
 
 function createLogsFolder() {
-    if (!is_dir(LOG_PATH)) {
-        if (!@mkdir(LOG_PATH, 0755, true)) {
-            return ['success' => false, 'message' => '❌ Konnte Logs-Ordner nicht erstellen: ' . LOG_PATH];
+    // Prüfe ob Ordner bereits existiert
+    if (is_dir(LOG_PATH)) {
+        // Ordner existiert bereits, prüfe Schreibrechte
+        if (!is_writable(LOG_PATH)) {
+            @chmod(LOG_PATH, 0755);
         }
+        
+        $test_file = LOG_PATH . '/cron.log';
+        $content = date('Y-m-d H:i:s') . " - Referral System Web-Installation (Ordner bereits vorhanden)\n";
+        
+        if (@file_put_contents($test_file, $content, FILE_APPEND) === false) {
+            return [
+                'success' => false, 
+                'message' => '❌ Logs-Ordner existiert, aber keine Schreibrechte: ' . LOG_PATH,
+                'details' => [
+                    'exists' => true,
+                    'writable' => false,
+                    'path' => LOG_PATH
+                ]
+            ];
+        }
+        
+        return [
+            'success' => true,
+            'message' => '✅ Logs-Ordner bereits vorhanden und beschreibbar: ' . LOG_PATH,
+            'details' => [
+                'exists' => true,
+                'writable' => true,
+                'path' => LOG_PATH,
+                'action' => 'verified'
+            ]
+        ];
     }
+    
+    // Versuche Ordner zu erstellen
+    if (!@mkdir(LOG_PATH, 0755, true)) {
+        // Fehler beim Erstellen
+        $error = error_get_last();
+        return [
+            'success' => false, 
+            'message' => '❌ Konnte Logs-Ordner nicht erstellen: ' . LOG_PATH,
+            'details' => [
+                'path' => LOG_PATH,
+                'parent_writable' => is_writable(dirname(LOG_PATH)),
+                'parent_path' => dirname(LOG_PATH),
+                'error' => $error ? $error['message'] : 'Unbekannter Fehler'
+            ]
+        ];
+    }
+    
+    // Ordner erfolgreich erstellt
+    @chmod(LOG_PATH, 0755);
     
     // Test-Log erstellen
     $log_file = LOG_PATH . '/cron.log';
     $content = date('Y-m-d H:i:s') . " - Referral System Web-Installation gestartet\n";
     @file_put_contents($log_file, $content, FILE_APPEND);
-    
-    @chmod(LOG_PATH, 0755);
     @chmod($log_file, 0644);
     
     return [
         'success' => true,
-        'message' => '✅ Logs-Ordner erstellt: ' . LOG_PATH,
+        'message' => '✅ Logs-Ordner erfolgreich erstellt: ' . LOG_PATH,
         'details' => [
             'path' => LOG_PATH,
             'writable' => is_writable(LOG_PATH),
-            'exists' => is_dir(LOG_PATH)
+            'exists' => is_dir(LOG_PATH),
+            'action' => 'created'
         ]
     ];
 }
@@ -248,6 +294,11 @@ function setPermissions() {
         @chmod(LOG_PATH, 0755);
         $results[] = 'Logs-Ordner: 0755';
     }
+    
+    // .htaccess für Logs-Schutz erstellen
+    $htaccess_content = "# Zugriff auf Logs verweigern\nOrder deny,allow\nDeny from all\n";
+    @file_put_contents(LOG_PATH . '/.htaccess', $htaccess_content);
+    $results[] = 'Logs-Schutz: .htaccess erstellt';
     
     return [
         'success' => true,
@@ -470,7 +521,8 @@ rm <?php echo BASE_PATH; ?>/install-referral-web.php
                 
                 <div class="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-4">
                     <p class="text-sm text-yellow-800">
-                        <strong>⚠️ Sicherheitshinweis:</strong> Bitte lösche diese Installer-Datei nach erfolgreicher Installation!
+                        <strong>⚠️ Sicherheitshinweis:</strong> Bitte lösche diese Installer-Datei nach erfolgreicher Installation!<br>
+                        <strong>📁 Logs-Pfad:</strong> <?php echo LOG_PATH; ?>
                     </p>
                 </div>
             </div>
@@ -485,6 +537,7 @@ rm <?php echo BASE_PATH; ?>/install-referral-web.php
                 <div class="text-6xl mb-4">🚀</div>
                 <h1 class="text-4xl font-bold text-gray-900 mb-2">Referral-System Installer</h1>
                 <p class="text-lg text-gray-600">Automatische Installation in wenigen Minuten</p>
+                <p class="text-sm text-gray-500 mt-2">Logs werden gespeichert in: <code class="bg-gray-100 px-2 py-1 rounded"><?php echo LOG_PATH; ?></code></p>
             </div>
             
             <!-- Token-Eingabe -->
@@ -625,7 +678,6 @@ function verifyToken() {
     const verifyBtn = document.getElementById('verifyBtn');
     
     debugLog('Token-Länge: ' + token.length);
-    debugLog('Erwarteter Token: <?php echo INSTALL_TOKEN; ?>');
     
     if (!token) {
         debugLog('❌ Kein Token eingegeben');
@@ -814,6 +866,10 @@ function handleError(stepNumber, result, btn, status, content) {
         errorHtml += '<br><br><strong>Debug-Info:</strong><pre class="text-xs mt-2 bg-gray-100 p-2 rounded overflow-x-auto">' + JSON.stringify(result.debug, null, 2) + '</pre>';
     }
     
+    if (result.details) {
+        errorHtml += '<br><br><strong>Details:</strong><pre class="text-xs mt-2 bg-gray-100 p-2 rounded overflow-x-auto">' + JSON.stringify(result.details, null, 2) + '</pre>';
+    }
+    
     errorHtml += '</div>';
     content.innerHTML += errorHtml;
 }
@@ -869,6 +925,7 @@ async function completeInstallation() {
 
 // Initial-Log
 debugLog('✨ Installer-Seite geladen und bereit!');
+debugLog('📁 Logs werden gespeichert in: <?php echo LOG_PATH; ?>');
 debugLog('🔍 Prüfe ob alle Funktionen verfügbar sind...');
 debugLog('✓ verifyToken: ' + (typeof verifyToken === 'function'));
 debugLog('✓ executeStep: ' + (typeof executeStep === 'function'));
