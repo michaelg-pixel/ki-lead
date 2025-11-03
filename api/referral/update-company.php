@@ -7,7 +7,6 @@
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../config/database.php';
-require_once __DIR__ . '/../../includes/auth.php';
 
 session_start();
 
@@ -24,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 try {
-    $db = Database::getInstance()->getConnection();
+    $pdo = getDBConnection();
     $userId = $_SESSION['user_id'];
     
     $input = json_decode(file_get_contents('php://input'), true);
@@ -46,8 +45,8 @@ try {
         );
     }
     
-    $stmt = $db->prepare("
-        UPDATE customers 
+    $stmt = $pdo->prepare("
+        UPDATE users 
         SET 
             company_name = ?,
             company_email = ?,
