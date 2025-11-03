@@ -1,14 +1,12 @@
 <?php
 /**
  * 🔄 MIGRATION TOOL: customer_id → user_id
- * Mit verbessertem Error-Handling
+ * Mit View-Support und besserer Diagnostik
  */
 
 error_reporting(0);
 ini_set('display_errors', 0);
-
 set_time_limit(300);
-ini_set('max_execution_time', 300);
 ini_set('memory_limit', '512M');
 
 session_start();
@@ -17,7 +15,7 @@ $isAdmin = (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') ||
            (isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === true);
 
 if (!$isAdmin && $_SERVER['REQUEST_METHOD'] !== 'POST') {
-    die('⛔ Nur Admins! <a href="/make-admin.php?token=migration2024secure">Admin werden</a>');
+    die('⛔ Nur Admins!');
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -31,10 +29,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         require_once __DIR__ . '/config/database.php';
         $pdo = getDBConnection();
         
-        if (!$pdo) {
-            throw new Exception('Datenbankverbindung fehlgeschlagen');
-        }
-        
         switch ($action) {
             case 'backup':
                 $dir = __DIR__ . '/backups';
@@ -43,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $file = $dir . '/backup_' . date('YmdHis') . '.sql';
                 $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
                 
-                $sql = "-- STRUCTURE BACKUP " . date('Y-m-d H:i:s') . "\n\n";
+                $sql = "-- BACKUP " . date('Y-m-d H:i:s') . "\n\n";
                 $sql .= "SET FOREIGN_KEY_CHECKS=0;\n\n";
                 
                 foreach ($tables as $table) {
@@ -59,17 +53,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo json_encode([
                     'success' => true, 
                     'file' => basename($file),
-                    'size' => round(filesize($file) / 1024, 2) . ' KB',
-                    'tables' => count($tables)
+                    'size' => round(filesize($file) / 1024, 2) . ' KB'
                 ]);
                 break;
                 
             case 'check':
+                // Tabellen
                 $oldTables = $pdo->query("SHOW TABLES LIKE 'customer_%'")->fetchAll(PDO::FETCH_COLUMN);
-                $oldColumns = 0;
                 
-                $checkTables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-                foreach ($checkTables as $table) {
+                // Spalten (nur echte Tabellen, keine Views)
+                $oldColumns = 0;
+                $allTables = $pdo->query("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'")->fetchAll(PDO::FETCH_NUM);
+                
+                foreach ($allTables as $row) {
+                    $table = $row[0];
                     try {
                         if ($pdo->query("SHOW COLUMNS FROM `$table` LIKE 'customer_id'")->fetch()) {
                             $oldColumns++;
@@ -77,11 +74,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } catch (Exception $e) {}
                 }
                 
+                // Views
+                $views = $pdo->query("SHOW FULL TABLES WHERE Table_type = 'VIEW'")->fetchAll(PDO::FETCH_NUM);
+                $oldViews = [];
+                foreach ($views as $row) {
+                    $view = $row[0];
+                    if (stripos($view, 'customer') !== false) {
+                        $oldViews[] = $view;
+                    }
+                }
+                
                 ob_clean();
                 echo json_encode([
                     'success' => true,
-                    'old_tables' => count($oldTables),
+                    'old_tables' => $oldTables,
                     'old_columns' => $oldColumns,
+                    'old_views' => $oldViews,
                     'needs_migration' => (count($oldTables) > 0 || $oldColumns > 0)
                 ]);
                 break;
@@ -91,22 +99,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $skipped = [];
                 $errors = [];
                 
-                // Transaction starten
-                $transactionStarted = false;
-                try {
-                    $pdo->beginTransaction();
-                    $transactionStarted = true;
-                    $pdo->exec("SET FOREIGN_KEY_CHECKS=0");
-                } catch (Exception $e) {
-                    $errors[] = "Transaction-Start: " . $e->getMessage();
-                }
+                $pdo->exec("SET FOREIGN_KEY_CHECKS=0");
                 
-                // Tabellen umbenennen
+                // 1. TABELLEN umbenennen
                 $rename = [
                     'customer_freebies' => 'user_freebies',
                     'customer_freebie_limits' => 'user_freebie_limits',
                     'customer_courses' => 'user_courses',
-                    'customer_progress' => 'user_progress'
+                    'customer_progress' => 'user_progress',
+                    'customer_tutorials' => 'user_tutorials'
                 ];
                 
                 foreach ($rename as $old => $new) {
@@ -118,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             
                             if ($newExists) {
                                 $pdo->exec("DROP TABLE IF EXISTS `$old`");
-                                $skipped[] = "$old (Ziel existiert, alte gelöscht)";
+                                $skipped[] = "$old → gelöscht (Ziel existiert)";
                             } else {
                                 $pdo->exec("RENAME TABLE `$old` TO `$new`");
                                 $changes[] = "Tabelle: $old → $new";
@@ -129,9 +130,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
                 
-                // Spalten umbenennen
-                $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-                foreach ($tables as $table) {
+                // 2. SPALTEN umbenennen (nur echte Tabellen!)
+                $tables = $pdo->query("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'")->fetchAll(PDO::FETCH_NUM);
+                
+                foreach ($tables as $row) {
+                    $table = $row[0];
+                    
                     try {
                         $hasOld = $pdo->query("SHOW COLUMNS FROM `$table` LIKE 'customer_id'")->fetch();
                         
@@ -140,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             
                             if ($hasNew) {
                                 $pdo->exec("ALTER TABLE `$table` DROP COLUMN customer_id");
-                                $skipped[] = "$table.customer_id (user_id existiert, alte gelöscht)";
+                                $skipped[] = "$table.customer_id → gelöscht (user_id existiert)";
                             } else {
                                 $col = $pdo->query("SHOW COLUMNS FROM `$table` WHERE Field = 'customer_id'")->fetch();
                                 $type = $col['Type'];
@@ -150,19 +154,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             }
                         }
                     } catch (Exception $e) {
-                        $errors[] = "Spalte $table: " . $e->getMessage();
+                        $errors[] = "$table: " . $e->getMessage();
                     }
                 }
                 
-                // Transaction beenden
-                try {
-                    if ($transactionStarted) {
-                        $pdo->exec("SET FOREIGN_KEY_CHECKS=1");
-                        $pdo->commit();
+                // 3. VIEWS updaten (falls vorhanden)
+                $views = $pdo->query("SHOW FULL TABLES WHERE Table_type = 'VIEW'")->fetchAll(PDO::FETCH_NUM);
+                
+                foreach ($views as $row) {
+                    $view = $row[0];
+                    
+                    try {
+                        // View Definition holen
+                        $viewDef = $pdo->query("SHOW CREATE VIEW `$view`")->fetch();
+                        $createView = $viewDef['Create View'];
+                        
+                        // Ersetze customer_ mit user_
+                        $newCreateView = str_replace('customer_', 'user_', $createView);
+                        $newCreateView = str_replace('customer_id', 'user_id', $newCreateView);
+                        
+                        if ($newCreateView !== $createView) {
+                            // View droppen und neu erstellen
+                            $pdo->exec("DROP VIEW IF EXISTS `$view`");
+                            $pdo->exec($newCreateView);
+                            $changes[] = "View: $view aktualisiert";
+                        }
+                    } catch (Exception $e) {
+                        $errors[] = "View $view: " . $e->getMessage();
                     }
-                } catch (Exception $e) {
-                    $errors[] = "Commit: " . $e->getMessage();
                 }
+                
+                $pdo->exec("SET FOREIGN_KEY_CHECKS=1");
                 
                 ob_clean();
                 echo json_encode([
@@ -179,15 +201,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $oldColumns = 0;
                 $newTables = 0;
                 
-                $checkNew = ['user_freebies', 'user_freebie_limits'];
-                foreach ($checkNew as $table) {
-                    if ($pdo->query("SHOW TABLES LIKE '$table'")->fetch()) {
-                        $newTables++;
-                    }
-                }
+                // Nur echte Tabellen prüfen
+                $tables = $pdo->query("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'")->fetchAll(PDO::FETCH_NUM);
                 
-                $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-                foreach ($tables as $table) {
+                foreach ($tables as $row) {
+                    $table = $row[0];
                     try {
                         if ($pdo->query("SHOW COLUMNS FROM `$table` LIKE 'customer_id'")->fetch()) {
                             $oldColumns++;
@@ -195,12 +213,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } catch (Exception $e) {}
                 }
                 
+                $checkNew = ['user_freebies', 'user_freebie_limits'];
+                foreach ($checkNew as $table) {
+                    if ($pdo->query("SHOW TABLES LIKE '$table'")->fetch()) {
+                        $newTables++;
+                    }
+                }
+                
                 $success = (count($oldTables) === 0 && $oldColumns === 0 && $newTables > 0);
                 
                 ob_clean();
                 echo json_encode([
                     'success' => $success,
-                    'old_tables' => count($oldTables),
+                    'old_tables' => $oldTables,
+                    'old_tables_count' => count($oldTables),
                     'old_columns' => $oldColumns,
                     'new_tables' => $newTables
                 ]);
@@ -211,15 +237,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
     } catch (Exception $e) {
-        // Nur rollback wenn Transaction aktiv
-        if ($pdo && method_exists($pdo, 'inTransaction') && $pdo->inTransaction()) {
-            try {
-                $pdo->rollBack();
-            } catch (Exception $rollbackError) {
-                // Ignorieren
-            }
-        }
-        
         ob_clean();
         echo json_encode([
             'success' => false, 
@@ -245,7 +262,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 20px;
         }
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             background: white;
             border-radius: 20px;
@@ -258,7 +275,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 40px;
             text-align: center;
         }
-        .header h1 { font-size: 32px; margin-bottom: 10px; }
+        .header h1 { font-size: 32px; }
         .content { padding: 40px; }
         .step {
             background: #f8f9fa;
@@ -281,7 +298,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             color: white;
             margin: 5px;
         }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn:disabled { opacity: 0.5; }
         .btn-secondary { background: #f1f5f9; color: #64748b; }
         .result {
             background: #f9fafb;
@@ -290,13 +307,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-top: 15px;
             font-family: monospace;
             font-size: 13px;
-            max-height: 300px;
+            max-height: 400px;
             overflow-y: auto;
             display: none;
         }
         .success { color: #10b981; font-weight: 600; }
         .error { color: #ef4444; font-weight: 600; }
-        .warning { background: #fff3cd; border: 2px solid #ffc107; border-radius: 10px; padding: 20px; margin-bottom: 30px; }
         .spinner {
             display: inline-block;
             width: 14px;
@@ -308,20 +324,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         .info-box { background: #e0e7ff; border: 2px solid #6366f1; border-radius: 8px; padding: 15px; margin-top: 15px; }
+        .list { margin-left: 20px; line-height: 1.8; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>🔄 Migration Tool</h1>
-            <p>customer_id → user_id</p>
+            <p>customer_id → user_id (mit View-Support)</p>
         </div>
         
         <div class="content">
-            <div class="warning">
-                <strong>⚠️ WICHTIG:</strong> Migration läuft automatisch, Browser nicht schließen!
-            </div>
-            
             <div class="step active" id="step0">
                 <h3>0️⃣ System-Check</h3>
                 <button class="btn" onclick="runCheck()">Starten</button>
@@ -353,7 +366,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         async function callApi(action, button) {
             const txt = button.textContent;
             button.disabled = true;
-            button.innerHTML = '<span class="spinner"></span> ...';
+            button.innerHTML = '<span class="spinner"></span>';
             
             try {
                 const res = await fetch('', {
@@ -363,10 +376,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 });
                 
                 const text = await res.text();
-                if (!text.trim().startsWith('{')) {
-                    console.error('Response:', text);
-                    throw new Error('Ungültige Antwort vom Server');
-                }
+                if (!text.trim().startsWith('{')) throw new Error('Ungültige Antwort');
                 
                 button.textContent = txt;
                 return JSON.parse(text);
@@ -383,7 +393,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 r.style.display = 'block';
                 
                 if (data.success) {
-                    r.innerHTML = '<span class="success">✅ OK</span><br>Tabellen: ' + data.old_tables + '<br>Spalten: ' + data.old_columns;
+                    let html = '<span class="success">✅ System-Check OK</span><br><br>';
+                    html += '<strong>Gefunden:</strong><br>';
+                    if (data.old_tables.length > 0) {
+                        html += '📋 Alte Tabellen:<br><div class="list">';
+                        data.old_tables.forEach(t => html += '• ' + t + '<br>');
+                        html += '</div>';
+                    }
+                    html += '• Alte Spalten: ' + data.old_columns + '<br>';
+                    if (data.old_views.length > 0) {
+                        html += '👁️ Views mit customer:<br><div class="list">';
+                        data.old_views.forEach(v => html += '• ' + v + '<br>');
+                        html += '</div>';
+                    }
+                    
+                    r.innerHTML = html;
                     document.getElementById('step0').classList.add('complete');
                     document.getElementById('btn1').disabled = false;
                     document.getElementById('step1').classList.add('active');
@@ -399,11 +423,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 const data = await callApi('backup', event.target);
                 const r = document.getElementById('result1');
                 r.style.display = 'block';
-                
-                if (data.success) {
-                    r.innerHTML = '<span class="success">✅ ' + data.file + ' (' + data.size + ')</span>';
-                    completeStep(1);
-                }
+                r.innerHTML = data.success ? '<span class="success">✅ ' + data.file + '</span>' : '<span class="error">❌</span>';
+                completeStep(1);
             } catch (e) {
                 document.getElementById('result1').innerHTML = '<span class="error">❌ ' + e.message + '</span>';
                 document.getElementById('result1').style.display = 'block';
@@ -424,21 +445,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 const r = document.getElementById('result2');
                 r.style.display = 'block';
                 
-                let html = data.success ? '<span class="success">✅ Erfolg!</span><br><br>' : '<span class="error">⚠️ Mit Fehlern</span><br><br>';
+                let html = data.success ? '<span class="success">✅ Migration abgeschlossen!</span><br><br>' : '<span class="error">⚠️ Mit Problemen</span><br><br>';
                 
-                if (data.changes) {
-                    html += '<strong>Geändert:</strong><br>';
-                    data.changes.forEach(c => html += '✓ ' + c + '<br>');
+                if (data.changes && data.changes.length > 0) {
+                    html += '<strong>✓ Geändert:</strong><br><div class="list">';
+                    data.changes.forEach(c => html += '• ' + c + '<br>');
+                    html += '</div><br>';
                 }
                 
-                if (data.skipped) {
-                    html += '<br><strong>Übersprungen:</strong><br>';
-                    data.skipped.forEach(s => html += '⊘ ' + s + '<br>');
+                if (data.skipped && data.skipped.length > 0) {
+                    html += '<strong>⊘ Übersprungen:</strong><br><div class="list">';
+                    data.skipped.forEach(s => html += '• ' + s + '<br>');
+                    html += '</div><br>';
                 }
                 
                 if (data.errors && data.errors.length > 0) {
-                    html += '<br><strong>Fehler:</strong><br>';
-                    data.errors.forEach(e => html += '❌ ' + e + '<br>');
+                    html += '<strong>❌ Fehler:</strong><br><div class="list">';
+                    data.errors.forEach(e => html += '• ' + e + '<br>');
+                    html += '</div>';
                 }
                 
                 r.innerHTML = html;
@@ -456,11 +480,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 r.style.display = 'block';
                 
                 if (data.success) {
-                    r.innerHTML = '<span class="success">🎉 FERTIG!</span><br><br>' +
-                                 '<div class="info-box">Lösche jetzt:<br>• migrate-browser.php<br>• make-admin.php<br>• check-session.php</div>';
+                    r.innerHTML = '<span class="success">🎉 MIGRATION ERFOLGREICH!</span><br><br>' +
+                                 '<div class="info-box"><strong>✅ Fertig!</strong><br><br>' +
+                                 'Lösche jetzt diese Dateien:<br>' +
+                                 '• migrate-browser.php<br>' +
+                                 '• make-admin.php<br>' +
+                                 '• check-session.php</div>';
                     document.getElementById('step3').classList.add('complete');
                 } else {
-                    r.innerHTML = '❌ Alte Tabellen: ' + data.old_tables + '<br>Alte Spalten: ' + data.old_columns;
+                    let html = '<span class="error">❌ Noch nicht fertig</span><br><br>';
+                    if (data.old_tables.length > 0) {
+                        html += '📋 Noch vorhandene customer_* Tabellen:<br><div class="list">';
+                        data.old_tables.forEach(t => html += '• ' + t + '<br>');
+                        html += '</div>';
+                    }
+                    html += '• Alte Spalten: ' + data.old_columns + '<br>';
+                    html += '• Neue Tabellen: ' + data.new_tables;
+                    r.innerHTML = html;
                 }
             } catch (e) {
                 document.getElementById('result3').innerHTML = '<span class="error">❌ ' + e.message + '</span>';
