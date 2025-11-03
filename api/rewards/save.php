@@ -2,6 +2,14 @@
 /**
  * API: Belohnungsstufe erstellen/aktualisieren
  * POST /api/rewards/save.php
+ * 
+ * Body: {
+ *   "freebie_id": 123,  // Optional: Verknüpfung zu Freebie
+ *   "tier_level": 1,
+ *   "tier_name": "Bronze",
+ *   "required_referrals": 3,
+ *   ...
+ * }
  */
 
 header('Content-Type: application/json');
@@ -35,6 +43,7 @@ try {
     $pdo = getDBConnection();
     $user_id = $_SESSION['user_id'];
     $id = $input['id'] ?? null;
+    $freebie_id = isset($input['freebie_id']) && $input['freebie_id'] > 0 ? (int)$input['freebie_id'] : null;
     
     // Validierung
     if ($input['tier_level'] < 1 || $input['tier_level'] > 50) {
@@ -45,10 +54,30 @@ try {
         throw new Exception('Mindestens 1 Empfehlung erforderlich');
     }
     
+    // Falls Freebie-ID angegeben, prüfen ob User Zugriff hat
+    if ($freebie_id) {
+        $stmt = $pdo->prepare("
+            SELECT f.id
+            FROM freebies f
+            LEFT JOIN customer_freebies cf ON f.id = cf.freebie_id AND cf.customer_id = ?
+            WHERE f.id = ?
+            AND f.is_active = 1
+            AND (
+                f.customer_id = ?
+                OR cf.is_unlocked = 1
+            )
+        ");
+        $stmt->execute([$user_id, $freebie_id, $user_id]);
+        if (!$stmt->fetch()) {
+            throw new Exception('Kein Zugriff auf dieses Freebie');
+        }
+    }
+    
     if ($id) {
         // UPDATE
         $stmt = $pdo->prepare("
             UPDATE reward_definitions SET
+                freebie_id = ?,
                 tier_level = ?,
                 tier_name = ?,
                 tier_description = ?,
@@ -73,6 +102,7 @@ try {
         ");
         
         $result = $stmt->execute([
+            $freebie_id,
             $input['tier_level'],
             $input['tier_name'],
             $input['tier_description'] ?? null,
@@ -102,17 +132,18 @@ try {
         // INSERT
         $stmt = $pdo->prepare("
             INSERT INTO reward_definitions (
-                user_id, tier_level, tier_name, tier_description,
+                user_id, freebie_id, tier_level, tier_name, tier_description,
                 required_referrals, reward_type, reward_title, reward_description,
                 reward_value, reward_download_url, reward_access_code,
                 reward_instructions, reward_icon, reward_color,
                 is_active, is_featured, auto_deliver,
                 notification_subject, notification_body, sort_order
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         
         $stmt->execute([
             $user_id,
+            $freebie_id,
             $input['tier_level'],
             $input['tier_name'],
             $input['tier_description'] ?? null,
@@ -141,7 +172,10 @@ try {
     echo json_encode([
         'success' => true,
         'message' => $message,
-        'data' => ['id' => $id]
+        'data' => [
+            'id' => $id,
+            'freebie_id' => $freebie_id
+        ]
     ]);
     
 } catch (PDOException $e) {
@@ -158,7 +192,7 @@ try {
         http_response_code(500);
         echo json_encode([
             'success' => false,
-            'error' => 'Datenbankfehler'
+            'error' => 'Datenbankfehler: ' . $e->getMessage()
         ]);
     }
 } catch (Exception $e) {
