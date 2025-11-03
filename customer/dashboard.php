@@ -346,6 +346,10 @@ $page = $_GET['page'] ?? 'overview';
                 <span class="nav-icon">🎁</span>
                 <span>Freebies</span>
             </a>
+            <a href="?page=empfehlungsprogramm" class="nav-item <?php echo $page === 'empfehlungsprogramm' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
+                <span class="nav-icon">🚀</span>
+                <span>Empfehlungsprogramm</span>
+            </a>
             <a href="?page=fortschritt" class="nav-item <?php echo $page === 'fortschritt' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
                 <span class="nav-icon">📈</span>
                 <span>Fortschritt</span>
@@ -406,6 +410,16 @@ $page = $_GET['page'] ?? 'overview';
                     include $section_file;
                 } else {
                     echo '<div style="padding: 32px; text-align: center;"><h3>Seite wird geladen...</h3></div>';
+                }
+                ?>
+            
+            <?php elseif ($page === 'empfehlungsprogramm'): ?>
+                <?php 
+                $section_file = __DIR__ . '/sections/empfehlungsprogramm.php';
+                if (file_exists($section_file)) {
+                    include $section_file;
+                } else {
+                    echo '<div style="padding: 32px; text-align: center;"><h3>Empfehlungsprogramm wird geladen...</h3></div>';
                 }
                 ?>
             
