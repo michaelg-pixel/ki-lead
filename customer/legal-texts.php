@@ -9,23 +9,23 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
 }
 
 $conn = getDBConnection();
-$customer_id = $_SESSION['user_id'];
+$user_id = $_SESSION['user_id'];
 
 // Rechtstexte laden oder erstellen
-$stmt = $conn->prepare("SELECT * FROM legal_texts WHERE customer_id = ?");
-$stmt->execute([$customer_id]);
+$stmt = $conn->prepare("SELECT * FROM legal_texts WHERE user_id = ?");
+$stmt->execute([$user_id]);
 $legal_texts = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$legal_texts) {
     // Standard-Texte erstellen
     $stmt = $conn->prepare("
-        INSERT INTO legal_texts (customer_id, impressum, datenschutz) 
+        INSERT INTO legal_texts (user_id, impressum, datenschutz) 
         VALUES (?, '', '')
     ");
-    $stmt->execute([$customer_id]);
+    $stmt->execute([$user_id]);
     
-    $stmt = $conn->prepare("SELECT * FROM legal_texts WHERE customer_id = ?");
-    $stmt->execute([$customer_id]);
+    $stmt = $conn->prepare("SELECT * FROM legal_texts WHERE user_id = ?");
+    $stmt->execute([$user_id]);
     $legal_texts = $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
@@ -37,15 +37,15 @@ if (isset($_POST['save_legal_texts'])) {
     $stmt = $conn->prepare("
         UPDATE legal_texts 
         SET impressum = ?, datenschutz = ? 
-        WHERE customer_id = ?
+        WHERE user_id = ?
     ");
-    $stmt->execute([$impressum, $datenschutz, $customer_id]);
+    $stmt->execute([$impressum, $datenschutz, $user_id]);
     
     $success = "Rechtstexte erfolgreich gespeichert!";
     
     // Neu laden
-    $stmt = $conn->prepare("SELECT * FROM legal_texts WHERE customer_id = ?");
-    $stmt->execute([$customer_id]);
+    $stmt = $conn->prepare("SELECT * FROM legal_texts WHERE user_id = ?");
+    $stmt->execute([$user_id]);
     $legal_texts = $stmt->fetch(PDO::FETCH_ASSOC);
 }
 ?>
@@ -253,9 +253,9 @@ if (isset($_POST['save_legal_texts'])) {
                 <div class="bg-gray-50 p-4 rounded-lg">
                     <div class="text-sm text-gray-600 mb-2 font-semibold">Impressum-Link</div>
                     <code class="text-xs bg-white px-3 py-2 rounded block break-all">
-                        /impressum.php?customer=<?= $customer_id ?>
+                        /impressum.php?user=<?= $user_id ?>
                     </code>
-                    <a href="/impressum.php?customer=<?= $customer_id ?>" target="_blank" 
+                    <a href="/impressum.php?user=<?= $user_id ?>" target="_blank" 
                        class="text-xs text-purple-600 hover:text-purple-700 mt-2 inline-block">
                         <i class="fas fa-external-link-alt mr-1"></i> Vorschau öffnen
                     </a>
@@ -263,9 +263,9 @@ if (isset($_POST['save_legal_texts'])) {
                 <div class="bg-gray-50 p-4 rounded-lg">
                     <div class="text-sm text-gray-600 mb-2 font-semibold">Datenschutz-Link</div>
                     <code class="text-xs bg-white px-3 py-2 rounded block break-all">
-                        /datenschutz.php?customer=<?= $customer_id ?>
+                        /datenschutz.php?user=<?= $user_id ?>
                     </code>
-                    <a href="/datenschutz.php?customer=<?= $customer_id ?>" target="_blank" 
+                    <a href="/datenschutz.php?user=<?= $user_id ?>" target="_blank" 
                        class="text-xs text-purple-600 hover:text-purple-700 mt-2 inline-block">
                         <i class="fas fa-external-link-alt mr-1"></i> Vorschau öffnen
                     </a>
