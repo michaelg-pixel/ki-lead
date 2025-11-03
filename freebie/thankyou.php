@@ -98,6 +98,12 @@ if (!empty($freebie['course_id'])) {
     $video_course_url = $freebie['video_course_url'];
 }
 
+// Lead Login / Dashboard URL
+$dashboard_url = '';
+if ($customer_id) {
+    $dashboard_url = '/customer/dashboard.php?customer=' . $customer_id . '&freebie=' . $freebie_id;
+}
+
 // Mockup-Bild des Kurses oder Freebie
 $mockup_image = $freebie['course_mockup'] ?? $freebie['mockup_image_url'] ?? '';
 
@@ -237,6 +243,16 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             font-size: 80px;
         }
         
+        /* Button Container */
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            max-width: 600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        
         /* Main CTA Button */
         .cta-button {
             display: inline-flex;
@@ -254,7 +270,6 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             text-decoration: none;
             box-shadow: 0 10px 30px var(--primary-light);
             transition: all 0.3s;
-            margin-bottom: 16px;
             position: relative;
             overflow: hidden;
         }
@@ -289,10 +304,63 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             50% { transform: scale(1.1); }
         }
         
+        /* Secondary Dashboard Button */
+        .dashboard-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            background: white;
+            color: var(--primary);
+            padding: 20px 48px;
+            border: 3px solid var(--primary);
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .dashboard-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 100%;
+            background: var(--primary);
+            transition: width 0.3s;
+            z-index: 0;
+        }
+        
+        .dashboard-button:hover::before {
+            width: 100%;
+        }
+        
+        .dashboard-button:hover {
+            color: white;
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px var(--primary-light);
+        }
+        
+        .dashboard-button span {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .dashboard-button .cta-icon {
+            position: relative;
+            z-index: 1;
+        }
+        
         .access-info {
             color: #9ca3af;
             font-size: 14px;
             font-weight: 500;
+            margin-top: 12px;
         }
         
         /* Bookmark Banner */
@@ -491,6 +559,12 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
                 font-size: 18px;
             }
             
+            .dashboard-button {
+                width: 100%;
+                padding: 18px 36px;
+                font-size: 16px;
+            }
+            
             .bookmark-banner {
                 flex-direction: column;
                 text-align: center;
@@ -532,16 +606,26 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
                 </div>
             <?php endif; ?>
             
-            <?php if (!empty($video_course_url)): ?>
-                <a href="<?php echo htmlspecialchars($video_course_url); ?>" class="cta-button">
-                    <span class="cta-icon">🚀</span>
-                    <span><?php echo htmlspecialchars($video_button_text); ?></span>
-                </a>
+            <!-- Button Container mit beiden Buttons -->
+            <div class="button-container">
+                <?php if (!empty($video_course_url)): ?>
+                    <a href="<?php echo htmlspecialchars($video_course_url); ?>" class="cta-button">
+                        <span class="cta-icon">🚀</span>
+                        <span><?php echo htmlspecialchars($video_button_text); ?></span>
+                    </a>
+                <?php endif; ?>
                 
-                <p class="access-info">
-                    ⚡ Sofortiger Zugang • Keine Wartezeit • Direkt loslegen
-                </p>
-            <?php endif; ?>
+                <?php if (!empty($dashboard_url)): ?>
+                    <a href="<?php echo htmlspecialchars($dashboard_url); ?>" class="dashboard-button">
+                        <span class="cta-icon">📊</span>
+                        <span>Zum Dashboard</span>
+                    </a>
+                <?php endif; ?>
+            </div>
+            
+            <p class="access-info">
+                ⚡ Sofortiger Zugang • Keine Wartezeit • Direkt loslegen
+            </p>
         </div>
         
         <!-- Bookmark Banner -->
