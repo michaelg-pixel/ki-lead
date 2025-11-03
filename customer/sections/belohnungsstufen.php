@@ -1,12 +1,52 @@
 <?php
 /**
  * Customer Dashboard - Belohnungsstufen verwalten
- * Sektion für customer/dashboard.php
+ * Mit Freebie-Verknüpfung aus Empfehlungsprogramm
  */
 
 // Sicherstellen, dass Session aktiv ist
 if (!isset($customer_id)) {
     die('Nicht autorisiert');
+}
+
+// Freebie-ID aus URL oder Session holen
+$freebie_id = isset($_GET['freebie_id']) ? (int)$_GET['freebie_id'] : null;
+
+// Wenn Freebie-ID in URL, in Session speichern
+if ($freebie_id) {
+    $_SESSION['selected_freebie_id'] = $freebie_id;
+} elseif (isset($_SESSION['selected_freebie_id'])) {
+    $freebie_id = $_SESSION['selected_freebie_id'];
+}
+
+// Freebie-Details laden wenn ID vorhanden
+$selected_freebie = null;
+if ($freebie_id) {
+    try {
+        $stmt = $pdo->prepare("
+            SELECT 
+                f.id,
+                f.title,
+                f.description,
+                f.image_path,
+                CASE 
+                    WHEN f.customer_id = ? THEN 'own'
+                    ELSE 'unlocked'
+                END as freebie_type
+            FROM freebies f
+            LEFT JOIN customer_freebies cf ON f.id = cf.freebie_id AND cf.customer_id = ?
+            WHERE f.id = ?
+            AND f.is_active = 1
+            AND (
+                f.customer_id = ?
+                OR cf.is_unlocked = 1
+            )
+        ");
+        $stmt->execute([$customer_id, $customer_id, $freebie_id, $customer_id]);
+        $selected_freebie = $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log("Freebie Load Error: " . $e->getMessage());
+    }
 }
 ?>
 
@@ -161,12 +201,37 @@ if (!isset($customer_id)) {
             color: #9ca3af;
         }
         
-        .error-box {
-            background: rgba(239, 68, 68, 0.1);
-            border: 2px solid #ef4444;
+        .error-box, .warning-box, .info-box {
             border-radius: 1rem;
             padding: 2rem;
             text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .error-box {
+            background: rgba(239, 68, 68, 0.1);
+            border: 2px solid #ef4444;
+        }
+        
+        .warning-box {
+            background: rgba(245, 158, 11, 0.1);
+            border: 2px solid #f59e0b;
+        }
+        
+        .info-box {
+            background: rgba(59, 130, 246, 0.1);
+            border: 2px solid #3b82f6;
+        }
+        
+        .freebie-info-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 1rem;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
         }
         
         @media (max-width: 640px) {
@@ -181,6 +246,11 @@ if (!isset($customer_id)) {
             .btn {
                 padding: 0.625rem 1.25rem;
                 font-size: 0.875rem;
+            }
+            
+            .freebie-info-card {
+                flex-direction: column;
+                text-align: center;
             }
         }
     </style>
@@ -208,8 +278,59 @@ if (!isset($customer_id)) {
             </div>
         </div>
         
+        <!-- Freebie-Auswahl Info -->
+        <?php if ($selected_freebie): ?>
+        <div class="freebie-info-card animate-fade-in" style="opacity: 0; animation-delay: 0.1s;">
+            <?php if (!empty($selected_freebie['image_path'])): ?>
+            <div style="width: 60px; height: 60px; border-radius: 0.5rem; overflow: hidden; background: #111827; flex-shrink: 0;">
+                <img src="<?php echo htmlspecialchars($selected_freebie['image_path']); ?>" 
+                     alt="<?php echo htmlspecialchars($selected_freebie['title']); ?>"
+                     style="width: 100%; height: 100%; object-fit: cover;">
+            </div>
+            <?php else: ?>
+            <div style="width: 60px; height: 60px; border-radius: 0.5rem; background: rgba(255, 255, 255, 0.2); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0;">
+                <i class="fas fa-gift"></i>
+            </div>
+            <?php endif; ?>
+            
+            <div style="flex: 1;">
+                <div style="color: rgba(255, 255, 255, 0.7); font-size: 0.8125rem; margin-bottom: 0.25rem;">
+                    Ausgewähltes Freebie
+                </div>
+                <h3 style="color: white; font-size: 1.125rem; font-weight: 600; margin-bottom: 0.25rem;">
+                    <?php echo htmlspecialchars($selected_freebie['title']); ?>
+                </h3>
+                <?php if (!empty($selected_freebie['description'])): ?>
+                <p style="color: rgba(255, 255, 255, 0.8); font-size: 0.8125rem;">
+                    <?php echo htmlspecialchars(substr($selected_freebie['description'], 0, 80)) . (strlen($selected_freebie['description']) > 80 ? '...' : ''); ?>
+                </p>
+                <?php endif; ?>
+            </div>
+            
+            <a href="?page=empfehlungsprogramm" style="color: white; background: rgba(255, 255, 255, 0.2); padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-size: 0.875rem; white-space: nowrap;">
+                <i class="fas fa-exchange-alt"></i> Ändern
+            </a>
+        </div>
+        <?php else: ?>
+        <div class="warning-box animate-fade-in" style="opacity: 0; animation-delay: 0.1s;">
+            <div style="font-size: 3rem; color: #f59e0b; margin-bottom: 1rem;">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 style="color: white; font-size: 1.5rem; margin-bottom: 1rem;">
+                Kein Freebie ausgewählt
+            </h3>
+            <p style="color: #9ca3af; margin-bottom: 2rem; font-size: 1rem;">
+                Bitte wähle zuerst ein Freebie auf der Empfehlungsprogramm-Seite aus, für das du Belohnungen erstellen möchtest.
+            </p>
+            <a href="?page=empfehlungsprogramm" class="btn btn-primary">
+                <i class="fas fa-gift"></i>
+                Zum Empfehlungsprogramm
+            </a>
+        </div>
+        <?php endif; ?>
+        
         <!-- Loading State -->
-        <div id="loadingState" style="text-align: center; padding: 4rem 2rem;">
+        <div id="loadingState" style="display: <?php echo $selected_freebie ? 'block' : 'none'; ?>; text-align: center; padding: 4rem 2rem;">
             <div style="font-size: 3rem; color: #667eea; margin-bottom: 1rem;">
                 <i class="fas fa-spinner fa-spin"></i>
             </div>
@@ -250,7 +371,7 @@ if (!isset($customer_id)) {
                 Noch keine Belohnungsstufen
             </h3>
             <p style="color: #9ca3af; margin-bottom: 2rem;">
-                Erstelle deine erste Belohnungsstufe für dein Empfehlungsprogramm
+                Erstelle deine erste Belohnungsstufe für dieses Freebie
             </p>
             <button onclick="openRewardModal()" class="btn btn-primary">
                 <i class="fas fa-plus"></i>
@@ -273,6 +394,7 @@ if (!isset($customer_id)) {
             
             <form id="rewardForm" onsubmit="saveReward(event)">
                 <input type="hidden" id="rewardId" name="id">
+                <input type="hidden" id="rewardFreebieId" name="freebie_id" value="<?php echo $freebie_id ?? ''; ?>">
                 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
                     
@@ -402,15 +524,20 @@ if (!isset($customer_id)) {
     
     <script>
         let rewards = [];
+        let freebieId = <?php echo $freebie_id ?? 'null'; ?>;
         
         // Seite laden
         document.addEventListener('DOMContentLoaded', function() {
-            loadRewards();
+            if (freebieId) {
+                loadRewards();
+            }
         });
         
         // Belohnungen laden
         function loadRewards() {
-            fetch('/api/rewards/list.php')
+            const url = freebieId ? `/api/rewards/list.php?freebie_id=${freebieId}` : '/api/rewards/list.php';
+            
+            fetch(url)
                 .then(response => response.json())
                 .then(data => {
                     document.getElementById('loadingState').style.display = 'none';
@@ -537,9 +664,15 @@ if (!isset($customer_id)) {
         
         // Modal öffnen (neu)
         function openRewardModal() {
+            if (!freebieId) {
+                showNotification('Bitte wähle zuerst ein Freebie aus', 'error');
+                return;
+            }
+            
             document.getElementById('modalTitle').textContent = 'Neue Belohnungsstufe';
             document.getElementById('rewardForm').reset();
             document.getElementById('rewardId').value = '';
+            document.getElementById('rewardFreebieId').value = freebieId;
             document.querySelector('[name="reward_icon"]').value = 'fa-gift';
             document.querySelector('[name="reward_color"]').value = '#667eea';
             document.querySelector('[name="is_active"]').checked = true;
@@ -582,13 +715,18 @@ if (!isset($customer_id)) {
         function saveReward(event) {
             event.preventDefault();
             
+            if (!freebieId) {
+                showNotification('Kein Freebie ausgewählt', 'error');
+                return;
+            }
+            
             const formData = new FormData(event.target);
             const data = {};
             
             formData.forEach((value, key) => {
                 if (key === 'is_active' || key === 'is_featured' || key === 'auto_deliver') {
                     data[key] = formData.has(key);
-                } else if (key === 'tier_level' || key === 'required_referrals') {
+                } else if (key === 'tier_level' || key === 'required_referrals' || key === 'freebie_id') {
                     data[key] = parseInt(value);
                 } else {
                     data[key] = value;
@@ -598,6 +736,9 @@ if (!isset($customer_id)) {
             // ID hinzufügen wenn vorhanden
             const id = document.getElementById('rewardId').value;
             if (id) data.id = parseInt(id);
+            
+            // Freebie-ID sicherstellen
+            data.freebie_id = freebieId;
             
             fetch('/api/rewards/save.php', {
                 method: 'POST',
