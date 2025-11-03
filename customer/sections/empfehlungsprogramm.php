@@ -69,6 +69,8 @@ try {
             f.name as title,
             f.description,
             f.mockup_image_url as image_path,
+            f.user_id,
+            f.created_at,
             CASE 
                 WHEN f.user_id = ? THEN 'own'
                 ELSE 'unlocked'
