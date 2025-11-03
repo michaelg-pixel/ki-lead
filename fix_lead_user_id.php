@@ -1,7 +1,7 @@
 <?php
 /**
  * Migration: Verknüpfe bestehende Leads mit ihren Customers
- * Setzt fehlende user_id basierend auf referred_by Referral-Code
+ * Korrigierte Version mit richtigen Spaltennamen
  */
 
 require_once __DIR__ . '/config/database.php';
@@ -9,29 +9,86 @@ require_once __DIR__ . '/config/database.php';
 try {
     $db = getDBConnection();
     
-    echo "=== Lead User-ID Migration ===\n\n";
+    echo "=== Lead User-ID Migration (Korrigiert) ===\n\n";
     
-    // Schritt 1: Finde alle Leads ohne user_id aber mit referred_by
-    $stmt = $db->query("
+    // Schritt 0: Prüfe Tabellenstruktur
+    echo "=== Tabellenstruktur prüfen ===\n";
+    $stmt = $db->query("DESCRIBE lead_users");
+    $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    echo "Vorhandene Spalten in lead_users:\n";
+    foreach ($columns as $col) {
+        echo "  - {$col['Field']} ({$col['Type']})\n";
+    }
+    echo "\n";
+    
+    // Finde die richtige Spalte für den Referral-Code
+    $referrer_column = null;
+    foreach ($columns as $col) {
+        if (in_array($col['Field'], ['referred_by', 'referrer_code', 'ref_code', 'referral_code'])) {
+            $referrer_column = $col['Field'];
+            break;
+        }
+    }
+    
+    if (!$referrer_column) {
+        echo "❌ Keine passende Referrer-Spalte gefunden!\n";
+        echo "Verfügbare Spalten: " . implode(', ', array_column($columns, 'Field')) . "\n";
+        exit(1);
+    }
+    
+    echo "✓ Verwende Spalte: {$referrer_column}\n\n";
+    
+    // Schritt 1: Finde alle Leads ohne user_id aber mit Referrer-Code
+    $query = "
         SELECT 
             lu.id,
             lu.email,
             lu.name,
-            lu.referred_by,
+            lu.{$referrer_column} as referrer_code,
+            lu.user_id,
             lu.created_at
         FROM lead_users lu
         WHERE lu.user_id IS NULL 
-        AND lu.referred_by IS NOT NULL
+        AND lu.{$referrer_column} IS NOT NULL
         ORDER BY lu.created_at DESC
-    ");
+    ";
     
+    $stmt = $db->query($query);
     $leadsWithoutUserId = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $count = count($leadsWithoutUserId);
     
-    echo "Gefunden: {$count} Leads ohne user_id aber mit referred_by\n\n";
+    echo "Gefunden: {$count} Leads ohne user_id aber mit Referrer-Code\n\n";
     
     if ($count === 0) {
         echo "✅ Keine Leads zum Aktualisieren gefunden.\n";
+        
+        // Zeige trotzdem Beispiel-Leads
+        echo "\n=== Aktuelle Leads (erste 5) ===\n";
+        $stmt = $db->query("
+            SELECT 
+                lu.id,
+                lu.email,
+                lu.user_id,
+                lu.{$referrer_column} as referrer_code,
+                u.company_name
+            FROM lead_users lu
+            LEFT JOIN users u ON lu.user_id = u.id
+            ORDER BY lu.created_at DESC
+            LIMIT 5
+        ");
+        $examples = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        foreach ($examples as $ex) {
+            echo sprintf(
+                "ID: %d | Email: %s | user_id: %s | Referrer: %s | Company: %s\n",
+                $ex['id'],
+                $ex['email'],
+                $ex['user_id'] ?? 'NULL',
+                $ex['referrer_code'] ?? 'NULL',
+                $ex['company_name'] ?? 'N/A'
+            );
+        }
         exit;
     }
     
@@ -39,8 +96,27 @@ try {
     $updated = 0;
     $failed = 0;
     
+    // Prüfe welche Spalte in users für ref_code verwendet wird
+    $stmt = $db->query("DESCRIBE users");
+    $userColumns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $userRefColumn = null;
+    
+    foreach ($userColumns as $col) {
+        if (in_array($col['Field'], ['ref_code', 'referral_code', 'reference_code'])) {
+            $userRefColumn = $col['Field'];
+            break;
+        }
+    }
+    
+    if (!$userRefColumn) {
+        echo "❌ Keine Referral-Code Spalte in users Tabelle gefunden!\n";
+        exit(1);
+    }
+    
+    echo "✓ Users Tabelle verwendet Spalte: {$userRefColumn}\n\n";
+    
     foreach ($leadsWithoutUserId as $lead) {
-        $refCode = $lead['referred_by'];
+        $refCode = $lead['referrer_code'];
         
         echo "Lead: {$lead['email']} (ID: {$lead['id']})\n";
         echo "  Referral-Code: {$refCode}\n";
@@ -49,7 +125,7 @@ try {
         $stmt = $db->prepare("
             SELECT id, email, company_name 
             FROM users 
-            WHERE referral_code = ?
+            WHERE {$userRefColumn} = ?
             LIMIT 1
         ");
         $stmt->execute([$refCode]);
@@ -69,7 +145,7 @@ try {
             echo "  ✅ user_id gesetzt: {$customer['id']}\n\n";
             $updated++;
         } else {
-            echo "  ❌ Kein Customer mit Referral-Code '{$refCode}' gefunden\n\n";
+            echo "  ❌ Kein Customer mit {$userRefColumn}='{$refCode}' gefunden\n\n";
             $failed++;
         }
     }
@@ -86,7 +162,7 @@ try {
             lu.id,
             lu.email,
             lu.user_id,
-            lu.referred_by,
+            lu.{$referrer_column} as referrer_code,
             u.company_name
         FROM lead_users lu
         LEFT JOIN users u ON lu.user_id = u.id
@@ -97,10 +173,11 @@ try {
     
     foreach ($examples as $ex) {
         echo sprintf(
-            "ID: %d | Email: %s | user_id: %s | Company: %s\n",
+            "ID: %d | Email: %s | user_id: %s | Referrer: %s | Company: %s\n",
             $ex['id'],
             $ex['email'],
             $ex['user_id'] ?? 'NULL',
+            $ex['referrer_code'] ?? 'NULL',
             $ex['company_name'] ?? 'N/A'
         );
     }
