@@ -404,11 +404,11 @@ function validateSystem() {
 </head>
 <body class="bg-gradient-to-br from-indigo-50 via-white to-purple-50 min-h-screen">
 
-<!-- Debug Console (immer sichtbar) -->
-<div id="debugConsole" class="fixed bottom-4 right-4 max-w-md bg-gray-900 text-green-400 text-xs font-mono p-4 rounded-lg shadow-2xl max-h-64 overflow-y-auto" style="display: none;">
+<!-- Debug Console (immer sichtbar beim Start) -->
+<div id="debugConsole" class="fixed bottom-4 right-4 max-w-md bg-gray-900 text-green-400 text-xs font-mono p-4 rounded-lg shadow-2xl max-h-64 overflow-y-auto">
     <div class="flex items-center justify-between mb-2">
         <span class="font-bold">🐛 Debug Console</span>
-        <button onclick="document.getElementById('debugConsole').style.display='none'" class="text-red-400 hover:text-red-300">✕</button>
+        <button onclick="toggleDebugConsole()" class="text-red-400 hover:text-red-300">✕</button>
     </div>
     <div id="debugOutput"></div>
 </div>
@@ -485,11 +485,6 @@ rm <?php echo BASE_PATH; ?>/install-referral-web.php
                 <div class="text-6xl mb-4">🚀</div>
                 <h1 class="text-4xl font-bold text-gray-900 mb-2">Referral-System Installer</h1>
                 <p class="text-lg text-gray-600">Automatische Installation in wenigen Minuten</p>
-                
-                <!-- Debug Toggle -->
-                <button onclick="toggleDebug()" class="mt-4 px-4 py-2 bg-gray-800 text-gray-300 text-xs rounded hover:bg-gray-700 transition">
-                    🐛 Debug-Console anzeigen
-                </button>
             </div>
             
             <!-- Token-Eingabe -->
@@ -498,7 +493,7 @@ rm <?php echo BASE_PATH; ?>/install-referral-web.php
                 <p class="text-gray-600 mb-4">Bitte gib den Installations-Token ein:</p>
                 <div class="flex gap-4">
                     <input type="password" id="tokenInput" placeholder="Token eingeben..." class="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition">
-                    <button onclick="verifyToken()" class="px-8 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-semibold">
+                    <button onclick="verifyToken()" id="verifyBtn" class="px-8 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-semibold">
                         Verifizieren
                     </button>
                 </div>
@@ -511,46 +506,88 @@ rm <?php echo BASE_PATH; ?>/install-referral-web.php
             
             <!-- Installations-Schritte -->
             <div id="installSection" class="hidden space-y-6">
-                <!-- Schritt 1-6 wie vorher, aber mit id="stepX" -->
-                <?php for ($i = 1; $i <= 6; $i++): 
-                    $titles = [
-                        1 => '1️⃣ Anforderungen prüfen',
-                        2 => '2️⃣ Logs-Ordner erstellen',
-                        3 => '3️⃣ Datenbank migrieren',
-                        4 => '4️⃣ Berechtigungen setzen',
-                        5 => '5️⃣ Test-Daten erstellen',
-                        6 => '6️⃣ System validieren'
-                    ];
-                    $actions = [
-                        1 => 'check_requirements',
-                        2 => 'create_logs',
-                        3 => 'migrate_database',
-                        4 => 'set_permissions',
-                        5 => 'create_test_data',
-                        6 => 'validate_system'
-                    ];
-                    $opacity = $i > 1 ? 'opacity-50' : '';
-                ?>
-                <div class="bg-white rounded-2xl shadow-xl p-8 <?php echo $opacity; ?>" id="step<?php echo $i; ?>">
+                <!-- Schritt 1 -->
+                <div class="bg-white rounded-2xl shadow-xl p-8" id="step1">
                     <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-xl font-bold text-gray-900"><?php echo $titles[$i]; ?></h3>
-                        <div id="step<?php echo $i; ?>-status"></div>
+                        <h3 class="text-xl font-bold text-gray-900">1️⃣ Anforderungen prüfen</h3>
+                        <div id="step1-status"></div>
                     </div>
-                    <div id="step<?php echo $i; ?>-content" class="text-gray-600">
-                        <button onclick="runStep('<?php echo $actions[$i]; ?>', <?php echo $i; ?>)" 
-                                class="px-6 py-3 <?php echo $i === 1 ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-400 cursor-not-allowed'; ?> text-white rounded-lg transition"
-                                <?php echo $i > 1 ? 'disabled' : ''; ?>
-                                id="step<?php echo $i; ?>-btn">
-                            <?php echo $i === 1 ? 'Prüfung starten' : 'Warten...'; ?>
+                    <div id="step1-content" class="text-gray-600">
+                        <button onclick="executeStep('check_requirements', 1)" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition" id="step1-btn">
+                            Prüfung starten
                         </button>
                     </div>
                 </div>
-                <?php endfor; ?>
+                
+                <!-- Schritt 2 -->
+                <div class="bg-white rounded-2xl shadow-xl p-8 opacity-50" id="step2">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-gray-900">2️⃣ Logs-Ordner erstellen</h3>
+                        <div id="step2-status"></div>
+                    </div>
+                    <div id="step2-content" class="text-gray-600">
+                        <button onclick="executeStep('create_logs', 2)" class="px-6 py-3 bg-gray-400 cursor-not-allowed text-white rounded-lg transition" disabled id="step2-btn">
+                            Warten...
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Schritt 3 -->
+                <div class="bg-white rounded-2xl shadow-xl p-8 opacity-50" id="step3">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-gray-900">3️⃣ Datenbank migrieren</h3>
+                        <div id="step3-status"></div>
+                    </div>
+                    <div id="step3-content" class="text-gray-600">
+                        <button onclick="executeStep('migrate_database', 3)" class="px-6 py-3 bg-gray-400 cursor-not-allowed text-white rounded-lg transition" disabled id="step3-btn">
+                            Warten...
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Schritt 4 -->
+                <div class="bg-white rounded-2xl shadow-xl p-8 opacity-50" id="step4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-gray-900">4️⃣ Berechtigungen setzen</h3>
+                        <div id="step4-status"></div>
+                    </div>
+                    <div id="step4-content" class="text-gray-600">
+                        <button onclick="executeStep('set_permissions', 4)" class="px-6 py-3 bg-gray-400 cursor-not-allowed text-white rounded-lg transition" disabled id="step4-btn">
+                            Warten...
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Schritt 5 -->
+                <div class="bg-white rounded-2xl shadow-xl p-8 opacity-50" id="step5">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-gray-900">5️⃣ Test-Daten erstellen</h3>
+                        <div id="step5-status"></div>
+                    </div>
+                    <div id="step5-content" class="text-gray-600">
+                        <button onclick="executeStep('create_test_data', 5)" class="px-6 py-3 bg-gray-400 cursor-not-allowed text-white rounded-lg transition" disabled id="step5-btn">
+                            Warten...
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Schritt 6 -->
+                <div class="bg-white rounded-2xl shadow-xl p-8 opacity-50" id="step6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-gray-900">6️⃣ System validieren</h3>
+                        <div id="step6-status"></div>
+                    </div>
+                    <div id="step6-content" class="text-gray-600">
+                        <button onclick="executeStep('validate_system', 6)" class="px-6 py-3 bg-gray-400 cursor-not-allowed text-white rounded-lg transition" disabled id="step6-btn">
+                            Warten...
+                        </button>
+                    </div>
+                </div>
                 
                 <!-- Fertigstellen -->
                 <div class="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl shadow-xl p-8 text-white opacity-50" id="completeSection">
                     <h3 class="text-2xl font-bold mb-4">🎉 Installation abschließen</h3>
-                    <button onclick="completeInstall()" class="px-8 py-3 bg-white text-green-600 rounded-lg hover:bg-gray-100 transition font-semibold cursor-not-allowed" disabled id="complete-btn">
+                    <button onclick="completeInstallation()" class="px-8 py-3 bg-white text-green-600 rounded-lg hover:bg-gray-100 transition font-semibold cursor-not-allowed" disabled id="complete-btn">
                         Installation abschließen
                     </button>
                 </div>
@@ -560,174 +597,282 @@ rm <?php echo BASE_PATH; ?>/install-referral-web.php
 <?php endif; ?>
 
 <script>
+// Globale Variablen
 let installToken = '';
 let currentStep = 0;
 
+// Debug-Funktionen
 function debugLog(message) {
     const output = document.getElementById('debugOutput');
     const time = new Date().toLocaleTimeString();
-    output.innerHTML += `[${time}] ${message}<br>`;
+    const logEntry = `[${time}] ${message}`;
+    output.innerHTML += logEntry + '<br>';
     output.scrollTop = output.scrollHeight;
-    console.log(message);
+    console.log(logEntry);
 }
 
-function toggleDebug() {
+function toggleDebugConsole() {
     const console = document.getElementById('debugConsole');
     console.style.display = console.style.display === 'none' ? 'block' : 'none';
 }
 
+// Token-Verifizierung
 function verifyToken() {
-    debugLog('🔑 Token-Verifizierung gestartet...');
-    const token = document.getElementById('tokenInput').value;
-    debugLog('Token eingegeben: ' + token.substring(0, 5) + '...');
+    debugLog('🔑 verifyToken() aufgerufen');
+    
+    const tokenInput = document.getElementById('tokenInput');
+    const token = tokenInput.value.trim();
+    const verifyBtn = document.getElementById('verifyBtn');
+    
+    debugLog('Token-Länge: ' + token.length);
+    debugLog('Erwarteter Token: <?php echo INSTALL_TOKEN; ?>');
+    
+    if (!token) {
+        debugLog('❌ Kein Token eingegeben');
+        alert('Bitte gib einen Token ein!');
+        return;
+    }
+    
+    verifyBtn.disabled = true;
+    verifyBtn.innerHTML = 'Prüfe...';
     
     if (token === '<?php echo INSTALL_TOKEN; ?>') {
         debugLog('✅ Token korrekt!');
         installToken = token;
+        
+        // UI aktualisieren
         document.getElementById('tokenSection').classList.add('hidden');
         document.getElementById('installSection').classList.remove('hidden');
-        toggleDebug(); // Debug-Console automatisch anzeigen
+        
+        debugLog('✅ Installation UI angezeigt');
     } else {
-        debugLog('❌ Token ungültig!');
-        alert('❌ Ungültiger Token!');
+        debugLog('❌ Token ungültig: ' + token);
+        alert('❌ Ungültiger Token! Bitte überprüfe deine Eingabe.');
+        verifyBtn.disabled = false;
+        verifyBtn.innerHTML = 'Verifizieren';
     }
 }
 
-async function runStep(action, stepNumber) {
-    debugLog(`🚀 Schritt ${stepNumber}: ${action} wird ausgeführt...`);
+// Enter-Taste für Token-Eingabe
+document.addEventListener('DOMContentLoaded', function() {
+    debugLog('✨ DOM geladen');
+    
+    const tokenInput = document.getElementById('tokenInput');
+    if (tokenInput) {
+        tokenInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                debugLog('⏎ Enter gedrückt in Token-Feld');
+                verifyToken();
+            }
+        });
+    }
+});
+
+// Installations-Schritt ausführen
+async function executeStep(action, stepNumber) {
+    debugLog(`🚀 executeStep() aufgerufen: action="${action}", step=${stepNumber}`);
+    
+    if (!installToken) {
+        debugLog('❌ Kein Token vorhanden!');
+        alert('Fehler: Kein Token vorhanden!');
+        return;
+    }
     
     const btn = document.getElementById(`step${stepNumber}-btn`);
     const status = document.getElementById(`step${stepNumber}-status`);
     const content = document.getElementById(`step${stepNumber}-content`);
     
-    // Loading
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full"></span> Wird ausgeführt...';
-    status.innerHTML = '<span class="text-yellow-500">⏳</span>';
+    if (!btn || !status || !content) {
+        debugLog(`❌ Elemente für Schritt ${stepNumber} nicht gefunden!`);
+        return;
+    }
     
     try {
+        // Button deaktivieren
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full"></span> Wird ausgeführt...';
+        status.innerHTML = '<span class="text-yellow-500">⏳</span>';
+        
+        debugLog(`📦 Erstelle FormData für action: ${action}`);
+        
+        // POST-Request erstellen
         const formData = new FormData();
         formData.append('token', installToken);
         formData.append('action', action);
         
-        debugLog(`📡 Sende POST-Request für Action: ${action}`);
+        debugLog(`📡 Sende POST-Request an: ${window.location.href}`);
         
         const response = await fetch(window.location.href, {
             method: 'POST',
             body: formData
         });
         
-        debugLog(`📥 Response erhalten. Status: ${response.status}`);
+        debugLog(`📥 Response erhalten: status=${response.status}, ok=${response.ok}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP-Fehler: ${response.status} ${response.statusText}`);
+        }
+        
+        const contentType = response.headers.get('content-type');
+        debugLog(`📄 Content-Type: ${contentType}`);
+        
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            debugLog(`❌ Keine JSON-Response! Inhalt: ${text.substring(0, 200)}`);
+            throw new Error('Server hat kein JSON zurückgegeben!');
+        }
         
         const result = await response.json();
-        debugLog(`📊 JSON geparst. Success: ${result.success}`);
+        debugLog(`📊 JSON geparst: success=${result.success}, message="${result.message}"`);
         
         if (result.debug) {
             debugLog(`🐛 Debug-Info: ${JSON.stringify(result.debug)}`);
         }
         
         if (result.success) {
-            debugLog(`✅ Schritt ${stepNumber} erfolgreich!`);
-            status.innerHTML = '<span class="text-green-500 text-2xl">✅</span>';
-            btn.innerHTML = '✓ Abgeschlossen';
-            btn.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
-            btn.classList.add('bg-green-500');
-            
-            // Details anzeigen
-            if (result.details || result.checks) {
-                let detailsHtml = '<div class="mt-4 p-4 bg-green-50 rounded-lg text-sm">';
-                detailsHtml += '<div class="font-semibold text-green-800 mb-2">' + result.message + '</div>';
-                
-                if (result.checks) {
-                    result.checks.forEach(check => {
-                        const icon = check.status || check.ok ? '✅' : '❌';
-                        const color = check.status || check.ok ? 'text-green-600' : 'text-red-600';
-                        detailsHtml += `<div class="flex items-center justify-between p-2 bg-white rounded mt-1">
-                            <span class="${color}">${icon} ${check.name || JSON.stringify(check)}</span>
-                            <span class="text-xs text-gray-600">${check.value || ''}</span>
-                        </div>`;
-                    });
-                } else if (Array.isArray(result.details)) {
-                    result.details.forEach(detail => {
-                        detailsHtml += '<div class="text-green-700">• ' + detail + '</div>';
-                    });
-                } else if (typeof result.details === 'object') {
-                    for (let key in result.details) {
-                        detailsHtml += '<div class="text-green-700">• ' + key + ': ' + JSON.stringify(result.details[key]) + '</div>';
-                    }
-                }
-                
-                detailsHtml += '</div>';
-                content.innerHTML += detailsHtml;
-            }
-            
-            // Nächsten Schritt aktivieren
-            if (stepNumber < 6) {
-                currentStep = stepNumber + 1;
-                debugLog(`➡️ Aktiviere Schritt ${currentStep}`);
-                const nextStep = document.getElementById(`step${currentStep}`);
-                const nextBtn = document.getElementById(`step${currentStep}-btn`);
-                nextStep.classList.remove('opacity-50');
-                nextBtn.disabled = false;
-                nextBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
-                nextBtn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
-                nextBtn.textContent = 'Ausführen';
-            } else {
-                debugLog(`🎉 Alle Schritte abgeschlossen!`);
-                const completeSection = document.getElementById('completeSection');
-                const completeBtn = document.getElementById('complete-btn');
-                completeSection.classList.remove('opacity-50');
-                completeBtn.disabled = false;
-                completeBtn.classList.remove('cursor-not-allowed');
-            }
-            
+            handleSuccess(stepNumber, result, btn, status, content);
         } else {
-            debugLog(`❌ Schritt ${stepNumber} fehlgeschlagen: ${result.message}`);
-            status.innerHTML = '<span class="text-red-500 text-2xl">❌</span>';
-            btn.innerHTML = '❌ Fehler';
-            btn.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
-            btn.classList.add('bg-red-500');
-            
-            content.innerHTML += '<div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">' + result.message + '</div>';
+            handleError(stepNumber, result, btn, status, content);
         }
         
     } catch (error) {
         debugLog(`💥 JavaScript-Fehler: ${error.message}`);
-        debugLog(`Stack: ${error.stack}`);
+        debugLog(`📚 Stack: ${error.stack}`);
+        
         status.innerHTML = '<span class="text-red-500 text-2xl">❌</span>';
         btn.innerHTML = '❌ Fehler';
         btn.classList.add('bg-red-500');
-        content.innerHTML += '<div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">Netzwerkfehler: ' + error.message + '<br><br>Öffne die Browser-Console (F12) für Details.</div>';
+        
+        content.innerHTML += `<div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
+            <strong>Fehler:</strong> ${error.message}<br>
+            <br>
+            <strong>Bitte öffne die Browser-Console (F12) für Details!</strong>
+        </div>`;
     }
 }
 
-async function completeInstall() {
-    debugLog('🏁 Finale Installation wird abgeschlossen...');
+function handleSuccess(stepNumber, result, btn, status, content) {
+    debugLog(`✅ Schritt ${stepNumber} erfolgreich!`);
+    
+    status.innerHTML = '<span class="text-green-500 text-2xl">✅</span>';
+    btn.innerHTML = '✓ Abgeschlossen';
+    btn.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+    btn.classList.add('bg-green-500');
+    
+    // Details anzeigen
+    let detailsHtml = '<div class="mt-4 p-4 bg-green-50 rounded-lg text-sm">';
+    detailsHtml += '<div class="font-semibold text-green-800 mb-2">' + result.message + '</div>';
+    
+    if (result.checks) {
+        result.checks.forEach(check => {
+            const icon = check.status || check.ok ? '✅' : '❌';
+            const color = check.status || check.ok ? 'text-green-600' : 'text-red-600';
+            detailsHtml += `<div class="flex items-center justify-between p-2 bg-white rounded mt-1">
+                <span class="${color}">${icon} ${check.name || JSON.stringify(check)}</span>
+                <span class="text-xs text-gray-600">${check.value || ''}</span>
+            </div>`;
+        });
+    } else if (Array.isArray(result.details)) {
+        result.details.forEach(detail => {
+            detailsHtml += '<div class="text-green-700">• ' + detail + '</div>';
+        });
+    } else if (typeof result.details === 'object') {
+        for (let key in result.details) {
+            detailsHtml += '<div class="text-green-700">• ' + key + ': ' + JSON.stringify(result.details[key]) + '</div>';
+        }
+    }
+    
+    detailsHtml += '</div>';
+    content.innerHTML += detailsHtml;
+    
+    // Nächsten Schritt aktivieren
+    if (stepNumber < 6) {
+        activateNextStep(stepNumber + 1);
+    } else {
+        // Installation abschlussbereit
+        debugLog('🎉 Alle Schritte abgeschlossen!');
+        const completeSection = document.getElementById('completeSection');
+        const completeBtn = document.getElementById('complete-btn');
+        completeSection.classList.remove('opacity-50');
+        completeBtn.disabled = false;
+        completeBtn.classList.remove('cursor-not-allowed');
+    }
+}
+
+function handleError(stepNumber, result, btn, status, content) {
+    debugLog(`❌ Schritt ${stepNumber} fehlgeschlagen: ${result.message}`);
+    
+    status.innerHTML = '<span class="text-red-500 text-2xl">❌</span>';
+    btn.innerHTML = '❌ Fehler';
+    btn.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+    btn.classList.add('bg-red-500');
+    
+    let errorHtml = '<div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">';
+    errorHtml += '<strong>Fehler:</strong> ' + result.message;
+    
+    if (result.debug) {
+        errorHtml += '<br><br><strong>Debug-Info:</strong><pre class="text-xs mt-2 bg-gray-100 p-2 rounded overflow-x-auto">' + JSON.stringify(result.debug, null, 2) + '</pre>';
+    }
+    
+    errorHtml += '</div>';
+    content.innerHTML += errorHtml;
+}
+
+function activateNextStep(nextStepNumber) {
+    debugLog(`➡️ Aktiviere Schritt ${nextStepNumber}`);
+    
+    currentStep = nextStepNumber;
+    const nextStep = document.getElementById(`step${nextStepNumber}`);
+    const nextBtn = document.getElementById(`step${nextStepNumber}-btn`);
+    
+    if (nextStep && nextBtn) {
+        nextStep.classList.remove('opacity-50');
+        nextBtn.disabled = false;
+        nextBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+        nextBtn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+        nextBtn.textContent = 'Ausführen';
+    }
+}
+
+async function completeInstallation() {
+    debugLog('🏁 Installation wird abgeschlossen...');
+    
     const btn = document.getElementById('complete-btn');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner inline-block w-5 h-5 border-2 border-green-600 border-t-transparent rounded-full"></span> Wird abgeschlossen...';
     
-    const formData = new FormData();
-    formData.append('token', installToken);
-    formData.append('action', 'complete_install');
-    
-    const response = await fetch(window.location.href, {
-        method: 'POST',
-        body: formData
-    });
-    
-    const result = await response.json();
-    
-    if (result.success) {
-        debugLog('✅ Installation abgeschlossen! Seite wird neu geladen...');
-        window.location.reload();
+    try {
+        const formData = new FormData();
+        formData.append('token', installToken);
+        formData.append('action', 'complete_install');
+        
+        const response = await fetch(window.location.href, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            debugLog('✅ Installation abgeschlossen! Seite wird neu geladen...');
+            window.location.reload();
+        } else {
+            throw new Error(result.message);
+        }
+    } catch (error) {
+        debugLog(`❌ Fehler beim Abschließen: ${error.message}`);
+        alert('Fehler: ' + error.message);
+        btn.disabled = false;
+        btn.innerHTML = 'Installation abschließen';
     }
 }
 
-// Bei Seitenladung Debug-Console anzeigen
-window.addEventListener('load', () => {
-    debugLog('✨ Installer geladen. Bereit zur Installation!');
-});
+// Initial-Log
+debugLog('✨ Installer-Seite geladen und bereit!');
+debugLog('🔍 Prüfe ob alle Funktionen verfügbar sind...');
+debugLog('✓ verifyToken: ' + (typeof verifyToken === 'function'));
+debugLog('✓ executeStep: ' + (typeof executeStep === 'function'));
+debugLog('✓ completeInstallation: ' + (typeof completeInstallation === 'function'));
 </script>
 
 </body>
