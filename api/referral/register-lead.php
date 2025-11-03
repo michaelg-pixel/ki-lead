@@ -5,6 +5,8 @@
  * UPDATED: Erstellt auch Eintrag in lead_users mit user_id Verknüpfung
  */
 
+session_start(); // Für temporäres Passwort
+
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
