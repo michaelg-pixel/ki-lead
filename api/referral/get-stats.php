@@ -1,7 +1,7 @@
 <?php
 /**
  * API: Get Referral Statistics
- * Für Customer-Dashboard
+ * Für User-Dashboard
  */
 
 header('Content-Type: application/json');
@@ -13,7 +13,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 // Session starten und Auth prüfen
 session_start();
 
-if (!isset($_SESSION['customer_id'])) {
+if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
     echo json_encode(['success' => false, 'error' => 'unauthorized']);
     exit;
@@ -22,27 +22,27 @@ if (!isset($_SESSION['customer_id'])) {
 try {
     $db = Database::getInstance()->getConnection();
     $referral = new ReferralHelper($db);
-    $customerId = $_SESSION['customer_id'];
+    $userId = $_SESSION['user_id'];
     
     // Hole Statistiken
-    $stats = $referral->getStats($customerId);
+    $stats = $referral->getStats($userId);
     
-    // Hole Customer-Daten
+    // Hole User-Daten
     $stmt = $db->prepare("
         SELECT referral_enabled, referral_code 
         FROM customers 
         WHERE id = ?
     ");
-    $stmt->execute([$customerId]);
-    $customer = $stmt->fetch(PDO::FETCH_ASSOC);
+    $stmt->execute([$userId]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$stats) {
         // Initialisiere Stats wenn nicht vorhanden
         $stmt = $db->prepare("
-            INSERT INTO referral_stats (customer_id) VALUES (?)
+            INSERT INTO referral_stats (user_id) VALUES (?)
         ");
-        $stmt->execute([$customerId]);
-        $stats = $referral->getStats($customerId);
+        $stmt->execute([$userId]);
+        $stats = $referral->getStats($userId);
     }
     
     // Hole letzte Klicks
@@ -52,11 +52,11 @@ try {
             ref_code,
             fingerprint
         FROM referral_clicks
-        WHERE customer_id = ?
+        WHERE user_id = ?
         ORDER BY created_at DESC
         LIMIT 10
     ");
-    $stmt->execute([$customerId]);
+    $stmt->execute([$userId]);
     $recentClicks = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Hole letzte Conversions
@@ -68,11 +68,11 @@ try {
             suspicious,
             time_to_convert
         FROM referral_conversions
-        WHERE customer_id = ?
+        WHERE user_id = ?
         ORDER BY created_at DESC
         LIMIT 10
     ");
-    $stmt->execute([$customerId]);
+    $stmt->execute([$userId]);
     $recentConversions = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Hole Leads
@@ -84,11 +84,11 @@ try {
             confirmed,
             reward_notified
         FROM referral_leads
-        WHERE customer_id = ?
+        WHERE user_id = ?
         ORDER BY created_at DESC
         LIMIT 20
     ");
-    $stmt->execute([$customerId]);
+    $stmt->execute([$userId]);
     $leads = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Hole Chart-Daten (letzte 30 Tage)
@@ -97,12 +97,12 @@ try {
             DATE(created_at) as date,
             COUNT(*) as count
         FROM referral_clicks
-        WHERE customer_id = ?
+        WHERE user_id = ?
             AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
         GROUP BY DATE(created_at)
         ORDER BY date ASC
     ");
-    $stmt->execute([$customerId]);
+    $stmt->execute([$userId]);
     $clicksChart = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     $stmt = $db->prepare("
@@ -110,20 +110,20 @@ try {
             DATE(created_at) as date,
             COUNT(*) as count
         FROM referral_conversions
-        WHERE customer_id = ?
+        WHERE user_id = ?
             AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
         GROUP BY DATE(created_at)
         ORDER BY date ASC
     ");
-    $stmt->execute([$customerId]);
+    $stmt->execute([$userId]);
     $conversionsChart = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     http_response_code(200);
     echo json_encode([
         'success' => true,
         'data' => [
-            'enabled' => (bool)$customer['referral_enabled'],
-            'ref_code' => $customer['referral_code'],
+            'enabled' => (bool)$user['referral_enabled'],
+            'ref_code' => $user['referral_code'],
             'stats' => [
                 'total_clicks' => (int)$stats['total_clicks'],
                 'unique_clicks' => (int)$stats['unique_clicks'],
