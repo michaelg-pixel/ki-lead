@@ -1,7 +1,7 @@
 <?php
 /**
  * API: Tracking Pixel für externe Seiten
- * URL: /api/referral/track.php?customer=123&ref=ABC123
+ * URL: /api/referral/track.php?user=123&ref=ABC123
  * Gibt 1x1 transparentes GIF zurück
  */
 
@@ -13,10 +13,10 @@ try {
     $db = Database::getInstance()->getConnection();
     $referral = new ReferralHelper($db);
     
-    $customerId = $_GET['customer'] ?? null;
+    $userId = $_GET['user'] ?? null;
     $refCode = $_GET['ref'] ?? null;
     
-    if ($refCode && $customerId) {
+    if ($refCode && $userId) {
         // Validiere Referral-Code
         if ($referral->validateRefCode($refCode)) {
             // Hole IP und UserAgent
@@ -29,7 +29,7 @@ try {
             
             // Track als Pixel-Conversion
             $referral->trackConversion(
-                $customerId,
+                $userId,
                 $refCode,
                 $ipHash,
                 $userAgent,
