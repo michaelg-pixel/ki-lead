@@ -1,6 +1,6 @@
 <?php
 /**
- * Freebie Public Page mit Cookie-Banner - Multi-Layout Support + Click Tracking
+ * Freebie Public Page mit Cookie-Banner + REFERRAL-TRACKING
  */
 
 error_reporting(E_ALL);
@@ -23,6 +23,10 @@ try {
 
 $identifier = $_GET['id'] ?? null;
 if (!$identifier) { http_response_code(404); die('No ID'); }
+
+// REFERRAL TRACKING
+$ref_code = isset($_GET['ref']) ? trim($_GET['ref']) : null;
+$customer_param = isset($_GET['customer']) ? intval($_GET['customer']) : null;
 
 $customer_id = null;
 $freebie_db_id = null;
@@ -54,6 +58,11 @@ try {
 
 if (!$freebie) { http_response_code(404); die('Not found'); }
 
+// Wenn customer-Parameter übergeben wurde, verwende diesen
+if ($customer_param) {
+    $customer_id = $customer_param;
+}
+
 $primaryColor = $freebie['primary_color'] ?? '#5b8def';
 $backgroundColor = $freebie['background_color'] ?? '#f8f9fc';
 $preheadline = $freebie['preheadline'] ?? '';
@@ -70,6 +79,9 @@ if (!empty($freebie['bullet_points'])) {
 
 $impressum_link = $customer_id ? "/impressum.php?customer=" . $customer_id : "/impressum.php";
 $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id : "/datenschutz.php";
+
+// Speichere Referral-Code für Later Use
+$referral_code_to_pass = $ref_code;
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -861,7 +873,53 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
     </div>
     
     <script>
-        // ===== CLICK TRACKING =====
+        // ===== REFERRAL TRACKING =====
+        const REFERRAL_CONFIG = {
+            customerId: <?php echo json_encode($customer_id); ?>,
+            refCode: <?php echo json_encode($referral_code_to_pass); ?>,
+            freebieId: <?php echo json_encode($freebie_db_id); ?>
+        };
+        
+        // Track Referral Click (wenn ref-Parameter vorhanden)
+        if (REFERRAL_CONFIG.refCode && REFERRAL_CONFIG.customerId) {
+            // Verhindere mehrfaches Tracking via LocalStorage
+            const storageKey = 'referral_click_' + REFERRAL_CONFIG.refCode;
+            const lastClick = localStorage.getItem(storageKey);
+            const now = Date.now();
+            
+            // Nur tracken wenn letzter Klick > 24h her oder noch nie geklickt
+            if (!lastClick || (now - parseInt(lastClick)) > 24 * 60 * 60 * 1000) {
+                fetch('/api/referral/track-click.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        customer_id: REFERRAL_CONFIG.customerId,
+                        ref_code: REFERRAL_CONFIG.refCode,
+                        referer: document.referrer
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('✓ Referral-Klick getrackt');
+                        localStorage.setItem(storageKey, now.toString());
+                        
+                        // Speichere ref für Danke-Seite
+                        sessionStorage.setItem('pending_ref_code', REFERRAL_CONFIG.refCode);
+                        sessionStorage.setItem('pending_ref_customer', REFERRAL_CONFIG.customerId);
+                        sessionStorage.setItem('ref_click_time', now.toString());
+                    }
+                })
+                .catch(err => console.error('Referral Tracking Error:', err));
+            } else {
+                console.log('⏭ Referral-Klick bereits getrackt (24h-Limit)');
+                // Trotzdem für Danke-Seite speichern
+                sessionStorage.setItem('pending_ref_code', REFERRAL_CONFIG.refCode);
+                sessionStorage.setItem('pending_ref_customer', REFERRAL_CONFIG.customerId);
+            }
+        }
+        
+        // ===== FREEBIE CLICK TRACKING =====
         <?php if ($freebie_db_id && $customer_id): ?>
         (function() {
             const trackingData = {
@@ -869,17 +927,14 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
                 customer_id: <?php echo json_encode($customer_id); ?>
             };
             
-            // Track Page View
             fetch('/api/track-freebie-click.php', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: new URLSearchParams(trackingData)
             })
             .then(response => response.json())
             .then(data => {
-                console.log('Tracking:', data.success ? '✓ Tracked' : '✗ Failed');
+                console.log('Freebie Tracking:', data.success ? '✓ Tracked' : '✗ Failed');
             })
             .catch(error => {
                 console.error('Tracking Error:', error);
@@ -906,7 +961,6 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
         
         function showCookieSettings(){
             document.getElementById('cookie-settings-modal').classList.add('show');
-            // Lade gespeicherte Einstellungen
             const analytics = localStorage.getItem('analyticsCookies') === 'true';
             const marketing = localStorage.getItem('marketingCookies') === 'true';
             document.getElementById('analytics-cookies').checked = analytics;
