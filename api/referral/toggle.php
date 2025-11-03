@@ -11,7 +11,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 
 session_start();
 
-if (!isset($_SESSION['customer_id'])) {
+if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
     echo json_encode(['success' => false, 'error' => 'unauthorized']);
     exit;
@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 try {
     $db = Database::getInstance()->getConnection();
-    $customerId = $_SESSION['customer_id'];
+    $userId = $_SESSION['user_id'];
     
     $input = json_decode(file_get_contents('php://input'), true);
     $enabled = $input['enabled'] ?? null;
@@ -39,7 +39,7 @@ try {
         SET referral_enabled = ? 
         WHERE id = ?
     ");
-    $stmt->execute([$enabled ? 1 : 0, $customerId]);
+    $stmt->execute([$enabled ? 1 : 0, $userId]);
     
     http_response_code(200);
     echo json_encode([
