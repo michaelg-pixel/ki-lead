@@ -2,6 +2,7 @@
 /**
  * Lead Login & Registrierung System
  * Für Empfehlungsprogramm Teilnehmer
+ * Verbesserte Version mit User-Zuordnung
  */
 
 require_once __DIR__ . '/config/database.php';
@@ -17,9 +18,15 @@ if (isset($_SESSION['lead_id'])) {
 $error = '';
 $success = '';
 
-// Registrierung über Referral Code
+// Registrierung über Referral Code + User ID
 if (isset($_GET['ref'])) {
     $_SESSION['referral_code'] = $_GET['ref'];
+    
+    // User ID aus Link übernehmen
+    if (isset($_GET['uid'])) {
+        $_SESSION['referral_user_id'] = intval($_GET['uid']);
+    }
+    
     $success = 'Du wurdest eingeladen! Registriere dich jetzt und profitiere vom Empfehlungsprogramm.';
 }
 
@@ -84,11 +91,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                 $api_token = bin2hex(random_bytes(32));
                 $password_hash = password_hash($password, PASSWORD_DEFAULT);
                 $referrer_code = $_SESSION['referral_code'] ?? null;
+                $user_id = $_SESSION['referral_user_id'] ?? null;
                 
                 $stmt = $db->prepare("
                     INSERT INTO lead_users 
-                    (name, email, password_hash, referral_code, api_token, referrer_code, registered_at) 
-                    VALUES (?, ?, ?, ?, ?, ?, NOW())
+                    (name, email, password_hash, referral_code, api_token, referrer_code, user_id, registered_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
                 ");
                 
                 $stmt->execute([
@@ -97,33 +105,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                     $password_hash,
                     $referral_code,
                     $api_token,
-                    $referrer_code
+                    $referrer_code,
+                    $user_id
                 ]);
                 
                 $lead_id = $db->lastInsertId();
                 
                 // Wenn Referrer vorhanden, tracken
                 if ($referrer_code) {
-                    // Referrer finden und Zähler erhöhen
-                    $stmt = $db->prepare("
-                        UPDATE lead_users 
-                        SET total_referrals = total_referrals + 1 
-                        WHERE referral_code = ?
-                    ");
-                    $stmt->execute([$referrer_code]);
-                    
-                    // Referral tracken
+                    // Referrer finden
                     $stmt = $db->prepare("SELECT id FROM lead_users WHERE referral_code = ?");
                     $stmt->execute([$referrer_code]);
                     $referrer = $stmt->fetch(PDO::FETCH_ASSOC);
                     
                     if ($referrer) {
+                        // Zähler beim Referrer erhöhen
+                        $stmt = $db->prepare("
+                            UPDATE lead_users 
+                            SET total_referrals = total_referrals + 1,
+                                successful_referrals = successful_referrals + 1
+                            WHERE id = ?
+                        ");
+                        $stmt->execute([$referrer['id']]);
+                        
+                        // Referral tracken
                         $stmt = $db->prepare("
                             INSERT INTO lead_referrals 
                             (referrer_id, referred_email, referred_name, referred_user_id, status, invited_at) 
                             VALUES (?, ?, ?, ?, 'active', NOW())
                         ");
                         $stmt->execute([$referrer['id'], $email, $name, $lead_id]);
+                        
+                        // Prüfe ob Belohnungs-Schwellen erreicht wurden
+                        checkAndUnlockRewards($db, $referrer['id']);
                     }
                 }
                 
@@ -131,12 +145,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                 $_SESSION['lead_id'] = $lead_id;
                 $_SESSION['lead_name'] = $name;
                 unset($_SESSION['referral_code']);
+                unset($_SESSION['referral_user_id']);
                 
                 header('Location: lead_dashboard.php');
                 exit;
             }
         } catch (Exception $e) {
             $error = 'Registrierung fehlgeschlagen: ' . $e->getMessage();
+        }
+    }
+}
+
+/**
+ * Prüft und schaltet Belohnungen frei wenn Schwellen erreicht wurden
+ */
+function checkAndUnlockRewards($db, $lead_id) {
+    // Lead-Daten mit successful_referrals holen
+    $stmt = $db->prepare("SELECT user_id, successful_referrals FROM lead_users WHERE id = ?");
+    $stmt->execute([$lead_id]);
+    $lead = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$lead || !$lead['user_id']) {
+        return;
+    }
+    
+    // Alle Belohnungen für diesen User laden
+    $stmt = $db->prepare("
+        SELECT id, tier_level, required_referrals, reward_title 
+        FROM reward_definitions 
+        WHERE user_id = ? AND is_active = 1
+        ORDER BY tier_level ASC
+    ");
+    $stmt->execute([$lead['user_id']]);
+    $rewards = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    foreach ($rewards as $reward) {
+        // Prüfe ob diese Belohnung freigeschaltet werden sollte
+        if ($lead['successful_referrals'] >= $reward['required_referrals']) {
+            // Prüfe ob bereits freigeschaltet
+            $stmt = $db->prepare("
+                SELECT id FROM referral_reward_tiers 
+                WHERE lead_id = ? AND tier_id = ?
+            ");
+            $stmt->execute([$lead_id, $reward['tier_level']]);
+            
+            if (!$stmt->fetch()) {
+                // Belohnung freischalten
+                $stmt = $db->prepare("
+                    INSERT INTO referral_reward_tiers 
+                    (lead_id, tier_id, tier_name, current_referrals, achieved_at) 
+                    VALUES (?, ?, ?, ?, NOW())
+                ");
+                $stmt->execute([
+                    $lead_id,
+                    $reward['tier_level'],
+                    $reward['reward_title'],
+                    $lead['successful_referrals']
+                ]);
+                
+                // Rewards_earned Zähler erhöhen
+                $stmt = $db->prepare("
+                    UPDATE lead_users 
+                    SET rewards_earned = rewards_earned + 1 
+                    WHERE id = ?
+                ");
+                $stmt->execute([$lead_id]);
+            }
         }
     }
 }
@@ -490,11 +564,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
             <div class="subtitle">Kostenlos registrieren und durchstarten</div>
             
             <?php if ($error): ?>
-                <div class="alert alert-error"><?php echo htmlspecialchars($error); ?></div>
+                <div class="alert alert-error">
+                    <i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error); ?>
+                </div>
             <?php endif; ?>
             
             <?php if ($success): ?>
-                <div class="alert alert-success"><?php echo htmlspecialchars($success); ?></div>
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success); ?>
+                </div>
             <?php endif; ?>
             
             <div class="tabs">
