@@ -98,10 +98,10 @@ if (!empty($freebie['course_id'])) {
     $video_course_url = $freebie['video_course_url'];
 }
 
-// Empfehlungsprogramm URL
+// Empfehlungsprogramm URL - ANGEPASST zur neuen Registrierungsseite
 $referral_url = '';
 if ($customer_id) {
-    $referral_url = '/customer/dashboard.php?customer=' . $customer_id . '&page=empfehlungsprogramm&freebie=' . $freebie_id;
+    $referral_url = '/customer/referral-register.php?customer=' . $customer_id . '&freebie=' . $freebie_id;
 }
 
 // Mockup-Bild des Kurses oder Freebie
