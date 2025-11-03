@@ -26,19 +26,18 @@ if ($freebie_id) {
         $stmt = $pdo->prepare("
             SELECT 
                 f.id,
-                f.title,
+                f.name as title,
                 f.description,
-                f.image_path,
+                f.mockup_image_url as image_path,
                 CASE 
-                    WHEN f.customer_id = ? THEN 'own'
+                    WHEN f.user_id = ? THEN 'own'
                     ELSE 'unlocked'
                 END as freebie_type
             FROM freebies f
             LEFT JOIN customer_freebies cf ON f.id = cf.freebie_id AND cf.customer_id = ?
             WHERE f.id = ?
-            AND f.is_active = 1
             AND (
-                f.customer_id = ?
+                f.user_id = ?
                 OR cf.is_unlocked = 1
             )
         ");
