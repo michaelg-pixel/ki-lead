@@ -20,6 +20,26 @@ try {
     $pdo = getDBConnection();
     $user_id = $_SESSION['user_id'];
     
+    // Prüfen ob Tabelle existiert
+    try {
+        $stmt = $pdo->query("SHOW TABLES LIKE 'reward_definitions'");
+        if ($stmt->rowCount() === 0) {
+            echo json_encode([
+                'success' => true,
+                'data' => [],
+                'count' => 0,
+                'message' => 'Tabelle reward_definitions existiert noch nicht. Bitte Setup ausführen.'
+            ]);
+            exit;
+        }
+    } catch (PDOException $e) {
+        echo json_encode([
+            'success' => false,
+            'error' => 'Datenbankprüfung fehlgeschlagen: ' . $e->getMessage()
+        ]);
+        exit;
+    }
+    
     // Alle Belohnungsstufen des Users laden
     $stmt = $pdo->prepare("
         SELECT 
@@ -50,11 +70,19 @@ try {
         'count' => count($rewards)
     ]);
     
+} catch (PDOException $e) {
+    error_log("Reward List Error: " . $e->getMessage());
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Datenbankfehler: ' . $e->getMessage(),
+        'sql_error_code' => $e->getCode()
+    ]);
 } catch (Exception $e) {
     error_log("Reward List Error: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'error' => 'Datenbankfehler'
+        'error' => 'Serverfehler: ' . $e->getMessage()
     ]);
 }
