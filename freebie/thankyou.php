@@ -98,10 +98,22 @@ if (!empty($freebie['course_id'])) {
     $video_course_url = $freebie['video_course_url'];
 }
 
-// Empfehlungsprogramm URL - ANGEPASST zur neuen Registrierungsseite
+// Empfehlungsprogramm URL - Lead-Registrierung
 $referral_url = '';
 if ($customer_id) {
-    $referral_url = '/customer/referral-register.php?customer=' . $customer_id . '&freebie=' . $freebie_id;
+    // Referral Code des Customers holen
+    try {
+        $stmt = $pdo->prepare("SELECT ref_code FROM users WHERE id = ?");
+        $stmt->execute([$customer_id]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        $ref_code = $user['ref_code'] ?? '';
+        
+        if ($ref_code) {
+            $referral_url = '/lead_login.php?ref=' . $ref_code;
+        }
+    } catch (PDOException $e) {
+        // Fehler ignorieren
+    }
 }
 
 // Mockup-Bild des Kurses oder Freebie
