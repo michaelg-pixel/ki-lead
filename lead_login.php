@@ -31,13 +31,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     if ($email && $password) {
         try {
             $db = getDBConnection();
-            $stmt = $db->prepare("SELECT id, name, password_hash FROM referral_leads WHERE email = ?");
+            $stmt = $db->prepare("SELECT id, name, password_hash FROM lead_users WHERE email = ?");
             $stmt->execute([$email]);
             $lead = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($lead && password_verify($password, $lead['password_hash'])) {
                 $_SESSION['lead_id'] = $lead['id'];
                 $_SESSION['lead_name'] = $lead['name'];
+                
+                // Last login aktualisieren
+                $stmt = $db->prepare("UPDATE lead_users SET last_login_at = NOW() WHERE id = ?");
+                $stmt->execute([$lead['id']]);
+                
                 header('Location: lead_dashboard.php');
                 exit;
             } else {
@@ -69,19 +74,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
             $db = getDBConnection();
             
             // Prüfen ob E-Mail bereits existiert
-            $stmt = $db->prepare("SELECT id FROM referral_leads WHERE email = ?");
+            $stmt = $db->prepare("SELECT id FROM lead_users WHERE email = ?");
             $stmt->execute([$email]);
             if ($stmt->fetch()) {
                 $error = 'E-Mail bereits registriert';
             } else {
                 // Lead erstellen
-                $referral_code = substr(md5($email . time()), 0, 10);
+                $referral_code = 'LEAD' . strtoupper(substr(md5($email . time()), 0, 8));
                 $api_token = bin2hex(random_bytes(32));
                 $password_hash = password_hash($password, PASSWORD_DEFAULT);
                 $referrer_code = $_SESSION['referral_code'] ?? null;
                 
                 $stmt = $db->prepare("
-                    INSERT INTO referral_leads 
+                    INSERT INTO lead_users 
                     (name, email, password_hash, referral_code, api_token, referrer_code, registered_at) 
                     VALUES (?, ?, ?, ?, ?, ?, NOW())
                 ");
@@ -99,12 +104,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                 
                 // Wenn Referrer vorhanden, tracken
                 if ($referrer_code) {
+                    // Referrer finden und Zähler erhöhen
                     $stmt = $db->prepare("
-                        UPDATE referral_leads 
+                        UPDATE lead_users 
                         SET total_referrals = total_referrals + 1 
                         WHERE referral_code = ?
                     ");
                     $stmt->execute([$referrer_code]);
+                    
+                    // Referral tracken
+                    $stmt = $db->prepare("SELECT id FROM lead_users WHERE referral_code = ?");
+                    $stmt->execute([$referrer_code]);
+                    $referrer = $stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($referrer) {
+                        $stmt = $db->prepare("
+                            INSERT INTO lead_referrals 
+                            (referrer_id, referred_email, referred_name, referred_user_id, status, invited_at) 
+                            VALUES (?, ?, ?, ?, 'active', NOW())
+                        ");
+                        $stmt->execute([$referrer['id'], $email, $name, $lead_id]);
+                    }
                 }
                 
                 // Auto-Login
