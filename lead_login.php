@@ -1,6 +1,6 @@
 <?php
 /**
- * Lead Login System
+ * Lead Login & Registrierung System
  * Für Empfehlungsprogramm Teilnehmer
  */
 
@@ -20,7 +20,7 @@ $success = '';
 // Registrierung über Referral Code
 if (isset($_GET['ref'])) {
     $_SESSION['referral_code'] = $_GET['ref'];
-    $success = 'Du wurdest eingeladen! Registriere dich jetzt.';
+    $success = 'Du wurdest eingeladen! Registriere dich jetzt und profitiere vom Empfehlungsprogramm.';
 }
 
 // Login verarbeiten
@@ -146,44 +146,162 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lead Login - Empfehlungsprogramm</title>
+    <title>Empfehlungsprogramm - Jetzt teilnehmen!</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             padding: 20px;
         }
-        .container {
+        
+        .page-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+        
+        /* Info Section */
+        .info-section {
             background: white;
             border-radius: 20px;
             padding: 40px;
-            max-width: 450px;
-            width: 100%;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         }
+        
+        .info-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .info-title {
+            font-size: 36px;
+            font-weight: 900;
+            color: #111827;
+            margin-bottom: 16px;
+            line-height: 1.2;
+        }
+        
+        .info-subtitle {
+            font-size: 18px;
+            color: #6b7280;
+            margin-bottom: 32px;
+            line-height: 1.6;
+        }
+        
+        .benefits-list {
+            margin-bottom: 32px;
+        }
+        
+        .benefit-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 20px;
+            padding: 16px;
+            background: linear-gradient(135deg, #f9fafb, #f3f4f6);
+            border-radius: 12px;
+            border-left: 4px solid #10b981;
+        }
+        
+        .benefit-icon {
+            font-size: 28px;
+            flex-shrink: 0;
+        }
+        
+        .benefit-content h4 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1F2937;
+            margin-bottom: 6px;
+        }
+        
+        .benefit-content p {
+            font-size: 14px;
+            color: #6b7280;
+            line-height: 1.6;
+        }
+        
+        .how-it-works {
+            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+            border-radius: 16px;
+            padding: 24px;
+            margin-top: 24px;
+        }
+        
+        .how-it-works h3 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e40af;
+            margin-bottom: 16px;
+        }
+        
+        .how-step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            color: #1e3a8a;
+            font-size: 14px;
+        }
+        
+        .step-number {
+            width: 32px;
+            height: 32px;
+            background: #3b82f6;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        
+        /* Form Section */
+        .form-container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: sticky;
+            top: 20px;
+        }
+        
         h1 {
             color: #667eea;
             margin-bottom: 10px;
             font-size: 28px;
             text-align: center;
         }
+        
         .subtitle {
             text-align: center;
             color: #666;
             margin-bottom: 30px;
             font-size: 14px;
         }
+        
         .tabs {
             display: flex;
             gap: 10px;
             margin-bottom: 30px;
             border-bottom: 2px solid #e0e0e0;
         }
+        
         .tab {
             flex: 1;
             padding: 12px;
@@ -196,20 +314,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
             font-weight: 600;
             transition: all 0.3s;
         }
+        
         .tab.active {
             color: #667eea;
             border-bottom: 3px solid #667eea;
             margin-bottom: -2px;
         }
+        
         .form-content {
             display: none;
         }
+        
         .form-content.active {
             display: block;
         }
+        
         .form-group {
             margin-bottom: 20px;
         }
+        
         label {
             display: block;
             margin-bottom: 8px;
@@ -217,6 +340,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
             color: #333;
             font-size: 14px;
         }
+        
         input[type="text"],
         input[type="email"],
         input[type="password"] {
@@ -227,11 +351,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
             font-size: 15px;
             transition: all 0.3s;
         }
+        
         input:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
+        
         .btn {
             width: 100%;
             padding: 14px;
@@ -244,81 +370,179 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
             cursor: pointer;
             transition: transform 0.2s;
         }
+        
         .btn:hover {
             transform: translateY(-2px);
         }
+        
         .alert {
             padding: 12px 15px;
             border-radius: 8px;
             margin-bottom: 20px;
             font-size: 14px;
         }
+        
         .alert-error {
             background: #fee;
             color: #c33;
             border-left: 4px solid #f44;
         }
+        
         .alert-success {
             background: #d4edda;
             color: #155724;
             border-left: 4px solid #28a745;
         }
+        
+        /* Mobile */
+        @media (max-width: 968px) {
+            .page-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-container {
+                position: relative;
+                top: 0;
+            }
+            
+            .info-title {
+                font-size: 28px;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🎯 Lead Login</h1>
-        <div class="subtitle">Empfehlungsprogramm</div>
-        
-        <?php if ($error): ?>
-            <div class="alert alert-error"><?php echo htmlspecialchars($error); ?></div>
-        <?php endif; ?>
-        
-        <?php if ($success): ?>
-            <div class="alert alert-success"><?php echo htmlspecialchars($success); ?></div>
-        <?php endif; ?>
-        
-        <div class="tabs">
-            <button class="tab active" onclick="switchTab('login')">Login</button>
-            <button class="tab" onclick="switchTab('register')">Registrieren</button>
+    <div class="page-container">
+        <!-- Info Section -->
+        <div class="info-section">
+            <div class="info-badge">🎁 Exklusives Angebot</div>
+            <h2 class="info-title">Verdiene mit jedem Empfohlenen!</h2>
+            <p class="info-subtitle">
+                Werde Teil unseres exklusiven Empfehlungsprogramms und profitiere von attraktiven Belohnungen für jeden Lead, den du uns bringst.
+            </p>
+            
+            <div class="benefits-list">
+                <div class="benefit-item">
+                    <div class="benefit-icon">💰</div>
+                    <div class="benefit-content">
+                        <h4>Attraktive Belohnungen</h4>
+                        <p>Verdiene wertvolle Prämien für jeden Lead, den du erfolgreich empfiehlst. Je mehr du empfiehlst, desto höher deine Belohnungen!</p>
+                    </div>
+                </div>
+                
+                <div class="benefit-item">
+                    <div class="benefit-icon">🎯</div>
+                    <div class="benefit-content">
+                        <h4>Einfach zu nutzen</h4>
+                        <p>Erhalte deinen persönlichen Empfehlungslink und teile ihn einfach per E-Mail, WhatsApp oder Social Media.</p>
+                    </div>
+                </div>
+                
+                <div class="benefit-item">
+                    <div class="benefit-icon">📊</div>
+                    <div class="benefit-content">
+                        <h4>Live Tracking</h4>
+                        <p>Behalte alle deine Klicks, Conversions und Verdienste in Echtzeit im Blick – transparent und übersichtlich.</p>
+                    </div>
+                </div>
+                
+                <div class="benefit-item">
+                    <div class="benefit-icon">🏆</div>
+                    <div class="benefit-content">
+                        <h4>Bonus-System</h4>
+                        <p>Steige in höhere Belohnungsstufen auf und profitiere von exklusiven Boni und Sonderaktionen.</p>
+                    </div>
+                </div>
+                
+                <div class="benefit-item">
+                    <div class="benefit-icon">✅</div>
+                    <div class="benefit-content">
+                        <h4>100% Kostenlos</h4>
+                        <p>Keine versteckten Kosten, keine Gebühren. Die Teilnahme ist für dich vollkommen kostenlos!</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="how-it-works">
+                <h3><i class="fas fa-lightbulb"></i> So funktioniert's:</h3>
+                <div class="how-step">
+                    <div class="step-number">1</div>
+                    <span><strong>Registrieren:</strong> Erstelle dein kostenloses Konto (rechts im Formular)</span>
+                </div>
+                <div class="how-step">
+                    <div class="step-number">2</div>
+                    <span><strong>Link erhalten:</strong> Du bekommst deinen persönlichen Empfehlungslink</span>
+                </div>
+                <div class="how-step">
+                    <div class="step-number">3</div>
+                    <span><strong>Teilen:</strong> Teile den Link mit Freunden, Familie und deinem Netzwerk</span>
+                </div>
+                <div class="how-step">
+                    <div class="step-number">4</div>
+                    <span><strong>Verdienen:</strong> Erhalte Belohnungen für jeden generierten Lead</span>
+                </div>
+            </div>
         </div>
         
-        <!-- Login Form -->
-        <div id="login-form" class="form-content active">
-            <form method="POST">
-                <div class="form-group">
-                    <label>E-Mail</label>
-                    <input type="email" name="email" required>
-                </div>
-                <div class="form-group">
-                    <label>Passwort</label>
-                    <input type="password" name="password" required>
-                </div>
-                <button type="submit" name="login" class="btn">Einloggen</button>
-            </form>
-        </div>
-        
-        <!-- Register Form -->
-        <div id="register-form" class="form-content">
-            <form method="POST">
-                <div class="form-group">
-                    <label>Name</label>
-                    <input type="text" name="name" required>
-                </div>
-                <div class="form-group">
-                    <label>E-Mail</label>
-                    <input type="email" name="email" required>
-                </div>
-                <div class="form-group">
-                    <label>Passwort</label>
-                    <input type="password" name="password" required>
-                </div>
-                <div class="form-group">
-                    <label>Passwort bestätigen</label>
-                    <input type="password" name="password_confirm" required>
-                </div>
-                <button type="submit" name="register" class="btn">Registrieren</button>
-            </form>
+        <!-- Form Section -->
+        <div class="form-container">
+            <h1>🚀 Jetzt starten!</h1>
+            <div class="subtitle">Kostenlos registrieren und durchstarten</div>
+            
+            <?php if ($error): ?>
+                <div class="alert alert-error"><?php echo htmlspecialchars($error); ?></div>
+            <?php endif; ?>
+            
+            <?php if ($success): ?>
+                <div class="alert alert-success"><?php echo htmlspecialchars($success); ?></div>
+            <?php endif; ?>
+            
+            <div class="tabs">
+                <button class="tab <?php echo !isset($_POST['login']) ? 'active' : ''; ?>" onclick="switchTab('register')">Registrieren</button>
+                <button class="tab <?php echo isset($_POST['login']) ? 'active' : ''; ?>" onclick="switchTab('login')">Login</button>
+            </div>
+            
+            <!-- Register Form -->
+            <div id="register-form" class="form-content <?php echo !isset($_POST['login']) ? 'active' : ''; ?>">
+                <form method="POST">
+                    <div class="form-group">
+                        <label><i class="fas fa-user"></i> Name</label>
+                        <input type="text" name="name" required placeholder="Dein Name">
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-envelope"></i> E-Mail</label>
+                        <input type="email" name="email" required placeholder="deine@email.de">
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-lock"></i> Passwort</label>
+                        <input type="password" name="password" required placeholder="Mindestens 6 Zeichen">
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-lock"></i> Passwort bestätigen</label>
+                        <input type="password" name="password_confirm" required placeholder="Passwort wiederholen">
+                    </div>
+                    <button type="submit" name="register" class="btn">
+                        <i class="fas fa-rocket"></i> Kostenlos registrieren
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Login Form -->
+            <div id="login-form" class="form-content <?php echo isset($_POST['login']) ? 'active' : ''; ?>">
+                <form method="POST">
+                    <div class="form-group">
+                        <label><i class="fas fa-envelope"></i> E-Mail</label>
+                        <input type="email" name="email" required placeholder="deine@email.de">
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-lock"></i> Passwort</label>
+                        <input type="password" name="password" required placeholder="Dein Passwort">
+                    </div>
+                    <button type="submit" name="login" class="btn">
+                        <i class="fas fa-sign-in-alt"></i> Einloggen
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
     
