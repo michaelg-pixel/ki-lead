@@ -61,9 +61,8 @@ try {
             FROM freebies f
             LEFT JOIN customer_freebies cf ON f.id = cf.freebie_id AND cf.customer_id = ?
             WHERE f.id = ?
-            AND f.is_active = 1
             AND (
-                f.customer_id = ?
+                f.user_id = ?
                 OR cf.is_unlocked = 1
             )
         ");
