@@ -1,6 +1,6 @@
 <?php
 /**
- * NOTFALL MIGRATIONS-SKRIPT
+ * NOTFALL MIGRATIONS-SKRIPT (FIXED)
  * Führt nur die Datenbank-Migration durch
  * Einfach im Browser aufrufen: https://app.mehr-infos-jetzt.de/migrate-only.php
  */
@@ -26,7 +26,7 @@ define('DB_PASS', 'I1zx1XdL1hrWd75yu57e');
 <body class="bg-gray-100 p-8">
     <div class="max-w-4xl mx-auto">
         <div class="bg-white rounded-lg shadow-lg p-8">
-            <h1 class="text-3xl font-bold text-gray-900 mb-4">🔧 Notfall-Migration</h1>
+            <h1 class="text-3xl font-bold text-gray-900 mb-4">🔧 Notfall-Migration (Fixed)</h1>
             <p class="text-gray-600 mb-6">Dieses Skript führt nur die Datenbank-Migration durch.</p>
 
 <?php
@@ -68,14 +68,30 @@ if (isset($_GET['run'])) {
         echo '✅ Datei geladen (' . strlen($sql) . ' bytes)<br>';
         echo '</div>';
         
-        // Statements aufteilen
+        // Statements aufteilen - NEUE METHODE
         echo '<div class="p-4 bg-blue-50 rounded-lg">';
         echo '<strong>⚙️ Führe Migration aus...</strong><br>';
         
+        // FIX: Entferne Kommentare ZUERST, dann splitte
+        $lines = explode("\n", $sql);
+        $clean_lines = [];
+        
+        foreach ($lines as $line) {
+            $line = trim($line);
+            // Überspringe leere Zeilen und Kommentar-Zeilen
+            if (empty($line) || substr($line, 0, 2) === '--') {
+                continue;
+            }
+            $clean_lines[] = $line;
+        }
+        
+        $clean_sql = implode("\n", $clean_lines);
+        
+        // Jetzt nach ; splitten
         $statements = array_filter(
-            array_map('trim', explode(';', $sql)),
+            array_map('trim', explode(';', $clean_sql)),
             function($stmt) {
-                return !empty($stmt) && !preg_match('/^--/', $stmt);
+                return !empty($stmt);
             }
         );
         
@@ -89,7 +105,12 @@ if (isset($_GET['run'])) {
             try {
                 $pdo->exec($statement);
                 $executed++;
-                echo '<span class="text-green-600">✓</span> Statement ' . ($index + 1) . ' ausgeführt<br>';
+                
+                // Kürze Statement-Anzeige
+                $short = substr($statement, 0, 50);
+                if (strlen($statement) > 50) $short .= '...';
+                echo '<span class="text-green-600">✓</span> Statement ' . ($index + 1) . ': ' . htmlspecialchars($short) . '<br>';
+                
             } catch (PDOException $e) {
                 $error_code = $e->getCode();
                 $error_msg = $e->getMessage();
@@ -99,7 +120,10 @@ if (isset($_GET['run'])) {
                     if (strpos($error_msg, 'Duplicate column') !== false ||
                         strpos($error_msg, 'already exists') !== false) {
                         $skipped++;
-                        echo '<span class="text-yellow-600">⊘</span> Statement ' . ($index + 1) . ' übersprungen (bereits vorhanden)<br>';
+                        
+                        $short = substr($statement, 0, 50);
+                        if (strlen($statement) > 50) $short .= '...';
+                        echo '<span class="text-yellow-600">⊘</span> Statement ' . ($index + 1) . ' übersprungen: ' . htmlspecialchars($short) . '<br>';
                         continue;
                     }
                 }
@@ -111,7 +135,8 @@ if (isset($_GET['run'])) {
                     'error' => $error_msg,
                     'code' => $error_code
                 ];
-                echo '<span class="text-red-600">✗</span> Statement ' . ($index + 1) . ' fehlgeschlagen: ' . htmlspecialchars($error_msg) . '<br>';
+                echo '<span class="text-red-600">✗</span> Statement ' . ($index + 1) . ' fehlgeschlagen<br>';
+                echo '<div class="ml-6 text-xs text-red-600">' . htmlspecialchars($error_msg) . '</div>';
             }
         }
         
@@ -122,7 +147,7 @@ if (isset($_GET['run'])) {
         echo '<strong>🔍 Prüfe Ergebnis...</strong><br>';
         $stmt = $pdo->query("SHOW TABLES LIKE 'referral_%'");
         $tables = $stmt->rowCount();
-        echo "Gefunden: $tables Tabellen<br>";
+        echo "Gefunden: $tables Tabellen<br><br>";
         
         // Tabellen auflisten
         $stmt = $pdo->query("SHOW TABLES LIKE 'referral_%'");
@@ -147,9 +172,14 @@ if (isset($_GET['run'])) {
             
             echo '<div class="mt-6 p-4 bg-blue-50 rounded-lg">';
             echo '<strong>📋 Nächste Schritte:</strong><br>';
-            echo '1. Gehe zurück zum Installer: <a href="install-referral-web.php" class="text-blue-600 underline">install-referral-web.php</a><br>';
-            echo '2. Fahre mit Schritt 4 (Berechtigungen) fort<br>';
-            echo '3. Oder überspringe zum Admin-Dashboard: <a href="admin/sections/referral-overview.php" class="text-blue-600 underline">Admin-Dashboard</a>';
+            echo '1. Lösche diese Dateien:<br>';
+            echo '   • <code>migrate-only.php</code><br>';
+            echo '   • <code>debug-migration.php</code><br>';
+            echo '   • <code>install-referral-web.php</code> (falls vorhanden)<br><br>';
+            echo '2. Gehe zum Admin-Dashboard:<br>';
+            echo '   <a href="admin/sections/referral-overview.php" class="text-blue-600 underline font-bold">→ Admin-Dashboard öffnen</a><br><br>';
+            echo '3. Oder zum Customer-Dashboard:<br>';
+            echo '   <a href="customer/dashboard.php" class="text-blue-600 underline font-bold">→ Customer-Dashboard öffnen</a>';
             echo '</div>';
             
         } else {
@@ -161,9 +191,11 @@ if (isset($_GET['run'])) {
             
             if (!empty($errors)) {
                 echo '<br><strong>Fehler:</strong><br>';
-                echo '<div class="bg-white p-2 rounded mt-2 text-xs">';
+                echo '<div class="bg-white p-2 rounded mt-2 text-xs overflow-x-auto">';
                 foreach ($errors as $error) {
-                    echo "Statement #" . $error['index'] . ": " . htmlspecialchars($error['error']) . '<br>';
+                    echo '<strong>Statement #' . $error['index'] . ':</strong><br>';
+                    echo htmlspecialchars($error['statement']) . '<br>';
+                    echo '<span class="text-red-600">' . htmlspecialchars($error['error']) . '</span><br><br>';
                 }
                 echo '</div>';
             }
@@ -198,6 +230,8 @@ if (isset($_GET['run'])) {
             <ul class="list-disc ml-6 mt-2 text-gray-700">
                 <li>Verbindung zur Datenbank herstellen</li>
                 <li>Migrations-Datei laden</li>
+                <li>Kommentare entfernen</li>
+                <li>SQL-Statements einzeln ausführen</li>
                 <li>6 Referral-Tabellen erstellen</li>
                 <li>Customers-Tabelle erweitern</li>
             </ul>
