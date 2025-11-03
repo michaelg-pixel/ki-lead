@@ -74,78 +74,25 @@ if ($lead['user_id']) {
     $reward_tiers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// Freebies laden - vom Customer des Leads
+// KORREKTUR: Freebies aus customer_freebies laden (nicht aus freebies)
 $freebies = [];
 if ($lead['user_id']) {
     $stmt = $db->prepare("
         SELECT 
-            f.id,
-            f.unique_id,
-            f.name as title,
-            f.description,
-            f.mockup_image_url as image_path,
-            f.user_id,
-            f.created_at
-        FROM freebies f
-        WHERE f.user_id = ?
-        ORDER BY f.created_at DESC
+            cf.id,
+            cf.unique_id,
+            cf.name as title,
+            cf.description,
+            COALESCE(cf.mockup_image_url, f.mockup_image_url) as image_path,
+            cf.customer_id,
+            cf.created_at
+        FROM customer_freebies cf
+        LEFT JOIN freebies f ON cf.template_id = f.id
+        WHERE cf.customer_id = ?
+        ORDER BY cf.created_at DESC
     ");
     $stmt->execute([$lead['user_id']]);
     $freebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
-
-// Fallback: Wenn keine Belohnungen konfiguriert sind, Standard-Belohnungen anzeigen
-if (empty($reward_tiers)) {
-    $reward_tiers = [
-        [
-            'id' => 1,
-            'tier_level' => 1,
-            'tier_name' => 'Bronze',
-            'required_referrals' => 3,
-            'reward_title' => 'E-Book: Social Media Hacks',
-            'reward_icon' => 'fa-book',
-            'reward_type' => 'ebook',
-            'reward_description' => 'Erhalte unser exklusives E-Book',
-            'reward_value' => 'Wert: 19€',
-            'reward_color' => '#cd7f32'
-        ],
-        [
-            'id' => 2,
-            'tier_level' => 2,
-            'tier_name' => 'Silber',
-            'required_referrals' => 5,
-            'reward_title' => '1:1 Beratungsgespräch (30 Min)',
-            'reward_icon' => 'fa-comments',
-            'reward_type' => 'consultation',
-            'reward_description' => 'Persönliche Beratung mit unserem Experten',
-            'reward_value' => 'Wert: 150€',
-            'reward_color' => '#c0c0c0'
-        ],
-        [
-            'id' => 3,
-            'tier_level' => 3,
-            'tier_name' => 'Gold',
-            'required_referrals' => 10,
-            'reward_title' => 'Kostenloser Kurs-Zugang',
-            'reward_icon' => 'fa-graduation-cap',
-            'reward_type' => 'course',
-            'reward_description' => 'Voller Zugang zu unserem Premium-Kurs',
-            'reward_value' => 'Wert: 497€',
-            'reward_color' => '#ffd700'
-        ],
-        [
-            'id' => 4,
-            'tier_level' => 4,
-            'tier_name' => 'Platin',
-            'required_referrals' => 20,
-            'reward_title' => 'VIP Mitgliedschaft (3 Monate)',
-            'reward_icon' => 'fa-crown',
-            'reward_type' => 'vip',
-            'reward_description' => 'Exklusiver VIP-Status mit allen Vorteilen',
-            'reward_value' => 'Wert: 997€',
-            'reward_color' => '#e5e4e2'
-        ]
-    ];
 }
 ?>
 <!DOCTYPE html>
@@ -467,6 +414,32 @@ if (empty($reward_tiers)) {
             margin-bottom: 15px;
             opacity: 0.5;
         }
+        .alert-box {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .alert-box .icon {
+            font-size: 32px;
+        }
+        .alert-box .content {
+            flex: 1;
+        }
+        .alert-box h3 {
+            color: #856404;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+        .alert-box p {
+            color: #856404;
+            font-size: 14px;
+            line-height: 1.5;
+        }
         
         @media (max-width: 768px) {
             .reward-tier {
@@ -528,6 +501,26 @@ if (empty($reward_tiers)) {
             <?php endforeach; ?>
         </div>
     </div>
+    <?php elseif ($lead['user_id']): ?>
+    <div class="freebie-selection-section">
+        <div class="alert-box">
+            <div class="icon">⚠️</div>
+            <div class="content">
+                <h3>Noch keine Freebies verfügbar</h3>
+                <p>Dein Partner hat noch keine Freebies erstellt. Bitte wende dich an deinen Ansprechpartner.</p>
+            </div>
+        </div>
+    </div>
+    <?php else: ?>
+    <div class="freebie-selection-section">
+        <div class="alert-box">
+            <div class="icon">🔗</div>
+            <div class="content">
+                <h3>Account-Verknüpfung fehlt</h3>
+                <p>Dein Lead-Account ist noch nicht mit einem Partner verknüpft. Bitte kontaktiere den Support.</p>
+            </div>
+        </div>
+    </div>
     <?php endif; ?>
     
     <!-- Empfehlungslink (wird nach Auswahl angezeigt) -->
@@ -550,10 +543,23 @@ if (empty($reward_tiers)) {
     <div class="rewards-section">
         <h2><i class="fas fa-gift"></i> Belohnungs-Stufen</h2>
         <?php if (empty($reward_tiers)): ?>
-            <div class="empty-state">
+            <?php if ($lead['user_id']): ?>
+            <div class="alert-box">
                 <div class="icon">🎁</div>
-                <p>Noch keine Belohnungen konfiguriert</p>
+                <div class="content">
+                    <h3>Noch keine Belohnungen konfiguriert</h3>
+                    <p>Dein Partner hat noch keine Belohnungen eingerichtet. Sobald diese verfügbar sind, werden sie hier angezeigt.</p>
+                </div>
             </div>
+            <?php else: ?>
+            <div class="alert-box">
+                <div class="icon">🔗</div>
+                <div class="content">
+                    <h3>Account-Verknüpfung fehlt</h3>
+                    <p>Um Belohnungen zu sehen, muss dein Account mit einem Partner verknüpft sein.</p>
+                </div>
+            </div>
+            <?php endif; ?>
         <?php else: ?>
             <?php foreach ($reward_tiers as $tier): 
                 $tier_id = $tier['id'];
