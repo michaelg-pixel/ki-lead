@@ -1,7 +1,7 @@
 <?php
 /**
  * Customer Dashboard - Empfehlungsprogramm Section
- * Ermöglicht Kunden ihr eigenes Empfehlungsprogramm zu verwalten
+ * Verwendet bestehende referral_stats Tabelle und users Tabelle
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -14,86 +14,145 @@ try {
     $stmt = $pdo->prepare("
         SELECT 
             referral_enabled,
-            referral_code,
-            referral_company_name,
-            referral_company_email,
-            referral_company_address
+            ref_code,
+            company_name,
+            company_email,
+            company_imprint_html
         FROM users 
         WHERE id = ?
     ");
     $stmt->execute([$customer_id]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    // Statistiken laden
+    if (!$user) {
+        throw new Exception("User nicht gefunden");
+    }
+    
+    // Statistiken aus referral_stats laden
     $stmt_stats = $pdo->prepare("
         SELECT 
-            COALESCE(SUM(clicks), 0) as total_clicks,
-            COALESCE(SUM(conversions), 0) as total_conversions,
-            COALESCE(SUM(leads), 0) as total_leads
+            total_clicks,
+            unique_clicks,
+            total_conversions,
+            suspicious_conversions,
+            total_leads,
+            confirmed_leads,
+            conversion_rate,
+            last_click_at,
+            last_conversion_at
         FROM referral_stats 
         WHERE customer_id = ?
     ");
     $stmt_stats->execute([$customer_id]);
     $stats = $stmt_stats->fetch(PDO::FETCH_ASSOC);
     
-    // Letzte 7 Tage Aktivität
-    $stmt_activity = $pdo->prepare("
+    // Falls keine Stats existieren, initialisiere mit 0
+    if (!$stats) {
+        $stats = [
+            'total_clicks' => 0,
+            'unique_clicks' => 0,
+            'total_conversions' => 0,
+            'suspicious_conversions' => 0,
+            'total_leads' => 0,
+            'confirmed_leads' => 0,
+            'conversion_rate' => 0.00,
+            'last_click_at' => null,
+            'last_conversion_at' => null
+        ];
+    }
+    
+    // Letzte 7 Tage Aktivität für Chart
+    $stmt_clicks_chart = $pdo->prepare("
         SELECT 
-            date,
-            clicks,
-            conversions,
-            leads
-        FROM referral_stats 
-        WHERE customer_id = ?
-        AND date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+            DATE(created_at) as date,
+            COUNT(*) as count
+        FROM referral_clicks
+        WHERE user_id = ?
+            AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        GROUP BY DATE(created_at)
         ORDER BY date ASC
     ");
-    $stmt_activity->execute([$customer_id]);
-    $activity_data = $stmt_activity->fetchAll(PDO::FETCH_ASSOC);
+    $stmt_clicks_chart->execute([$customer_id]);
+    $clicks_chart_data = $stmt_clicks_chart->fetchAll(PDO::FETCH_ASSOC);
+    
+    $stmt_conv_chart = $pdo->prepare("
+        SELECT 
+            DATE(created_at) as date,
+            COUNT(*) as count
+        FROM referral_conversions
+        WHERE user_id = ?
+            AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        GROUP BY DATE(created_at)
+        ORDER BY date ASC
+    ");
+    $stmt_conv_chart->execute([$customer_id]);
+    $conv_chart_data = $stmt_conv_chart->fetchAll(PDO::FETCH_ASSOC);
     
 } catch (PDOException $e) {
     error_log("Empfehlungsprogramm Error: " . $e->getMessage());
     $user = [
         'referral_enabled' => 0,
-        'referral_code' => '',
-        'referral_company_name' => '',
-        'referral_company_email' => '',
-        'referral_company_address' => ''
+        'ref_code' => '',
+        'company_name' => '',
+        'company_email' => '',
+        'company_imprint_html' => ''
     ];
     $stats = [
         'total_clicks' => 0,
+        'unique_clicks' => 0,
         'total_conversions' => 0,
-        'total_leads' => 0
+        'suspicious_conversions' => 0,
+        'total_leads' => 0,
+        'confirmed_leads' => 0,
+        'conversion_rate' => 0.00,
+        'last_click_at' => null,
+        'last_conversion_at' => null
     ];
-    $activity_data = [];
+    $clicks_chart_data = [];
+    $conv_chart_data = [];
 }
 
 $referralEnabled = $user['referral_enabled'] ?? 0;
-$referralCode = $user['referral_code'] ?? '';
-$companyName = $user['referral_company_name'] ?? '';
-$companyEmail = $user['referral_company_email'] ?? '';
-$companyAddress = $user['referral_company_address'] ?? '';
+$referralCode = $user['ref_code'] ?? '';
+$companyName = $user['company_name'] ?? '';
+$companyEmail = $user['company_email'] ?? '';
+$companyImprint = $user['company_imprint_html'] ?? '';
 
 // Referral-Link generieren
 $baseUrl = 'https://app.mehr-infos-jetzt.de';
-$referralLink = $referralCode ? $baseUrl . '/freebie.php?customer=' . $customer_id . '&ref=' . $referralCode : '';
+$referralLink = $referralCode ? $baseUrl . '/f/index.php?ref=' . $referralCode : '';
 
 // Chart-Daten vorbereiten
 $chart_labels = [];
 $chart_clicks = [];
 $chart_conversions = [];
-$chart_leads = [];
-foreach ($activity_data as $day) {
-    $chart_labels[] = date('d.m', strtotime($day['date']));
-    $chart_clicks[] = $day['clicks'];
-    $chart_conversions[] = $day['conversions'];
-    $chart_leads[] = $day['leads'];
-}
 
-// Conversion Rate berechnen
-$conversionRate = $stats['total_clicks'] > 0 
-    ? round(($stats['total_conversions'] / $stats['total_clicks']) * 100, 2) 
-    : 0;
+// Alle 7 Tage abdecken
+for ($i = 6; $i >= 0; $i--) {
+    $date = date('Y-m-d', strtotime("-$i days"));
+    $label = date('d.m', strtotime($date));
+    $chart_labels[] = $label;
+    
+    // Finde clicks für dieses Datum
+    $clicks = 0;
+    foreach ($clicks_chart_data as $data) {
+        if ($data['date'] === $date) {
+            $clicks = $data['count'];
+            break;
+        }
+    }
+    $chart_clicks[] = $clicks;
+    
+    // Finde conversions für dieses Datum
+    $conversions = 0;
+    foreach ($conv_chart_data as $data) {
+        if ($data['date'] === $date) {
+            $conversions = $data['count'];
+            break;
+        }
+    }
+    $chart_conversions[] = $conversions;
+}
 ?>
 
 <!DOCTYPE html>
@@ -156,23 +215,6 @@ $conversionRate = $stats['total_clicks'] > 0
         input:checked + .toggle-slider:before {
             transform: translateX(30px);
         }
-        
-        .copy-btn {
-            transition: all 0.3s;
-        }
-        
-        .copy-btn:active {
-            transform: scale(0.95);
-        }
-        
-        .pulse-dot {
-            animation: pulse 2s ease-in-out infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(1.1); }
-        }
     </style>
 </head>
 <body style="background: linear-gradient(to bottom right, #1f2937, #111827, #1f2937); min-height: 100vh;">
@@ -211,10 +253,11 @@ $conversionRate = $stats['total_clicks'] > 0
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
             <!-- Klicks -->
             <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.1s; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 1rem; padding: 1.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                <div style="display: flex; align-items: center; justify-between; margin-bottom: 1rem;">
                     <div style="background: rgba(255, 255, 255, 0.2); border-radius: 0.75rem; padding: 0.75rem;">
                         <i class="fas fa-mouse-pointer" style="color: white; font-size: 1.5rem;"></i>
                     </div>
+                    <span style="color: rgba(255, 255, 255, 0.7); font-size: 0.75rem;"><?php echo number_format($stats['unique_clicks']); ?> unique</span>
                 </div>
                 <div style="color: white;">
                     <div style="font-size: 3rem; font-weight: 700; margin-bottom: 0.5rem;">
@@ -228,10 +271,13 @@ $conversionRate = $stats['total_clicks'] > 0
             
             <!-- Conversions -->
             <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.2s; background: linear-gradient(135deg, #8b5cf6, #7c3aed); border-radius: 1rem; padding: 1.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                <div style="display: flex; align-items: center; justify-between; margin-bottom: 1rem;">
                     <div style="background: rgba(255, 255, 255, 0.2); border-radius: 0.75rem; padding: 0.75rem;">
                         <i class="fas fa-check-circle" style="color: white; font-size: 1.5rem;"></i>
                     </div>
+                    <?php if ($stats['suspicious_conversions'] > 0): ?>
+                    <span style="color: rgba(255, 255, 255, 0.7); font-size: 0.75rem;">⚠️ <?php echo $stats['suspicious_conversions']; ?> verdächtig</span>
+                    <?php endif; ?>
                 </div>
                 <div style="color: white;">
                     <div style="font-size: 3rem; font-weight: 700; margin-bottom: 0.5rem;">
@@ -249,6 +295,7 @@ $conversionRate = $stats['total_clicks'] > 0
                     <div style="background: rgba(255, 255, 255, 0.2); border-radius: 0.75rem; padding: 0.75rem;">
                         <i class="fas fa-users" style="color: white; font-size: 1.5rem;"></i>
                     </div>
+                    <span style="color: rgba(255, 255, 255, 0.7); font-size: 0.75rem;"><?php echo number_format($stats['confirmed_leads']); ?> bestätigt</span>
                 </div>
                 <div style="color: white;">
                     <div style="font-size: 3rem; font-weight: 700; margin-bottom: 0.5rem;">
@@ -269,7 +316,7 @@ $conversionRate = $stats['total_clicks'] > 0
                 </div>
                 <div style="color: white;">
                     <div style="font-size: 3rem; font-weight: 700; margin-bottom: 0.5rem;">
-                        <?php echo $conversionRate; ?>%
+                        <?php echo number_format($stats['conversion_rate'], 2); ?>%
                     </div>
                     <div style="color: rgba(255, 255, 255, 0.8);">
                         Conversion Rate
@@ -295,7 +342,6 @@ $conversionRate = $stats['total_clicks'] > 0
                            readonly
                            style="flex: 1; min-width: 300px; padding: 0.75rem 1rem; background: #1f2937; border: 1px solid #374151; border-radius: 0.5rem; color: white; font-family: monospace;">
                     <button onclick="copyReferralLink()" 
-                            class="copy-btn"
                             style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
                         <i class="fas fa-copy"></i>
                         <span id="copyButtonText">Kopieren</span>
@@ -306,7 +352,7 @@ $conversionRate = $stats['total_clicks'] > 0
         <?php endif; ?>
         
         <!-- Aktivitätsgraph -->
-        <?php if (!empty($activity_data)): ?>
+        <?php if (!empty($clicks_chart_data) || !empty($conv_chart_data)): ?>
         <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.6s; margin-bottom: 2rem;">
             <div style="background: linear-gradient(to bottom right, #1f2937, #374151); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 1rem; padding: 1.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
                 <h3 style="color: white; font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem;">
@@ -355,14 +401,15 @@ $conversionRate = $stats['total_clicks'] > 0
                         
                         <div>
                             <label style="display: block; color: #9ca3af; margin-bottom: 0.5rem; font-size: 0.875rem; font-weight: 500;">
-                                Firmenadresse *
+                                Impressum (HTML erlaubt) *
                             </label>
-                            <textarea name="company_address" 
-                                      rows="4"
+                            <textarea name="company_imprint_html" 
+                                      rows="6"
                                       required
-                                      style="width: 100%; padding: 0.75rem 1rem; background: #1f2937; border: 1px solid #374151; border-radius: 0.5rem; color: white; resize: vertical;"><?php echo htmlspecialchars($companyAddress); ?></textarea>
+                                      placeholder="z.B.: Max Mustermann<br>Musterstraße 1<br>12345 Musterstadt<br>Deutschland<br>UID: DE123456789"
+                                      style="width: 100%; padding: 0.75rem 1rem; background: #1f2937; border: 1px solid #374151; border-radius: 0.5rem; color: white; resize: vertical; font-family: monospace; font-size: 0.875rem;"><?php echo htmlspecialchars($companyImprint); ?></textarea>
                             <p style="color: #6b7280; font-size: 0.75rem; margin-top: 0.5rem;">
-                                Inkl. Straße, PLZ, Stadt, Land, UID-Nummer etc.
+                                HTML-Tags erlaubt: &lt;p&gt;, &lt;br&gt;, &lt;strong&gt;, &lt;b&gt;, &lt;em&gt;, &lt;i&gt;
                             </p>
                         </div>
                         
@@ -402,7 +449,6 @@ $conversionRate = $stats['total_clicks'] > 0
     <script>
         let referralEnabled = <?php echo $referralEnabled ? 'true' : 'false'; ?>;
         let referralCode = '<?php echo $referralCode; ?>';
-        let customerId = <?php echo $customer_id; ?>;
         
         // Toggle Empfehlungsprogramm
         function toggleReferralProgram(enabled) {
@@ -412,18 +458,15 @@ $conversionRate = $stats['total_clicks'] > 0
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    customer_id: customerId,
                     enabled: enabled
                 })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    referralEnabled = enabled;
-                    referralCode = data.referral_code || referralCode;
                     showNotification(
                         enabled ? 'Empfehlungsprogramm aktiviert!' : 'Empfehlungsprogramm deaktiviert',
-                        enabled ? 'success' : 'info'
+                        'success'
                     );
                     setTimeout(() => location.reload(), 1500);
                 } else {
@@ -464,10 +507,9 @@ $conversionRate = $stats['total_clicks'] > 0
             
             const formData = new FormData(event.target);
             const data = {
-                customer_id: customerId,
                 company_name: formData.get('company_name'),
                 company_email: formData.get('company_email'),
-                company_address: formData.get('company_address')
+                company_imprint_html: formData.get('company_imprint_html')
             };
             
             fetch('/api/referral/update-company.php', {
@@ -524,7 +566,7 @@ $conversionRate = $stats['total_clicks'] > 0
         }
         
         // Chart initialisieren
-        <?php if (!empty($activity_data)): ?>
+        <?php if (!empty($clicks_chart_data) || !empty($conv_chart_data)): ?>
         document.addEventListener('DOMContentLoaded', function() {
             const ctx = document.getElementById('activityChart').getContext('2d');
             new Chart(ctx, {
@@ -546,15 +588,6 @@ $conversionRate = $stats['total_clicks'] > 0
                             data: <?php echo json_encode($chart_conversions); ?>,
                             borderColor: '#8b5cf6',
                             backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                            borderWidth: 2,
-                            fill: true,
-                            tension: 0.4
-                        },
-                        {
-                            label: 'Leads',
-                            data: <?php echo json_encode($chart_leads); ?>,
-                            borderColor: '#10b981',
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
                             borderWidth: 2,
                             fill: true,
                             tension: 0.4
