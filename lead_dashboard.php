@@ -1,7 +1,7 @@
 <?php
 /**
  * Lead Dashboard - Empfehlungsprogramm
- * Verbesserte Version mit Datenbankintegration
+ * Leads können Freebies auswählen und ihre Empfehlungslinks teilen
  */
 
 require_once __DIR__ . '/config/database.php';
@@ -74,6 +74,26 @@ if ($lead['user_id']) {
     $reward_tiers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+// Freebies laden - vom Customer des Leads
+$freebies = [];
+if ($lead['user_id']) {
+    $stmt = $db->prepare("
+        SELECT 
+            f.id,
+            f.unique_id,
+            f.name as title,
+            f.description,
+            f.mockup_image_url as image_path,
+            f.user_id,
+            f.created_at
+        FROM freebies f
+        WHERE f.user_id = ?
+        ORDER BY f.created_at DESC
+    ");
+    $stmt->execute([$lead['user_id']]);
+    $freebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
 // Fallback: Wenn keine Belohnungen konfiguriert sind, Standard-Belohnungen anzeigen
 if (empty($reward_tiers)) {
     $reward_tiers = [
@@ -127,9 +147,6 @@ if (empty($reward_tiers)) {
         ]
     ];
 }
-
-// Empfehlungslink (einfache Version - user_id wird automatisch vom ref_code ermittelt)
-$referral_link = 'https://app.mehr-infos-jetzt.de/lead_login.php?ref=' . $lead['referral_code'];
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -202,12 +219,66 @@ $referral_link = 'https://app.mehr-infos-jetzt.de/lead_login.php?ref=' . $lead['
             font-weight: bold;
             color: #667eea;
         }
+        .freebie-selection-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .freebie-selection-section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 24px;
+        }
+        .freebie-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .freebie-card {
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .freebie-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+        .freebie-card.selected {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+        .freebie-card img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .freebie-card h4 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .freebie-card p {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.5;
+        }
         .referral-link-section {
             background: white;
             padding: 30px;
             border-radius: 15px;
             margin-bottom: 30px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: none;
         }
         .referral-link-section h2 {
             color: #333;
@@ -405,6 +476,9 @@ $referral_link = 'https://app.mehr-infos-jetzt.de/lead_login.php?ref=' . $lead['
             .link-input-group {
                 flex-direction: column;
             }
+            .freebie-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -433,16 +507,37 @@ $referral_link = 'https://app.mehr-infos-jetzt.de/lead_login.php?ref=' . $lead['
         </div>
     </div>
     
-    <div class="referral-link-section">
+    <!-- Freebie Auswahl -->
+    <?php if (!empty($freebies)): ?>
+    <div class="freebie-selection-section">
+        <h2><i class="fas fa-gift"></i> Wähle ein Freebie zum Teilen</h2>
+        <p style="color: #666; margin-bottom: 20px;">
+            Wähle ein Freebie aus, das du mit deinem Empfehlungslink teilen möchtest.
+        </p>
+        <div class="freebie-grid">
+            <?php foreach ($freebies as $freebie): ?>
+            <div class="freebie-card" onclick="selectFreebie('<?php echo htmlspecialchars($freebie['unique_id'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($freebie['title'], ENT_QUOTES); ?>')">
+                <?php if (!empty($freebie['image_path'])): ?>
+                <img src="<?php echo htmlspecialchars($freebie['image_path']); ?>" alt="<?php echo htmlspecialchars($freebie['title']); ?>">
+                <?php endif; ?>
+                <h4><?php echo htmlspecialchars($freebie['title']); ?></h4>
+                <?php if (!empty($freebie['description'])): ?>
+                <p><?php echo htmlspecialchars(substr($freebie['description'], 0, 100)) . (strlen($freebie['description']) > 100 ? '...' : ''); ?></p>
+                <?php endif; ?>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+    
+    <!-- Empfehlungslink (wird nach Auswahl angezeigt) -->
+    <div class="referral-link-section" id="referralLinkSection">
         <h2><i class="fas fa-link"></i> Dein Empfehlungs-Link</h2>
         <p style="color: #666; margin-bottom: 15px;">
-            Teile diesen Link mit deinen Freunden und Bekannten. 
-            Für jede erfolgreiche Anmeldung erhältst du Belohnungen!
+            Teile diesen Link für: <strong id="selectedFreebieTitle" style="color: #667eea;"></strong>
         </p>
         <div class="link-input-group">
-            <input type="text" class="link-input" id="referral-link" 
-                   value="<?php echo htmlspecialchars($referral_link); ?>" 
-                   readonly>
+            <input type="text" class="link-input" id="referral-link" readonly>
             <button class="copy-btn" onclick="copyLink()">
                 <i class="fas fa-copy"></i> Link kopieren
             </button>
@@ -473,13 +568,11 @@ $referral_link = 'https://app.mehr-infos-jetzt.de/lead_login.php?ref=' . $lead['
                 $status = $is_claimed ? 'claimed' : ($is_unlocked ? 'unlocked' : 'locked');
                 $progress_percent = min(100, ($lead['successful_referrals'] / $tier['required_referrals']) * 100);
                 
-                // Icon bestimmen
                 $icon_class = 'fa-gift';
                 if (isset($tier['reward_icon']) && strpos($tier['reward_icon'], 'fa-') === 0) {
                     $icon_class = $tier['reward_icon'];
                 }
                 
-                // Farbe für Badge
                 $badge_color = $tier['reward_color'] ?? '#667eea';
             ?>
                 <div class="reward-tier <?php echo $status; ?>">
@@ -573,10 +666,32 @@ $referral_link = 'https://app.mehr-infos-jetzt.de/lead_login.php?ref=' . $lead['
     </div>
     
     <script>
+        const leadReferralCode = '<?php echo $lead['referral_code']; ?>';
+        const baseUrl = 'https://app.mehr-infos-jetzt.de';
+        
+        function selectFreebie(freebieUniqueId, freebieTitle) {
+            // Alle Karten deselektieren
+            document.querySelectorAll('.freebie-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            // Ausgewählte Karte markieren
+            event.target.closest('.freebie-card').classList.add('selected');
+            
+            // Korrekter Freebie-Link mit Lead-Referral-Code
+            const referralLink = `${baseUrl}/freebie/index.php?id=${freebieUniqueId}&ref=${leadReferralCode}`;
+            document.getElementById('referral-link').value = referralLink;
+            document.getElementById('selectedFreebieTitle').textContent = freebieTitle;
+            document.getElementById('referralLinkSection').style.display = 'block';
+            
+            // Scroll zum Link
+            document.getElementById('referralLinkSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        
         function copyLink() {
             const input = document.getElementById('referral-link');
             input.select();
-            input.setSelectionRange(0, 99999); // Für Mobile
+            input.setSelectionRange(0, 99999);
             
             try {
                 document.execCommand('copy');
