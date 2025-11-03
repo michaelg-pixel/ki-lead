@@ -1,9 +1,9 @@
 <?php
 /**
- * Setup: Reward Definitions System installieren
+ * Setup: Reward Definitions System installieren - VERBESSERT
  * 
- * Dieses Skript erstellt die reward_definitions Tabelle
- * und lädt optional Beispieldaten.
+ * Dieses Skript erstellt die reward_definitions Tabelle direkt
+ * ohne externe SQL-Datei zu parsen.
  * 
  * Aufruf: https://app.mehr-infos-jetzt.de/setup-reward-definitions.php
  */
@@ -16,14 +16,16 @@ echo "<!DOCTYPE html>
     <meta charset='UTF-8'>
     <title>Reward Definitions Setup</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; background: #f5f5f5; }
+        body { font-family: Arial, sans-serif; max-width: 900px; margin: 50px auto; padding: 20px; background: #f5f5f5; }
         .box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
         h1 { color: #333; }
         .success { color: #10b981; font-weight: bold; }
         .error { color: #ef4444; font-weight: bold; }
         .info { color: #3b82f6; }
-        pre { background: #f9fafb; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        pre { background: #f9fafb; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 12px; }
         .step { margin-bottom: 15px; padding: 10px; border-left: 3px solid #667eea; }
+        .btn { display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 10px; }
+        .btn-success { background: #10b981; }
     </style>
 </head>
 <body>
@@ -33,56 +35,114 @@ try {
     $pdo = getDBConnection();
     echo "<div class='box'><p class='success'>✓ Datenbankverbindung erfolgreich</p></div>";
     
-    // Migration-Datei laden und ausführen
+    // Schritt 1: Tabelle erstellen
     echo "<div class='box'>";
-    echo "<h2>Schritt 1: Datenbank-Struktur erstellen</h2>";
+    echo "<h2>Schritt 1: Reward Definitions Tabelle erstellen</h2>";
     
-    $migration_file = __DIR__ . '/database/migrations/006_reward_definitions.sql';
+    $create_table_sql = "CREATE TABLE IF NOT EXISTS reward_definitions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL COMMENT 'Welcher User diese Belohnungen definiert hat',
+        
+        -- Stufen-Info
+        tier_level INT NOT NULL COMMENT 'Stufe: 1, 2, 3, etc.',
+        tier_name VARCHAR(100) NOT NULL COMMENT 'z.B. Bronze, Silber, Gold',
+        tier_description TEXT DEFAULT NULL,
+        
+        -- Erforderliche Empfehlungen
+        required_referrals INT NOT NULL COMMENT 'Anzahl benötigter erfolgreicher Empfehlungen',
+        
+        -- Belohnung
+        reward_type VARCHAR(50) NOT NULL COMMENT 'ebook, pdf, consultation, course, voucher, etc.',
+        reward_title VARCHAR(255) NOT NULL,
+        reward_description TEXT DEFAULT NULL,
+        reward_value VARCHAR(100) DEFAULT NULL COMMENT 'z.B. 50€, 1h Beratung',
+        
+        -- Zugriff/Lieferung
+        reward_download_url TEXT DEFAULT NULL,
+        reward_access_code VARCHAR(100) DEFAULT NULL,
+        reward_instructions TEXT DEFAULT NULL COMMENT 'Wie die Belohnung eingelöst wird',
+        
+        -- Visuals
+        reward_icon VARCHAR(100) DEFAULT 'fa-gift' COMMENT 'Font Awesome Icon',
+        reward_color VARCHAR(20) DEFAULT '#667eea',
+        reward_badge_image VARCHAR(255) DEFAULT NULL,
+        
+        -- Status
+        is_active BOOLEAN DEFAULT TRUE,
+        is_featured BOOLEAN DEFAULT FALSE,
+        auto_deliver BOOLEAN DEFAULT FALSE COMMENT 'Automatisch zusenden',
+        
+        -- Email-Benachrichtigung
+        notification_subject VARCHAR(255) DEFAULT NULL,
+        notification_body TEXT DEFAULT NULL,
+        
+        -- Sortierung
+        sort_order INT DEFAULT 0,
+        
+        -- Zeitstempel
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        
+        -- Indizes
+        INDEX idx_user (user_id),
+        INDEX idx_tier_level (tier_level),
+        INDEX idx_active (is_active),
+        INDEX idx_sort (sort_order),
+        
+        UNIQUE KEY unique_user_tier (user_id, tier_level),
+        
+        CONSTRAINT fk_reward_def_user 
+            FOREIGN KEY (user_id) 
+            REFERENCES users(id) 
+            ON DELETE CASCADE
+            
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Konfigurierbare Belohnungsstufen'";
     
-    if (!file_exists($migration_file)) {
-        throw new Exception("Migration-Datei nicht gefunden: $migration_file");
-    }
-    
-    $sql = file_get_contents($migration_file);
-    
-    // SQL in einzelne Statements aufteilen
-    $statements = array_filter(
-        array_map('trim', explode(';', $sql)),
-        function($stmt) {
-            return !empty($stmt) && 
-                   !preg_match('/^--/', $stmt) && 
-                   !preg_match('/^\/\*/', $stmt);
+    try {
+        $pdo->exec($create_table_sql);
+        echo "<p class='success'>✓ Tabelle 'reward_definitions' erfolgreich erstellt</p>";
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'already exists') !== false) {
+            echo "<p class='info'>ℹ Tabelle 'reward_definitions' existiert bereits</p>";
+        } else {
+            throw $e;
         }
-    );
-    
-    $success_count = 0;
-    $errors = [];
-    
-    foreach ($statements as $statement) {
-        try {
-            $pdo->exec($statement);
-            $success_count++;
-        } catch (PDOException $e) {
-            // Ignoriere "table already exists" Fehler
-            if (strpos($e->getMessage(), 'already exists') === false) {
-                $errors[] = $e->getMessage();
-            }
-        }
-    }
-    
-    if (empty($errors)) {
-        echo "<p class='success'>✓ $success_count SQL-Statements erfolgreich ausgeführt</p>";
-        echo "<p class='info'>Die Tabelle <code>reward_definitions</code> wurde erstellt.</p>";
-    } else {
-        echo "<p class='error'>⚠ Einige Fehler aufgetreten:</p>";
-        echo "<pre>" . implode("\n", $errors) . "</pre>";
     }
     
     echo "</div>";
     
-    // Tabellen-Struktur anzeigen
+    // Schritt 2: View erstellen (optional, kann fehlschlagen wenn VIEW Rechte fehlen)
     echo "<div class='box'>";
-    echo "<h2>Schritt 2: Tabellen-Struktur prüfen</h2>";
+    echo "<h2>Schritt 2: Statistik-View erstellen (optional)</h2>";
+    
+    $create_view_sql = "CREATE OR REPLACE VIEW view_reward_definitions_stats AS
+    SELECT 
+        rd.id,
+        rd.user_id,
+        rd.tier_level,
+        rd.tier_name,
+        rd.required_referrals,
+        rd.reward_title,
+        rd.is_active,
+        COUNT(DISTINCT rrt.lead_id) as leads_achieved,
+        COUNT(DISTINCT rcr.id) as times_claimed
+    FROM reward_definitions rd
+    LEFT JOIN referral_reward_tiers rrt ON rd.tier_level = rrt.tier_id AND rd.user_id = rrt.lead_id
+    LEFT JOIN referral_claimed_rewards rcr ON rd.id = rcr.reward_id
+    GROUP BY rd.id";
+    
+    try {
+        $pdo->exec($create_view_sql);
+        echo "<p class='success'>✓ View 'view_reward_definitions_stats' erstellt</p>";
+    } catch (PDOException $e) {
+        echo "<p class='info'>ℹ View konnte nicht erstellt werden (nicht kritisch): " . $e->getMessage() . "</p>";
+    }
+    
+    echo "</div>";
+    
+    // Schritt 3: Tabellen-Struktur prüfen
+    echo "<div class='box'>";
+    echo "<h2>Schritt 3: Tabellen-Struktur prüfen</h2>";
     
     $tables_to_check = ['reward_definitions', 'referral_reward_tiers', 'referral_claimed_rewards'];
     
@@ -94,7 +154,7 @@ try {
             // Spalten anzeigen
             $stmt = $pdo->query("DESCRIBE $table");
             $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            echo "<details><summary style='cursor: pointer; color: #667eea;'>Spalten anzeigen (" . count($columns) . ")</summary>";
+            echo "<details><summary style='cursor: pointer; color: #667eea;'>→ Spalten anzeigen (" . count($columns) . ")</summary>";
             echo "<pre>";
             foreach ($columns as $col) {
                 echo sprintf("%-30s %-20s %s\n", $col['Field'], $col['Type'], $col['Key'] ? "[$col[Key]]" : '');
@@ -107,29 +167,29 @@ try {
     
     echo "</div>";
     
-    // Beispieldaten erstellen (optional)
+    // Schritt 4: Beispieldaten erstellen (optional)
     echo "<div class='box'>";
-    echo "<h2>Schritt 3: Beispieldaten (optional)</h2>";
+    echo "<h2>Schritt 4: Beispieldaten erstellen</h2>";
     
     $create_examples = isset($_GET['examples']) && $_GET['examples'] === 'yes';
     
     if ($create_examples) {
         // Ersten User finden
-        $stmt = $pdo->query("SELECT id FROM users ORDER BY id LIMIT 1");
-        $user_id = $stmt->fetchColumn();
+        $stmt = $pdo->query("SELECT id, name FROM users ORDER BY id LIMIT 1");
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        if ($user_id) {
-            echo "<p class='info'>Erstelle Beispiel-Belohnungen für User ID: $user_id</p>";
+        if ($user) {
+            echo "<p class='info'>Erstelle Beispiel-Belohnungen für User: <strong>" . htmlspecialchars($user['name']) . "</strong> (ID: {$user['id']})</p>";
             
             $examples = [
                 [
                     'tier_level' => 1,
                     'tier_name' => 'Bronze',
-                    'tier_description' => 'Erste Stufe für 3 Empfehlungen',
+                    'tier_description' => 'Erste Stufe für 3 erfolgreiche Empfehlungen',
                     'required_referrals' => 3,
                     'reward_type' => 'ebook',
                     'reward_title' => 'Starter E-Book',
-                    'reward_description' => 'Unser kostenloses Einsteiger-E-Book',
+                    'reward_description' => 'Unser kostenloses Einsteiger-E-Book mit wertvollen Tipps und Tricks',
                     'reward_value' => 'Wert: 29€',
                     'reward_icon' => 'fa-book',
                     'reward_color' => '#cd7f32'
@@ -137,11 +197,11 @@ try {
                 [
                     'tier_level' => 2,
                     'tier_name' => 'Silber',
-                    'tier_description' => 'Zweite Stufe für 5 Empfehlungen',
+                    'tier_description' => 'Zweite Stufe für 5 erfolgreiche Empfehlungen',
                     'required_referrals' => 5,
                     'reward_type' => 'consultation',
                     'reward_title' => '30 Min. Gratis-Beratung',
-                    'reward_description' => 'Persönliche 1:1 Beratungssession',
+                    'reward_description' => 'Persönliche 1:1 Beratungssession mit unserem Team',
                     'reward_value' => 'Wert: 99€',
                     'reward_icon' => 'fa-comments',
                     'reward_color' => '#c0c0c0'
@@ -149,11 +209,11 @@ try {
                 [
                     'tier_level' => 3,
                     'tier_name' => 'Gold',
-                    'tier_description' => 'Top-Stufe für 10 Empfehlungen',
+                    'tier_description' => 'Top-Stufe für 10 erfolgreiche Empfehlungen',
                     'required_referrals' => 10,
                     'reward_type' => 'course',
                     'reward_title' => 'Premium-Kurs Zugang',
-                    'reward_description' => 'Vollzugriff auf unseren Flaggschiff-Kurs',
+                    'reward_description' => 'Vollzugriff auf unseren exklusiven Flaggschiff-Kurs',
                     'reward_value' => 'Wert: 299€',
                     'reward_icon' => 'fa-crown',
                     'reward_color' => '#ffd700'
@@ -170,11 +230,13 @@ try {
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ON DUPLICATE KEY UPDATE
                             tier_name = VALUES(tier_name),
-                            tier_description = VALUES(tier_description)
+                            tier_description = VALUES(tier_description),
+                            reward_title = VALUES(reward_title),
+                            reward_description = VALUES(reward_description)
                     ");
                     
                     $stmt->execute([
-                        $user_id,
+                        $user['id'],
                         $example['tier_level'],
                         $example['tier_name'],
                         $example['tier_description'],
@@ -187,45 +249,56 @@ try {
                         $example['reward_color']
                     ]);
                     
-                    echo "<p class='success'>✓ {$example['tier_name']}-Stufe erstellt</p>";
+                    echo "<p class='success'>✓ {$example['tier_name']}-Stufe erstellt ({$example['required_referrals']} Empfehlungen)</p>";
                 } catch (PDOException $e) {
                     echo "<p class='error'>✗ Fehler bei {$example['tier_name']}: {$e->getMessage()}</p>";
                 }
             }
+            
+            echo "<p class='success'><strong>✓ Beispieldaten erfolgreich erstellt!</strong></p>";
         } else {
             echo "<p class='error'>✗ Kein User gefunden. Bitte zuerst einen User erstellen.</p>";
         }
     } else {
-        echo "<p class='info'>Möchtest du Beispieldaten erstellen?</p>";
-        echo "<p><a href='?examples=yes' style='display: inline-block; background: #667eea; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>Ja, Beispiele erstellen</a></p>";
+        echo "<p class='info'>Möchtest du 3 Beispiel-Belohnungsstufen erstellen?</p>";
+        echo "<ul style='color: #6b7280;'>";
+        echo "<li><strong>Bronze:</strong> 3 Empfehlungen → Starter E-Book</li>";
+        echo "<li><strong>Silber:</strong> 5 Empfehlungen → 30 Min. Beratung</li>";
+        echo "<li><strong>Gold:</strong> 10 Empfehlungen → Premium-Kurs</li>";
+        echo "</ul>";
+        echo "<p><a href='?examples=yes' class='btn'>Ja, Beispiele erstellen</a></p>";
     }
     
     echo "</div>";
     
     // Zusammenfassung
-    echo "<div class='box'>";
-    echo "<h2>✅ Setup abgeschlossen!</h2>";
+    echo "<div class='box' style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;'>";
+    echo "<h2 style='color: white;'>✅ Setup abgeschlossen!</h2>";
     echo "<p>Das Reward Definitions System wurde erfolgreich installiert.</p>";
-    echo "<h3>Nächste Schritte:</h3>";
-    echo "<ol>";
+    echo "<h3 style='color: white; margin-top: 20px;'>Nächste Schritte:</h3>";
+    echo "<ol style='line-height: 2;'>";
     echo "<li>Gehe zum <strong>Customer Dashboard</strong></li>";
     echo "<li>Navigiere zu <strong>Belohnungsstufen</strong></li>";
-    echo "<li>Erstelle deine ersten Belohnungen</li>";
+    echo "<li>Erstelle oder bearbeite deine Belohnungen</li>";
+    echo "<li>Teste das Empfehlungsprogramm</li>";
     echo "</ol>";
-    echo "<p><a href='/customer/dashboard.php?section=belohnungsstufen' style='display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;'>→ Zu den Belohnungsstufen</a></p>";
+    echo "<p><a href='/customer/dashboard.php?page=belohnungsstufen' class='btn btn-success'>→ Zu den Belohnungsstufen</a></p>";
     echo "</div>";
     
     // Cleanup-Info
     echo "<div class='box' style='background: #fef3c7; border-left: 3px solid #f59e0b;'>";
     echo "<h3>⚠️ Sicherheitshinweis</h3>";
     echo "<p>Nach erfolgreichem Setup solltest du diese Datei aus Sicherheitsgründen löschen:</p>";
-    echo "<pre>rm " . __FILE__ . "</pre>";
+    echo "<pre>rm " . basename(__FILE__) . "</pre>";
+    echo "<p style='font-size: 12px; color: #6b7280;'>Oder über FTP/SSH vom Server entfernen.</p>";
     echo "</div>";
     
 } catch (Exception $e) {
-    echo "<div class='box'>";
-    echo "<p class='error'>✗ Fehler: " . $e->getMessage() . "</p>";
-    echo "<pre>" . $e->getTraceAsString() . "</pre>";
+    echo "<div class='box' style='background: #fee; border-left: 3px solid #ef4444;'>";
+    echo "<p class='error'>✗ FEHLER: " . htmlspecialchars($e->getMessage()) . "</p>";
+    echo "<details><summary style='cursor: pointer; color: #ef4444; margin-top: 10px;'>Stack Trace anzeigen</summary>";
+    echo "<pre style='font-size: 11px;'>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
+    echo "</details>";
     echo "</div>";
 }
 
