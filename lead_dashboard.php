@@ -82,9 +82,9 @@ if ($lead['user_id']) {
             SELECT 
                 cf.id,
                 cf.unique_id,
-                COALESCE(cf.headline, f.name, 'Freebie') as title,
-                COALESCE(cf.subheadline, f.description, '') as description,
-                COALESCE(cf.mockup_image_url, f.mockup_image_url) as image_path,
+                COALESCE(NULLIF(cf.headline, ''), f.name, 'Freebie') as title,
+                COALESCE(NULLIF(cf.subheadline, ''), f.description, '') as description,
+                COALESCE(NULLIF(cf.mockup_image_url, ''), f.mockup_image_url) as image_path,
                 cf.customer_id
             FROM customer_freebies cf
             LEFT JOIN freebies f ON cf.template_id = f.id
@@ -204,12 +204,24 @@ if ($lead['user_id']) {
             border-color: #28a745;
             background: #d4edda;
         }
+        .freebie-card .freebie-image {
+            width: 100%;
+            height: 150px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 60px;
+        }
         .freebie-card img {
             width: 100%;
-            height: 120px;
+            height: 150px;
             object-fit: cover;
             border-radius: 8px;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }
         .freebie-card h4 {
             font-size: 16px;
@@ -229,6 +241,9 @@ if ($lead['user_id']) {
             margin-bottom: 30px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             display: none;
+        }
+        .referral-link-section.show {
+            display: block;
         }
         .referral-link-section h2 {
             color: #333;
@@ -492,9 +507,14 @@ if ($lead['user_id']) {
         </p>
         <div class="freebie-grid">
             <?php foreach ($freebies as $freebie): ?>
-            <div class="freebie-card" onclick="selectFreebie('<?php echo htmlspecialchars($freebie['unique_id'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($freebie['title'], ENT_QUOTES); ?>')">
+            <div class="freebie-card" 
+                 data-unique-id="<?php echo htmlspecialchars($freebie['unique_id']); ?>"
+                 data-title="<?php echo htmlspecialchars($freebie['title']); ?>"
+                 onclick="selectFreebie(this)">
                 <?php if (!empty($freebie['image_path'])): ?>
-                <img src="<?php echo htmlspecialchars($freebie['image_path']); ?>" alt="<?php echo htmlspecialchars($freebie['title']); ?>">
+                    <img src="<?php echo htmlspecialchars($freebie['image_path']); ?>" alt="<?php echo htmlspecialchars($freebie['title']); ?>">
+                <?php else: ?>
+                    <div class="freebie-image">🎁</div>
                 <?php endif; ?>
                 <h4><?php echo htmlspecialchars($freebie['title']); ?></h4>
                 <?php if (!empty($freebie['description'])): ?>
@@ -678,23 +698,37 @@ if ($lead['user_id']) {
         const leadReferralCode = '<?php echo $lead['referral_code']; ?>';
         const baseUrl = 'https://app.mehr-infos-jetzt.de';
         
-        function selectFreebie(freebieUniqueId, freebieTitle) {
+        function selectFreebie(element) {
             // Alle Karten deselektieren
             document.querySelectorAll('.freebie-card').forEach(card => {
                 card.classList.remove('selected');
             });
             
             // Ausgewählte Karte markieren
-            event.target.closest('.freebie-card').classList.add('selected');
+            element.classList.add('selected');
+            
+            // Daten aus data-Attributen holen
+            const freebieUniqueId = element.dataset.uniqueId;
+            const freebieTitle = element.dataset.title;
+            
+            console.log('Selected Freebie:', {
+                uniqueId: freebieUniqueId,
+                title: freebieTitle,
+                refCode: leadReferralCode
+            });
             
             // Korrekter Freebie-Link mit Lead-Referral-Code
             const referralLink = `${baseUrl}/freebie/index.php?id=${freebieUniqueId}&ref=${leadReferralCode}`;
+            
             document.getElementById('referral-link').value = referralLink;
             document.getElementById('selectedFreebieTitle').textContent = freebieTitle;
-            document.getElementById('referralLinkSection').style.display = 'block';
+            document.getElementById('referralLinkSection').classList.add('show');
             
             // Scroll zum Link
-            document.getElementById('referralLinkSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            document.getElementById('referralLinkSection').scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'nearest' 
+            });
         }
         
         function copyLink() {
