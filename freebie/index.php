@@ -18,11 +18,13 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ));
 } catch (PDOException $e) {
-    die('DB Connection Error');
+    showError('Datenbankverbindung fehlgeschlagen', 'Bitte versuchen Sie es später erneut.');
 }
 
 $identifier = $_GET['id'] ?? null;
-if (!$identifier) { http_response_code(404); die('No ID'); }
+if (!$identifier) { 
+    showError('Keine Freebie-ID angegeben', 'Der Link ist unvollständig. Bitte verwenden Sie den korrekten Link.');
+}
 
 // REFERRAL TRACKING
 $ref_code = isset($_GET['ref']) ? trim($_GET['ref']) : null;
@@ -53,10 +55,16 @@ try {
         $freebie_db_id = $freebie['id'] ?? null;
     }
 } catch (PDOException $e) {
-    http_response_code(500); die('DB Error');
+    showError('Datenbankfehler', 'Beim Laden des Freebies ist ein Fehler aufgetreten.');
 }
 
-if (!$freebie) { http_response_code(404); die('Not found'); }
+if (!$freebie) { 
+    showError(
+        'Freebie nicht gefunden', 
+        'Das angeforderte Freebie existiert nicht oder wurde entfernt.',
+        'Verwendete ID: ' . htmlspecialchars($identifier)
+    );
+}
 
 // Wenn customer-Parameter übergeben wurde, verwende diesen
 if ($customer_param) {
@@ -82,6 +90,90 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
 
 // Speichere Referral-Code für Later Use
 $referral_code_to_pass = $ref_code;
+
+// Hilfsfunktion für Fehleranzeige
+function showError($title, $message, $details = '') {
+    ?>
+    <!DOCTYPE html>
+    <html lang="de">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Fehler - Freebie</title>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+            }
+            .error-container {
+                background: white;
+                border-radius: 16px;
+                padding: 40px;
+                max-width: 500px;
+                text-align: center;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            }
+            .error-icon {
+                font-size: 64px;
+                margin-bottom: 20px;
+            }
+            h1 {
+                font-size: 24px;
+                color: #1a202c;
+                margin-bottom: 12px;
+            }
+            p {
+                color: #4a5568;
+                line-height: 1.6;
+                margin-bottom: 8px;
+            }
+            .details {
+                background: #f7fafc;
+                padding: 12px;
+                border-radius: 8px;
+                font-size: 13px;
+                color: #718096;
+                margin-top: 20px;
+                word-break: break-all;
+            }
+            .back-btn {
+                display: inline-block;
+                margin-top: 24px;
+                padding: 12px 24px;
+                background: #667eea;
+                color: white;
+                text-decoration: none;
+                border-radius: 8px;
+                font-weight: 600;
+                transition: all 0.3s;
+            }
+            .back-btn:hover {
+                background: #5568d3;
+                transform: translateY(-2px);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="error-container">
+            <div class="error-icon">⚠️</div>
+            <h1><?php echo htmlspecialchars($title); ?></h1>
+            <p><?php echo htmlspecialchars($message); ?></p>
+            <?php if ($details): ?>
+                <div class="details"><?php echo $details; ?></div>
+            <?php endif; ?>
+            <a href="javascript:history.back()" class="back-btn">← Zurück</a>
+        </div>
+    </body>
+    </html>
+    <?php
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="de">
