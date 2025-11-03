@@ -1,7 +1,7 @@
 <?php
 /**
  * Customer Dashboard - Overview Section
- * KORRIGIERT: Zählt ALLE freigeschalteten Freebies ohne Type-Filter
+ * KORRIGIERT: Zählt nur Freebies die noch existieren (JOIN mit freebies Tabelle)
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -11,11 +11,12 @@ if (!isset($customer_id)) {
 
 // ===== ECHTE STATISTIKEN ABRUFEN =====
 try {
-    // Freigeschaltete Freebies - KORRIGIERT: Alle Freebies zählen!
+    // Freigeschaltete Freebies - NUR die noch existieren!
     $stmt_freebies = $pdo->prepare("
         SELECT COUNT(*) 
-        FROM customer_freebies 
-        WHERE customer_id = ?
+        FROM customer_freebies cf
+        INNER JOIN freebies f ON cf.freebie_id = f.id
+        WHERE cf.customer_id = ?
     ");
     $stmt_freebies->execute([$customer_id]);
     $freebies_unlocked = $stmt_freebies->fetchColumn();
@@ -318,7 +319,7 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
                         <?php echo number_format($freebies_unlocked); ?>
                     </div>
                     <div class="text-green-100 text-sm font-medium">
-                        Freigeschaltete Freebies
+                        Aktive Freebies
                     </div>
                 </div>
             </div>
