@@ -112,13 +112,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 $pdo->exec("SET FOREIGN_KEY_CHECKS=0");
                 
-                // 1. TABELLEN umbenennen
+                // 1. TABELLEN umbenennen (erweiterte Liste!)
                 $rename = [
                     'customer_freebies' => 'user_freebies',
                     'customer_freebie_limits' => 'user_freebie_limits',
                     'customer_courses' => 'user_courses',
                     'customer_progress' => 'user_progress',
-                    'customer_tutorials' => 'user_tutorials'
+                    'customer_tutorials' => 'user_tutorials',
+                    'customer_checklist' => 'user_checklist',
+                    'customer_purchases' => 'user_purchases'
                 ];
                 
                 foreach ($rename as $old => $new) {
@@ -193,12 +195,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $view = $row[0];
                     
                     try {
-                        // Teste View
+                        // Teste View - wenn funktioniert, überspringe
                         try {
                             $pdo->query("SELECT * FROM `$view` LIMIT 0");
-                            continue; // View funktioniert
+                            continue; // View ist OK
                         } catch (Exception $e) {
-                            // View ist kaputt
+                            // View ist kaputt, versuche zu reparieren
                         }
                         
                         // Hole View-Definition
@@ -209,28 +211,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $newCreateView = preg_replace('/\bcustomer_(\w+)/i', 'user_$1', $createView);
                         $newCreateView = str_replace('customer_id', 'user_id', $newCreateView);
                         
-                        // Prüfe ob alle referenzierten Tabellen existieren
-                        preg_match_all('/FROM\s+`?(\w+)`?/i', $newCreateView, $matches);
-                        $missingTables = [];
-                        
-                        foreach ($matches[1] as $table) {
-                            try {
-                                $exists = $pdo->query("SHOW TABLES LIKE '$table'")->fetch();
-                                if (!$exists) {
-                                    $missingTables[] = $table;
-                                }
-                            } catch (Exception $e) {}
-                        }
-                        
-                        if (count($missingTables) > 0) {
-                            // View kann nicht repariert werden - droppen
-                            $pdo->exec("DROP VIEW IF EXISTS `$view`");
-                            $dropped[] = "$view (fehlende Tabellen: " . implode(', ', $missingTables) . ")";
-                        } else {
-                            // View neu erstellen
+                        // Versuche View neu zu erstellen
+                        try {
                             $pdo->exec("DROP VIEW IF EXISTS `$view`");
                             $pdo->exec($newCreateView);
+                            
+                            // Prüfe ob die neue View funktioniert
+                            $pdo->query("SELECT * FROM `$view` LIMIT 0");
                             $fixed[] = $view;
+                        } catch (Exception $e) {
+                            // View kann nicht repariert werden
+                            // Stelle sicher dass sie gelöscht ist
+                            try {
+                                $pdo->exec("DROP VIEW IF EXISTS `$view`");
+                            } catch (Exception $e2) {}
+                            
+                            $errorMsg = $e->getMessage();
+                            if (strpos($errorMsg, 'Unknown column') !== false) {
+                                $dropped[] = "$view (fehlende Spalte)";
+                            } else if (strpos($errorMsg, "doesn't exist") !== false) {
+                                $dropped[] = "$view (fehlende Tabelle)";
+                            } else {
+                                $dropped[] = "$view (Fehler: " . substr($errorMsg, 0, 50) . "...)";
+                            }
                         }
                         
                     } catch (Exception $e) {
@@ -265,7 +268,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } catch (Exception $e) {}
                 }
                 
-                $checkNew = ['user_freebies', 'user_freebie_limits'];
+                $checkNew = ['user_freebies', 'user_freebie_limits', 'user_checklist', 'user_purchases'];
                 foreach ($checkNew as $table) {
                     if ($pdo->query("SHOW TABLES LIKE '$table'")->fetch()) {
                         $newTables++;
@@ -366,6 +369,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-secondary { background: #f1f5f9; color: #64748b; }
         .btn-warning { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+        .btn-danger { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
         .result {
             background: #f9fafb;
             border-radius: 8px;
@@ -425,9 +429,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="step" id="step2b" style="display:none;">
                 <h3>2½️⃣ Views reparieren</h3>
                 <p style="font-size: 14px; color: #64748b; margin-bottom: 10px;">
-                    Repariert kaputte Views oder löscht sie, wenn Tabellen fehlen
+                    Repariert kaputte Views oder löscht sie automatisch, wenn Spalten/Tabellen fehlen
                 </p>
-                <button class="btn btn-warning" onclick="runFixViews()" id="btn2b">Views reparieren</button>
+                <button class="btn btn-danger" onclick="runFixViews()" id="btn2b">Views reparieren/löschen</button>
                 <div id="result2b" class="result"></div>
             </div>
             
@@ -525,7 +529,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         async function runMigration() {
-            if (!confirm('Migration starten?')) return;
+            if (!confirm('Migration starten?\n\nDas wird customer_checklist und customer_purchases umbenennen!')) return;
             
             try {
                 const data = await callApi('migrate', document.getElementById('btn2'));
@@ -567,7 +571,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         async function runFixViews() {
-            if (!confirm('Views reparieren/löschen?')) return;
+            if (!confirm('Views reparieren/löschen?\n\nKaputte Views (wie v_freebie_analytics_summary) werden automatisch gelöscht!')) return;
             
             try {
                 const data = await callApi('fix_views', document.getElementById('btn2b'));
@@ -597,6 +601,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 r.innerHTML = html;
                 document.getElementById('step2b').classList.add('complete');
                 document.getElementById('btn3').disabled = false;
+                document.getElementById('step3').classList.add('active');
             } catch (e) {
                 document.getElementById('result2b').innerHTML = '<span class="error">❌ ' + e.message + '</span>';
                 document.getElementById('result2b').style.display = 'block';
@@ -631,7 +636,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         html += '<br><span class="warning">⚠️ Noch kaputte Views:</span><br><div class="list">';
                         data.broken_views.forEach(v => html += '• ' + v + '<br>');
                         html += '</div>';
-                        html += '<br><div class="warning-box">Views müssen noch repariert werden! (Schritt 2½)</div>';
+                        html += '<br><div class="warning-box">⚠️ Gehe zurück zu Schritt 2½ und klicke nochmal auf "Views reparieren"!</div>';
                     }
                     
                     r.innerHTML = html;
