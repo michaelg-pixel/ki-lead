@@ -1,7 +1,7 @@
 <?php
 /**
  * Customer Dashboard - Empfehlungsprogramm Section
- * Verwendet bestehende referral_stats Tabelle und users Tabelle
+ * Korrigiert: verwendet user_id statt customer_id für referral_stats
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -28,7 +28,7 @@ try {
         throw new Exception("User nicht gefunden");
     }
     
-    // Statistiken aus referral_stats laden
+    // Statistiken aus referral_stats laden - WICHTIG: user_id verwenden!
     $stmt_stats = $pdo->prepare("
         SELECT 
             total_clicks,
@@ -41,7 +41,7 @@ try {
             last_click_at,
             last_conversion_at
         FROM referral_stats 
-        WHERE customer_id = ?
+        WHERE user_id = ?
     ");
     $stmt_stats->execute([$customer_id]);
     $stats = $stmt_stats->fetch(PDO::FETCH_ASSOC);
