@@ -2,6 +2,7 @@
 /**
  * API: Register Referral Lead
  * Lead meldet sich für Empfehlungsprogramm an
+ * UPDATED: Erstellt auch Eintrag in lead_users mit user_id Verknüpfung
  */
 
 header('Content-Type: application/json');
@@ -25,20 +26,22 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 try {
-    $db = Database::getInstance()->getConnection();
+    $db = getDBConnection();
     $referral = new ReferralHelper($db);
     
     // Input validieren
     $input = json_decode(file_get_contents('php://input'), true);
     
-    $userId = $input['user_id'] ?? null;
-    $refCode = $input['ref'] ?? null;
+    // Support both user_id and customer_id
+    $customerId = $input['customer_id'] ?? $input['user_id'] ?? null;
+    $refCode = $input['ref_code'] ?? $input['ref'] ?? null;
     $email = $input['email'] ?? null;
+    $name = $input['name'] ?? null; // Optional: Name des Leads
     $gdprConsent = $input['gdpr_consent'] ?? false;
     
     // Validierung
-    if (!$userId || !$refCode || !$email) {
-        throw new Exception('Pflichtfelder fehlen');
+    if (!$customerId || !$refCode || !$email) {
+        throw new Exception('Pflichtfelder fehlen: customer_id, ref_code und email sind erforderlich');
     }
     
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -58,31 +61,39 @@ try {
     $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
     $ipHash = $referral->hashIP($ip);
     
-    // Lead registrieren
+    // 1. Lead in referral_leads registrieren (für Tracking)
     $result = $referral->registerLead(
-        $userId,
+        $customerId,
         $refCode,
         $email,
         $ipHash,
         $gdprConsent
     );
     
-    if ($result['success']) {
-        // Hole User-Daten für E-Mail
+    if (!$result['success']) {
+        throw new Exception($result['message']);
+    }
+    
+    // 2. Lead in lead_users registrieren (für Dashboard-Zugriff)
+    $leadUserId = createLeadUser($db, $email, $name, $customerId, $refCode);
+    
+    if ($leadUserId) {
+        // 3. Hole User-Daten für E-Mail
         $stmt = $db->prepare("
-            SELECT email, company_name, company_email, company_imprint_html 
-            FROM customers 
+            SELECT email, company_name, company_email 
+            FROM users 
             WHERE id = ?
         ");
-        $stmt->execute([$userId]);
+        $stmt->execute([$customerId]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        // Sende Bestätigungs-E-Mail
+        // 4. Sende Bestätigungs-E-Mail mit Login-Link
         try {
             sendConfirmationEmail(
                 $email,
                 $result['confirmation_token'],
-                $user
+                $user,
+                $leadUserId
             );
         } catch (Exception $e) {
             error_log("Email sending failed: " . $e->getMessage());
@@ -93,15 +104,11 @@ try {
         echo json_encode([
             'success' => true,
             'message' => 'Erfolgreich registriert! Bitte bestätigen Sie Ihre E-Mail-Adresse.',
-            'lead_id' => $result['lead_id']
+            'lead_id' => $result['lead_id'],
+            'lead_user_id' => $leadUserId
         ]);
     } else {
-        http_response_code(400);
-        echo json_encode([
-            'success' => false,
-            'error' => $result['error'],
-            'message' => $result['message']
-        ]);
+        throw new Exception('Fehler beim Erstellen des Lead-Accounts');
     }
     
 } catch (Exception $e) {
@@ -115,16 +122,96 @@ try {
 }
 
 /**
- * Sende Bestätigungs-E-Mail
+ * Erstelle Lead User Account (für Dashboard-Zugriff)
  */
-function sendConfirmationEmail($email, $token, $user) {
-    $companyName = $user['company_name'] ?: 'Mehr-Infos-Jetzt.de';
-    $companyEmail = $user['company_email'] ?: 'noreply@mehr-infos-jetzt.de';
-    $imprint = $user['company_imprint_html'] ?: getDefaultImprint();
+function createLeadUser($db, $email, $name, $userId, $refCode) {
+    try {
+        // Prüfe ob Lead bereits existiert
+        $stmt = $db->prepare("SELECT id FROM lead_users WHERE email = ? AND user_id = ?");
+        $stmt->execute([$email, $userId]);
+        $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($existing) {
+            return $existing['id'];
+        }
+        
+        // Extrahiere Namen aus E-Mail wenn nicht vorhanden
+        if (!$name) {
+            $name = explode('@', $email)[0];
+            $name = ucfirst(str_replace(['.', '_', '-'], ' ', $name));
+        }
+        
+        // Generiere eindeutigen Referral-Code für den Lead
+        $leadReferralCode = generateUniqueLeadReferralCode($db);
+        
+        // Generiere temporäres Passwort (wird per E-Mail gesendet)
+        $tempPassword = bin2hex(random_bytes(8));
+        $hashedPassword = password_hash($tempPassword, PASSWORD_DEFAULT);
+        
+        // Erstelle Lead User
+        $stmt = $db->prepare("
+            INSERT INTO lead_users 
+            (name, email, password_hash, user_id, referral_code, referred_by, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'active', NOW())
+        ");
+        
+        $stmt->execute([
+            $name,
+            $email,
+            $hashedPassword,
+            $userId,              // user_id - Verknüpfung zum Customer!
+            $leadReferralCode,
+            $refCode              // referred_by - Wer hat diesen Lead geworben
+        ]);
+        
+        $leadUserId = $db->lastInsertId();
+        
+        // Speichere Passwort temporär für E-Mail (in Session oder DB)
+        $_SESSION['lead_temp_password_' . $leadUserId] = $tempPassword;
+        
+        return $leadUserId;
+        
+    } catch (Exception $e) {
+        error_log("Create Lead User Error: " . $e->getMessage());
+        return null;
+    }
+}
+
+/**
+ * Generiere eindeutigen Referral-Code für Lead
+ */
+function generateUniqueLeadReferralCode($db) {
+    $maxAttempts = 10;
+    for ($i = 0; $i < $maxAttempts; $i++) {
+        $code = 'LEAD' . strtoupper(bin2hex(random_bytes(6)));
+        
+        // Prüfe ob Code bereits existiert
+        $stmt = $db->prepare("SELECT id FROM lead_users WHERE referral_code = ?");
+        $stmt->execute([$code]);
+        
+        if (!$stmt->fetch()) {
+            return $code;
+        }
+    }
+    
+    // Fallback mit Timestamp
+    return 'LEAD' . strtoupper(bin2hex(random_bytes(4))) . time();
+}
+
+/**
+ * Sende Bestätigungs-E-Mail mit Login-Daten
+ */
+function sendConfirmationEmail($email, $token, $user, $leadUserId) {
+    $companyName = $user['company_name'] ?? 'Mehr-Infos-Jetzt.de';
+    $companyEmail = $user['company_email'] ?? 'noreply@mehr-infos-jetzt.de';
     
     $confirmUrl = "https://" . $_SERVER['HTTP_HOST'] . "/api/referral/confirm-lead.php?token=" . $token;
+    $dashboardUrl = "https://" . $_SERVER['HTTP_HOST'] . "/lead_login.php";
     
-    $subject = "Bitte bestätigen Sie Ihre E-Mail-Adresse";
+    // Hole temporäres Passwort
+    $tempPassword = $_SESSION['lead_temp_password_' . $leadUserId] ?? '(siehe separate E-Mail)';
+    
+    $subject = "Willkommen beim Empfehlungsprogramm - Bestätigen Sie Ihre E-Mail";
     
     $message = "
     <!DOCTYPE html>
@@ -133,25 +220,57 @@ function sendConfirmationEmail($email, $token, $user) {
         <meta charset='UTF-8'>
         <style>
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .button { display: inline-block; padding: 12px 24px; background: #10b981; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-            .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; background: #f9f9f9; }
+            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+            .content { background: white; padding: 30px; border-radius: 0 0 10px 10px; }
+            .button { display: inline-block; padding: 14px 28px; background: #10b981; color: white !important; text-decoration: none; border-radius: 8px; margin: 20px 0; font-weight: bold; }
+            .credentials { background: #f0f7ff; border-left: 4px solid #667eea; padding: 15px; margin: 20px 0; border-radius: 4px; }
+            .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; text-align: center; }
         </style>
     </head>
     <body>
         <div class='container'>
-            <h2>Willkommen beim Empfehlungsprogramm!</h2>
-            <p>Vielen Dank für Ihre Anmeldung beim Empfehlungsprogramm von <strong>{$companyName}</strong>.</p>
-            <p>Bitte bestätigen Sie Ihre E-Mail-Adresse, um Ihre Teilnahme zu aktivieren:</p>
-            <a href='{$confirmUrl}' class='button'>E-Mail bestätigen</a>
-            <p>Oder kopieren Sie diesen Link in Ihren Browser:<br>
-            <small>{$confirmUrl}</small></p>
+            <div class='header'>
+                <h1 style='margin:0;font-size:28px;'>🎉 Willkommen!</h1>
+                <p style='margin:10px 0 0 0;opacity:0.9;'>Empfehlungsprogramm von {$companyName}</p>
+            </div>
+            
+            <div class='content'>
+                <h2>Vielen Dank für Ihre Anmeldung!</h2>
+                <p>Sie sind jetzt Teil unseres exklusiven Empfehlungsprogramms. Empfehlen Sie uns weiter und sichern Sie sich attraktive Belohnungen!</p>
+                
+                <h3>🔐 Ihre Login-Daten:</h3>
+                <div class='credentials'>
+                    <strong>Dashboard-URL:</strong><br>
+                    <a href='{$dashboardUrl}'>{$dashboardUrl}</a><br><br>
+                    <strong>E-Mail:</strong> {$email}<br>
+                    <strong>Temporäres Passwort:</strong> {$tempPassword}
+                </div>
+                
+                <p><strong>⚠️ Wichtig:</strong> Bitte ändern Sie Ihr Passwort nach dem ersten Login!</p>
+                
+                <h3>✅ Bestätigen Sie Ihre E-Mail-Adresse:</h3>
+                <p>Um Ihre Teilnahme zu aktivieren, bestätigen Sie bitte Ihre E-Mail-Adresse:</p>
+                <center>
+                    <a href='{$confirmUrl}' class='button'>E-Mail jetzt bestätigen</a>
+                </center>
+                
+                <p style='font-size:13px;color:#666;'>Oder kopieren Sie diesen Link in Ihren Browser:<br>
+                <code style='background:#f5f5f5;padding:5px;display:block;word-break:break-all;'>{$confirmUrl}</code></p>
+                
+                <h3>🎁 So funktioniert's:</h3>
+                <ol>
+                    <li>Loggen Sie sich in Ihr Dashboard ein</li>
+                    <li>Wählen Sie ein Freebie zum Teilen</li>
+                    <li>Teilen Sie Ihren persönlichen Empfehlungslink</li>
+                    <li>Sammeln Sie erfolgreiche Empfehlungen</li>
+                    <li>Erhalten Sie exklusive Belohnungen!</li>
+                </ol>
+            </div>
+            
             <div class='footer'>
-                <hr>
-                <small>
-                Diese E-Mail wurde im Rahmen des Empfehlungsprogramms von {$companyName} versendet.<br><br>
-                {$imprint}
-                </small>
+                Diese E-Mail wurde im Rahmen des Empfehlungsprogramms von {$companyName} versendet.<br>
+                Bei Fragen kontaktieren Sie uns unter: {$companyEmail}
             </div>
         </div>
     </body>
@@ -163,16 +282,8 @@ function sendConfirmationEmail($email, $token, $user) {
     $headers .= "MIME-Version: 1.0\r\n";
     $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
     
+    // Cleanup Session
+    unset($_SESSION['lead_temp_password_' . $leadUserId]);
+    
     return mail($email, $subject, $message, $headers);
-}
-
-/**
- * Fallback-Impressum
- */
-function getDefaultImprint() {
-    return "
-        <strong>KI-Lead-System</strong><br>
-        Technischer Dienstleister im Auftrag<br>
-        E-Mail: support@mehr-infos-jetzt.de
-    ";
 }
