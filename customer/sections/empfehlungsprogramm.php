@@ -62,10 +62,11 @@ try {
     }
     
     // Freebies laden - ANGEPASST für existierende Struktur
-    // Verwendet: name statt title, user_id statt customer_id, mockup_image_url statt image_path
+    // WICHTIG: Verwendet unique_id für Link-Generierung
     $stmt_freebies = $pdo->prepare("
         SELECT DISTINCT
             f.id,
+            f.unique_id,
             f.name as title,
             f.description,
             f.mockup_image_url as image_path,
@@ -502,7 +503,8 @@ for ($i = 6; $i >= 0; $i--) {
                     <?php foreach ($freebies as $index => $freebie): ?>
                     <div class="freebie-card" 
                          data-freebie-id="<?php echo $freebie['id']; ?>"
-                         onclick="selectFreebie(<?php echo $freebie['id']; ?>, '<?php echo htmlspecialchars($freebie['title'], ENT_QUOTES); ?>')">
+                         data-freebie-unique-id="<?php echo htmlspecialchars($freebie['unique_id']); ?>"
+                         onclick="selectFreebie('<?php echo htmlspecialchars($freebie['unique_id'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($freebie['title'], ENT_QUOTES); ?>')">
                         
                         <span class="freebie-badge <?php echo $freebie['freebie_type']; ?>">
                             <?php echo $freebie['freebie_type'] === 'own' ? '👤 Eigenes' : '🔓 Freigeschaltet'; ?>
@@ -667,7 +669,7 @@ for ($i = 6; $i >= 0; $i--) {
         let referralEnabled = <?php echo $referralEnabled ? 'true' : 'false'; ?>;
         let referralCode = '<?php echo $referralCode; ?>';
         let baseUrl = '<?php echo $baseUrl; ?>';
-        let selectedFreebieId = null;
+        let selectedFreebieUniqueId = null;
         
         // Toggle Empfehlungsprogramm
         function toggleReferralProgram(enabled) {
@@ -700,9 +702,9 @@ for ($i = 6; $i >= 0; $i--) {
             });
         }
         
-        // Freebie auswählen
-        function selectFreebie(freebieId, freebieTitle) {
-            selectedFreebieId = freebieId;
+        // Freebie auswählen - JETZT MIT UNIQUE_ID
+        function selectFreebie(freebieUniqueId, freebieTitle) {
+            selectedFreebieUniqueId = freebieUniqueId;
             
             // Alle Karten deselektieren
             document.querySelectorAll('.freebie-card').forEach(card => {
@@ -711,18 +713,18 @@ for ($i = 6; $i >= 0; $i--) {
             });
             
             // Ausgewählte Karte markieren
-            const selectedCard = document.querySelector(`.freebie-card[data-freebie-id="${freebieId}"]`);
+            const selectedCard = document.querySelector(`.freebie-card[data-freebie-unique-id="${freebieUniqueId}"]`);
             selectedCard.classList.add('selected');
             selectedCard.querySelector('[data-check-icon]').style.display = 'inline';
             
-            // Empfehlungslink generieren und anzeigen
-            const referralLink = `${baseUrl}/f/index.php?ref=${referralCode}&freebie=${freebieId}`;
+            // KORRIGIERTER Empfehlungslink mit /freebie/index.php und unique_id
+            const referralLink = `${baseUrl}/freebie/index.php?id=${freebieUniqueId}&ref=${referralCode}`;
             document.getElementById('referralLinkInput').value = referralLink;
             document.getElementById('selectedFreebieTitle').textContent = freebieTitle;
             document.getElementById('referralLinkSection').style.display = 'block';
             
-            // Freebie-ID in Session speichern
-            sessionStorage.setItem('selectedFreebieId', freebieId);
+            // Freebie-Unique-ID in Session speichern
+            sessionStorage.setItem('selectedFreebieUniqueId', freebieUniqueId);
             sessionStorage.setItem('selectedFreebieTitle', freebieTitle);
             
             showNotification(`Freebie "${freebieTitle}" ausgewählt!`, 'success');
@@ -750,11 +752,11 @@ for ($i = 6; $i >= 0; $i--) {
         
         // Zu Belohnungsstufen wechseln
         function goToRewardTiers() {
-            if (!selectedFreebieId) {
+            if (!selectedFreebieUniqueId) {
                 showNotification('Bitte wähle zuerst ein Freebie aus', 'error');
                 return;
             }
-            window.location.href = '?page=belohnungsstufen&freebie_id=' + selectedFreebieId;
+            window.location.href = '?page=belohnungsstufen&freebie_id=' + selectedFreebieUniqueId;
         }
         
         // Firmendaten speichern
