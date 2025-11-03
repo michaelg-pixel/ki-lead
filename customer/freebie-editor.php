@@ -68,22 +68,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
         $url_slug = $customer_freebie['url_slug'];
     }
     
+    // Mockup-Image-URL aus Template holen (falls nicht schon vorhanden)
+    $mockup_image_url = $customer_freebie['mockup_image_url'] ?? $template['mockup_image_url'] ?? '';
+    
     try {
         if ($customer_freebie) {
-            // Update existing customer_freebies - NUR die Customer-Version aktualisieren
+            // Update existing customer_freebies - INKLUSIVE mockup_image_url!
             $stmt = $pdo->prepare("
                 UPDATE customer_freebies SET
                     headline = ?, subheadline = ?, preheadline = ?,
                     bullet_points = ?, cta_text = ?, layout = ?,
                     background_color = ?, primary_color = ?, raw_code = ?,
-                    updated_at = NOW()
+                    mockup_image_url = ?, updated_at = NOW()
                 WHERE id = ?
             ");
             $stmt->execute([
                 $headline, $subheadline, $preheadline,
                 $bullet_points, $cta_text, $layout,
                 $background_color, $primary_color, $raw_code,
-                $customer_freebie['id']
+                $mockup_image_url, $customer_freebie['id']
             ]);
             $customer_freebie_id = $customer_freebie['id'];
             
@@ -128,7 +131,7 @@ $form_data = [
     'background_color' => $customer_freebie['background_color'] ?? $template['background_color'] ?? '#FFFFFF',
     'primary_color' => $customer_freebie['primary_color'] ?? $template['primary_color'] ?? '#8B5CF6',
     'raw_code' => $customer_freebie['raw_code'] ?? $template['raw_code'] ?? '',
-    'mockup_image_url' => $template['mockup_image_url'] ?? ''
+    'mockup_image_url' => $customer_freebie['mockup_image_url'] ?? $template['mockup_image_url'] ?? ''
 ];
 ?>
 <!DOCTYPE html>
