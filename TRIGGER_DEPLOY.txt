@@ -1,0 +1,5 @@
+Deployment Trigger: <?php echo date('Y-m-d H:i:s'); ?>
+
+Letzte Änderungen:
+- Empfehlungsprogramm-CTA zur Danke-Seite hinzugefügt
+- Motivierende Belohnungsinformationen integriert
