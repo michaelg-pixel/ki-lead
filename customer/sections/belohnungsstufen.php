@@ -118,6 +118,7 @@ if (!isset($customer_id)) {
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
+            text-decoration: none;
         }
         
         .btn-primary {
@@ -160,6 +161,14 @@ if (!isset($customer_id)) {
             color: #9ca3af;
         }
         
+        .error-box {
+            background: rgba(239, 68, 68, 0.1);
+            border: 2px solid #ef4444;
+            border-radius: 1rem;
+            padding: 2rem;
+            text-align: center;
+        }
+        
         @media (max-width: 640px) {
             .reward-card {
                 padding: 1rem;
@@ -191,7 +200,7 @@ if (!isset($customer_id)) {
                             Konfiguriere die Belohnungen für dein Empfehlungsprogramm
                         </p>
                     </div>
-                    <button onclick="openRewardModal()" class="btn btn-primary">
+                    <button onclick="openRewardModal()" class="btn btn-primary" id="createBtn">
                         <i class="fas fa-plus"></i>
                         Neue Belohnungsstufe
                     </button>
@@ -199,8 +208,36 @@ if (!isset($customer_id)) {
             </div>
         </div>
         
+        <!-- Loading State -->
+        <div id="loadingState" style="text-align: center; padding: 4rem 2rem;">
+            <div style="font-size: 3rem; color: #667eea; margin-bottom: 1rem;">
+                <i class="fas fa-spinner fa-spin"></i>
+            </div>
+            <p style="color: #9ca3af; font-size: 1.125rem;">
+                Lade Belohnungsstufen...
+            </p>
+        </div>
+        
+        <!-- Error State -->
+        <div id="errorState" style="display: none;">
+            <div class="error-box animate-fade-in">
+                <div style="font-size: 4rem; color: #ef4444; margin-bottom: 1rem;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <h3 style="color: white; font-size: 1.5rem; margin-bottom: 1rem;">
+                    Setup erforderlich
+                </h3>
+                <p id="errorMessage" style="color: #9ca3af; margin-bottom: 2rem; font-size: 1rem;">
+                </p>
+                <a href="/setup-reward-definitions.php" target="_blank" class="btn btn-primary">
+                    <i class="fas fa-wrench"></i>
+                    Setup jetzt ausführen
+                </a>
+            </div>
+        </div>
+        
         <!-- Rewards Grid -->
-        <div id="rewardsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
+        <div id="rewardsGrid" style="display: none; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
             <!-- Wird dynamisch gefüllt -->
         </div>
         
@@ -298,7 +335,7 @@ if (!isset($customer_id)) {
                     </div>
                 </div>
                 
-                <!-- Erweiterte Einstellungen (zusammengeklappt) -->
+                <!-- Erweiterte Einstellungen -->
                 <details style="margin-top: 1.5rem; margin-bottom: 1.5rem;">
                     <summary style="color: #9ca3af; cursor: pointer; padding: 0.75rem; background: rgba(255,255,255,0.05); border-radius: 0.5rem; user-select: none;">
                         <i class="fas fa-cog"></i> Erweiterte Einstellungen
@@ -376,16 +413,24 @@ if (!isset($customer_id)) {
             fetch('/api/rewards/list.php')
                 .then(response => response.json())
                 .then(data => {
+                    document.getElementById('loadingState').style.display = 'none';
+                    
                     if (data.success) {
                         rewards = data.data;
                         renderRewards();
                     } else {
-                        showNotification('Fehler beim Laden: ' + data.error, 'error');
+                        // Fehler anzeigen
+                        document.getElementById('errorMessage').textContent = data.error;
+                        document.getElementById('errorState').style.display = 'block';
+                        document.getElementById('createBtn').style.display = 'none';
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    showNotification('Verbindungsfehler', 'error');
+                    document.getElementById('loadingState').style.display = 'none';
+                    document.getElementById('errorMessage').textContent = 'Verbindungsfehler beim Laden der Belohnungsstufen.';
+                    document.getElementById('errorState').style.display = 'block';
+                    document.getElementById('createBtn').style.display = 'none';
                 });
         }
         
