@@ -9,8 +9,130 @@
 
 // Sicherheits-Check: Nur für Admins
 session_start();
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    die('⛔ Zugriff verweigert! Nur Admins dürfen dieses Script ausführen.');
+
+// DEBUG: Session-Variablen anzeigen (nur für Entwicklung)
+$debug = false; // Auf true setzen zum Debuggen
+if ($debug) {
+    echo "<pre>";
+    echo "Session-Debug:\n";
+    echo "user_id: " . ($_SESSION['user_id'] ?? 'nicht gesetzt') . "\n";
+    echo "customer_id: " . ($_SESSION['customer_id'] ?? 'nicht gesetzt') . "\n";
+    echo "role: " . ($_SESSION['role'] ?? 'nicht gesetzt') . "\n";
+    echo "is_admin: " . ($_SESSION['is_admin'] ?? 'nicht gesetzt') . "\n";
+    echo "\nAlle Session-Variablen:\n";
+    print_r($_SESSION);
+    echo "</pre>";
+}
+
+// Flexible Admin-Prüfung: Unterstützt alte UND neue Session-Variablen
+$isLoggedIn = isset($_SESSION['user_id']) || isset($_SESSION['customer_id']);
+$isAdmin = false;
+
+// Prüfe verschiedene Admin-Varianten
+if (isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === true) {
+    $isAdmin = true;
+} elseif (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
+    $isAdmin = true;
+}
+
+if (!$isLoggedIn || !$isAdmin) {
+    ?>
+    <!DOCTYPE html>
+    <html lang="de">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>⛔ Zugriff verweigert</title>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+            }
+            .container {
+                background: white;
+                border-radius: 20px;
+                padding: 40px;
+                max-width: 500px;
+                text-align: center;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            }
+            .icon {
+                font-size: 64px;
+                margin-bottom: 20px;
+            }
+            h1 {
+                font-size: 28px;
+                color: #1a1a2e;
+                margin-bottom: 15px;
+            }
+            p {
+                color: #6b7280;
+                line-height: 1.6;
+                margin-bottom: 25px;
+            }
+            .btn {
+                display: inline-block;
+                padding: 12px 24px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                text-decoration: none;
+                border-radius: 8px;
+                font-weight: 600;
+                transition: transform 0.2s;
+            }
+            .btn:hover {
+                transform: translateY(-2px);
+            }
+            .debug-info {
+                margin-top: 30px;
+                padding: 15px;
+                background: #f9fafb;
+                border-radius: 8px;
+                text-align: left;
+                font-size: 12px;
+                font-family: 'Courier New', monospace;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="icon">⛔</div>
+            <h1>Zugriff verweigert!</h1>
+            <p>
+                Nur Administratoren dürfen dieses Migrations-Tool verwenden.
+                <br><br>
+                <strong>Mögliche Gründe:</strong>
+            </p>
+            <ul style="text-align: left; color: #6b7280; margin-bottom: 25px;">
+                <li>Du bist nicht eingeloggt</li>
+                <li>Du bist nicht als Administrator angemeldet</li>
+                <li>Deine Session ist abgelaufen</li>
+            </ul>
+            
+            <a href="/admin/dashboard.php" class="btn">Zum Admin-Dashboard</a>
+            
+            <?php if ($debug): ?>
+            <div class="debug-info">
+                <strong>Debug-Info:</strong><br>
+                Logged In: <?php echo $isLoggedIn ? 'Ja' : 'Nein'; ?><br>
+                Is Admin: <?php echo $isAdmin ? 'Ja' : 'Nein'; ?><br>
+                Session user_id: <?php echo $_SESSION['user_id'] ?? 'nicht gesetzt'; ?><br>
+                Session customer_id: <?php echo $_SESSION['customer_id'] ?? 'nicht gesetzt'; ?><br>
+                Session role: <?php echo $_SESSION['role'] ?? 'nicht gesetzt'; ?><br>
+                Session is_admin: <?php echo isset($_SESSION['is_admin']) ? ($_SESSION['is_admin'] ? 'true' : 'false') : 'nicht gesetzt'; ?>
+            </div>
+            <?php endif; ?>
+        </div>
+    </body>
+    </html>
+    <?php
+    exit;
 }
 
 require_once __DIR__ . '/config/database.php';
@@ -185,19 +307,16 @@ function createBackup() {
         'includes/ReferralHelper.php'
     ];
     
-    $codeBackupFile = $backupDir . '/code_backup_' . $timestamp . '.tar.gz';
+    $codeBackupSize = 0;
+    $backedUpFiles = [];
     
-    $filesExist = [];
     foreach ($filesToBackup as $file) {
-        if (file_exists(__DIR__ . '/' . $file)) {
-            $filesExist[] = $file;
-        }
-    }
-    
-    if (!empty($filesExist)) {
-        $tar = new PharData($codeBackupFile);
-        foreach ($filesExist as $file) {
-            $tar->addFile(__DIR__ . '/' . $file, $file);
+        $fullPath = __DIR__ . '/' . $file;
+        if (file_exists($fullPath)) {
+            $backupPath = $backupDir . '/code_' . str_replace('/', '_', $file) . '_' . $timestamp . '.backup';
+            copy($fullPath, $backupPath);
+            $codeBackupSize += filesize($backupPath);
+            $backedUpFiles[] = $file;
         }
     }
     
@@ -206,9 +325,9 @@ function createBackup() {
         'message' => 'Backup erfolgreich erstellt',
         'files' => [
             'database' => basename($dbBackupFile),
-            'code' => basename($codeBackupFile),
+            'code_files' => $backedUpFiles,
             'size_db' => filesize($dbBackupFile),
-            'size_code' => file_exists($codeBackupFile) ? filesize($codeBackupFile) : 0
+            'size_code' => $codeBackupSize
         ],
         'timestamp' => $timestamp
     ];
@@ -440,670 +559,4 @@ function rollback() {
     ];
 }
 
-?>
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔄 Migration Tool: customer_id → user_id</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            overflow: hidden;
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 40px;
-            text-align: center;
-        }
-        
-        .header h1 {
-            font-size: 32px;
-            margin-bottom: 10px;
-        }
-        
-        .header p {
-            opacity: 0.9;
-            font-size: 16px;
-        }
-        
-        .content {
-            padding: 40px;
-        }
-        
-        .warning {
-            background: #fff3cd;
-            border: 2px solid #ffc107;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .warning h3 {
-            color: #856404;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .warning ul {
-            margin-left: 20px;
-            color: #856404;
-        }
-        
-        .step {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 25px;
-            margin-bottom: 20px;
-            border-left: 4px solid #dee2e6;
-        }
-        
-        .step.active {
-            border-left-color: #667eea;
-            background: #f0f4ff;
-        }
-        
-        .step.complete {
-            border-left-color: #10b981;
-            background: #f0fdf4;
-        }
-        
-        .step.error {
-            border-left-color: #ef4444;
-            background: #fef2f2;
-        }
-        
-        .step-header {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-        
-        .step-number {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: #dee2e6;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 18px;
-        }
-        
-        .step.active .step-number {
-            background: #667eea;
-        }
-        
-        .step.complete .step-number {
-            background: #10b981;
-        }
-        
-        .step.error .step-number {
-            background: #ef4444;
-        }
-        
-        .step-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: #1a1a2e;
-        }
-        
-        .step-description {
-            color: #6b7280;
-            margin-bottom: 15px;
-            line-height: 1.6;
-        }
-        
-        .step-status {
-            padding: 10px 15px;
-            border-radius: 8px;
-            font-size: 14px;
-            margin-bottom: 15px;
-        }
-        
-        .step-status.success {
-            background: #d1fae5;
-            color: #065f46;
-        }
-        
-        .step-status.error {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-        
-        .step-status.info {
-            background: #dbeafe;
-            color: #1e40af;
-        }
-        
-        .checks-list {
-            list-style: none;
-            margin: 15px 0;
-        }
-        
-        .checks-list li {
-            padding: 10px;
-            margin-bottom: 8px;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .checks-list li.ok {
-            background: #d1fae5;
-            color: #065f46;
-        }
-        
-        .checks-list li.warning {
-            background: #fef3c7;
-            color: #92400e;
-        }
-        
-        .checks-list li.error {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-        
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        
-        .btn-primary:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
-        }
-        
-        .btn-danger {
-            background: #ef4444;
-            color: white;
-        }
-        
-        .btn-secondary {
-            background: #f1f5f9;
-            color: #64748b;
-        }
-        
-        .spinner {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(255,255,255,0.3);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        .progress-bar {
-            height: 8px;
-            background: #e5e7eb;
-            border-radius: 4px;
-            overflow: hidden;
-            margin-bottom: 20px;
-        }
-        
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            transition: width 0.3s;
-        }
-        
-        .changes-list {
-            background: #f9fafb;
-            border-radius: 8px;
-            padding: 15px;
-            max-height: 200px;
-            overflow-y: auto;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-        }
-        
-        .changes-list div {
-            padding: 4px 0;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        
-        .changes-list div:last-child {
-            border-bottom: none;
-        }
-        
-        .footer {
-            padding: 20px 40px;
-            background: #f9fafb;
-            border-top: 1px solid #e5e7eb;
-            text-align: center;
-            color: #6b7280;
-            font-size: 14px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🔄 Migration Tool</h1>
-            <p>customer_id → user_id Migration</p>
-        </div>
-        
-        <div class="content">
-            <div class="warning">
-                <h3>⚠️ WICHTIGE HINWEISE</h3>
-                <ul>
-                    <li>Diese Migration ändert die Datenbank-Struktur!</li>
-                    <li>Ein Backup wird automatisch erstellt</li>
-                    <li>Die Migration kann einige Minuten dauern</li>
-                    <li>Schließe den Browser NICHT während der Migration</li>
-                    <li>Nach erfolgreicher Migration diese Datei LÖSCHEN!</li>
-                </ul>
-            </div>
-            
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressBar" style="width: 0%"></div>
-            </div>
-            
-            <!-- Schritt 1: System-Check -->
-            <div class="step" id="step1">
-                <div class="step-header">
-                    <div class="step-number">1</div>
-                    <div class="step-title">System-Check</div>
-                </div>
-                <div class="step-description">
-                    Überprüfung der System-Voraussetzungen
-                </div>
-                <div id="step1-content"></div>
-                <button class="btn btn-primary" onclick="runStep1()">
-                    System prüfen
-                </button>
-            </div>
-            
-            <!-- Schritt 2: Backup -->
-            <div class="step" id="step2">
-                <div class="step-header">
-                    <div class="step-number">2</div>
-                    <div class="step-title">Backup erstellen</div>
-                </div>
-                <div class="step-description">
-                    Sicherung von Datenbank und Code
-                </div>
-                <div id="step2-content"></div>
-                <button class="btn btn-primary" onclick="runStep2()" disabled id="step2-btn">
-                    Backup erstellen
-                </button>
-            </div>
-            
-            <!-- Schritt 3: Datenbank -->
-            <div class="step" id="step3">
-                <div class="step-header">
-                    <div class="step-number">3</div>
-                    <div class="step-title">Datenbank migrieren</div>
-                </div>
-                <div class="step-description">
-                    Umbenennung von Tabellen und Spalten
-                </div>
-                <div id="step3-content"></div>
-                <button class="btn btn-primary" onclick="runStep3()" disabled id="step3-btn">
-                    Datenbank migrieren
-                </button>
-            </div>
-            
-            <!-- Schritt 4: Frontend -->
-            <div class="step" id="step4">
-                <div class="step-header">
-                    <div class="step-number">4</div>
-                    <div class="step-title">Frontend migrieren</div>
-                </div>
-                <div class="step-description">
-                    Aktualisierung von PHP und JavaScript
-                </div>
-                <div id="step4-content"></div>
-                <button class="btn btn-primary" onclick="runStep4()" disabled id="step4-btn">
-                    Frontend migrieren
-                </button>
-            </div>
-            
-            <!-- Schritt 5: Verifizierung -->
-            <div class="step" id="step5">
-                <div class="step-header">
-                    <div class="step-number">5</div>
-                    <div class="step-title">Verifizierung</div>
-                </div>
-                <div class="step-description">
-                    Überprüfung der Migration
-                </div>
-                <div id="step5-content"></div>
-                <button class="btn btn-primary" onclick="runStep5()" disabled id="step5-btn">
-                    Migration verifizieren
-                </button>
-            </div>
-            
-            <!-- Rollback -->
-            <div class="step" id="step-rollback" style="display: none;">
-                <div class="step-header">
-                    <div class="step-number">⏪</div>
-                    <div class="step-title">Rollback</div>
-                </div>
-                <div class="step-description">
-                    Migration rückgängig machen
-                </div>
-                <button class="btn btn-danger" onclick="runRollback()">
-                    Rollback durchführen
-                </button>
-            </div>
-        </div>
-        
-        <div class="footer">
-            💡 Tipp: Nach erfolgreicher Migration diese Datei löschen!
-        </div>
-    </div>
-    
-    <script>
-        let currentStep = 1;
-        let completedSteps = [];
-        
-        function updateProgress() {
-            const progress = (completedSteps.length / 5) * 100;
-            document.getElementById('progressBar').style.width = progress + '%';
-        }
-        
-        function setStepActive(stepNum) {
-            document.getElementById('step' + stepNum).classList.add('active');
-        }
-        
-        function setStepComplete(stepNum) {
-            const step = document.getElementById('step' + stepNum);
-            step.classList.remove('active');
-            step.classList.add('complete');
-            completedSteps.push(stepNum);
-            updateProgress();
-            
-            // Nächsten Schritt aktivieren
-            if (stepNum < 5) {
-                const nextBtn = document.getElementById('step' + (stepNum + 1) + '-btn');
-                if (nextBtn) nextBtn.disabled = false;
-                setStepActive(stepNum + 1);
-            }
-            
-            // Rollback-Option anzeigen
-            if (stepNum >= 3) {
-                document.getElementById('step-rollback').style.display = 'block';
-            }
-        }
-        
-        function setStepError(stepNum, message) {
-            const step = document.getElementById('step' + stepNum);
-            step.classList.remove('active');
-            step.classList.add('error');
-            
-            const content = document.getElementById('step' + stepNum + '-content');
-            content.innerHTML = '<div class="step-status error">❌ ' + message + '</div>';
-        }
-        
-        function showLoading(stepNum, button) {
-            button.disabled = true;
-            button.innerHTML = '<span class="spinner"></span> Wird ausgeführt...';
-        }
-        
-        function hideLoading(stepNum, button, text) {
-            button.disabled = false;
-            button.innerHTML = text;
-        }
-        
-        async function runStep1() {
-            const button = document.querySelector('#step1 .btn');
-            showLoading(1, button);
-            setStepActive(1);
-            
-            try {
-                const response = await fetch('', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: 'action=check_system'
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    let html = '<ul class="checks-list">';
-                    for (const [key, check] of Object.entries(data.checks)) {
-                        html += `<li class="${check.status}">`;
-                        html += check.status === 'ok' ? '✅' : (check.status === 'warning' ? '⚠️' : '❌');
-                        html += ` <strong>${check.name}:</strong> ${check.message}</li>`;
-                    }
-                    html += '</ul>';
-                    
-                    document.getElementById('step1-content').innerHTML = html;
-                    
-                    if (data.ready) {
-                        setStepComplete(1);
-                    } else {
-                        setStepError(1, 'System nicht bereit für Migration!');
-                    }
-                } else {
-                    setStepError(1, data.error);
-                }
-            } catch (error) {
-                setStepError(1, 'Fehler: ' + error.message);
-            }
-            
-            hideLoading(1, button, 'System prüfen');
-        }
-        
-        async function runStep2() {
-            const button = document.querySelector('#step2 .btn');
-            showLoading(2, button);
-            
-            try {
-                const response = await fetch('', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: 'action=create_backup'
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    let html = '<div class="step-status success">✅ ' + data.message + '</div>';
-                    html += '<div style="font-size: 13px; color: #6b7280;">';
-                    html += '📁 Datenbank: ' + data.files.database + ' (' + Math.round(data.files.size_db / 1024) + ' KB)<br>';
-                    html += '📁 Code: ' + data.files.code + ' (' + Math.round(data.files.size_code / 1024) + ' KB)';
-                    html += '</div>';
-                    
-                    document.getElementById('step2-content').innerHTML = html;
-                    setStepComplete(2);
-                } else {
-                    setStepError(2, data.error);
-                }
-            } catch (error) {
-                setStepError(2, 'Fehler: ' + error.message);
-            }
-            
-            hideLoading(2, button, 'Backup erstellen');
-        }
-        
-        async function runStep3() {
-            const button = document.querySelector('#step3 .btn');
-            showLoading(3, button);
-            
-            try {
-                const response = await fetch('', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: 'action=migrate_database'
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    let html = '<div class="step-status success">✅ ' + data.message + '</div>';
-                    html += '<div class="changes-list">';
-                    data.changes.forEach(change => {
-                        html += '<div>✓ ' + change + '</div>';
-                    });
-                    html += '</div>';
-                    
-                    document.getElementById('step3-content').innerHTML = html;
-                    setStepComplete(3);
-                } else {
-                    setStepError(3, data.error);
-                }
-            } catch (error) {
-                setStepError(3, 'Fehler: ' + error.message);
-            }
-            
-            hideLoading(3, button, 'Datenbank migrieren');
-        }
-        
-        async function runStep4() {
-            const button = document.querySelector('#step4 .btn');
-            showLoading(4, button);
-            
-            try {
-                const response = await fetch('', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: 'action=migrate_frontend'
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    let html = '<div class="step-status success">✅ ' + data.message + '</div>';
-                    html += '<div class="changes-list">';
-                    data.changes.forEach(change => {
-                        html += '<div>✓ ' + change + '</div>';
-                    });
-                    html += '</div>';
-                    
-                    document.getElementById('step4-content').innerHTML = html;
-                    setStepComplete(4);
-                } else {
-                    setStepError(4, data.error);
-                }
-            } catch (error) {
-                setStepError(4, 'Fehler: ' + error.message);
-            }
-            
-            hideLoading(4, button, 'Frontend migrieren');
-        }
-        
-        async function runStep5() {
-            const button = document.querySelector('#step5 .btn');
-            showLoading(5, button);
-            
-            try {
-                const response = await fetch('', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: 'action=verify_migration'
-                });
-                
-                const data = await response.json();
-                
-                let html = '';
-                
-                if (data.success) {
-                    html += '<div class="step-status success">🎉 Migration erfolgreich abgeschlossen!</div>';
-                    html += '<ul class="checks-list">';
-                    data.success_items.forEach(item => {
-                        html += '<li class="ok">✅ ' + item + '</li>';
-                    });
-                    html += '</ul>';
-                    html += '<div style="margin-top: 20px; padding: 15px; background: #fef3c7; border-radius: 8px; color: #92400e;">';
-                    html += '⚠️ <strong>WICHTIG:</strong> Lösche jetzt diese Datei (migrate-browser.php) aus Sicherheitsgründen!';
-                    html += '</div>';
-                    
-                    setStepComplete(5);
-                } else {
-                    html += '<div class="step-status error">❌ Probleme gefunden</div>';
-                    html += '<ul class="checks-list">';
-                    data.issues.forEach(issue => {
-                        html += '<li class="error">❌ ' + issue + '</li>';
-                    });
-                    html += '</ul>';
-                    setStepError(5, 'Migration nicht vollständig');
-                }
-                
-                document.getElementById('step5-content').innerHTML = html;
-                
-            } catch (error) {
-                setStepError(5, 'Fehler: ' + error.message);
-            }
-            
-            hideLoading(5, button, 'Migration verifizieren');
-        }
-        
-        async function runRollback() {
-            if (!confirm('⚠️ WARNUNG: Möchtest du wirklich ein Rollback durchführen? Dies macht alle Änderungen rückgängig!')) {
-                return;
-            }
-            
-            try {
-                const response = await fetch('', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: 'action=rollback'
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    alert('✅ Rollback erfolgreich durchgeführt!');
-                    location.reload();
-                } else {
-                    alert('❌ Rollback fehlgeschlagen: ' + data.error);
-                }
-            } catch (error) {
-                alert('❌ Fehler beim Rollback: ' + error.message);
-            }
-        }
-        
-        // Auto-Start System-Check
-        window.onload = function() {
-            runStep1();
-        };
-    </script>
-</body>
-</html>
+?><?php include 'migrate-browser-ui.html'; ?>
