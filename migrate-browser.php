@@ -1,7 +1,7 @@
 <?php
 /**
  * 🔄 MIGRATION TOOL: customer_id → user_id
- * Mit View-Support und besserer Diagnostik
+ * Mit View-Support, Reparatur und besserer Diagnostik
  */
 
 error_reporting(0);
@@ -74,13 +74,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } catch (Exception $e) {}
                 }
                 
-                // Views
+                // Views prüfen
                 $views = $pdo->query("SHOW FULL TABLES WHERE Table_type = 'VIEW'")->fetchAll(PDO::FETCH_NUM);
+                $brokenViews = [];
                 $oldViews = [];
+                
                 foreach ($views as $row) {
                     $view = $row[0];
                     if (stripos($view, 'customer') !== false) {
                         $oldViews[] = $view;
+                    }
+                    
+                    // Prüfe ob View funktioniert
+                    try {
+                        $pdo->query("SELECT * FROM `$view` LIMIT 0");
+                    } catch (Exception $e) {
+                        $brokenViews[] = $view;
                     }
                 }
                 
@@ -90,7 +99,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'old_tables' => $oldTables,
                     'old_columns' => $oldColumns,
                     'old_views' => $oldViews,
-                    'needs_migration' => (count($oldTables) > 0 || $oldColumns > 0)
+                    'broken_views' => $brokenViews,
+                    'needs_migration' => (count($oldTables) > 0 || $oldColumns > 0),
+                    'needs_view_fix' => (count($brokenViews) > 0)
                 ]);
                 break;
                 
@@ -158,32 +169,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
                 
-                // 3. VIEWS updaten (falls vorhanden)
-                $views = $pdo->query("SHOW FULL TABLES WHERE Table_type = 'VIEW'")->fetchAll(PDO::FETCH_NUM);
-                
-                foreach ($views as $row) {
-                    $view = $row[0];
-                    
-                    try {
-                        // View Definition holen
-                        $viewDef = $pdo->query("SHOW CREATE VIEW `$view`")->fetch();
-                        $createView = $viewDef['Create View'];
-                        
-                        // Ersetze customer_ mit user_
-                        $newCreateView = str_replace('customer_', 'user_', $createView);
-                        $newCreateView = str_replace('customer_id', 'user_id', $newCreateView);
-                        
-                        if ($newCreateView !== $createView) {
-                            // View droppen und neu erstellen
-                            $pdo->exec("DROP VIEW IF EXISTS `$view`");
-                            $pdo->exec($newCreateView);
-                            $changes[] = "View: $view aktualisiert";
-                        }
-                    } catch (Exception $e) {
-                        $errors[] = "View $view: " . $e->getMessage();
-                    }
-                }
-                
                 $pdo->exec("SET FOREIGN_KEY_CHECKS=1");
                 
                 ob_clean();
@@ -196,10 +181,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
                 break;
                 
+            case 'fix_views':
+                $fixed = [];
+                $dropped = [];
+                $errors = [];
+                
+                // Alle Views holen
+                $views = $pdo->query("SHOW FULL TABLES WHERE Table_type = 'VIEW'")->fetchAll(PDO::FETCH_NUM);
+                
+                foreach ($views as $row) {
+                    $view = $row[0];
+                    
+                    try {
+                        // Teste View
+                        try {
+                            $pdo->query("SELECT * FROM `$view` LIMIT 0");
+                            continue; // View funktioniert
+                        } catch (Exception $e) {
+                            // View ist kaputt
+                        }
+                        
+                        // Hole View-Definition
+                        $viewDef = $pdo->query("SHOW CREATE VIEW `$view`")->fetch();
+                        $createView = $viewDef['Create View'];
+                        
+                        // Ersetze customer_ → user_
+                        $newCreateView = preg_replace('/\bcustomer_(\w+)/i', 'user_$1', $createView);
+                        $newCreateView = str_replace('customer_id', 'user_id', $newCreateView);
+                        
+                        // Prüfe ob alle referenzierten Tabellen existieren
+                        preg_match_all('/FROM\s+`?(\w+)`?/i', $newCreateView, $matches);
+                        $missingTables = [];
+                        
+                        foreach ($matches[1] as $table) {
+                            try {
+                                $exists = $pdo->query("SHOW TABLES LIKE '$table'")->fetch();
+                                if (!$exists) {
+                                    $missingTables[] = $table;
+                                }
+                            } catch (Exception $e) {}
+                        }
+                        
+                        if (count($missingTables) > 0) {
+                            // View kann nicht repariert werden - droppen
+                            $pdo->exec("DROP VIEW IF EXISTS `$view`");
+                            $dropped[] = "$view (fehlende Tabellen: " . implode(', ', $missingTables) . ")";
+                        } else {
+                            // View neu erstellen
+                            $pdo->exec("DROP VIEW IF EXISTS `$view`");
+                            $pdo->exec($newCreateView);
+                            $fixed[] = $view;
+                        }
+                        
+                    } catch (Exception $e) {
+                        $errors[] = "$view: " . $e->getMessage();
+                    }
+                }
+                
+                ob_clean();
+                echo json_encode([
+                    'success' => (count($fixed) > 0 || count($dropped) > 0),
+                    'fixed' => $fixed,
+                    'dropped' => $dropped,
+                    'errors' => $errors
+                ]);
+                break;
+                
             case 'verify':
                 $oldTables = $pdo->query("SHOW TABLES LIKE 'customer_%'")->fetchAll(PDO::FETCH_COLUMN);
                 $oldColumns = 0;
                 $newTables = 0;
+                $brokenViews = [];
                 
                 // Nur echte Tabellen prüfen
                 $tables = $pdo->query("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'")->fetchAll(PDO::FETCH_NUM);
@@ -220,7 +272,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
                 
-                $success = (count($oldTables) === 0 && $oldColumns === 0 && $newTables > 0);
+                // Prüfe Views
+                $views = $pdo->query("SHOW FULL TABLES WHERE Table_type = 'VIEW'")->fetchAll(PDO::FETCH_NUM);
+                foreach ($views as $row) {
+                    $view = $row[0];
+                    try {
+                        $pdo->query("SELECT * FROM `$view` LIMIT 0");
+                    } catch (Exception $e) {
+                        $brokenViews[] = $view;
+                    }
+                }
+                
+                $success = (count($oldTables) === 0 && $oldColumns === 0 && $newTables > 0 && count($brokenViews) === 0);
                 
                 ob_clean();
                 echo json_encode([
@@ -228,7 +291,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'old_tables' => $oldTables,
                     'old_tables_count' => count($oldTables),
                     'old_columns' => $oldColumns,
-                    'new_tables' => $newTables
+                    'new_tables' => $newTables,
+                    'broken_views' => $brokenViews
                 ]);
                 break;
                 
@@ -286,6 +350,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         .step.active { border-left-color: #667eea; background: #f0f4ff; }
         .step.complete { border-left-color: #10b981; background: #f0fdf4; }
+        .step.warning { border-left-color: #f59e0b; background: #fffbeb; }
         .step h3 { margin-bottom: 15px; }
         .btn {
             padding: 12px 24px;
@@ -298,8 +363,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             color: white;
             margin: 5px;
         }
-        .btn:disabled { opacity: 0.5; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-secondary { background: #f1f5f9; color: #64748b; }
+        .btn-warning { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
         .result {
             background: #f9fafb;
             border-radius: 8px;
@@ -313,6 +379,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         .success { color: #10b981; font-weight: 600; }
         .error { color: #ef4444; font-weight: 600; }
+        .warning { color: #f59e0b; font-weight: 600; }
         .spinner {
             display: inline-block;
             width: 14px;
@@ -324,6 +391,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         .info-box { background: #e0e7ff; border: 2px solid #6366f1; border-radius: 8px; padding: 15px; margin-top: 15px; }
+        .warning-box { background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 15px; margin-top: 15px; }
         .list { margin-left: 20px; line-height: 1.8; }
     </style>
 </head>
@@ -331,7 +399,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="container">
         <div class="header">
             <h1>🔄 Migration Tool</h1>
-            <p>customer_id → user_id (mit View-Support)</p>
+            <p>customer_id → user_id (mit View-Reparatur)</p>
         </div>
         
         <div class="content">
@@ -352,6 +420,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <h3>2️⃣ Migration</h3>
                 <button class="btn" onclick="runMigration()" disabled id="btn2">Starten</button>
                 <div id="result2" class="result"></div>
+            </div>
+            
+            <div class="step" id="step2b" style="display:none;">
+                <h3>2½️⃣ Views reparieren</h3>
+                <p style="font-size: 14px; color: #64748b; margin-bottom: 10px;">
+                    Repariert kaputte Views oder löscht sie, wenn Tabellen fehlen
+                </p>
+                <button class="btn btn-warning" onclick="runFixViews()" id="btn2b">Views reparieren</button>
+                <div id="result2b" class="result"></div>
             </div>
             
             <div class="step" id="step3">
@@ -406,11 +483,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         data.old_views.forEach(v => html += '• ' + v + '<br>');
                         html += '</div>';
                     }
+                    if (data.broken_views.length > 0) {
+                        html += '<br><span class="warning">⚠️ Kaputte Views:</span><br><div class="list">';
+                        data.broken_views.forEach(v => html += '• ' + v + '<br>');
+                        html += '</div>';
+                    }
                     
                     r.innerHTML = html;
                     document.getElementById('step0').classList.add('complete');
                     document.getElementById('btn1').disabled = false;
                     document.getElementById('step1').classList.add('active');
+                    
+                    // Zeige View-Reparatur wenn nötig
+                    if (data.broken_views.length > 0 || data.needs_view_fix) {
+                        document.getElementById('step2b').style.display = 'block';
+                    }
                 }
             } catch (e) {
                 document.getElementById('result0').innerHTML = '<span class="error">❌ ' + e.message + '</span>';
@@ -467,9 +554,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 r.innerHTML = html;
                 completeStep(2);
+                
+                // Aktiviere View-Fix wenn sichtbar
+                if (document.getElementById('step2b').style.display !== 'none') {
+                    document.getElementById('step2b').classList.add('active');
+                    document.getElementById('step2b').classList.add('warning');
+                }
             } catch (e) {
                 document.getElementById('result2').innerHTML = '<span class="error">❌ ' + e.message + '</span>';
                 document.getElementById('result2').style.display = 'block';
+            }
+        }
+        
+        async function runFixViews() {
+            if (!confirm('Views reparieren/löschen?')) return;
+            
+            try {
+                const data = await callApi('fix_views', document.getElementById('btn2b'));
+                const r = document.getElementById('result2b');
+                r.style.display = 'block';
+                
+                let html = data.success ? '<span class="success">✅ Views bearbeitet!</span><br><br>' : '<span class="error">⚠️ Keine Änderungen</span><br><br>';
+                
+                if (data.fixed && data.fixed.length > 0) {
+                    html += '<strong>✓ Repariert:</strong><br><div class="list">';
+                    data.fixed.forEach(v => html += '• ' + v + '<br>');
+                    html += '</div><br>';
+                }
+                
+                if (data.dropped && data.dropped.length > 0) {
+                    html += '<strong>🗑️ Gelöscht:</strong><br><div class="list">';
+                    data.dropped.forEach(v => html += '• ' + v + '<br>');
+                    html += '</div><br>';
+                }
+                
+                if (data.errors && data.errors.length > 0) {
+                    html += '<strong>❌ Fehler:</strong><br><div class="list">';
+                    data.errors.forEach(e => html += '• ' + e + '<br>');
+                    html += '</div>';
+                }
+                
+                r.innerHTML = html;
+                document.getElementById('step2b').classList.add('complete');
+                document.getElementById('btn3').disabled = false;
+            } catch (e) {
+                document.getElementById('result2b').innerHTML = '<span class="error">❌ ' + e.message + '</span>';
+                document.getElementById('result2b').style.display = 'block';
             }
         }
         
@@ -489,13 +619,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     document.getElementById('step3').classList.add('complete');
                 } else {
                     let html = '<span class="error">❌ Noch nicht fertig</span><br><br>';
-                    if (data.old_tables.length > 0) {
+                    if (data.old_tables && data.old_tables.length > 0) {
                         html += '📋 Noch vorhandene customer_* Tabellen:<br><div class="list">';
                         data.old_tables.forEach(t => html += '• ' + t + '<br>');
                         html += '</div>';
                     }
                     html += '• Alte Spalten: ' + data.old_columns + '<br>';
-                    html += '• Neue Tabellen: ' + data.new_tables;
+                    html += '• Neue Tabellen: ' + data.new_tables + '<br>';
+                    
+                    if (data.broken_views && data.broken_views.length > 0) {
+                        html += '<br><span class="warning">⚠️ Noch kaputte Views:</span><br><div class="list">';
+                        data.broken_views.forEach(v => html += '• ' + v + '<br>');
+                        html += '</div>';
+                        html += '<br><div class="warning-box">Views müssen noch repariert werden! (Schritt 2½)</div>';
+                    }
+                    
                     r.innerHTML = html;
                 }
             } catch (e) {
@@ -506,8 +644,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         function completeStep(s) {
             document.getElementById('step' + s).classList.add('complete');
-            document.getElementById('btn' + (s+1)).disabled = false;
-            document.getElementById('step' + (s+1)).classList.add('active');
+            
+            // Aktiviere nächsten Schritt
+            if (s === 2 && document.getElementById('step2b').style.display === 'none') {
+                // Überspringe 2b wenn nicht nötig
+                document.getElementById('btn3').disabled = false;
+                document.getElementById('step3').classList.add('active');
+            } else if (s < 3) {
+                document.getElementById('btn' + (s+1)).disabled = false;
+                document.getElementById('step' + (s+1)).classList.add('active');
+            }
         }
         
         window.onload = () => setTimeout(() => document.querySelector('#step0 .btn').click(), 500);
