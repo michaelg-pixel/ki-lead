@@ -1,15 +1,16 @@
 <?php
 require_once 'config/database.php';
 
-$customer_id = isset($_GET['customer']) ? (int)$_GET['customer'] : 0;
+// Support both old 'customer' and new 'user' parameter for backward compatibility
+$user_id = isset($_GET['user']) ? (int)$_GET['user'] : (isset($_GET['customer']) ? (int)$_GET['customer'] : 0);
 
-if (!$customer_id) {
-    die('Ungültige Kunden-ID');
+if (!$user_id) {
+    die('Ungültige Benutzer-ID');
 }
 
 $conn = getDBConnection();
-$stmt = $conn->prepare("SELECT impressum FROM legal_texts WHERE customer_id = ?");
-$stmt->execute([$customer_id]);
+$stmt = $conn->prepare("SELECT impressum FROM legal_texts WHERE user_id = ?");
+$stmt->execute([$user_id]);
 $legal_text = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$legal_text || empty($legal_text['impressum'])) {
