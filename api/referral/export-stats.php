@@ -35,7 +35,7 @@ try {
     
     // Header-Zeile
     fputcsv($output, [
-        'Customer ID',
+        'User ID',
         'E-Mail',
         'Firmenname',
         'Referral-Code',
