@@ -74,25 +74,61 @@ if ($lead['user_id']) {
     $reward_tiers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// KORREKTUR: Freebies aus customer_freebies laden (nicht aus freebies)
+// KORREKTUR: Freebies aus customer_freebies laden mit korrekten Spaltennamen
 $freebies = [];
 if ($lead['user_id']) {
-    $stmt = $db->prepare("
-        SELECT 
-            cf.id,
-            cf.unique_id,
-            cf.name as title,
-            cf.description,
-            COALESCE(cf.mockup_image_url, f.mockup_image_url) as image_path,
-            cf.customer_id,
-            cf.created_at
-        FROM customer_freebies cf
-        LEFT JOIN freebies f ON cf.template_id = f.id
-        WHERE cf.customer_id = ?
-        ORDER BY cf.created_at DESC
-    ");
-    $stmt->execute([$lead['user_id']]);
-    $freebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Erst Tabellenstruktur prüfen
+    try {
+        $stmt = $db->query("DESCRIBE customer_freebies");
+        $cfColumns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        // Ermittle welche Spalten verfügbar sind
+        $nameColumn = in_array('name', $cfColumns) ? 'cf.name' : 
+                     (in_array('title', $cfColumns) ? 'cf.title' : 
+                     (in_array('freebie_name', $cfColumns) ? 'cf.freebie_name' : 'f.name'));
+        
+        $descColumn = in_array('description', $cfColumns) ? 'cf.description' : 'f.description';
+        $mockupColumn = in_array('mockup_image_url', $cfColumns) ? 
+                       'COALESCE(cf.mockup_image_url, f.mockup_image_url)' : 
+                       'f.mockup_image_url';
+        
+        $stmt = $db->prepare("
+            SELECT 
+                cf.id,
+                cf.unique_id,
+                {$nameColumn} as title,
+                {$descColumn} as description,
+                {$mockupColumn} as image_path,
+                cf.customer_id
+            FROM customer_freebies cf
+            LEFT JOIN freebies f ON cf.template_id = f.id
+            WHERE cf.customer_id = ?
+            ORDER BY cf.id DESC
+        ");
+        $stmt->execute([$lead['user_id']]);
+        $freebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        error_log("Error loading freebies: " . $e->getMessage());
+        // Fallback: Versuche direkt aus freebies Tabelle
+        try {
+            $stmt = $db->prepare("
+                SELECT 
+                    f.id,
+                    f.unique_id,
+                    f.name as title,
+                    f.description,
+                    f.mockup_image_url as image_path,
+                    f.user_id as customer_id
+                FROM freebies f
+                WHERE f.user_id = ?
+                ORDER BY f.id DESC
+            ");
+            $stmt->execute([$lead['user_id']]);
+            $freebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e2) {
+            error_log("Error loading freebies fallback: " . $e2->getMessage());
+        }
+    }
 }
 ?>
 <!DOCTYPE html>
