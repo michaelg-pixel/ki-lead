@@ -75,8 +75,9 @@ try {
     $freebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Prüfen, welche Freebies der Kunde bereits bearbeitet hat (template-basiert)
+    // WICHTIG: mockup_image_url auch aus customer_freebies laden!
     $stmt_customer = $pdo->prepare("
-        SELECT template_id, id as customer_freebie_id, unique_id
+        SELECT template_id, id as customer_freebie_id, unique_id, mockup_image_url
         FROM customer_freebies 
         WHERE customer_id = ? AND (freebie_type = 'template' OR freebie_type IS NULL)
     ");
@@ -86,12 +87,13 @@ try {
         if ($row['template_id']) {
             $customer_freebies_data[$row['template_id']] = [
                 'id' => $row['customer_freebie_id'],
-                'unique_id' => $row['unique_id']
+                'unique_id' => $row['unique_id'],
+                'mockup_image_url' => $row['mockup_image_url']
             ];
         }
     }
     
-    // EIGENE FREEBIES LADEN (custom type) - mockup_image_url hinzugefügt!
+    // EIGENE FREEBIES LADEN (custom type)
     $stmt_custom = $pdo->prepare("
         SELECT 
             cf.id,
@@ -580,6 +582,12 @@ try {
                     $isUsedByCustomer = isset($customer_freebies_data[$freebie['id']]);
                     $customer_freebie_data = $customer_freebies_data[$freebie['id']] ?? null;
                     
+                    // WICHTIG: Mockup-URL aus customer_freebies bevorzugen, falls vorhanden!
+                    $mockup_url = $freebie['mockup_image_url'];
+                    if ($isUsedByCustomer && $customer_freebie_data && !empty($customer_freebie_data['mockup_image_url'])) {
+                        $mockup_url = $customer_freebie_data['mockup_image_url'];
+                    }
+                    
                     if ($isUsedByCustomer && $customer_freebie_data) {
                         $previewUrl = '/customer/freebie-preview.php?id=' . $customer_freebie_data['id'];
                         $previewTarget = '';
@@ -623,9 +631,13 @@ try {
                                 <span class="freebie-badge"><?php echo htmlspecialchars($layoutName); ?></span>
                             </div>
                             
-                            <?php if (!empty($freebie['mockup_image_url'])): ?>
-                                <img src="<?php echo htmlspecialchars($freebie['mockup_image_url']); ?>" 
-                                     alt="<?php echo htmlspecialchars($freebie['name']); ?>">
+                            <?php if (!empty($mockup_url)): ?>
+                                <img src="<?php echo htmlspecialchars($mockup_url); ?>" 
+                                     alt="<?php echo htmlspecialchars($freebie['name']); ?>"
+                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                <div class="freebie-preview-placeholder" style="display: none; color: <?php echo htmlspecialchars($primaryColor); ?>;">
+                                    🎁
+                                </div>
                             <?php elseif (!empty($freebie['course_thumbnail'])): ?>
                                 <img src="/uploads/thumbnails/<?php echo htmlspecialchars($freebie['course_thumbnail']); ?>" 
                                      alt="<?php echo htmlspecialchars($freebie['name']); ?>">
@@ -759,7 +771,11 @@ try {
                             
                             <?php if (!empty($custom['mockup_image_url'])): ?>
                                 <img src="<?php echo htmlspecialchars($custom['mockup_image_url']); ?>" 
-                                     alt="<?php echo htmlspecialchars($custom['headline']); ?>">
+                                     alt="<?php echo htmlspecialchars($custom['headline']); ?>"
+                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                <div class="freebie-preview-placeholder" style="display: none; color: <?php echo htmlspecialchars($primaryColor); ?>;">
+                                    🎁
+                                </div>
                             <?php else: ?>
                                 <div class="freebie-preview-placeholder" style="color: <?php echo htmlspecialchars($primaryColor); ?>;">
                                     🎁
