@@ -2,15 +2,99 @@
 /**
  * FIX MOCKUP URLs
  * Dieses Script überträgt alle mockup_image_url von freebies zu customer_freebies
- * Aufruf: https://deine-domain.de/admin/fix-mockup-urls.php
+ * Aufruf: https://deine-domain.de/admin/fix-mockup-urls.php?token=fix2024
  */
 
 session_start();
 require_once '../config/database.php';
 
-// Check if admin is logged in
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    die('Zugriff verweigert. Nur für Administratoren.');
+// Security Token für einmaligen Zugriff
+$security_token = 'fix2024';
+$provided_token = $_GET['token'] ?? '';
+
+// Check if admin is logged in OR valid token provided
+$is_admin = isset($_SESSION['user_id']) && $_SESSION['role'] === 'admin';
+$has_valid_token = $provided_token === $security_token;
+
+if (!$is_admin && !$has_valid_token) {
+    die('
+    <!DOCTYPE html>
+    <html lang="de">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Zugriff verweigert</title>
+        <style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                padding: 40px 20px;
+                margin: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+            }
+            .container {
+                max-width: 600px;
+                background: white;
+                border-radius: 16px;
+                padding: 32px;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+                text-align: center;
+            }
+            h1 {
+                color: #ef4444;
+                margin-bottom: 16px;
+            }
+            p {
+                color: #374151;
+                line-height: 1.6;
+                margin-bottom: 24px;
+            }
+            .info {
+                background: #dbeafe;
+                padding: 16px;
+                border-radius: 8px;
+                border-left: 4px solid #3b82f6;
+                text-align: left;
+                margin-top: 24px;
+            }
+            code {
+                background: #f3f4f6;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-family: monospace;
+                color: #ef4444;
+            }
+            a {
+                display: inline-block;
+                padding: 12px 24px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                text-decoration: none;
+                border-radius: 8px;
+                font-weight: 600;
+                margin-top: 16px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🔒 Zugriff verweigert</h1>
+            <p>Nur für Administratoren oder mit gültigem Token.</p>
+            
+            <div class="info">
+                <strong>💡 Zugriff mit Token:</strong><br>
+                Rufe diese URL auf:<br>
+                <code>fix-mockup-urls.php?token=fix2024</code>
+            </div>
+            
+            <a href="/admin/dashboard.php">← Zum Admin-Login</a>
+        </div>
+    </body>
+    </html>
+    ');
 }
 
 $pdo = getDBConnection();
@@ -40,6 +124,11 @@ echo '<!DOCTYPE html>
             color: #1a1a2e;
             margin-bottom: 24px;
         }
+        h2 {
+            color: #374151;
+            margin-top: 32px;
+            margin-bottom: 16px;
+        }
         .status {
             padding: 16px;
             border-radius: 8px;
@@ -59,6 +148,11 @@ echo '<!DOCTYPE html>
             background: #dbeafe;
             color: #1e40af;
             border-left: 4px solid #3b82f6;
+        }
+        .warning {
+            background: #fef3c7;
+            color: #92400e;
+            border-left: 4px solid #f59e0b;
         }
         table {
             width: 100%;
@@ -84,6 +178,7 @@ echo '<!DOCTYPE html>
             border-radius: 8px;
             font-weight: 600;
             margin-top: 24px;
+            margin-right: 12px;
         }
         .btn:hover {
             transform: translateY(-2px);
@@ -94,11 +189,24 @@ echo '<!DOCTYPE html>
             height: auto;
             border-radius: 4px;
         }
+        .security-notice {
+            background: #fef3c7;
+            padding: 16px;
+            border-radius: 8px;
+            border-left: 4px solid #f59e0b;
+            margin-bottom: 24px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🔧 Mockup-URLs Reparieren</h1>';
+
+if ($has_valid_token && !$is_admin) {
+    echo '<div class="security-notice">';
+    echo '<strong>⚠️ Sicherheitshinweis:</strong> Du nutzt den Token-Zugang. Nach der Reparatur solltest du diese Seite nicht mehr mit Token aufrufen.';
+    echo '</div>';
+}
 
 try {
     // 1. Prüfen: Wie viele customer_freebies haben KEINE Mockup-URL
@@ -163,6 +271,10 @@ try {
         ORDER BY cf.id DESC
     ");
     
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $total = count($rows);
+    $with_mockup = 0;
+    
     echo "<table>";
     echo "<tr>
             <th>ID</th>
@@ -174,8 +286,9 @@ try {
             <th>Status</th>
           </tr>";
     
-    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+    foreach ($rows as $row) {
         $has_mockup = !empty($row['customer_mockup']);
+        if ($has_mockup) $with_mockup++;
         $status_icon = $has_mockup ? '✅' : '❌';
         $status_text = $has_mockup ? 'OK' : 'Fehlt';
         
@@ -187,9 +300,10 @@ try {
         echo "<td>" . htmlspecialchars($row['freebie_type'] ?? 'template') . "</td>";
         echo "<td>";
         if ($has_mockup) {
-            echo "<img src='" . htmlspecialchars($row['customer_mockup']) . "' alt='Mockup'>";
+            echo "<img src='" . htmlspecialchars($row['customer_mockup']) . "' alt='Mockup' onerror='this.style.display=\"none\"; this.nextSibling.style.display=\"inline\";'>";
+            echo "<span style='display:none; color: #ef4444;'>❌ Bild nicht gefunden</span>";
         } else {
-            echo "Kein Mockup";
+            echo "<span style='color: #6b7280;'>Kein Mockup</span>";
         }
         echo "</td>";
         echo "<td>{$status_icon} {$status_text}</td>";
@@ -197,6 +311,10 @@ try {
     }
     
     echo "</table>";
+    
+    echo "<div class='info' style='margin-top: 16px;'>";
+    echo "<strong>📊 Statistik:</strong> {$with_mockup} von {$total} Customer-Freebies haben ein Mockup-Bild.";
+    echo "</div>";
     
     // 4. Template-Übersicht
     echo "<h2>📚 Template-Übersicht</h2>";
@@ -216,6 +334,7 @@ try {
             <th>Template ID</th>
             <th>Name</th>
             <th>Mockup</th>
+            <th>Mockup URL</th>
             <th>Verwendet von</th>
           </tr>";
     
@@ -227,11 +346,13 @@ try {
         echo "<td>" . htmlspecialchars($row['name']) . "</td>";
         echo "<td>";
         if ($has_mockup) {
-            echo "<img src='" . htmlspecialchars($row['mockup_image_url']) . "' alt='Template Mockup'>";
+            echo "<img src='" . htmlspecialchars($row['mockup_image_url']) . "' alt='Template Mockup' onerror='this.style.display=\"none\"; this.nextSibling.style.display=\"inline\";'>";
+            echo "<span style='display:none; color: #ef4444;'>❌ Bild nicht gefunden</span>";
         } else {
-            echo "❌ Kein Mockup";
+            echo "<span style='color: #ef4444;'>❌ Kein Mockup</span>";
         }
         echo "</td>";
+        echo "<td><small style='color: #6b7280;'>" . ($has_mockup ? htmlspecialchars($row['mockup_image_url']) : '-') . "</small></td>";
         echo "<td>{$row['usage_count']} Kunden</td>";
         echo "</tr>";
     }
@@ -246,6 +367,7 @@ try {
 }
 
 echo '
+        <a href="/customer/dashboard.php?page=freebies" class="btn">👁️ Freebies im Dashboard ansehen</a>
         <a href="/admin/dashboard.php" class="btn">← Zurück zum Admin-Dashboard</a>
     </div>
 </body>
