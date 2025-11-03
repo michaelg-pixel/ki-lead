@@ -1,7 +1,7 @@
 <?php
 /**
  * 🔄 MIGRATION TOOL: customer_id → user_id
- * Optimierte Version mit Fehlerbehandlung
+ * Mit Smart-Migration (überspringt bereits migrierte Tabellen)
  */
 
 // Error Reporting für AJAX deaktivieren
@@ -23,11 +23,9 @@ if (!$isAdmin && $_SERVER['REQUEST_METHOD'] !== 'POST') {
     die('⛔ Nur Admins! <a href="/make-admin.php?token=migration2024secure">Admin werden</a> | <a href="/check-session.php">Session prüfen</a>');
 }
 
-// AJAX Handler - MUSS VOR allem HTML kommen!
+// AJAX Handler
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Output-Buffering starten
     ob_start();
-    
     header('Content-Type: application/json');
     
     $action = $_POST['action'] ?? '';
@@ -48,8 +46,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 
                 $file = $dir . '/backup_' . date('YmdHis') . '.sql';
-                
-                // Structure-Only Backup
                 $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
                 
                 $sql = "-- STRUCTURE BACKUP\n";
@@ -67,9 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 file_put_contents($file, $sql);
                 $size = filesize($file);
                 
-                // Buffer leeren
                 ob_clean();
-                
                 echo json_encode([
                     'success' => true, 
                     'file' => basename($file),
@@ -82,7 +76,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $oldTables = $pdo->query("SHOW TABLES LIKE 'customer_%'")->fetchAll(PDO::FETCH_COLUMN);
                 $oldColumns = 0;
                 
-                // Prüfe Spalten in wichtigen Tabellen
                 $checkTables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
                 foreach ($checkTables as $table) {
                     try {
@@ -90,14 +83,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $oldColumns++;
                         }
                     } catch (Exception $e) {
-                        // Tabelle überspringen wenn Fehler
                         continue;
                     }
                 }
                 
-                // Buffer leeren
                 ob_clean();
-                
                 echo json_encode([
                     'success' => true,
                     'old_tables' => count($oldTables),
@@ -112,8 +102,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 try {
                     $pdo->exec("SET FOREIGN_KEY_CHECKS=0");
                     $changes = [];
+                    $skipped = [];
                     
-                    // Tabellen umbenennen
+                    // SMART RENAME: Prüft ob Ziel-Tabelle bereits existiert
                     $rename = [
                         'customer_freebies' => 'user_freebies',
                         'customer_freebie_limits' => 'user_freebie_limits',
@@ -122,9 +113,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ];
                     
                     foreach ($rename as $old => $new) {
-                        if ($pdo->query("SHOW TABLES LIKE '$old'")->fetch()) {
-                            $pdo->exec("RENAME TABLE `$old` TO `$new`");
-                            $changes[] = "Tabelle: $old → $new";
+                        // Prüfe ob alte Tabelle existiert
+                        $oldExists = $pdo->query("SHOW TABLES LIKE '$old'")->fetch();
+                        
+                        if ($oldExists) {
+                            // Prüfe ob neue Tabelle bereits existiert
+                            $newExists = $pdo->query("SHOW TABLES LIKE '$new'")->fetch();
+                            
+                            if ($newExists) {
+                                // Ziel-Tabelle existiert bereits!
+                                // Option 1: Alte Tabelle löschen (Daten sind schon in neuer Tabelle)
+                                $pdo->exec("DROP TABLE IF EXISTS `$old`");
+                                $skipped[] = "$old (Ziel existiert bereits, alte Tabelle gelöscht)";
+                            } else {
+                                // Normal umbenennen
+                                $pdo->exec("RENAME TABLE `$old` TO `$new`");
+                                $changes[] = "Tabelle: $old → $new";
+                            }
                         }
                     }
                     
@@ -132,15 +137,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
                     foreach ($tables as $table) {
                         try {
-                            if ($pdo->query("SHOW COLUMNS FROM `$table` LIKE 'customer_id'")->fetch()) {
-                                $col = $pdo->query("SHOW COLUMNS FROM `$table` WHERE Field = 'customer_id'")->fetch();
-                                $type = $col['Type'];
-                                $null = $col['Null'] === 'YES' ? 'NULL' : 'NOT NULL';
-                                $pdo->exec("ALTER TABLE `$table` CHANGE COLUMN customer_id user_id $type $null");
-                                $changes[] = "Spalte: $table.customer_id → user_id";
+                            // Prüfe ob customer_id Spalte existiert
+                            $hasOldColumn = $pdo->query("SHOW COLUMNS FROM `$table` LIKE 'customer_id'")->fetch();
+                            
+                            if ($hasOldColumn) {
+                                // Prüfe ob user_id Spalte bereits existiert
+                                $hasNewColumn = $pdo->query("SHOW COLUMNS FROM `$table` LIKE 'user_id'")->fetch();
+                                
+                                if ($hasNewColumn) {
+                                    // Beide Spalten existieren - alte löschen
+                                    $pdo->exec("ALTER TABLE `$table` DROP COLUMN customer_id");
+                                    $skipped[] = "$table.customer_id (user_id existiert, alte Spalte gelöscht)";
+                                } else {
+                                    // Normal umbenennen
+                                    $col = $pdo->query("SHOW COLUMNS FROM `$table` WHERE Field = 'customer_id'")->fetch();
+                                    $type = $col['Type'];
+                                    $null = $col['Null'] === 'YES' ? 'NULL' : 'NOT NULL';
+                                    $pdo->exec("ALTER TABLE `$table` CHANGE COLUMN customer_id user_id $type $null");
+                                    $changes[] = "Spalte: $table.customer_id → user_id";
+                                }
                             }
                         } catch (Exception $e) {
-                            // Tabelle überspringen
+                            // Tabelle überspringen bei Fehler
                             continue;
                         }
                     }
@@ -148,13 +166,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $pdo->exec("SET FOREIGN_KEY_CHECKS=1");
                     $pdo->commit();
                     
-                    // Buffer leeren
                     ob_clean();
-                    
                     echo json_encode([
                         'success' => true, 
-                        'changes' => $changes, 
-                        'count' => count($changes)
+                        'changes' => $changes,
+                        'skipped' => $skipped,
+                        'count' => count($changes) + count($skipped)
                     ]);
                     
                 } catch (Exception $e) {
@@ -168,7 +185,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $oldColumns = 0;
                 $newTables = 0;
                 
-                // Prüfe neue Tabellen
                 $checkNew = ['user_freebies', 'user_freebie_limits'];
                 foreach ($checkNew as $table) {
                     if ($pdo->query("SHOW TABLES LIKE '$table'")->fetch()) {
@@ -176,7 +192,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
                 
-                // Prüfe alte Spalten
                 $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
                 foreach ($tables as $table) {
                     try {
@@ -190,9 +205,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 $success = (count($oldTables) === 0 && $oldColumns === 0 && $newTables > 0);
                 
-                // Buffer leeren
                 ob_clean();
-                
                 echo json_encode([
                     'success' => $success,
                     'old_tables' => count($oldTables),
@@ -210,22 +223,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->rollBack();
         }
         
-        // Buffer leeren
         ob_clean();
-        
         echo json_encode([
             'success' => false, 
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
+            'error' => $e->getMessage()
         ]);
     }
     
-    // Buffer ausgeben und beenden
     ob_end_flush();
     exit;
 }
-
-// Ab hier kommt die HTML-UI (nur wenn kein POST-Request!)
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -331,17 +338,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="container">
         <div class="header">
             <h1>🔄 Migration Tool</h1>
-            <p>customer_id → user_id</p>
+            <p>customer_id → user_id (Smart Migration)</p>
         </div>
         
         <div class="content">
             <div class="warning">
                 <strong>⚠️ WICHTIG:</strong>
                 <ul style="margin-left: 20px; margin-top: 10px;">
-                    <li>Backup wird automatisch erstellt (nur Struktur)</li>
+                    <li>Erkennt bereits migrierte Tabellen automatisch</li>
                     <li>Migration dauert ca. 1-2 Minuten</li>
                     <li>Browser NICHT schließen!</li>
-                    <li>Nach Migration: Dateien löschen!</li>
                 </ul>
             </div>
             
@@ -391,10 +397,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 const text = await res.text();
                 
-                // Debug: Zeige rohe Antwort bei Fehler
                 if (!text.trim().startsWith('{')) {
                     console.error('Server Response:', text);
-                    throw new Error('Server gab HTML statt JSON zurück. Siehe Console.');
+                    throw new Error('Server gab HTML statt JSON zurück');
                 }
                 
                 const data = JSON.parse(text);
@@ -460,7 +465,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         function skipBackup() {
-            if (confirm('⚠️ Backup überspringen? NICHT empfohlen!')) {
+            if (confirm('⚠️ Backup überspringen?')) {
                 document.getElementById('result1').innerHTML = '<span style="color: #f59e0b;">⚠️ Übersprungen</span>';
                 document.getElementById('result1').style.display = 'block';
                 completeStep(1);
@@ -478,7 +483,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (data.success) {
                     let html = '<span class="success">✅ Migration erfolgreich!</span><br><br>';
                     html += '📊 Änderungen: ' + data.count + '<br><br>';
-                    data.changes.forEach(c => html += '✓ ' + c + '<br>');
+                    
+                    if (data.changes.length > 0) {
+                        html += '<strong>Durchgeführt:</strong><br>';
+                        data.changes.forEach(c => html += '✓ ' + c + '<br>');
+                    }
+                    
+                    if (data.skipped && data.skipped.length > 0) {
+                        html += '<br><strong>Übersprungen:</strong><br>';
+                        data.skipped.forEach(s => html += '⊘ ' + s + '<br>');
+                    }
+                    
                     result.innerHTML = html;
                     completeStep(2);
                 } else {
@@ -530,7 +545,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             document.getElementById('step' + nextStep).classList.add('active');
         }
         
-        // Auto-Start
         window.onload = () => {
             setTimeout(() => {
                 document.querySelector('#step0 .btn').click();
