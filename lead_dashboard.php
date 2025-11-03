@@ -1,6 +1,7 @@
 <?php
 /**
  * Lead Dashboard - Empfehlungsprogramm
+ * Verbesserte Version mit Datenbankintegration
  */
 
 require_once __DIR__ . '/config/database.php';
@@ -49,13 +50,89 @@ $stmt = $db->prepare("
 $stmt->execute([$lead['id']]);
 $claimed_rewards = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Belohnungsstufen definieren
-$reward_tiers = [
-    ['referrals' => 3, 'reward' => 'E-Book: Social Media Hacks', 'icon' => '📚'],
-    ['referrals' => 5, 'reward' => '1:1 Beratungsgespräch (30 Min)', 'icon' => '💬'],
-    ['referrals' => 10, 'reward' => 'Kostenloser Kurs-Zugang', 'icon' => '🎓'],
-    ['referrals' => 20, 'reward' => 'VIP Mitgliedschaft (3 Monate)', 'icon' => '👑'],
-];
+// Belohnungen aus Datenbank laden (basierend auf user_id des Leads)
+$reward_tiers = [];
+if ($lead['user_id']) {
+    $stmt = $db->prepare("
+        SELECT 
+            id,
+            tier_level,
+            tier_name,
+            tier_description,
+            required_referrals,
+            reward_type,
+            reward_title,
+            reward_description,
+            reward_icon,
+            reward_color,
+            reward_value
+        FROM reward_definitions 
+        WHERE user_id = ? AND is_active = 1
+        ORDER BY tier_level ASC
+    ");
+    $stmt->execute([$lead['user_id']]);
+    $reward_tiers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// Fallback: Wenn keine Belohnungen konfiguriert sind, Standard-Belohnungen anzeigen
+if (empty($reward_tiers)) {
+    $reward_tiers = [
+        [
+            'id' => 1,
+            'tier_level' => 1,
+            'tier_name' => 'Bronze',
+            'required_referrals' => 3,
+            'reward_title' => 'E-Book: Social Media Hacks',
+            'reward_icon' => 'fa-book',
+            'reward_type' => 'ebook',
+            'reward_description' => 'Erhalte unser exklusives E-Book',
+            'reward_value' => 'Wert: 19€',
+            'reward_color' => '#cd7f32'
+        ],
+        [
+            'id' => 2,
+            'tier_level' => 2,
+            'tier_name' => 'Silber',
+            'required_referrals' => 5,
+            'reward_title' => '1:1 Beratungsgespräch (30 Min)',
+            'reward_icon' => 'fa-comments',
+            'reward_type' => 'consultation',
+            'reward_description' => 'Persönliche Beratung mit unserem Experten',
+            'reward_value' => 'Wert: 150€',
+            'reward_color' => '#c0c0c0'
+        ],
+        [
+            'id' => 3,
+            'tier_level' => 3,
+            'tier_name' => 'Gold',
+            'required_referrals' => 10,
+            'reward_title' => 'Kostenloser Kurs-Zugang',
+            'reward_icon' => 'fa-graduation-cap',
+            'reward_type' => 'course',
+            'reward_description' => 'Voller Zugang zu unserem Premium-Kurs',
+            'reward_value' => 'Wert: 497€',
+            'reward_color' => '#ffd700'
+        ],
+        [
+            'id' => 4,
+            'tier_level' => 4,
+            'tier_name' => 'Platin',
+            'required_referrals' => 20,
+            'reward_title' => 'VIP Mitgliedschaft (3 Monate)',
+            'reward_icon' => 'fa-crown',
+            'reward_type' => 'vip',
+            'reward_description' => 'Exklusiver VIP-Status mit allen Vorteilen',
+            'reward_value' => 'Wert: 997€',
+            'reward_color' => '#e5e4e2'
+        ]
+    ];
+}
+
+// Empfehlungslink mit user_id Parameter
+$referral_link = 'https://app.mehr-infos-jetzt.de/lead_login.php?ref=' . $lead['referral_code'];
+if ($lead['user_id']) {
+    $referral_link .= '&uid=' . $lead['user_id'];
+}
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -63,6 +140,7 @@ $reward_tiers = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lead Dashboard - Empfehlungsprogramm</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -199,9 +277,25 @@ $reward_tiers = [
         }
         .reward-tier .icon {
             font-size: 40px;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            background: white;
         }
         .reward-tier .info {
             flex: 1;
+        }
+        .reward-tier .tier-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 5px;
         }
         .reward-tier .title {
             font-weight: 600;
@@ -209,15 +303,34 @@ $reward_tiers = [
             color: #333;
             margin-bottom: 5px;
         }
+        .reward-tier .description {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
         .reward-tier .requirement {
             color: #666;
             font-size: 14px;
+        }
+        .reward-tier .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .reward-tier .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s;
         }
         .reward-tier .status {
             padding: 8px 16px;
             border-radius: 20px;
             font-size: 13px;
             font-weight: 600;
+            white-space: nowrap;
         }
         .status.locked {
             background: #f0f0f0;
@@ -272,6 +385,10 @@ $reward_tiers = [
             background: #fff3cd;
             color: #856404;
         }
+        .status-badge.converted {
+            background: #cfe2ff;
+            color: #084298;
+        }
         .empty-state {
             text-align: center;
             padding: 40px;
@@ -281,6 +398,16 @@ $reward_tiers = [
             font-size: 60px;
             margin-bottom: 15px;
             opacity: 0.5;
+        }
+        
+        @media (max-width: 768px) {
+            .reward-tier {
+                flex-direction: column;
+                text-align: center;
+            }
+            .link-input-group {
+                flex-direction: column;
+            }
         }
     </style>
 </head>
@@ -310,63 +437,100 @@ $reward_tiers = [
     </div>
     
     <div class="referral-link-section">
-        <h2>🔗 Dein Empfehlungs-Link</h2>
+        <h2><i class="fas fa-link"></i> Dein Empfehlungs-Link</h2>
         <p style="color: #666; margin-bottom: 15px;">
             Teile diesen Link mit deinen Freunden und Bekannten. 
             Für jede erfolgreiche Anmeldung erhältst du Belohnungen!
         </p>
         <div class="link-input-group">
             <input type="text" class="link-input" id="referral-link" 
-                   value="https://app.mehr-infos-jetzt.de/lead_login.php?ref=<?php echo $lead['referral_code']; ?>" 
+                   value="<?php echo htmlspecialchars($referral_link); ?>" 
                    readonly>
-            <button class="copy-btn" onclick="copyLink()">📋 Link kopieren</button>
+            <button class="copy-btn" onclick="copyLink()">
+                <i class="fas fa-copy"></i> Link kopieren
+            </button>
         </div>
-        <p style="color: #999; font-size: 13px;">
-            Dein Referral-Code: <strong><?php echo $lead['referral_code']; ?></strong>
+        <p style="color: #999; font-size: 13px; margin-top: 10px;">
+            <i class="fas fa-tag"></i> Dein Referral-Code: <strong><?php echo $lead['referral_code']; ?></strong>
         </p>
     </div>
     
     <div class="rewards-section">
-        <h2>🎁 Belohnungs-Stufen</h2>
-        <?php foreach ($reward_tiers as $tier_index => $tier): 
-            $tier_id = $tier_index + 1;
-            $is_claimed = false;
-            foreach ($claimed_rewards as $claimed) {
-                if ($claimed['reward_id'] == $tier_id) {
-                    $is_claimed = true;
-                    break;
+        <h2><i class="fas fa-gift"></i> Belohnungs-Stufen</h2>
+        <?php if (empty($reward_tiers)): ?>
+            <div class="empty-state">
+                <div class="icon">🎁</div>
+                <p>Noch keine Belohnungen konfiguriert</p>
+            </div>
+        <?php else: ?>
+            <?php foreach ($reward_tiers as $tier): 
+                $tier_id = $tier['id'];
+                $is_claimed = false;
+                foreach ($claimed_rewards as $claimed) {
+                    if ($claimed['reward_id'] == $tier_id) {
+                        $is_claimed = true;
+                        break;
+                    }
                 }
-            }
-            $is_unlocked = $lead['successful_referrals'] >= $tier['referrals'];
-            $status = $is_claimed ? 'claimed' : ($is_unlocked ? 'unlocked' : 'locked');
-        ?>
-            <div class="reward-tier <?php echo $status; ?>">
-                <div class="icon"><?php echo $tier['icon']; ?></div>
-                <div class="info">
-                    <div class="title"><?php echo $tier['reward']; ?></div>
-                    <div class="requirement">
-                        <?php echo $tier['referrals']; ?> erfolgreiche Empfehlungen benötigt
-                        (<?php echo $lead['successful_referrals']; ?>/<?php echo $tier['referrals']; ?>)
+                $is_unlocked = $lead['successful_referrals'] >= $tier['required_referrals'];
+                $status = $is_claimed ? 'claimed' : ($is_unlocked ? 'unlocked' : 'locked');
+                $progress_percent = min(100, ($lead['successful_referrals'] / $tier['required_referrals']) * 100);
+                
+                // Icon bestimmen
+                $icon_class = 'fa-gift';
+                if (isset($tier['reward_icon']) && strpos($tier['reward_icon'], 'fa-') === 0) {
+                    $icon_class = $tier['reward_icon'];
+                }
+                
+                // Farbe für Badge
+                $badge_color = $tier['reward_color'] ?? '#667eea';
+            ?>
+                <div class="reward-tier <?php echo $status; ?>">
+                    <div class="icon" style="color: <?php echo $badge_color; ?>">
+                        <i class="fas <?php echo $icon_class; ?>"></i>
+                    </div>
+                    <div class="info">
+                        <div class="tier-badge" style="background: <?php echo $badge_color; ?>; color: white;">
+                            <?php echo htmlspecialchars($tier['tier_name'] ?? 'Stufe ' . $tier['tier_level']); ?>
+                        </div>
+                        <div class="title"><?php echo htmlspecialchars($tier['reward_title']); ?></div>
+                        <?php if (!empty($tier['reward_description'])): ?>
+                            <div class="description"><?php echo htmlspecialchars($tier['reward_description']); ?></div>
+                        <?php endif; ?>
+                        <?php if (!empty($tier['reward_value'])): ?>
+                            <div class="description" style="font-weight: 600; color: <?php echo $badge_color; ?>;">
+                                <?php echo htmlspecialchars($tier['reward_value']); ?>
+                            </div>
+                        <?php endif; ?>
+                        <div class="requirement">
+                            <?php echo $tier['required_referrals']; ?> erfolgreiche Empfehlungen benötigt
+                            (<?php echo $lead['successful_referrals']; ?>/<?php echo $tier['required_referrals']; ?>)
+                        </div>
+                        <?php if (!$is_claimed && !$is_unlocked): ?>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: <?php echo $progress_percent; ?>%"></div>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="status <?php echo $status; ?>">
+                        <?php 
+                        if ($is_claimed) {
+                            echo '<i class="fas fa-check-circle"></i> Eingelöst';
+                        } elseif ($is_unlocked) {
+                            echo '<i class="fas fa-star"></i> Freigeschaltet!';
+                        } else {
+                            $remaining = $tier['required_referrals'] - $lead['successful_referrals'];
+                            echo "<i class='fas fa-lock'></i> Noch {$remaining}";
+                        }
+                        ?>
                     </div>
                 </div>
-                <div class="status <?php echo $status; ?>">
-                    <?php 
-                    if ($is_claimed) {
-                        echo '✅ Eingelöst';
-                    } elseif ($is_unlocked) {
-                        echo '🎉 Freigeschaltet!';
-                    } else {
-                        $remaining = $tier['referrals'] - $lead['successful_referrals'];
-                        echo "🔒 Noch {$remaining}";
-                    }
-                    ?>
-                </div>
-            </div>
-        <?php endforeach; ?>
+            <?php endforeach; ?>
+        <?php endif; ?>
     </div>
     
     <div class="referrals-list">
-        <h2>👥 Deine Empfehlungen</h2>
+        <h2><i class="fas fa-users"></i> Deine Empfehlungen</h2>
         <?php if (empty($referrals)): ?>
             <div class="empty-state">
                 <div class="icon">📭</div>
@@ -379,10 +543,10 @@ $reward_tiers = [
             <table>
                 <thead>
                     <tr>
-                        <th>Name</th>
-                        <th>E-Mail</th>
-                        <th>Status</th>
-                        <th>Registriert am</th>
+                        <th><i class="fas fa-user"></i> Name</th>
+                        <th><i class="fas fa-envelope"></i> E-Mail</th>
+                        <th><i class="fas fa-info-circle"></i> Status</th>
+                        <th><i class="fas fa-calendar"></i> Registriert am</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -392,10 +556,18 @@ $reward_tiers = [
                             <td><?php echo htmlspecialchars($referral['email']); ?></td>
                             <td>
                                 <span class="status-badge <?php echo $referral['status']; ?>">
-                                    <?php echo ucfirst($referral['status']); ?>
+                                    <?php 
+                                    $status_labels = [
+                                        'pending' => 'Ausstehend',
+                                        'active' => 'Aktiv',
+                                        'converted' => 'Konvertiert',
+                                        'cancelled' => 'Abgebrochen'
+                                    ];
+                                    echo $status_labels[$referral['status']] ?? ucfirst($referral['status']);
+                                    ?>
                                 </span>
                             </td>
-                            <td><?php echo date('d.m.Y', strtotime($referral['registered_at'])); ?></td>
+                            <td><?php echo date('d.m.Y H:i', strtotime($referral['registered_at'])); ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
@@ -407,17 +579,23 @@ $reward_tiers = [
         function copyLink() {
             const input = document.getElementById('referral-link');
             input.select();
-            document.execCommand('copy');
+            input.setSelectionRange(0, 99999); // Für Mobile
             
-            const btn = event.target;
-            const originalText = btn.textContent;
-            btn.textContent = '✅ Kopiert!';
-            btn.style.background = '#28a745';
-            
-            setTimeout(() => {
-                btn.textContent = originalText;
-                btn.style.background = '#667eea';
-            }, 2000);
+            try {
+                document.execCommand('copy');
+                
+                const btn = event.target.closest('button');
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> Kopiert!';
+                btn.style.background = '#28a745';
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.style.background = '#667eea';
+                }, 2000);
+            } catch (err) {
+                alert('Bitte kopiere den Link manuell');
+            }
         }
     </script>
 </body>
