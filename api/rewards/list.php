@@ -1,7 +1,7 @@
 <?php
 /**
- * API: Alle Belohnungsstufen eines Users abrufen - VEREINFACHT
- * GET /api/rewards/list.php
+ * API: Alle Belohnungsstufen eines Users abrufen
+ * GET /api/rewards/list.php?freebie_id={ID}
  */
 
 header('Content-Type: application/json');
@@ -19,6 +19,9 @@ if (!isset($_SESSION['user_id'])) {
 try {
     $pdo = getDBConnection();
     $user_id = $_SESSION['user_id'];
+    
+    // Optional: Freebie-ID aus Query-Parameter
+    $freebie_id = isset($_GET['freebie_id']) ? (int)$_GET['freebie_id'] : null;
     
     // Prüfen ob Tabelle existiert
     try {
@@ -40,25 +43,35 @@ try {
         exit;
     }
     
-    // Einfache Abfrage ohne komplexe JOINs
-    // (Statistiken werden später hinzugefügt wenn das Lead-System vollständig ist)
-    $stmt = $pdo->prepare("
+    // SQL-Query aufbauen mit optionalem Freebie-Filter
+    $sql = "
         SELECT 
             rd.*,
             0 as leads_achieved,
             0 as times_claimed
         FROM reward_definitions rd
         WHERE rd.user_id = ?
-        ORDER BY rd.tier_level ASC, rd.sort_order ASC
-    ");
+    ";
     
-    $stmt->execute([$user_id]);
+    $params = [$user_id];
+    
+    // Freebie-Filter hinzufügen falls angegeben
+    if ($freebie_id !== null) {
+        $sql .= " AND rd.freebie_id = ?";
+        $params[] = $freebie_id;
+    }
+    
+    $sql .= " ORDER BY rd.tier_level ASC, rd.sort_order ASC";
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
     $rewards = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     echo json_encode([
         'success' => true,
         'data' => $rewards,
-        'count' => count($rewards)
+        'count' => count($rewards),
+        'freebie_id' => $freebie_id
     ]);
     
 } catch (PDOException $e) {
