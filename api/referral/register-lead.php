@@ -31,13 +31,13 @@ try {
     // Input validieren
     $input = json_decode(file_get_contents('php://input'), true);
     
-    $customerId = $input['customer_id'] ?? null;
+    $userId = $input['user_id'] ?? null;
     $refCode = $input['ref'] ?? null;
     $email = $input['email'] ?? null;
     $gdprConsent = $input['gdpr_consent'] ?? false;
     
     // Validierung
-    if (!$customerId || !$refCode || !$email) {
+    if (!$userId || !$refCode || !$email) {
         throw new Exception('Pflichtfelder fehlen');
     }
     
@@ -60,7 +60,7 @@ try {
     
     // Lead registrieren
     $result = $referral->registerLead(
-        $customerId,
+        $userId,
         $refCode,
         $email,
         $ipHash,
@@ -68,21 +68,21 @@ try {
     );
     
     if ($result['success']) {
-        // Hole Customer-Daten für E-Mail
+        // Hole User-Daten für E-Mail
         $stmt = $db->prepare("
             SELECT email, company_name, company_email, company_imprint_html 
             FROM customers 
             WHERE id = ?
         ");
-        $stmt->execute([$customerId]);
-        $customer = $stmt->fetch(PDO::FETCH_ASSOC);
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
         
         // Sende Bestätigungs-E-Mail
         try {
             sendConfirmationEmail(
                 $email,
                 $result['confirmation_token'],
-                $customer
+                $user
             );
         } catch (Exception $e) {
             error_log("Email sending failed: " . $e->getMessage());
@@ -117,10 +117,10 @@ try {
 /**
  * Sende Bestätigungs-E-Mail
  */
-function sendConfirmationEmail($email, $token, $customer) {
-    $companyName = $customer['company_name'] ?: 'Mehr-Infos-Jetzt.de';
-    $companyEmail = $customer['company_email'] ?: 'noreply@mehr-infos-jetzt.de';
-    $imprint = $customer['company_imprint_html'] ?: getDefaultImprint();
+function sendConfirmationEmail($email, $token, $user) {
+    $companyName = $user['company_name'] ?: 'Mehr-Infos-Jetzt.de';
+    $companyEmail = $user['company_email'] ?: 'noreply@mehr-infos-jetzt.de';
+    $imprint = $user['company_imprint_html'] ?: getDefaultImprint();
     
     $confirmUrl = "https://" . $_SERVER['HTTP_HOST'] . "/api/referral/confirm-lead.php?token=" . $token;
     
