@@ -16,9 +16,10 @@ $referral_enabled = false;
 $company_name = 'Ihr Partner';
 if ($customer_id) {
     try {
+        // KORREKTUR: users statt customers
         $stmt = $conn->prepare("
             SELECT referral_enabled, company_name 
-            FROM customers 
+            FROM users 
             WHERE id = ? 
             LIMIT 1
         ");
@@ -30,7 +31,7 @@ if ($customer_id) {
             $company_name = $customer_data['company_name'] ?? 'Ihr Partner';
         }
     } catch (PDOException $e) {
-        // Silent fail
+        error_log("Failed to load customer data: " . $e->getMessage());
     }
 }
 
@@ -224,6 +225,14 @@ foreach ($modules as $module) {
             <form id="referralForm" class="max-w-md mx-auto space-y-4">
                 <div>
                     <input 
+                        type="text" 
+                        id="referralName" 
+                        placeholder="Ihr Name (optional)" 
+                        class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition"
+                    >
+                </div>
+                <div>
+                    <input 
                         type="email" 
                         id="referralEmail" 
                         placeholder="ihre.email@beispiel.de" 
@@ -248,7 +257,7 @@ foreach ($modules as $module) {
                 </button>
                 
                 <div id="successMessage" class="hidden bg-green-100 border-2 border-green-500 text-green-800 px-4 py-3 rounded-lg text-center font-semibold">
-                    ✓ Erfolgreich! Prüfen Sie Ihre E-Mails für Ihren Referral-Link.
+                    ✓ Erfolgreich! Prüfen Sie Ihre E-Mails für Ihre Login-Daten.
                 </div>
                 
                 <div id="errorMessage" class="hidden bg-red-100 border-2 border-red-500 text-red-800 px-4 py-3 rounded-lg text-center font-semibold"></div>
@@ -405,6 +414,7 @@ foreach ($modules as $module) {
         document.getElementById('referralForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
+            const name = document.getElementById('referralName').value;
             const email = document.getElementById('referralEmail').value;
             const gdprConsent = document.getElementById('gdprConsent').checked;
             const submitBtn = document.getElementById('submitBtn');
@@ -430,9 +440,10 @@ foreach ($modules as $module) {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        customer_id: TRACKING_CONFIG.customerId,
+                        customer_id: TRACKING_CONFIG.customerId,  // KORREKTUR: customer_id statt user_id
                         ref_code: refCode,
                         email: email,
+                        name: name,
                         gdpr_consent: gdprConsent
                     })
                 });
@@ -442,6 +453,9 @@ foreach ($modules as $module) {
                 if (data.success) {
                     successMsg.classList.remove('hidden');
                     document.getElementById('referralForm').reset();
+                    
+                    // Zeige zusätzliche Info
+                    successMsg.innerHTML = '✓ Erfolgreich registriert!<br><small>Sie erhalten in Kürze eine E-Mail mit Ihren Login-Daten für das Empfehlungsprogramm.</small>';
                 } else {
                     errorMsg.textContent = data.message || 'Fehler bei der Registrierung.';
                     errorMsg.classList.remove('hidden');
