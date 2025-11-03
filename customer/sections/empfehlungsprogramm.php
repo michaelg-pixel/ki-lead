@@ -1,7 +1,7 @@
 <?php
 /**
  * Customer Dashboard - Empfehlungsprogramm Section
- * Zeigt freigeschaltete Freebies und ermöglicht Empfehlungslink-Generierung
+ * Angepasst für existierende Freebies-Struktur mit name/user_id
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -61,26 +61,25 @@ try {
         ];
     }
     
-    // Freebies laden - freigeschaltete UND eigene
+    // Freebies laden - ANGEPASST für existierende Struktur
+    // Verwendet: name statt title, user_id statt customer_id, mockup_image_url statt image_path
     $stmt_freebies = $pdo->prepare("
         SELECT DISTINCT
             f.id,
-            f.title,
+            f.name as title,
             f.description,
-            f.image_path,
-            f.is_active,
+            f.mockup_image_url as image_path,
             CASE 
-                WHEN f.customer_id = ? THEN 'own'
+                WHEN f.user_id = ? THEN 'own'
                 ELSE 'unlocked'
             END as freebie_type
         FROM freebies f
         LEFT JOIN customer_freebies cf ON f.id = cf.freebie_id AND cf.customer_id = ?
-        WHERE f.is_active = 1
-        AND (
-            f.customer_id = ?  -- Eigene Freebies
+        WHERE (
+            f.user_id = ?  -- Eigene Freebies
             OR cf.is_unlocked = 1  -- Freigeschaltete Freebies
         )
-        ORDER BY f.customer_id = ? DESC, f.created_at DESC
+        ORDER BY f.user_id = ? DESC, f.created_at DESC
     ");
     $stmt_freebies->execute([$customer_id, $customer_id, $customer_id, $customer_id]);
     $freebies = $stmt_freebies->fetchAll(PDO::FETCH_ASSOC);
@@ -489,9 +488,12 @@ for ($i = 6; $i >= 0; $i--) {
                     <h4 style="color: white; font-size: 1.125rem; margin-bottom: 0.5rem;">
                         Keine Freebies verfügbar
                     </h4>
-                    <p style="color: #9ca3af; font-size: 0.875rem;">
+                    <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 1.5rem;">
                         Du hast noch keine Freebies erstellt oder freigeschaltet bekommen
                     </p>
+                    <a href="?page=freebies" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #667eea, #764ba2); color: white; text-decoration: none; border-radius: 0.5rem; font-weight: 600;">
+                        <i class="fas fa-plus"></i> Freebie erstellen
+                    </a>
                 </div>
                 <?php else: ?>
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
