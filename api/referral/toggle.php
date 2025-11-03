@@ -6,13 +6,12 @@
 
 header('Content-Type: application/json');
 error_reporting(E_ALL);
-ini_set('display_errors', 0); // Nicht direkt ausgeben, sondern loggen
+ini_set('display_errors', 0);
 
 require_once __DIR__ . '/../../config/database.php';
 
 session_start();
 
-// Debug-Logging aktivieren
 function logDebug($message) {
     error_log("[Referral Toggle] " . $message);
 }
@@ -45,7 +44,7 @@ try {
         throw new Exception('Parameter "enabled" fehlt');
     }
     
-    // Prüfe ob User existiert und welche Spalten vorhanden sind
+    // Prüfe ob User existiert
     $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ? LIMIT 1");
     $stmt->execute([$userId]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -56,16 +55,6 @@ try {
     
     logDebug("User gefunden: " . $user['email']);
     
-    // Prüfe ob referral_enabled Spalte existiert
-    if (!array_key_exists('referral_enabled', $user)) {
-        throw new Exception("Spalte 'referral_enabled' existiert nicht in users Tabelle");
-    }
-    
-    // Prüfe ob ref_code Spalte existiert
-    if (!array_key_exists('ref_code', $user)) {
-        throw new Exception("Spalte 'ref_code' existiert nicht in users Tabelle");
-    }
-    
     $refCode = $user['ref_code'];
     
     // Wenn aktiviert wird, generiere ref_code falls noch nicht vorhanden
@@ -75,7 +64,6 @@ try {
             $refCode = 'REF' . str_pad($userId, 6, '0', STR_PAD_LEFT) . strtoupper(substr(md5(uniqid($userId, true)), 0, 6));
             logDebug("Generiere neuen ref_code: " . $refCode);
             
-            // Update mit ref_code
             $stmt = $pdo->prepare("
                 UPDATE users 
                 SET referral_enabled = 1, ref_code = ?
@@ -84,7 +72,6 @@ try {
             $stmt->execute([$refCode, $userId]);
         } else {
             logDebug("Verwende existierenden ref_code: " . $refCode);
-            // Nur enabled Status updaten
             $stmt = $pdo->prepare("
                 UPDATE users 
                 SET referral_enabled = 1
@@ -93,41 +80,21 @@ try {
             $stmt->execute([$userId]);
         }
         
-        // Prüfe ob referral_stats Tabelle existiert
+        // Initialisiere referral_stats - WICHTIG: user_id verwenden!
         try {
-            $stmt = $pdo->query("SHOW TABLES LIKE 'referral_stats'");
-            $tableExists = $stmt->fetch();
-            
-            if ($tableExists) {
-                logDebug("referral_stats Tabelle existiert");
-                
-                // Prüfe welche Spalte verwendet wird (customer_id oder user_id)
-                $stmt = $pdo->query("SHOW COLUMNS FROM referral_stats");
-                $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
-                logDebug("Spalten in referral_stats: " . implode(', ', $columns));
-                
-                $idColumn = in_array('user_id', $columns) ? 'user_id' : 'customer_id';
-                logDebug("Verwende Spalte: " . $idColumn);
-                
-                // Initialisiere referral_stats falls noch nicht vorhanden
-                $stmt = $pdo->prepare("
-                    INSERT IGNORE INTO referral_stats 
-                    ($idColumn, total_clicks, total_conversions, total_leads) 
-                    VALUES (?, 0, 0, 0)
-                ");
-                $stmt->execute([$userId]);
-                logDebug("referral_stats initialisiert");
-            } else {
-                logDebug("WARNUNG: referral_stats Tabelle existiert nicht!");
-            }
+            $stmt = $pdo->prepare("
+                INSERT IGNORE INTO referral_stats 
+                (user_id, total_clicks, total_conversions, total_leads) 
+                VALUES (?, 0, 0, 0)
+            ");
+            $stmt->execute([$userId]);
+            logDebug("referral_stats initialisiert (user_id)");
         } catch (PDOException $e) {
-            logDebug("Fehler bei referral_stats: " . $e->getMessage());
-            // Nicht kritisch, fahre fort
+            logDebug("WARNUNG bei referral_stats: " . $e->getMessage());
         }
         
     } else {
         logDebug("Deaktiviere Empfehlungsprogramm");
-        // Deaktivieren
         $stmt = $pdo->prepare("
             UPDATE users 
             SET referral_enabled = 0
