@@ -128,11 +128,8 @@ if (empty($reward_tiers)) {
     ];
 }
 
-// Empfehlungslink mit user_id Parameter
+// Empfehlungslink (einfache Version - user_id wird automatisch vom ref_code ermittelt)
 $referral_link = 'https://app.mehr-infos-jetzt.de/lead_login.php?ref=' . $lead['referral_code'];
-if ($lead['user_id']) {
-    $referral_link .= '&uid=' . $lead['user_id'];
-}
 ?>
 <!DOCTYPE html>
 <html lang="de">
