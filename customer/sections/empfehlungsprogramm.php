@@ -1,7 +1,7 @@
 <?php
 /**
  * Customer Dashboard - Empfehlungsprogramm Section
- * Angepasst für existierende Freebies-Struktur mit name/user_id
+ * Zeigt Leads die über den Empfehlungslink des Kunden registriert wurden
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -28,19 +28,15 @@ try {
         throw new Exception("User nicht gefunden");
     }
     
-    // Statistiken aus referral_stats laden
+    // KORRIGIERT: Leads dieses Kunden laden (nicht referral_leads)
+    // Zähle alle Leads die mit diesem User verknüpft sind
     $stmt_stats = $pdo->prepare("
         SELECT 
-            total_clicks,
-            unique_clicks,
-            total_conversions,
-            suspicious_conversions,
-            total_leads,
-            confirmed_leads,
-            conversion_rate,
-            last_click_at,
-            last_conversion_at
-        FROM referral_stats 
+            COUNT(*) as total_leads,
+            SUM(CASE WHEN referrer_code IS NOT NULL THEN 1 ELSE 0 END) as referred_leads,
+            SUM(total_referrals) as total_referrals,
+            SUM(successful_referrals) as successful_referrals
+        FROM lead_users 
         WHERE user_id = ?
     ");
     $stmt_stats->execute([$customer_id]);
@@ -49,20 +45,57 @@ try {
     // Falls keine Stats existieren, initialisiere mit 0
     if (!$stats) {
         $stats = [
-            'total_clicks' => 0,
-            'unique_clicks' => 0,
-            'total_conversions' => 0,
-            'suspicious_conversions' => 0,
             'total_leads' => 0,
-            'confirmed_leads' => 0,
-            'conversion_rate' => 0.00,
-            'last_click_at' => null,
-            'last_conversion_at' => null
+            'referred_leads' => 0,
+            'total_referrals' => 0,
+            'successful_referrals' => 0
         ];
     }
     
-    // Freebies laden - ANGEPASST für existierende Struktur
-    // WICHTIG: Verwendet unique_id für Link-Generierung
+    // KORRIGIERT: Lead-Empfehlungen laden (Leads die über Links anderer Leads kamen)
+    $stmt_referrals = $pdo->prepare("
+        SELECT 
+            lr.referred_name as name,
+            lr.referred_email as email,
+            lr.status,
+            lr.invited_at,
+            lu_referrer.name as referrer_name,
+            lu_referrer.email as referrer_email
+        FROM lead_referrals lr
+        INNER JOIN lead_users lu_referrer ON lr.referrer_id = lu_referrer.id
+        WHERE lu_referrer.user_id = ?
+        ORDER BY lr.invited_at DESC
+        LIMIT 50
+    ");
+    $stmt_referrals->execute([$customer_id]);
+    $referrals = $stmt_referrals->fetchAll(PDO::FETCH_ASSOC);
+    
+    // KORRIGIERT: Direkt registrierte Leads (die sich direkt registriert haben, ohne Empfehlung)
+    $stmt_direct_leads = $pdo->prepare("
+        SELECT 
+            name,
+            email,
+            'active' as status,
+            registered_at as invited_at,
+            NULL as referrer_name,
+            NULL as referrer_email
+        FROM lead_users
+        WHERE user_id = ? AND referrer_code IS NULL
+        ORDER BY registered_at DESC
+        LIMIT 50
+    ");
+    $stmt_direct_leads->execute([$customer_id]);
+    $direct_leads = $stmt_direct_leads->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Kombiniere beide Listen
+    $all_leads = array_merge($referrals, $direct_leads);
+    
+    // Sortiere nach Datum
+    usort($all_leads, function($a, $b) {
+        return strtotime($b['invited_at']) - strtotime($a['invited_at']);
+    });
+    
+    // Freebies laden - für Link-Generierung
     $stmt_freebies = $pdo->prepare("
         SELECT DISTINCT
             f.id,
@@ -72,47 +105,27 @@ try {
             f.mockup_image_url as image_path,
             f.user_id,
             f.created_at,
-            CASE 
-                WHEN f.user_id = ? THEN 'own'
-                ELSE 'unlocked'
-            END as freebie_type
+            'own' as freebie_type
         FROM freebies f
-        LEFT JOIN customer_freebies cf ON f.id = cf.freebie_id AND cf.customer_id = ?
-        WHERE (
-            f.user_id = ?  -- Eigene Freebies
-            OR cf.is_unlocked = 1  -- Freigeschaltete Freebies
-        )
-        ORDER BY f.user_id = ? DESC, f.created_at DESC
+        WHERE f.user_id = ?
+        ORDER BY f.created_at DESC
     ");
-    $stmt_freebies->execute([$customer_id, $customer_id, $customer_id, $customer_id]);
+    $stmt_freebies->execute([$customer_id]);
     $freebies = $stmt_freebies->fetchAll(PDO::FETCH_ASSOC);
     
-    // Letzte 7 Tage Aktivität für Chart
-    $stmt_clicks_chart = $pdo->prepare("
+    // Aktivitäts-Chart-Daten - Letzte 7 Tage
+    $stmt_chart = $pdo->prepare("
         SELECT 
-            DATE(created_at) as date,
+            DATE(registered_at) as date,
             COUNT(*) as count
-        FROM referral_clicks
+        FROM lead_users
         WHERE user_id = ?
-            AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-        GROUP BY DATE(created_at)
+            AND registered_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        GROUP BY DATE(registered_at)
         ORDER BY date ASC
     ");
-    $stmt_clicks_chart->execute([$customer_id]);
-    $clicks_chart_data = $stmt_clicks_chart->fetchAll(PDO::FETCH_ASSOC);
-    
-    $stmt_conv_chart = $pdo->prepare("
-        SELECT 
-            DATE(created_at) as date,
-            COUNT(*) as count
-        FROM referral_conversions
-        WHERE user_id = ?
-            AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-        GROUP BY DATE(created_at)
-        ORDER BY date ASC
-    ");
-    $stmt_conv_chart->execute([$customer_id]);
-    $conv_chart_data = $stmt_conv_chart->fetchAll(PDO::FETCH_ASSOC);
+    $stmt_chart->execute([$customer_id]);
+    $chart_data = $stmt_chart->fetchAll(PDO::FETCH_ASSOC);
     
 } catch (PDOException $e) {
     error_log("Empfehlungsprogramm Error: " . $e->getMessage());
@@ -124,19 +137,14 @@ try {
         'company_imprint_html' => ''
     ];
     $stats = [
-        'total_clicks' => 0,
-        'unique_clicks' => 0,
-        'total_conversions' => 0,
-        'suspicious_conversions' => 0,
         'total_leads' => 0,
-        'confirmed_leads' => 0,
-        'conversion_rate' => 0.00,
-        'last_click_at' => null,
-        'last_conversion_at' => null
+        'referred_leads' => 0,
+        'total_referrals' => 0,
+        'successful_referrals' => 0
     ];
+    $all_leads = [];
     $freebies = [];
-    $clicks_chart_data = [];
-    $conv_chart_data = [];
+    $chart_data = [];
 }
 
 $referralEnabled = $user['referral_enabled'] ?? 0;
@@ -150,8 +158,7 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
 
 // Chart-Daten vorbereiten
 $chart_labels = [];
-$chart_clicks = [];
-$chart_conversions = [];
+$chart_registrations = [];
 
 // Alle 7 Tage abdecken
 for ($i = 6; $i >= 0; $i--) {
@@ -159,25 +166,15 @@ for ($i = 6; $i >= 0; $i--) {
     $label = date('d.m', strtotime($date));
     $chart_labels[] = $label;
     
-    // Finde clicks für dieses Datum
-    $clicks = 0;
-    foreach ($clicks_chart_data as $data) {
+    // Finde Registrierungen für dieses Datum
+    $count = 0;
+    foreach ($chart_data as $data) {
         if ($data['date'] === $date) {
-            $clicks = $data['count'];
+            $count = $data['count'];
             break;
         }
     }
-    $chart_clicks[] = $clicks;
-    
-    // Finde conversions für dieses Datum
-    $conversions = 0;
-    foreach ($conv_chart_data as $data) {
-        if ($data['date'] === $date) {
-            $conversions = $data['count'];
-            break;
-        }
-    }
-    $chart_conversions[] = $conversions;
+    $chart_registrations[] = $count;
 }
 ?>
 
@@ -265,27 +262,6 @@ for ($i = 6; $i >= 0; $i--) {
             box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
         }
         
-        .freebie-badge {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        
-        .freebie-badge.own {
-            background: rgba(16, 185, 129, 0.2);
-            color: #10b981;
-        }
-        
-        .freebie-badge.unlocked {
-            background: rgba(59, 130, 246, 0.2);
-            color: #3b82f6;
-        }
-        
-        /* Responsive Typography */
         .page-title {
             font-size: 2rem;
             font-weight: 700;
@@ -322,44 +298,56 @@ for ($i = 6; $i >= 0; $i--) {
             font-size: 0.875rem;
         }
         
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px;
+            text-align: left;
+            color: #9ca3af;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        tbody tr:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .status-badge.active {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+        
+        .status-badge.pending {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+        }
+        
         /* Mobile Responsive */
         @media (max-width: 640px) {
             .page-title {
                 font-size: 1.5rem;
             }
             
-            .page-subtitle {
-                font-size: 0.875rem;
-            }
-            
             .stat-value {
                 font-size: 2rem;
-            }
-            
-            .stat-label {
-                font-size: 0.75rem;
-            }
-            
-            .section-title {
-                font-size: 1.125rem;
-            }
-            
-            .section-text {
-                font-size: 0.8125rem;
-            }
-            
-            .toggle-switch {
-                width: 50px;
-                height: 26px;
-            }
-            
-            .toggle-slider:before {
-                height: 18px;
-                width: 18px;
-            }
-            
-            input:checked + .toggle-slider:before {
-                transform: translateX(24px);
             }
         }
     </style>
@@ -376,7 +364,7 @@ for ($i = 6; $i >= 0; $i--) {
                             <i class="fas fa-rocket"></i> Empfehlungsprogramm
                         </h1>
                         <p class="page-subtitle">
-                            Wähle ein Freebie und teile deinen Empfehlungslink
+                            Deine Leads und Empfehlungslinks
                         </p>
                     </div>
                     
@@ -398,161 +386,72 @@ for ($i = 6; $i >= 0; $i--) {
         
         <!-- Statistiken -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-            <!-- Klicks -->
+            <!-- Gesamt Leads -->
             <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.1s; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
                     <div style="background: rgba(255, 255, 255, 0.2); border-radius: 0.5rem; padding: 0.625rem;">
-                        <i class="fas fa-mouse-pointer" style="color: white; font-size: 1.25rem;"></i>
-                    </div>
-                    <span style="color: rgba(255, 255, 255, 0.7); font-size: 0.6875rem;"><?php echo number_format($stats['unique_clicks']); ?> unique</span>
-                </div>
-                <div style="color: white;">
-                    <div class="stat-value">
-                        <?php echo number_format($stats['total_clicks']); ?>
-                    </div>
-                    <div class="stat-label">
-                        Link-Klicks
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Conversions -->
-            <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.2s; background: linear-gradient(135deg, #8b5cf6, #7c3aed); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
-                    <div style="background: rgba(255, 255, 255, 0.2); border-radius: 0.5rem; padding: 0.625rem;">
-                        <i class="fas fa-check-circle" style="color: white; font-size: 1.25rem;"></i>
-                    </div>
-                    <?php if ($stats['suspicious_conversions'] > 0): ?>
-                    <span style="color: rgba(255, 255, 255, 0.7); font-size: 0.6875rem;">⚠️ <?php echo $stats['suspicious_conversions']; ?></span>
-                    <?php endif; ?>
-                </div>
-                <div style="color: white;">
-                    <div class="stat-value">
-                        <?php echo number_format($stats['total_conversions']); ?>
-                    </div>
-                    <div class="stat-label">
-                        Conversions
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Leads -->
-            <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.3s; background: linear-gradient(135deg, #10b981, #059669); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-                <div style="display: flex; align-items: center; justify-between; margin-bottom: 0.75rem;">
-                    <div style="background: rgba(255, 255, 255, 0.2); border-radius: 0.5rem; padding: 0.625rem;">
                         <i class="fas fa-users" style="color: white; font-size: 1.25rem;"></i>
                     </div>
-                    <span style="color: rgba(255, 255, 255, 0.7); font-size: 0.6875rem;"><?php echo number_format($stats['confirmed_leads']); ?> bestätigt</span>
                 </div>
                 <div style="color: white;">
                     <div class="stat-value">
                         <?php echo number_format($stats['total_leads']); ?>
                     </div>
                     <div class="stat-label">
-                        Leads
+                        Gesamt Leads
                     </div>
                 </div>
             </div>
             
-            <!-- Conversion Rate -->
-            <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.4s; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+            <!-- Über Empfehlung -->
+            <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.2s; background: linear-gradient(135deg, #8b5cf6, #7c3aed); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
                     <div style="background: rgba(255, 255, 255, 0.2); border-radius: 0.5rem; padding: 0.625rem;">
-                        <i class="fas fa-percentage" style="color: white; font-size: 1.25rem;"></i>
+                        <i class="fas fa-link" style="color: white; font-size: 1.25rem;"></i>
                     </div>
                 </div>
                 <div style="color: white;">
                     <div class="stat-value">
-                        <?php echo number_format($stats['conversion_rate'], 2); ?>%
+                        <?php echo number_format($stats['referred_leads']); ?>
                     </div>
                     <div class="stat-label">
-                        Rate
+                        Über Empfehlung
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Empfehlungen der Leads -->
+            <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.3s; background: linear-gradient(135deg, #10b981, #059669); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+                <div style="display: flex; align-items: center; justify-between; margin-bottom: 0.75rem;">
+                    <div style="background: rgba(255, 255, 255, 0.2); border-radius: 0.5rem; padding: 0.625rem;">
+                        <i class="fas fa-share-alt" style="color: white; font-size: 1.25rem;"></i>
+                    </div>
+                </div>
+                <div style="color: white;">
+                    <div class="stat-value">
+                        <?php echo number_format($stats['successful_referrals']); ?>
+                    </div>
+                    <div class="stat-label">
+                        Lead-Empfehlungen
                     </div>
                 </div>
             </div>
         </div>
         
-        <!-- Freebies Auswahl -->
+        <!-- Empfehlungslink -->
         <?php if ($referralEnabled): ?>
-        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.5s; margin-bottom: 1.5rem;">
+        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.4s; margin-bottom: 1.5rem;">
             <div style="background: linear-gradient(to bottom right, #1f2937, #374151); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-                <h3 class="section-title">
-                    <i class="fas fa-gift"></i> Wähle dein Freebie
-                </h3>
-                <p class="section-text">
-                    Wähle ein Freebie aus, das du über dein Empfehlungsprogramm teilen möchtest
-                </p>
-                
-                <?php if (empty($freebies)): ?>
-                <div style="text-align: center; padding: 3rem 1rem; background: rgba(0, 0, 0, 0.2); border-radius: 0.5rem;">
-                    <div style="font-size: 3rem; color: #374151; margin-bottom: 1rem;">
-                        <i class="fas fa-inbox"></i>
-                    </div>
-                    <h4 style="color: white; font-size: 1.125rem; margin-bottom: 0.5rem;">
-                        Keine Freebies verfügbar
-                    </h4>
-                    <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 1.5rem;">
-                        Du hast noch keine Freebies erstellt oder freigeschaltet bekommen
-                    </p>
-                    <a href="?page=freebies" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #667eea, #764ba2); color: white; text-decoration: none; border-radius: 0.5rem; font-weight: 600;">
-                        <i class="fas fa-plus"></i> Freebie erstellen
-                    </a>
-                </div>
-                <?php else: ?>
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
-                    <?php foreach ($freebies as $index => $freebie): ?>
-                    <div class="freebie-card" 
-                         data-freebie-id="<?php echo $freebie['id']; ?>"
-                         data-freebie-unique-id="<?php echo htmlspecialchars($freebie['unique_id']); ?>"
-                         onclick="selectFreebie('<?php echo htmlspecialchars($freebie['unique_id'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($freebie['title'], ENT_QUOTES); ?>')">
-                        
-                        <span class="freebie-badge <?php echo $freebie['freebie_type']; ?>">
-                            <?php echo $freebie['freebie_type'] === 'own' ? '👤 Eigenes' : '🔓 Freigeschaltet'; ?>
-                        </span>
-                        
-                        <?php if (!empty($freebie['image_path'])): ?>
-                        <div style="width: 100%; height: 120px; border-radius: 0.5rem; overflow: hidden; margin-bottom: 1rem; background: #111827;">
-                            <img src="<?php echo htmlspecialchars($freebie['image_path']); ?>" 
-                                 alt="<?php echo htmlspecialchars($freebie['title']); ?>"
-                                 style="width: 100%; height: 100%; object-fit: cover;">
-                        </div>
-                        <?php endif; ?>
-                        
-                        <h4 style="color: white; font-size: 1.125rem; font-weight: 600; margin-bottom: 0.5rem;">
-                            <?php echo htmlspecialchars($freebie['title']); ?>
-                        </h4>
-                        
-                        <?php if (!empty($freebie['description'])): ?>
-                        <p style="color: #9ca3af; font-size: 0.8125rem; line-height: 1.5; margin-bottom: 0.75rem;">
-                            <?php echo htmlspecialchars(substr($freebie['description'], 0, 100)) . (strlen($freebie['description']) > 100 ? '...' : ''); ?>
-                        </p>
-                        <?php endif; ?>
-                        
-                        <div style="display: flex; align-items: center; justify-content: center; padding: 0.75rem; background: rgba(102, 126, 234, 0.1); border-radius: 0.5rem;">
-                            <i class="fas fa-check-circle" style="color: #10b981; margin-right: 0.5rem; display: none;" data-check-icon></i>
-                            <span style="color: #667eea; font-weight: 600; font-size: 0.875rem;">
-                                Auswählen
-                            </span>
-                        </div>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-                <?php endif; ?>
-            </div>
-        </div>
-        
-        <!-- Empfehlungslink (wird nach Auswahl angezeigt) -->
-        <div id="referralLinkSection" style="display: none;" class="animate-fade-in-up">
-            <div style="background: linear-gradient(to bottom right, #1f2937, #374151); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); margin-bottom: 1.5rem;">
                 <h3 class="section-title">
                     <i class="fas fa-link"></i> Dein Empfehlungslink
                 </h3>
                 <p class="section-text">
-                    Teile diesen Link für das ausgewählte Freebie: <strong id="selectedFreebieTitle" style="color: #667eea;"></strong>
+                    Teile diesen Link und erhalte neue Leads
                 </p>
                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                     <input type="text" 
                            id="referralLinkInput" 
+                           value="<?php echo $baseUrl; ?>/lead_login.php?ref=<?php echo htmlspecialchars($referralCode); ?>"
                            readonly
                            style="flex: 1; min-width: 200px; padding: 0.625rem 0.875rem; background: #1f2937; border: 1px solid #374151; border-radius: 0.5rem; color: white; font-family: monospace; font-size: 0.8125rem;">
                     <button onclick="copyReferralLink()" 
@@ -560,22 +459,17 @@ for ($i = 6; $i >= 0; $i--) {
                         <i class="fas fa-copy"></i>
                         <span id="copyButtonText">Kopieren</span>
                     </button>
-                    <button onclick="goToRewardTiers()" 
-                            style="padding: 0.625rem 1.25rem; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem;">
-                        <i class="fas fa-trophy"></i>
-                        Belohnungen erstellen
-                    </button>
                 </div>
             </div>
         </div>
         <?php endif; ?>
         
         <!-- Aktivitätsgraph -->
-        <?php if (!empty($clicks_chart_data) || !empty($conv_chart_data)): ?>
-        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.6s; margin-bottom: 1.5rem;">
+        <?php if (!empty($chart_data)): ?>
+        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.5s; margin-bottom: 1.5rem;">
             <div style="background: linear-gradient(to bottom right, #1f2937, #374151); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
                 <h3 class="section-title">
-                    <i class="fas fa-chart-line"></i> Aktivität (Letzte 7 Tage)
+                    <i class="fas fa-chart-line"></i> Lead-Registrierungen (Letzte 7 Tage)
                 </h3>
                 <div style="height: 250px;">
                     <canvas id="activityChart"></canvas>
@@ -584,94 +478,78 @@ for ($i = 6; $i >= 0; $i--) {
         </div>
         <?php endif; ?>
         
-        <!-- Firmendaten -->
-        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.7s; margin-bottom: 1.5rem;">
+        <!-- Leads-Liste -->
+        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.6s;">
             <div style="background: linear-gradient(to bottom right, #1f2937, #374151); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
                 <h3 class="section-title">
-                    <i class="fas fa-building"></i> Firmendaten
+                    <i class="fas fa-users"></i> Deine Leads (<?php echo count($all_leads); ?>)
                 </h3>
-                <p class="section-text">
-                    Diese Daten werden in E-Mails an deine Leads verwendet
-                </p>
                 
-                <form id="companyForm" onsubmit="saveCompanyData(event)">
-                    <div style="display: grid; gap: 1rem;">
-                        <div>
-                            <label style="display: block; color: #9ca3af; margin-bottom: 0.5rem; font-size: 0.8125rem; font-weight: 500;">
-                                Firmenname *
-                            </label>
-                            <input type="text" 
-                                   name="company_name" 
-                                   value="<?php echo htmlspecialchars($companyName); ?>"
-                                   required
-                                   style="width: 100%; padding: 0.625rem 0.875rem; background: #1f2937; border: 1px solid #374151; border-radius: 0.5rem; color: white; font-size: 0.875rem;">
-                        </div>
-                        
-                        <div>
-                            <label style="display: block; color: #9ca3af; margin-bottom: 0.5rem; font-size: 0.8125rem; font-weight: 500;">
-                                E-Mail-Adresse *
-                            </label>
-                            <input type="email" 
-                                   name="company_email" 
-                                   value="<?php echo htmlspecialchars($companyEmail); ?>"
-                                   required
-                                   style="width: 100%; padding: 0.625rem 0.875rem; background: #1f2937; border: 1px solid #374151; border-radius: 0.5rem; color: white; font-size: 0.875rem;">
-                        </div>
-                        
-                        <div>
-                            <label style="display: block; color: #9ca3af; margin-bottom: 0.5rem; font-size: 0.8125rem; font-weight: 500;">
-                                Impressum (HTML erlaubt) *
-                            </label>
-                            <textarea name="company_imprint_html" 
-                                      rows="5"
-                                      required
-                                      placeholder="z.B.: Max Mustermann<br>Musterstraße 1<br>12345 Musterstadt"
-                                      style="width: 100%; padding: 0.625rem 0.875rem; background: #1f2937; border: 1px solid #374151; border-radius: 0.5rem; color: white; resize: vertical; font-family: monospace; font-size: 0.8125rem;"><?php echo htmlspecialchars($companyImprint); ?></textarea>
-                            <p style="color: #6b7280; font-size: 0.6875rem; margin-top: 0.5rem;">
-                                HTML-Tags: &lt;p&gt;, &lt;br&gt;, &lt;strong&gt;, &lt;b&gt;, &lt;em&gt;, &lt;i&gt;
-                            </p>
-                        </div>
-                        
-                        <button type="submit" 
-                                style="padding: 0.625rem 1.25rem; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer; transition: all 0.3s; font-size: 0.875rem;">
-                            <i class="fas fa-save"></i> Speichern
-                        </button>
+                <?php if (empty($all_leads)): ?>
+                <div style="text-align: center; padding: 3rem 1rem; background: rgba(0, 0, 0, 0.2); border-radius: 0.5rem;">
+                    <div style="font-size: 3rem; color: #374151; margin-bottom: 1rem;">
+                        <i class="fas fa-inbox"></i>
                     </div>
-                </form>
-            </div>
-        </div>
-        
-        <!-- Info Box -->
-        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.8s;">
-            <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.1)); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 1rem; padding: 1.25rem;">
-                <div style="display: flex; gap: 1rem;">
-                    <div style="color: #3b82f6; font-size: 1.25rem; flex-shrink: 0;">
-                        <i class="fas fa-info-circle"></i>
-                    </div>
-                    <div>
-                        <h4 style="color: white; font-weight: 600; margin-bottom: 0.5rem; font-size: 1rem;">
-                            So funktioniert's
-                        </h4>
-                        <ul style="color: #9ca3af; list-style: none; padding: 0; margin: 0; font-size: 0.8125rem;">
-                            <li style="margin-bottom: 0.375rem;">✓ Aktiviere das Programm oben</li>
-                            <li style="margin-bottom: 0.375rem;">✓ Wähle ein Freebie aus</li>
-                            <li style="margin-bottom: 0.375rem;">✓ Erstelle Belohnungsstufen für dieses Freebie</li>
-                            <li style="margin-bottom: 0.375rem;">✓ Teile deinen Link mit Kontakten</li>
-                            <li>✓ Verdiene für jeden Lead</li>
-                        </ul>
-                    </div>
+                    <h4 style="color: white; font-size: 1.125rem; margin-bottom: 0.5rem;">
+                        Noch keine Leads
+                    </h4>
+                    <p style="color: #9ca3af; font-size: 0.875rem;">
+                        Teile deinen Empfehlungslink um Leads zu generieren
+                    </p>
                 </div>
+                <?php else: ?>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>E-Mail</th>
+                                <th>Status</th>
+                                <th>Empfohlen von</th>
+                                <th>Registriert am</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($all_leads as $lead): ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($lead['name']); ?></td>
+                                <td><?php echo htmlspecialchars($lead['email']); ?></td>
+                                <td>
+                                    <span class="status-badge <?php echo $lead['status']; ?>">
+                                        <?php 
+                                        $status_labels = [
+                                            'pending' => 'Ausstehend',
+                                            'active' => 'Aktiv',
+                                            'converted' => 'Konvertiert'
+                                        ];
+                                        echo $status_labels[$lead['status']] ?? 'Aktiv';
+                                        ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <?php if ($lead['referrer_name']): ?>
+                                        <span style="color: #10b981;">
+                                            <i class="fas fa-user"></i> <?php echo htmlspecialchars($lead['referrer_name']); ?>
+                                        </span>
+                                    <?php else: ?>
+                                        <span style="color: #6b7280;">
+                                            <i class="fas fa-minus"></i> Direkt
+                                        </span>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?php echo date('d.m.Y H:i', strtotime($lead['invited_at'])); ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
     
     <script>
-        let referralEnabled = <?php echo $referralEnabled ? 'true' : 'false'; ?>;
-        let referralCode = '<?php echo $referralCode; ?>';
-        let baseUrl = '<?php echo $baseUrl; ?>';
-        let selectedFreebieUniqueId = null;
-        
-        // Toggle Empfehlungsprogramm
+        // Empfehlungsprogramm aktivieren/deaktivieren
         function toggleReferralProgram(enabled) {
             fetch('/api/referral/toggle.php', {
                 method: 'POST',
@@ -702,35 +580,7 @@ for ($i = 6; $i >= 0; $i--) {
             });
         }
         
-        // Freebie auswählen - JETZT MIT UNIQUE_ID
-        function selectFreebie(freebieUniqueId, freebieTitle) {
-            selectedFreebieUniqueId = freebieUniqueId;
-            
-            // Alle Karten deselektieren
-            document.querySelectorAll('.freebie-card').forEach(card => {
-                card.classList.remove('selected');
-                card.querySelector('[data-check-icon]').style.display = 'none';
-            });
-            
-            // Ausgewählte Karte markieren
-            const selectedCard = document.querySelector(`.freebie-card[data-freebie-unique-id="${freebieUniqueId}"]`);
-            selectedCard.classList.add('selected');
-            selectedCard.querySelector('[data-check-icon]').style.display = 'inline';
-            
-            // KORRIGIERTER Empfehlungslink mit /freebie/index.php und unique_id
-            const referralLink = `${baseUrl}/freebie/index.php?id=${freebieUniqueId}&ref=${referralCode}`;
-            document.getElementById('referralLinkInput').value = referralLink;
-            document.getElementById('selectedFreebieTitle').textContent = freebieTitle;
-            document.getElementById('referralLinkSection').style.display = 'block';
-            
-            // Freebie-Unique-ID in Session speichern
-            sessionStorage.setItem('selectedFreebieUniqueId', freebieUniqueId);
-            sessionStorage.setItem('selectedFreebieTitle', freebieTitle);
-            
-            showNotification(`Freebie "${freebieTitle}" ausgewählt!`, 'success');
-        }
-        
-        // Referral-Link kopieren
+        // Link kopieren
         function copyReferralLink() {
             const input = document.getElementById('referralLinkInput');
             const button = document.getElementById('copyButtonText');
@@ -747,47 +597,6 @@ for ($i = 6; $i >= 0; $i--) {
             }).catch(err => {
                 console.error('Kopieren fehlgeschlagen:', err);
                 showNotification('Kopieren fehlgeschlagen', 'error');
-            });
-        }
-        
-        // Zu Belohnungsstufen wechseln
-        function goToRewardTiers() {
-            if (!selectedFreebieUniqueId) {
-                showNotification('Bitte wähle zuerst ein Freebie aus', 'error');
-                return;
-            }
-            window.location.href = '?page=belohnungsstufen&freebie_id=' + selectedFreebieUniqueId;
-        }
-        
-        // Firmendaten speichern
-        function saveCompanyData(event) {
-            event.preventDefault();
-            
-            const formData = new FormData(event.target);
-            const data = {
-                company_name: formData.get('company_name'),
-                company_email: formData.get('company_email'),
-                company_imprint_html: formData.get('company_imprint_html')
-            };
-            
-            fetch('/api/referral/update-company.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showNotification('Firmendaten erfolgreich gespeichert!', 'success');
-                } else {
-                    showNotification('Fehler: ' + (data.message || 'Unbekannter Fehler'), 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showNotification('Verbindungsfehler', 'error');
             });
         }
         
@@ -825,7 +634,7 @@ for ($i = 6; $i >= 0; $i--) {
         }
         
         // Chart initialisieren
-        <?php if (!empty($clicks_chart_data) || !empty($conv_chart_data)): ?>
+        <?php if (!empty($chart_data)): ?>
         document.addEventListener('DOMContentLoaded', function() {
             const ctx = document.getElementById('activityChart').getContext('2d');
             new Chart(ctx, {
@@ -834,19 +643,10 @@ for ($i = 6; $i >= 0; $i--) {
                     labels: <?php echo json_encode($chart_labels); ?>,
                     datasets: [
                         {
-                            label: 'Klicks',
-                            data: <?php echo json_encode($chart_clicks); ?>,
-                            borderColor: '#3b82f6',
-                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                            borderWidth: 2,
-                            fill: true,
-                            tension: 0.4
-                        },
-                        {
-                            label: 'Conversions',
-                            data: <?php echo json_encode($chart_conversions); ?>,
-                            borderColor: '#8b5cf6',
-                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                            label: 'Registrierungen',
+                            data: <?php echo json_encode($chart_registrations); ?>,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
                             borderWidth: 2,
                             fill: true,
                             tension: 0.4
@@ -896,7 +696,7 @@ for ($i = 6; $i >= 0; $i--) {
         });
         <?php endif; ?>
         
-        // Animation Styles hinzufügen
+        // Animation Styles
         const style = document.createElement('style');
         style.textContent = `
             @keyframes slideIn {
