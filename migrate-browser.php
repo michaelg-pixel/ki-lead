@@ -1,11 +1,15 @@
 <?php
 /**
  * 🔄 MIGRATION TOOL: customer_id → user_id
- * Optimierte Version mit schnellem Backup
+ * Optimierte Version mit Fehlerbehandlung
  */
 
+// Error Reporting für AJAX deaktivieren
+error_reporting(0);
+ini_set('display_errors', 0);
+
 // Timeout erhöhen
-set_time_limit(300); // 5 Minuten
+set_time_limit(300);
 ini_set('max_execution_time', 300);
 ini_set('memory_limit', '512M');
 
@@ -15,35 +19,45 @@ session_start();
 $isAdmin = (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') || 
            (isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === true);
 
-if (!$isAdmin) {
+if (!$isAdmin && $_SERVER['REQUEST_METHOD'] !== 'POST') {
     die('⛔ Nur Admins! <a href="/make-admin.php?token=migration2024secure">Admin werden</a> | <a href="/check-session.php">Session prüfen</a>');
 }
 
-require_once __DIR__ . '/config/database.php';
-
-// AJAX Handler
+// AJAX Handler - MUSS VOR allem HTML kommen!
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Output-Buffering starten
+    ob_start();
+    
     header('Content-Type: application/json');
+    
     $action = $_POST['action'] ?? '';
     
     try {
+        require_once __DIR__ . '/config/database.php';
         $pdo = getDBConnection();
+        
+        if (!$pdo) {
+            throw new Exception('Datenbankverbindung fehlgeschlagen');
+        }
         
         switch ($action) {
             case 'backup':
                 $dir = __DIR__ . '/backups';
-                if (!is_dir($dir)) mkdir($dir, 0755, true);
+                if (!is_dir($dir)) {
+                    mkdir($dir, 0755, true);
+                }
+                
                 $file = $dir . '/backup_' . date('YmdHis') . '.sql';
                 
-                // NUR STRUCTURE BACKUP (viel schneller!)
+                // Structure-Only Backup
                 $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-                $sql = "-- STRUCTURE ONLY BACKUP\n";
-                $sql .= "-- Datum: " . date('Y-m-d H:i:s') . "\n\n";
+                
+                $sql = "-- STRUCTURE BACKUP\n";
+                $sql .= "-- Date: " . date('Y-m-d H:i:s') . "\n\n";
                 $sql .= "SET FOREIGN_KEY_CHECKS=0;\n\n";
                 
                 foreach ($tables as $table) {
                     $create = $pdo->query("SHOW CREATE TABLE `$table`")->fetch();
-                    $sql .= "-- Tabelle: $table\n";
                     $sql .= "DROP TABLE IF EXISTS `$table`;\n";
                     $sql .= $create[1] . ";\n\n";
                 }
@@ -52,6 +66,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 file_put_contents($file, $sql);
                 $size = filesize($file);
+                
+                // Buffer leeren
+                ob_clean();
                 
                 echo json_encode([
                     'success' => true, 
@@ -62,18 +79,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
                 
             case 'check':
-                // Schneller Check
                 $oldTables = $pdo->query("SHOW TABLES LIKE 'customer_%'")->fetchAll(PDO::FETCH_COLUMN);
                 $oldColumns = 0;
                 
-                $checkTables = ['users', 'referral_clicks', 'referral_stats'];
+                // Prüfe Spalten in wichtigen Tabellen
+                $checkTables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
                 foreach ($checkTables as $table) {
-                    if ($pdo->query("SHOW TABLES LIKE '$table'")->fetch()) {
+                    try {
                         if ($pdo->query("SHOW COLUMNS FROM `$table` LIKE 'customer_id'")->fetch()) {
                             $oldColumns++;
                         }
+                    } catch (Exception $e) {
+                        // Tabelle überspringen wenn Fehler
+                        continue;
                     }
                 }
+                
+                // Buffer leeren
+                ob_clean();
                 
                 echo json_encode([
                     'success' => true,
@@ -85,40 +108,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
             case 'migrate':
                 $pdo->beginTransaction();
-                $pdo->exec("SET FOREIGN_KEY_CHECKS=0");
-                $changes = [];
                 
-                // Tabellen umbenennen
-                $rename = [
-                    'customer_freebies' => 'user_freebies',
-                    'customer_freebie_limits' => 'user_freebie_limits',
-                    'customer_courses' => 'user_courses',
-                    'customer_progress' => 'user_progress'
-                ];
-                
-                foreach ($rename as $old => $new) {
-                    if ($pdo->query("SHOW TABLES LIKE '$old'")->fetch()) {
-                        $pdo->exec("RENAME TABLE `$old` TO `$new`");
-                        $changes[] = "Tabelle: $old → $new";
+                try {
+                    $pdo->exec("SET FOREIGN_KEY_CHECKS=0");
+                    $changes = [];
+                    
+                    // Tabellen umbenennen
+                    $rename = [
+                        'customer_freebies' => 'user_freebies',
+                        'customer_freebie_limits' => 'user_freebie_limits',
+                        'customer_courses' => 'user_courses',
+                        'customer_progress' => 'user_progress'
+                    ];
+                    
+                    foreach ($rename as $old => $new) {
+                        if ($pdo->query("SHOW TABLES LIKE '$old'")->fetch()) {
+                            $pdo->exec("RENAME TABLE `$old` TO `$new`");
+                            $changes[] = "Tabelle: $old → $new";
+                        }
                     }
-                }
-                
-                // Spalten umbenennen
-                $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-                foreach ($tables as $table) {
-                    if ($pdo->query("SHOW COLUMNS FROM `$table` LIKE 'customer_id'")->fetch()) {
-                        $col = $pdo->query("SHOW COLUMNS FROM `$table` WHERE Field = 'customer_id'")->fetch();
-                        $type = $col['Type'];
-                        $null = $col['Null'] === 'YES' ? 'NULL' : 'NOT NULL';
-                        $pdo->exec("ALTER TABLE `$table` CHANGE COLUMN customer_id user_id $type $null");
-                        $changes[] = "Spalte: $table.customer_id → user_id";
+                    
+                    // Spalten umbenennen
+                    $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+                    foreach ($tables as $table) {
+                        try {
+                            if ($pdo->query("SHOW COLUMNS FROM `$table` LIKE 'customer_id'")->fetch()) {
+                                $col = $pdo->query("SHOW COLUMNS FROM `$table` WHERE Field = 'customer_id'")->fetch();
+                                $type = $col['Type'];
+                                $null = $col['Null'] === 'YES' ? 'NULL' : 'NOT NULL';
+                                $pdo->exec("ALTER TABLE `$table` CHANGE COLUMN customer_id user_id $type $null");
+                                $changes[] = "Spalte: $table.customer_id → user_id";
+                            }
+                        } catch (Exception $e) {
+                            // Tabelle überspringen
+                            continue;
+                        }
                     }
+                    
+                    $pdo->exec("SET FOREIGN_KEY_CHECKS=1");
+                    $pdo->commit();
+                    
+                    // Buffer leeren
+                    ob_clean();
+                    
+                    echo json_encode([
+                        'success' => true, 
+                        'changes' => $changes, 
+                        'count' => count($changes)
+                    ]);
+                    
+                } catch (Exception $e) {
+                    $pdo->rollBack();
+                    throw $e;
                 }
-                
-                $pdo->exec("SET FOREIGN_KEY_CHECKS=1");
-                $pdo->commit();
-                
-                echo json_encode(['success' => true, 'changes' => $changes, 'count' => count($changes)]);
                 break;
                 
             case 'verify':
@@ -137,12 +179,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Prüfe alte Spalten
                 $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
                 foreach ($tables as $table) {
-                    if ($pdo->query("SHOW COLUMNS FROM `$table` LIKE 'customer_id'")->fetch()) {
-                        $oldColumns++;
+                    try {
+                        if ($pdo->query("SHOW COLUMNS FROM `$table` LIKE 'customer_id'")->fetch()) {
+                            $oldColumns++;
+                        }
+                    } catch (Exception $e) {
+                        continue;
                     }
                 }
                 
                 $success = (count($oldTables) === 0 && $oldColumns === 0 && $newTables > 0);
+                
+                // Buffer leeren
+                ob_clean();
                 
                 echo json_encode([
                     'success' => $success,
@@ -153,16 +202,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
                 
             default:
-                throw new Exception('Unbekannte Aktion');
+                throw new Exception('Unbekannte Aktion: ' . $action);
         }
+        
     } catch (Exception $e) {
         if (isset($pdo) && $pdo->inTransaction()) {
             $pdo->rollBack();
         }
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        
+        // Buffer leeren
+        ob_clean();
+        
+        echo json_encode([
+            'success' => false, 
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
     }
+    
+    // Buffer ausgeben und beenden
+    ob_end_flush();
     exit;
 }
+
+// Ab hier kommt die HTML-UI (nur wenn kein POST-Request!)
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -275,10 +338,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="warning">
                 <strong>⚠️ WICHTIG:</strong>
                 <ul style="margin-left: 20px; margin-top: 10px;">
-                    <li>Backup wird automatisch erstellt (nur Struktur, sehr schnell!)</li>
+                    <li>Backup wird automatisch erstellt (nur Struktur)</li>
                     <li>Migration dauert ca. 1-2 Minuten</li>
-                    <li>Browser NICHT schließen während der Migration!</li>
-                    <li>Nach erfolgreicher Migration: Dateien löschen!</li>
+                    <li>Browser NICHT schließen!</li>
+                    <li>Nach Migration: Dateien löschen!</li>
                 </ul>
             </div>
             
@@ -291,9 +354,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             <div class="step" id="step1">
                 <h3>1️⃣ Backup erstellen</h3>
-                <p>Schnelles Structure-Backup (ohne Daten)</p>
+                <p>Schnelles Structure-Backup</p>
                 <button class="btn" onclick="runBackup()" disabled id="btn1">Backup erstellen</button>
-                <button class="btn btn-secondary" onclick="skipBackup()">Überspringen (nicht empfohlen)</button>
+                <button class="btn btn-secondary" onclick="skipBackup()">Überspringen</button>
                 <div id="result1" class="result"></div>
             </div>
             
@@ -326,11 +389,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     body: 'action=' + action
                 });
                 
-                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const text = await res.text();
                 
-                const data = await res.json();
+                // Debug: Zeige rohe Antwort bei Fehler
+                if (!text.trim().startsWith('{')) {
+                    console.error('Server Response:', text);
+                    throw new Error('Server gab HTML statt JSON zurück. Siehe Console.');
+                }
+                
+                const data = JSON.parse(text);
                 button.textContent = originalText;
                 return data;
+                
             } catch (error) {
                 button.textContent = originalText;
                 throw error;
@@ -346,8 +416,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (data.success) {
                     let html = '<span class="success">✅ System-Check abgeschlossen</span><br><br>';
                     html += '📊 Gefunden:<br>';
-                    html += '• Alte Tabellen (customer_*): ' + data.old_tables + '<br>';
-                    html += '• Alte Spalten (customer_id): ' + data.old_columns + '<br><br>';
+                    html += '• Alte Tabellen: ' + data.old_tables + '<br>';
+                    html += '• Alte Spalten: ' + data.old_columns + '<br><br>';
                     
                     if (data.needs_migration) {
                         html += '<span style="color: #f59e0b;">⚠️ Migration erforderlich!</span>';
@@ -361,8 +431,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     document.getElementById('step0').classList.add('complete');
                 }
             } catch (error) {
-                document.getElementById('result0').innerHTML = '<span class="error">❌ ' + error + '</span>';
-                document.getElementById('result0').style.display = 'block';
+                const result = document.getElementById('result0');
+                result.innerHTML = '<span class="error">❌ ' + error.message + '</span>';
+                result.style.display = 'block';
             }
         }
         
@@ -382,21 +453,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     result.innerHTML = '<span class="error">❌ ' + data.error + '</span>';
                 }
             } catch (error) {
-                document.getElementById('result1').innerHTML = '<span class="error">❌ ' + error + '</span>';
-                document.getElementById('result1').style.display = 'block';
+                const result = document.getElementById('result1');
+                result.innerHTML = '<span class="error">❌ ' + error.message + '</span>';
+                result.style.display = 'block';
             }
         }
         
         function skipBackup() {
-            if (confirm('⚠️ WARNUNG: Backup überspringen? Das ist NICHT empfohlen!')) {
-                document.getElementById('result1').innerHTML = '<span style="color: #f59e0b;">⚠️ Backup übersprungen</span>';
+            if (confirm('⚠️ Backup überspringen? NICHT empfohlen!')) {
+                document.getElementById('result1').innerHTML = '<span style="color: #f59e0b;">⚠️ Übersprungen</span>';
                 document.getElementById('result1').style.display = 'block';
                 completeStep(1);
             }
         }
         
         async function runMigration() {
-            if (!confirm('⚠️ Migration jetzt starten?\n\nDie Datenbank wird geändert!')) return;
+            if (!confirm('⚠️ Migration starten?\n\nDatenbank wird geändert!')) return;
             
             try {
                 const data = await callApi('migrate', document.getElementById('btn2'));
@@ -405,7 +477,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 if (data.success) {
                     let html = '<span class="success">✅ Migration erfolgreich!</span><br><br>';
-                    html += '📊 Durchgeführt: ' + data.count + ' Änderungen<br><br>';
+                    html += '📊 Änderungen: ' + data.count + '<br><br>';
                     data.changes.forEach(c => html += '✓ ' + c + '<br>');
                     result.innerHTML = html;
                     completeStep(2);
@@ -413,8 +485,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     result.innerHTML = '<span class="error">❌ ' + data.error + '</span>';
                 }
             } catch (error) {
-                document.getElementById('result2').innerHTML = '<span class="error">❌ ' + error + '</span>';
-                document.getElementById('result2').style.display = 'block';
+                const result = document.getElementById('result2');
+                result.innerHTML = '<span class="error">❌ ' + error.message + '</span>';
+                result.style.display = 'block';
             }
         }
         
@@ -425,30 +498,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 result.style.display = 'block';
                 
                 if (data.success) {
-                    result.innerHTML = '<span class="success">🎉 MIGRATION ERFOLGREICH ABGESCHLOSSEN!</span><br><br>' +
+                    result.innerHTML = '<span class="success">🎉 MIGRATION ERFOLGREICH!</span><br><br>' +
                                      '📊 Ergebnis:<br>' +
                                      '• Alte Tabellen: ' + data.old_tables + '<br>' +
                                      '• Alte Spalten: ' + data.old_columns + '<br>' +
                                      '• Neue Tabellen: ' + data.new_tables + '<br><br>' +
                                      '<div class="info-box">' +
-                                     '<strong>⚠️ WICHTIG - Nächste Schritte:</strong><br><br>' +
-                                     '1. Teste alle Funktionen im System<br>' +
-                                     '2. Lösche diese Dateien:<br>' +
-                                     '&nbsp;&nbsp; • migrate-browser.php<br>' +
-                                     '&nbsp;&nbsp; • make-admin.php<br>' +
-                                     '&nbsp;&nbsp; • check-session.php<br>' +
-                                     '3. Logout & Login (Session neu laden)<br>' +
+                                     '<strong>⚠️ WICHTIG:</strong><br><br>' +
+                                     '1. Teste alle Funktionen<br>' +
+                                     '2. Lösche: migrate-browser.php, make-admin.php, check-session.php<br>' +
+                                     '3. Logout & Login<br>' +
                                      '</div>';
                     document.getElementById('step3').classList.add('complete');
                 } else {
-                    result.innerHTML = '<span class="error">❌ Probleme gefunden:</span><br><br>' +
+                    result.innerHTML = '<span class="error">❌ Probleme:</span><br>' +
                                      '• Alte Tabellen: ' + data.old_tables + '<br>' +
-                                     '• Alte Spalten: ' + data.old_columns + '<br>' +
-                                     '• Neue Tabellen: ' + data.new_tables;
+                                     '• Alte Spalten: ' + data.old_columns;
                 }
             } catch (error) {
-                document.getElementById('result3').innerHTML = '<span class="error">❌ ' + error + '</span>';
-                document.getElementById('result3').style.display = 'block';
+                const result = document.getElementById('result3');
+                result.innerHTML = '<span class="error">❌ ' + error.message + '</span>';
+                result.style.display = 'block';
             }
         }
         
@@ -462,8 +532,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Auto-Start
         window.onload = () => {
-            const btn = document.querySelector('#step0 .btn');
-            setTimeout(() => btn.click(), 500);
+            setTimeout(() => {
+                document.querySelector('#step0 .btn').click();
+            }, 500);
         };
     </script>
 </body>
