@@ -556,8 +556,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="footer">
         <p>&copy; 2025 KI Leadsystem. Alle Rechte vorbehalten.</p>
         <div class="footer-links">
-            <a href="/public/impressum.php">Impressum</a>
-            <a href="/public/datenschutz.php">Datenschutz</a>
+            <a href="https://info-xxl.de/impressum/" target="_blank">Impressum</a>
+            <a href="https://info-xxl.de/datenschutz/" target="_blank">Datenschutz</a>
             <a href="/public/av-vertrag.php">AV-Vertrag</a>
         </div>
     </div>
