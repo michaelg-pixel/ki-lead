@@ -2,15 +2,10 @@
 /**
  * Admin API: Update Customer
  * Bearbeiten von Kundendaten durch Admin
- * PFAD-KORREKTUR: Lädt Dateien aus dem Root-Verzeichnis
+ * ANGEPASST AN BESTEHENDES SYSTEM
  */
 
 header('Content-Type: application/json');
-
-// KORRIGIERTE PFADE - eine Ebene höher vom /api/ Verzeichnis
-require_once dirname(__DIR__) . '/config/database.php';
-require_once dirname(__DIR__) . '/includes/auth.php';
-
 session_start();
 
 // Admin-Check
@@ -20,8 +15,10 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     exit;
 }
 
+require_once dirname(__DIR__) . '/config/database.php';
+
 try {
-    $pdo = Database::getInstance()->getConnection();
+    $pdo = getDBConnection();
     
     // Daten aus POST-Request
     $userId = $_POST['user_id'] ?? null;
