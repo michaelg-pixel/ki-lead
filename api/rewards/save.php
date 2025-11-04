@@ -4,7 +4,7 @@
  * POST /api/rewards/save.php
  * 
  * Body: {
- *   "freebie_id": 123,  // Optional: Verknüpfung zu Freebie
+ *   "freebie_id": 123,  // Optional: customer_freebie_id
  *   "tier_level": 1,
  *   "tier_name": "Bronze",
  *   "required_referrals": 3,
@@ -60,18 +60,15 @@ try {
     $auto_deliver = isset($input['auto_deliver']) && $input['auto_deliver'] ? 1 : 0;
     
     // Falls Freebie-ID angegeben, prüfen ob User Zugriff hat
+    // WICHTIG: freebie_id ist hier die customer_freebie_id aus der customer_freebies Tabelle
     if ($freebie_id) {
         $stmt = $pdo->prepare("
-            SELECT f.id
-            FROM freebies f
-            LEFT JOIN customer_freebies cf ON f.id = cf.freebie_id AND cf.customer_id = ?
-            WHERE f.id = ?
-            AND (
-                f.user_id = ?
-                OR cf.is_unlocked = 1
-            )
+            SELECT cf.id
+            FROM customer_freebies cf
+            WHERE cf.id = ?
+            AND cf.customer_id = ?
         ");
-        $stmt->execute([$user_id, $freebie_id, $user_id]);
+        $stmt->execute([$freebie_id, $user_id]);
         if (!$stmt->fetch()) {
             throw new Exception('Kein Zugriff auf dieses Freebie');
         }
