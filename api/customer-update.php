@@ -2,13 +2,14 @@
 /**
  * Admin API: Update Customer
  * Bearbeiten von Kundendaten durch Admin
- * SICHERE VERSION - funktioniert auch ohne optionale Spalten
+ * PFAD-KORREKTUR: Lädt Dateien aus dem Root-Verzeichnis
  */
 
 header('Content-Type: application/json');
 
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/auth.php';
+// KORRIGIERTE PFADE - eine Ebene höher vom /api/ Verzeichnis
+require_once dirname(__DIR__) . '/config/database.php';
+require_once dirname(__DIR__) . '/includes/auth.php';
 
 session_start();
 
