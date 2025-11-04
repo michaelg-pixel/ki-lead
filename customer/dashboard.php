@@ -360,9 +360,9 @@ $page = $_GET['page'] ?? 'overview';
                 <span class="nav-icon">🏆</span>
                 <span>Belohnungsstufen</span>
             </a>
-            <a href="?page=fortschritt" class="nav-item <?php echo $page === 'fortschritt' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
-                <span class="nav-icon">📈</span>
-                <span>Fortschritt</span>
+            <a href="?page=ki-prompt" class="nav-item <?php echo $page === 'ki-prompt' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
+                <span class="nav-icon">🤖</span>
+                <span>KI Prompt</span>
             </a>
             <a href="?page=einstellungen" class="nav-item <?php echo $page === 'einstellungen' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
                 <span class="nav-icon">⚙️</span>
@@ -443,9 +443,9 @@ $page = $_GET['page'] ?? 'overview';
                 }
                 ?>
             
-            <?php elseif ($page === 'fortschritt'): ?>
+            <?php elseif ($page === 'ki-prompt'): ?>
                 <?php 
-                $section_file = __DIR__ . '/sections/fortschritt.php';
+                $section_file = __DIR__ . '/sections/ki-prompt.php';
                 if (file_exists($section_file)) {
                     include $section_file;
                 } else {
