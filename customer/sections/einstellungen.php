@@ -92,6 +92,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         }
     }
 }
+
+// Firmendaten laden
+$company_data = null;
+try {
+    $stmt = $pdo->prepare("SELECT * FROM user_company_data WHERE user_id = ?");
+    $stmt->execute([$_SESSION['user_id']]);
+    $company_data = $stmt->fetch(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Error loading company data: " . $e->getMessage());
+}
+
+// Check if error from redirect
+if (isset($_GET['error']) && $_GET['error'] === 'no_company_data') {
+    $error = 'Bitte hinterlegen Sie zuerst Ihre Firmendaten, um den AV-Vertrag herunterzuladen.';
+}
 ?>
 
 <style>
@@ -192,6 +207,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         width: 100%;
         box-sizing: border-box;
         min-height: 48px;
+        text-decoration: none;
+        display: inline-block;
+        text-align: center;
+        line-height: 1.5;
     }
     
     .btn-primary:hover {
@@ -203,6 +222,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         opacity: 0.5;
         cursor: not-allowed;
         transform: none;
+    }
+    
+    .btn-secondary {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        padding: 12px 24px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        width: 100%;
+        box-sizing: border-box;
+        min-height: 48px;
+        text-decoration: none;
+        display: inline-block;
+        text-align: center;
+        line-height: 1.5;
+        margin-top: 12px;
+    }
+    
+    .btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.15);
     }
     
     .alert {
@@ -227,6 +270,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         background: rgba(239, 68, 68, 0.1);
         border: 1px solid rgba(239, 68, 68, 0.3);
         color: #ef4444;
+    }
+    
+    .alert-info {
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        color: #3b82f6;
     }
     
     .password-requirements {
@@ -363,6 +412,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         color: #34d399;
     }
     
+    .form-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+    }
+    
     /* Tablet Styles */
     @media (max-width: 1024px) {
         .settings-container {
@@ -426,6 +481,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         .password-requirements {
             padding: 14px;
         }
+        
+        .form-row {
+            grid-template-columns: 1fr;
+        }
     }
     
     /* Mobile Portrait */
@@ -476,7 +535,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
             border-radius: 6px;
         }
         
-        .btn-primary {
+        .btn-primary, .btn-secondary {
             padding: 16px 20px;
             font-size: 15px;
             min-height: 52px;
@@ -558,7 +617,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
             min-height: 48px;
         }
         
-        .btn-primary {
+        .btn-primary, .btn-secondary {
             padding: 14px 16px;
             min-height: 50px;
         }
@@ -566,7 +625,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
     
     /* Touch Device Optimizations */
     @media (hover: none) and (pointer: coarse) {
-        .btn-primary:hover {
+        .btn-primary:hover, .btn-secondary:hover {
             transform: none;
             box-shadow: none;
         }
@@ -584,7 +643,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         
         /* Größere Touch-Targets */
         .form-input,
-        .btn-primary {
+        .btn-primary,
+        .btn-secondary {
             min-height: 48px;
         }
     }
@@ -615,6 +675,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         .form-group,
         .form-input,
         .btn-primary,
+        .btn-secondary,
         .user-info-card,
         .password-requirements {
             overflow-wrap: break-word;
@@ -668,6 +729,135 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
                 </div>
             </div>
         </div>
+    </div>
+    
+    <!-- AV-Vertrag / Firmendaten -->
+    <div class="settings-card">
+        <h2 class="card-title">
+            <span>📄</span>
+            <span>Auftragsverarbeitungsvertrag (AV-Vertrag)</span>
+        </h2>
+        
+        <?php if (!$company_data): ?>
+            <div class="alert alert-info">
+                <span>ℹ️</span>
+                <span>Bitte hinterlegen Sie Ihre Firmendaten, um Ihren personalisierten AV-Vertrag herunterzuladen.</span>
+            </div>
+        <?php endif; ?>
+        
+        <form id="companyDataForm">
+            <div class="form-group">
+                <label class="form-label" for="company_name">Firmenname *</label>
+                <input 
+                    type="text" 
+                    id="company_name" 
+                    name="company_name" 
+                    class="form-input" 
+                    required
+                    value="<?php echo htmlspecialchars($company_data['company_name'] ?? ''); ?>"
+                    placeholder="z.B. Musterfirma GmbH"
+                >
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="company_address">Straße und Hausnummer *</label>
+                <input 
+                    type="text" 
+                    id="company_address" 
+                    name="company_address" 
+                    class="form-input" 
+                    required
+                    value="<?php echo htmlspecialchars($company_data['company_address'] ?? ''); ?>"
+                    placeholder="z.B. Musterstraße 123"
+                >
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="company_zip">PLZ *</label>
+                    <input 
+                        type="text" 
+                        id="company_zip" 
+                        name="company_zip" 
+                        class="form-input" 
+                        required
+                        value="<?php echo htmlspecialchars($company_data['company_zip'] ?? ''); ?>"
+                        placeholder="z.B. 12345"
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="company_city">Stadt *</label>
+                    <input 
+                        type="text" 
+                        id="company_city" 
+                        name="company_city" 
+                        class="form-input" 
+                        required
+                        value="<?php echo htmlspecialchars($company_data['company_city'] ?? ''); ?>"
+                        placeholder="z.B. Berlin"
+                    >
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="company_country">Land</label>
+                <input 
+                    type="text" 
+                    id="company_country" 
+                    name="company_country" 
+                    class="form-input"
+                    value="<?php echo htmlspecialchars($company_data['company_country'] ?? 'Deutschland'); ?>"
+                    placeholder="z.B. Deutschland"
+                >
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="contact_person">Ansprechpartner (optional)</label>
+                <input 
+                    type="text" 
+                    id="contact_person" 
+                    name="contact_person" 
+                    class="form-input"
+                    value="<?php echo htmlspecialchars($company_data['contact_person'] ?? ''); ?>"
+                    placeholder="z.B. Max Mustermann"
+                >
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="contact_email">Kontakt-E-Mail (optional)</label>
+                <input 
+                    type="email" 
+                    id="contact_email" 
+                    name="contact_email" 
+                    class="form-input"
+                    value="<?php echo htmlspecialchars($company_data['contact_email'] ?? ''); ?>"
+                    placeholder="z.B. kontakt@musterfirma.de"
+                >
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="contact_phone">Telefon (optional)</label>
+                <input 
+                    type="tel" 
+                    id="contact_phone" 
+                    name="contact_phone" 
+                    class="form-input"
+                    value="<?php echo htmlspecialchars($company_data['contact_phone'] ?? ''); ?>"
+                    placeholder="z.B. +49 123 456789"
+                >
+            </div>
+            
+            <button type="submit" class="btn-primary" id="saveCompanyBtn">
+                💾 Firmendaten speichern
+            </button>
+        </form>
+        
+        <?php if ($company_data): ?>
+            <a href="/customer/av-vertrag-download.php" class="btn-secondary" target="_blank">
+                📥 AV-Vertrag herunterladen
+            </a>
+        <?php endif; ?>
     </div>
     
     <!-- Passwort ändern -->
@@ -745,6 +935,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // ==========================================
+    // PASSWORT-ÄNDERUNG FUNKTIONALITÄT
+    // ==========================================
     const newPassword = document.getElementById('new_password');
     const confirmPassword = document.getElementById('confirm_password');
     const submitBtn = document.getElementById('submitBtn');
@@ -820,5 +1013,70 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initial Button deaktivieren
     submitBtn.disabled = true;
+    
+    // ==========================================
+    // FIRMENDATEN-FORMULAR FUNKTIONALITÄT
+    // ==========================================
+    const companyForm = document.getElementById('companyDataForm');
+    const saveCompanyBtn = document.getElementById('saveCompanyBtn');
+    
+    companyForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        // Button deaktivieren während des Speicherns
+        saveCompanyBtn.disabled = true;
+        saveCompanyBtn.textContent = '⏳ Speichert...';
+        
+        // FormData erstellen
+        const formData = new FormData(companyForm);
+        
+        try {
+            const response = await fetch('/customer/api/save-company-data.php', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Erfolgs-Nachricht anzeigen
+                showAlert('success', result.message);
+                
+                // Seite neu laden nach 1 Sekunde
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showAlert('error', result.message);
+                saveCompanyBtn.disabled = false;
+                saveCompanyBtn.textContent = '💾 Firmendaten speichern';
+            }
+        } catch (error) {
+            showAlert('error', 'Fehler beim Speichern der Daten: ' + error.message);
+            saveCompanyBtn.disabled = false;
+            saveCompanyBtn.textContent = '💾 Firmendaten speichern';
+        }
+    });
+    
+    // Helper-Funktion für Alert-Anzeige
+    function showAlert(type, message) {
+        // Entferne vorherige Alerts
+        const existingAlerts = document.querySelectorAll('.alert');
+        existingAlerts.forEach(alert => alert.remove());
+        
+        // Erstelle neuen Alert
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type}`;
+        
+        const icon = type === 'success' ? '✅' : '❌';
+        alert.innerHTML = `<span>${icon}</span><span>${message}</span>`;
+        
+        // Füge Alert am Anfang des Containers ein
+        const container = document.querySelector('.settings-container');
+        container.insertBefore(alert, container.firstChild);
+        
+        // Scrolle zum Alert
+        alert.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 });
 </script>
