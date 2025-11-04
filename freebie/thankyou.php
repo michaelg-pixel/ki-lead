@@ -99,16 +99,19 @@ if (!empty($freebie['course_id'])) {
 }
 
 // Empfehlungsprogramm URL - Lead-Registrierung
+// WICHTIG: Nur anzeigen wenn Customer das Empfehlungsprogramm aktiviert hat (referral_enabled = 1)
 $referral_url = '';
 if ($customer_id) {
-    // Referral Code des Customers holen
+    // Referral Code UND referral_enabled Status des Customers holen
     try {
-        $stmt = $pdo->prepare("SELECT ref_code FROM users WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT ref_code, referral_enabled FROM users WHERE id = ?");
         $stmt->execute([$customer_id]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         $ref_code = $user['ref_code'] ?? '';
+        $referral_enabled = $user['referral_enabled'] ?? 0;
         
-        if ($ref_code) {
+        // Nur wenn referral_enabled = 1 UND ref_code vorhanden ist, dann URL setzen
+        if ($referral_enabled == 1 && $ref_code) {
             $referral_url = '/lead_login.php?ref=' . $ref_code;
         }
     } catch (PDOException $e) {
