@@ -2,6 +2,7 @@
 /**
  * Admin API: Get Customer Details
  * Abrufen vollständiger Kundendaten für Admin-Ansicht
+ * SICHERE VERSION - funktioniert auch ohne optionale Tabellen/Spalten
  */
 
 header('Content-Type: application/json');
@@ -28,19 +29,25 @@ try {
         throw new Exception('Keine User-ID angegeben');
     }
     
+    // Erst prüfen, welche Spalten existieren
+    $columns = ['u.id', 'u.name', 'u.email', 'u.is_active', 'u.created_at'];
+    
+    // Optional columns - nur hinzufügen wenn sie existieren
+    $optionalColumns = ['raw_code', 'referral_enabled', 'referral_code', 'company_name', 'company_email'];
+    $tableColumns = $pdo->query("SHOW COLUMNS FROM users")->fetchAll(PDO::FETCH_COLUMN);
+    
+    foreach ($optionalColumns as $col) {
+        if (in_array($col, $tableColumns)) {
+            $columns[] = "u.$col";
+        }
+    }
+    
+    $columnsStr = implode(', ', $columns);
+    
     // Kundendaten mit zugewiesenen Freebies abrufen
-    $stmt = $pdo->prepare("
+    $query = "
         SELECT 
-            u.id,
-            u.name,
-            u.email,
-            u.raw_code,
-            u.is_active,
-            u.created_at,
-            u.referral_enabled,
-            u.referral_code,
-            u.company_name,
-            u.company_email,
+            $columnsStr,
             GROUP_CONCAT(
                 DISTINCT CONCAT(f.id, ':', f.name) 
                 SEPARATOR '||'
@@ -51,8 +58,9 @@ try {
         LEFT JOIN freebies f ON uf.freebie_id = f.id
         WHERE u.id = ? AND u.role = 'customer'
         GROUP BY u.id
-    ");
+    ";
     
+    $stmt = $pdo->prepare($query);
     $stmt->execute([$userId]);
     $customer = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -60,12 +68,19 @@ try {
         throw new Exception('Kunde nicht gefunden');
     }
     
+    // Defaults für fehlende Spalten setzen
+    $customer['raw_code'] = $customer['raw_code'] ?? null;
+    $customer['referral_enabled'] = $customer['referral_enabled'] ?? 0;
+    $customer['referral_code'] = $customer['referral_code'] ?? null;
+    $customer['company_name'] = $customer['company_name'] ?? null;
+    $customer['company_email'] = $customer['company_email'] ?? null;
+    
     // Freebies aufbereiten
     $freebies = [];
     if (!empty($customer['assigned_freebies'])) {
         $freebieData = explode('||', $customer['assigned_freebies']);
         foreach ($freebieData as $item) {
-            if (!empty($item)) {
+            if (!empty($item) && strpos($item, ':') !== false) {
                 list($id, $name) = explode(':', $item, 2);
                 $freebies[] = [
                     'id' => $id,
@@ -85,28 +100,42 @@ try {
         'total_downloads' => 0
     ];
     
-    // Letzten Login abrufen (falls tracking existiert)
-    $loginStmt = $pdo->prepare("
-        SELECT MAX(created_at) as last_login 
-        FROM user_activity_log 
-        WHERE user_id = ? AND action = 'login'
-    ");
-    $loginStmt->execute([$userId]);
-    $loginData = $loginStmt->fetch(PDO::FETCH_ASSOC);
-    if ($loginData && $loginData['last_login']) {
-        $stats['last_login'] = $loginData['last_login'];
+    // Prüfen ob user_activity_log Tabelle existiert
+    $tables = $pdo->query("SHOW TABLES LIKE 'user_activity_log'")->fetchAll();
+    if (count($tables) > 0) {
+        try {
+            $loginStmt = $pdo->prepare("
+                SELECT MAX(created_at) as last_login 
+                FROM user_activity_log 
+                WHERE user_id = ? AND action = 'login'
+            ");
+            $loginStmt->execute([$userId]);
+            $loginData = $loginStmt->fetch(PDO::FETCH_ASSOC);
+            if ($loginData && $loginData['last_login']) {
+                $stats['last_login'] = $loginData['last_login'];
+            }
+        } catch (Exception $e) {
+            // Ignorieren wenn Tabelle nicht existiert oder Fehler
+        }
     }
     
-    // Download-Statistiken (falls Tracking vorhanden)
-    $downloadStmt = $pdo->prepare("
-        SELECT COUNT(*) as total 
-        FROM freebie_analytics 
-        WHERE user_id = ?
-    ");
-    $downloadStmt->execute([$userId]);
-    $downloadData = $downloadStmt->fetch(PDO::FETCH_ASSOC);
-    if ($downloadData) {
-        $stats['total_downloads'] = (int)$downloadData['total'];
+    // Prüfen ob freebie_analytics Tabelle existiert
+    $tables = $pdo->query("SHOW TABLES LIKE 'freebie_analytics'")->fetchAll();
+    if (count($tables) > 0) {
+        try {
+            $downloadStmt = $pdo->prepare("
+                SELECT COUNT(*) as total 
+                FROM freebie_analytics 
+                WHERE user_id = ?
+            ");
+            $downloadStmt->execute([$userId]);
+            $downloadData = $downloadStmt->fetch(PDO::FETCH_ASSOC);
+            if ($downloadData) {
+                $stats['total_downloads'] = (int)$downloadData['total'];
+            }
+        } catch (Exception $e) {
+            // Ignorieren wenn Tabelle nicht existiert oder Fehler
+        }
     }
     
     $customer['stats'] = $stats;
