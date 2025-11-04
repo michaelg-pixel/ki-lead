@@ -119,8 +119,16 @@ if ($customer_id) {
     }
 }
 
-// Mockup-Bild des Kurses oder Freebie
-$mockup_image = $freebie['course_mockup'] ?? $freebie['mockup_image_url'] ?? '';
+// KORREKTUR: Mockup-Bild Logik - Customer-Freebie Mockup hat Vorrang!
+// Bei Customer-Freebies: Erst mockup_image_url aus customer_freebies, dann course_mockup
+// Bei Template-Freebies: Erst course_mockup, dann mockup_image_url vom Template
+if ($is_customer_freebie) {
+    // Customer-Freebie: Eigenes Mockup hat Vorrang
+    $mockup_image = $freebie['mockup_image_url'] ?? $freebie['course_mockup'] ?? '';
+} else {
+    // Template-Freebie: Kurs-Mockup hat Vorrang
+    $mockup_image = $freebie['course_mockup'] ?? $freebie['mockup_image_url'] ?? '';
+}
 
 // Footer-Links mit customer_id
 $impressum_link = $customer_id ? "/impressum.php?customer=" . $customer_id : "/impressum.php";
