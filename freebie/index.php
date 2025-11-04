@@ -21,6 +21,9 @@ try {
     showError('Datenbankverbindung fehlgeschlagen', 'Bitte versuchen Sie es später erneut.');
 }
 
+// Font-Konfiguration laden
+$fontConfig = require __DIR__ . '/../config/fonts.php';
+
 $identifier = $_GET['id'] ?? null;
 if (!$identifier) { 
     showError('Keine Freebie-ID angegeben', 'Der Link ist unvollständig. Bitte verwenden Sie den korrekten Link.');
@@ -79,6 +82,16 @@ $subheadline = $freebie['subheadline'] ?? '';
 $ctaText = $freebie['cta_text'] ?? 'JETZT KOSTENLOS DOWNLOADEN';
 $mockupUrl = $freebie['mockup_image_url'] ?? '';
 $layout = $freebie['layout'] ?? 'hybrid';
+
+// Font-Einstellungen aus DB mit Fallback auf Defaults
+$preheadlineFont = $freebie['preheadline_font'] ?? $fontConfig['defaults']['preheadline_font'];
+$preheadlineSize = $freebie['preheadline_size'] ?? $fontConfig['defaults']['preheadline_size'];
+$headlineFont = $freebie['headline_font'] ?? $fontConfig['defaults']['headline_font'];
+$headlineSize = $freebie['headline_size'] ?? $fontConfig['defaults']['headline_size'];
+$subheadlineFont = $freebie['subheadline_font'] ?? $fontConfig['defaults']['subheadline_font'];
+$subheadlineSize = $freebie['subheadline_size'] ?? $fontConfig['defaults']['subheadline_size'];
+$bulletpointsFont = $freebie['bulletpoints_font'] ?? $fontConfig['defaults']['bulletpoints_font'];
+$bulletpointsSize = $freebie['bulletpoints_size'] ?? $fontConfig['defaults']['bulletpoints_size'];
 
 $bulletPoints = [];
 if (!empty($freebie['bullet_points'])) {
@@ -181,7 +194,10 @@ function showError($title, $message, $details = '') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($headline); ?></title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Google Fonts laden - alle verfügbaren Schriftarten -->
+    <link href="<?php echo $fontConfig['google_fonts_url']; ?>" rel="stylesheet">
+    
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -193,7 +209,8 @@ function showError($title, $message, $details = '') {
         .container { max-width: 1100px; margin: 0 auto; }
         .header { text-align: center; margin-bottom: 25px; }
         .preheadline {
-            font-size: 11px;
+            font-size: <?php echo (int)$preheadlineSize; ?>px;
+            font-family: '<?php echo htmlspecialchars($preheadlineFont); ?>', sans-serif;
             text-transform: uppercase;
             letter-spacing: 1.5px;
             margin-bottom: 10px;
@@ -201,14 +218,16 @@ function showError($title, $message, $details = '') {
             color: <?php echo htmlspecialchars($primaryColor); ?>;
         }
         h1 {
-            font-size: 32px;
+            font-size: <?php echo (int)$headlineSize; ?>px;
+            font-family: '<?php echo htmlspecialchars($headlineFont); ?>', sans-serif;
             margin-bottom: 12px;
             font-weight: 800;
             line-height: 1.2;
             color: #1a202c;
         }
         .subheadline {
-            font-size: 15px;
+            font-size: <?php echo (int)$subheadlineSize; ?>px;
+            font-family: '<?php echo htmlspecialchars($subheadlineFont); ?>', sans-serif;
             line-height: 1.4;
             color: #4a5568;
             max-width: 650px;
@@ -266,7 +285,8 @@ function showError($title, $message, $details = '') {
             padding: 6px 0;
             position: relative;
             padding-left: 28px;
-            font-size: 15px;
+            font-size: <?php echo (int)$bulletpointsSize; ?>px;
+            font-family: '<?php echo htmlspecialchars($bulletpointsFont); ?>', sans-serif;
             line-height: 1.4;
             color: #2d3748;
         }
@@ -648,7 +668,7 @@ function showError($title, $message, $details = '') {
             .bullet-points li {
                 padding: 8px 0 8px 0 !important;
                 padding-left: 0 !important;
-                font-size: 14px;
+                font-size: <?php echo max(12, (int)$bulletpointsSize - 2); ?>px;
                 line-height: 1.6;
                 color: #2d3748;
                 position: relative;
@@ -685,17 +705,17 @@ function showError($title, $message, $details = '') {
             body { padding: 20px 16px 15px; }
             
             h1 { 
-                font-size: 26px;
+                font-size: <?php echo max(20, (int)$headlineSize - 10); ?>px;
                 line-height: 1.3;
             }
             
             .preheadline {
-                font-size: 10px;
+                font-size: <?php echo max(9, (int)$preheadlineSize - 2); ?>px;
                 letter-spacing: 1.2px;
             }
             
             .subheadline { 
-                font-size: 14px;
+                font-size: <?php echo max(13, (int)$subheadlineSize - 2); ?>px;
                 line-height: 1.5;
             }
             
@@ -706,7 +726,7 @@ function showError($title, $message, $details = '') {
             }
             
             .bullet-points li {
-                font-size: 13px;
+                font-size: <?php echo max(12, (int)$bulletpointsSize - 3); ?>px;
                 padding: 7px 0 7px 0 !important;
             }
             
@@ -763,11 +783,11 @@ function showError($title, $message, $details = '') {
             body { padding: 16px 12px; }
             
             h1 { 
-                font-size: 22px;
+                font-size: <?php echo max(18, (int)$headlineSize - 14); ?>px;
             }
             
             .subheadline {
-                font-size: 13px;
+                font-size: <?php echo max(12, (int)$subheadlineSize - 3); ?>px;
             }
             
             .mockup-container {
@@ -779,7 +799,7 @@ function showError($title, $message, $details = '') {
             }
             
             .bullet-points li {
-                font-size: 13px;
+                font-size: <?php echo max(12, (int)$bulletpointsSize - 3); ?>px;
                 padding: 6px 0 6px 0 !important;
             }
         }
