@@ -261,6 +261,10 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     overflow-y: auto;
 }
 
+.modal-content.large {
+    max-width: 700px;
+}
+
 .modal-header {
     display: flex;
     justify-content: space-between;
@@ -326,10 +330,117 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2);
 }
 
+.form-input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 .modal-actions {
     display: flex;
     gap: 12px;
     margin-top: 24px;
+}
+
+/* Detail View Styles */
+.detail-section {
+    margin-bottom: 24px;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(168, 85, 247, 0.2);
+    border-radius: 12px;
+}
+
+.detail-section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #c084fc;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.detail-row:last-child {
+    border-bottom: none;
+}
+
+.detail-label {
+    color: #888;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.detail-value {
+    color: #e0e0e0;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: right;
+}
+
+.freebie-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.freebie-item {
+    padding: 8px 12px;
+    background: rgba(168, 85, 247, 0.1);
+    border: 1px solid rgba(168, 85, 247, 0.2);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #e0e0e0;
+}
+
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.stat-card {
+    background: rgba(168, 85, 247, 0.1);
+    border: 1px solid rgba(168, 85, 247, 0.2);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #c084fc;
+    margin-bottom: 4px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(168, 85, 247, 0.3);
+    border-radius: 50%;
+    border-top-color: #a855f7;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 
 /* ============================================
@@ -352,6 +463,10 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
         order: 1;
         width: 100%;
         justify-content: center;
+    }
+    
+    .stat-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 
@@ -420,6 +535,19 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     .modal-actions .btn {
         width: 100%;
     }
+    
+    .detail-row {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .detail-value {
+        text-align: left;
+    }
+    
+    .stat-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Sehr kleine Mobile Geräte */
@@ -451,6 +579,10 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     .modal-content {
         padding: 20px 16px;
         border-radius: 12px;
+    }
+    
+    .detail-section {
+        padding: 16px;
     }
 }
 
@@ -590,6 +722,73 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     </div>
 </div>
 
+<!-- Modal: Kunde ansehen (Detail-Ansicht) -->
+<div id="viewCustomerModal" class="modal">
+    <div class="modal-content large">
+        <div class="modal-header">
+            <h3 class="modal-title">👤 Kundendetails</h3>
+            <button class="modal-close" onclick="closeModal('viewCustomerModal')">×</button>
+        </div>
+        <div id="customerDetailContent">
+            <div style="text-align: center; padding: 40px;">
+                <div class="loading-spinner"></div>
+                <p style="color: #888; margin-top: 16px;">Lade Kundendaten...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Kunde bearbeiten -->
+<div id="editCustomerModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">✏️ Kunde bearbeiten</h3>
+            <button class="modal-close" onclick="closeModal('editCustomerModal')">×</button>
+        </div>
+        <form id="editCustomerForm">
+            <input type="hidden" name="user_id" id="editUserId">
+            
+            <div class="form-group">
+                <label class="form-label">Name *</label>
+                <input type="text" class="form-input" name="name" id="editName" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">E-Mail *</label>
+                <input type="email" class="form-input" name="email" id="editEmail" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">RAW-Code</label>
+                <input type="text" class="form-input" name="raw_code" id="editRawCode" placeholder="Optional">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Firmenname</label>
+                <input type="text" class="form-input" name="company_name" id="editCompanyName" placeholder="Optional">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Firmen-E-Mail</label>
+                <input type="email" class="form-input" name="company_email" id="editCompanyEmail" placeholder="Optional">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Neues Passwort</label>
+                <input type="password" class="form-input" name="new_password" id="editPassword" placeholder="Leer lassen, um beizubehalten">
+                <small style="color: #888; font-size: 12px; display: block; margin-top: 4px;">
+                    Mindestens 8 Zeichen, nur ausfüllen wenn Änderung gewünscht
+                </small>
+            </div>
+            
+            <div class="modal-actions">
+                <button type="button" class="btn btn-outline" onclick="closeModal('editCustomerModal')">Abbrechen</button>
+                <button type="submit" class="btn btn-primary">💾 Änderungen speichern</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Modal: Freebie zuweisen -->
 <div id="assignFreebieModal" class="modal">
     <div class="modal-content">
@@ -688,6 +887,173 @@ document.getElementById('addCustomerForm').addEventListener('submit', async func
     }
 });
 
+// Kunde ansehen (Detail-Ansicht)
+async function viewCustomer(userId) {
+    openModal('viewCustomerModal');
+    
+    try {
+        const response = await fetch(`/api/customer-get.php?user_id=${userId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            displayCustomerDetails(result.customer);
+        } else {
+            document.getElementById('customerDetailContent').innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #f87171;">
+                    <p>❌ ${result.message}</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        document.getElementById('customerDetailContent').innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #f87171;">
+                <p>❌ Fehler beim Laden der Kundendaten</p>
+            </div>
+        `;
+    }
+}
+
+function displayCustomerDetails(customer) {
+    const freebiesList = customer.freebies && customer.freebies.length > 0
+        ? customer.freebies.map(f => `<li class="freebie-item">${f.name}</li>`).join('')
+        : '<li class="freebie-item" style="background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2);">Keine Freebies zugewiesen</li>';
+    
+    const lastLogin = customer.stats.last_login 
+        ? new Date(customer.stats.last_login).toLocaleString('de-DE')
+        : 'Noch nie';
+    
+    document.getElementById('customerDetailContent').innerHTML = `
+        <div class="detail-section">
+            <div class="detail-section-title">
+                📋 Grundinformationen
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Name</span>
+                <span class="detail-value">${customer.name || '-'}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">E-Mail</span>
+                <span class="detail-value">${customer.email || '-'}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">RAW-Code</span>
+                <span class="detail-value"><span class="raw-code">${customer.raw_code || 'N/A'}</span></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Registriert seit</span>
+                <span class="detail-value">${new Date(customer.created_at).toLocaleDateString('de-DE')}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Status</span>
+                <span class="detail-value">
+                    <span class="status-badge status-${customer.is_active ? 'active' : 'inactive'}">
+                        ${customer.is_active ? 'Aktiv' : 'Inaktiv'}
+                    </span>
+                </span>
+            </div>
+        </div>
+        
+        ${customer.company_name || customer.company_email ? `
+        <div class="detail-section">
+            <div class="detail-section-title">
+                🏢 Firmendaten
+            </div>
+            ${customer.company_name ? `
+            <div class="detail-row">
+                <span class="detail-label">Firmenname</span>
+                <span class="detail-value">${customer.company_name}</span>
+            </div>
+            ` : ''}
+            ${customer.company_email ? `
+            <div class="detail-row">
+                <span class="detail-label">Firmen-E-Mail</span>
+                <span class="detail-value">${customer.company_email}</span>
+            </div>
+            ` : ''}
+        </div>
+        ` : ''}
+        
+        <div class="detail-section">
+            <div class="detail-section-title">
+                🎁 Zugewiesene Freebies (${customer.stats.total_freebies})
+            </div>
+            <ul class="freebie-list">
+                ${freebiesList}
+            </ul>
+        </div>
+        
+        <div class="detail-section">
+            <div class="detail-section-title">
+                📊 Statistiken
+            </div>
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <div class="stat-value">${customer.stats.total_freebies}</div>
+                    <div class="stat-label">Freebies</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${customer.stats.total_downloads}</div>
+                    <div class="stat-label">Downloads</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" style="font-size: 14px;">${lastLogin}</div>
+                    <div class="stat-label">Letzter Login</div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Kunde bearbeiten
+async function editCustomer(userId) {
+    openModal('editCustomerModal');
+    
+    // Kundendaten laden
+    try {
+        const response = await fetch(`/api/customer-get.php?user_id=${userId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const customer = result.customer;
+            document.getElementById('editUserId').value = customer.id;
+            document.getElementById('editName').value = customer.name || '';
+            document.getElementById('editEmail').value = customer.email || '';
+            document.getElementById('editRawCode').value = customer.raw_code || '';
+            document.getElementById('editCompanyName').value = customer.company_name || '';
+            document.getElementById('editCompanyEmail').value = customer.company_email || '';
+            document.getElementById('editPassword').value = '';
+        } else {
+            alert('❌ Fehler beim Laden der Kundendaten: ' + result.message);
+            closeModal('editCustomerModal');
+        }
+    } catch (error) {
+        alert('❌ Fehler beim Laden der Kundendaten');
+        closeModal('editCustomerModal');
+    }
+}
+
+document.getElementById('editCustomerForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    
+    try {
+        const response = await fetch('/api/customer-update.php', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Kundendaten erfolgreich aktualisiert!');
+            window.location.reload();
+        } else {
+            alert('❌ Fehler: ' + result.message);
+        }
+    } catch (error) {
+        alert('❌ Fehler beim Aktualisieren der Kundendaten');
+    }
+});
+
 // Freebie zuweisen
 function assignFreebie(userId) {
     document.getElementById('assignUserId').value = userId;
@@ -761,18 +1127,6 @@ async function deleteCustomer(userId) {
     } catch (error) {
         alert('❌ Fehler beim Löschen des Kunden');
     }
-}
-
-// Kunde ansehen
-function viewCustomer(userId) {
-    // TODO: Detail-Ansicht implementieren
-    alert('Detail-Ansicht für Kunde ID: ' + userId);
-}
-
-// Kunde bearbeiten
-function editCustomer(userId) {
-    // TODO: Bearbeiten-Modal implementieren
-    alert('Bearbeiten für Kunde ID: ' + userId);
 }
 
 // ESC-Taste zum Schließen von Modals
