@@ -212,43 +212,77 @@ header('Content-Type: text/html; charset=utf-8');
                 echo '</div>';
                 echo '</div>';
             } else {
-                // Migration durchführen
-                $pdo->beginTransaction();
-                
+                // Migration durchführen - OHNE Transaktion für ALTER TABLE
                 $migrations = [];
+                $hasErrors = false;
                 
-                if (!$videoUrlExists) {
-                    $pdo->exec("ALTER TABLE customer_freebies ADD COLUMN video_url VARCHAR(500) NULL AFTER mockup_image_url");
-                    $migrations[] = "video_url Spalte hinzugefügt";
+                try {
+                    if (!$videoUrlExists) {
+                        $pdo->exec("ALTER TABLE customer_freebies ADD COLUMN video_url VARCHAR(500) NULL AFTER mockup_image_url");
+                        $migrations[] = "video_url Spalte hinzugefügt";
+                    }
+                } catch (PDOException $e) {
+                    $hasErrors = true;
+                    echo '<div class="status-box error">';
+                    echo '<div class="status-icon">❌</div>';
+                    echo '<div class="status-content">';
+                    echo '<div class="status-title">Fehler bei video_url</div>';
+                    echo '<div class="status-message">' . htmlspecialchars($e->getMessage()) . '</div>';
+                    echo '</div>';
+                    echo '</div>';
                 }
                 
-                if (!$videoFormatExists) {
-                    $pdo->exec("ALTER TABLE customer_freebies ADD COLUMN video_format ENUM('portrait', 'widescreen') DEFAULT 'widescreen' AFTER video_url");
-                    $migrations[] = "video_format Spalte hinzugefügt";
+                try {
+                    if (!$videoFormatExists) {
+                        $pdo->exec("ALTER TABLE customer_freebies ADD COLUMN video_format ENUM('portrait', 'widescreen') DEFAULT 'widescreen' AFTER video_url");
+                        $migrations[] = "video_format Spalte hinzugefügt";
+                    }
+                } catch (PDOException $e) {
+                    $hasErrors = true;
+                    echo '<div class="status-box error">';
+                    echo '<div class="status-icon">❌</div>';
+                    echo '<div class="status-content">';
+                    echo '<div class="status-title">Fehler bei video_format</div>';
+                    echo '<div class="status-message">' . htmlspecialchars($e->getMessage()) . '</div>';
+                    echo '</div>';
+                    echo '</div>';
                 }
                 
                 // Index erstellen (falls noch nicht vorhanden)
                 try {
-                    $pdo->exec("CREATE INDEX idx_customer_freebies_video ON customer_freebies(video_url)");
-                    $migrations[] = "Index für Video-URLs erstellt";
+                    // Prüfen ob Index bereits existiert
+                    $stmt = $pdo->query("SHOW INDEX FROM customer_freebies WHERE Key_name = 'idx_customer_freebies_video'");
+                    if ($stmt->rowCount() === 0) {
+                        $pdo->exec("CREATE INDEX idx_customer_freebies_video ON customer_freebies(video_url)");
+                        $migrations[] = "Index für Video-URLs erstellt";
+                    }
                 } catch (PDOException $e) {
-                    // Index existiert bereits, ignorieren
+                    // Index existiert bereits oder anderer Fehler - nicht kritisch
+                    if (strpos($e->getMessage(), 'Duplicate key name') === false) {
+                        echo '<div class="status-box warning">';
+                        echo '<div class="status-icon">⚠️</div>';
+                        echo '<div class="status-content">';
+                        echo '<div class="status-title">Index-Warnung</div>';
+                        echo '<div class="status-message">Index konnte nicht erstellt werden (nicht kritisch): ' . htmlspecialchars($e->getMessage()) . '</div>';
+                        echo '</div>';
+                        echo '</div>';
+                    }
                 }
                 
-                $pdo->commit();
-                
-                echo '<div class="status-box success">';
-                echo '<div class="status-icon">✅</div>';
-                echo '<div class="status-content">';
-                echo '<div class="status-title">Migration erfolgreich abgeschlossen!</div>';
-                echo '<div class="status-message">';
-                echo 'Folgende Änderungen wurden vorgenommen:<br>';
-                foreach ($migrations as $migration) {
-                    echo '<strong>✓</strong> ' . htmlspecialchars($migration) . '<br>';
+                if (!$hasErrors && !empty($migrations)) {
+                    echo '<div class="status-box success">';
+                    echo '<div class="status-icon">✅</div>';
+                    echo '<div class="status-content">';
+                    echo '<div class="status-title">Migration erfolgreich abgeschlossen!</div>';
+                    echo '<div class="status-message">';
+                    echo 'Folgende Änderungen wurden vorgenommen:<br>';
+                    foreach ($migrations as $migration) {
+                        echo '<strong>✓</strong> ' . htmlspecialchars($migration) . '<br>';
+                    }
+                    echo '</div>';
+                    echo '</div>';
+                    echo '</div>';
                 }
-                echo '</div>';
-                echo '</div>';
-                echo '</div>';
             }
             
             // Informationen zur Nutzung anzeigen
@@ -305,7 +339,11 @@ header('Content-Type: text/html; charset=utf-8');
             </div>
         </div>
         
-        <a href="/customer/dashboard.php?page=freebies" class="btn">
+        <a href="/database/integrate-video-support.php" class="btn">
+            Weiter zur Video-Integration →
+        </a>
+        
+        <a href="/customer/custom-freebie-editor.php" class="btn" style="background: #10B981; margin-left: 10px;">
             Zum Freebie Editor →
         </a>
     </div>
