@@ -57,6 +57,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
     $raw_code = trim($_POST['raw_code'] ?? '');
     $custom_code = trim($_POST['custom_code'] ?? ''); // Facebook Pixel etc.
     $mockup_image_url = trim($_POST['mockup_image_url'] ?? '');
+    $video_url = trim($_POST['video_url'] ?? '');
+    $video_format = $_POST['video_format'] ?? 'widescreen';
     
     // Custom Code in raw_code speichern (mit Trennzeichen)
     $combined_code = $raw_code;
@@ -81,14 +83,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
                     headline = ?, subheadline = ?, preheadline = ?,
                     bullet_points = ?, cta_text = ?, layout = ?,
                     background_color = ?, primary_color = ?, raw_code = ?,
-                    mockup_image_url = ?, updated_at = NOW()
+                    mockup_image_url = ?, video_url = ?, video_format = ?, updated_at = NOW()
                 WHERE id = ?
             ");
             $stmt->execute([
                 $headline, $subheadline, $preheadline,
                 $bullet_points, $cta_text, $layout,
                 $background_color, $primary_color, $combined_code,
-                $mockup_image_url, $freebie['id']
+                $mockup_image_url, $video_url, $video_format, $freebie['id']
             ]);
             
             $success_message = "✅ Freebie erfolgreich aktualisiert!";
@@ -98,13 +100,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
                 INSERT INTO customer_freebies (
                     customer_id, headline, subheadline, preheadline,
                     bullet_points, cta_text, layout, background_color, primary_color,
-                    raw_code, mockup_image_url, unique_id, url_slug, freebie_type, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'custom', NOW())
+                    raw_code, mockup_image_url, video_url, video_format, unique_id, url_slug, freebie_type, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'custom', NOW())
             ");
             $stmt->execute([
                 $customer_id, $headline, $subheadline, $preheadline,
                 $bullet_points, $cta_text, $layout, $background_color, $primary_color,
-                $combined_code, $mockup_image_url, $unique_id, $url_slug
+                $combined_code, $mockup_image_url, $video_url, $video_format, $unique_id, $url_slug
             ]);
             
             $freebie_id = $pdo->lastInsertId();
@@ -150,7 +152,9 @@ $form_data = [
     'primary_color' => $freebie['primary_color'] ?? '#8B5CF6',
     'raw_code' => $email_optin_code,
     'custom_code' => $custom_tracking_code,
-    'mockup_image_url' => $freebie['mockup_image_url'] ?? ''
+    'mockup_image_url' => $freebie['mockup_image_url'] ?? '',
+    'video_url' => $freebie['video_url'] ?? '',
+    'video_format' => $freebie['video_format'] ?? 'widescreen'
 ];
 ?>
 <!DOCTYPE html>
@@ -421,6 +425,19 @@ $form_data = [
             display: block;
         }
         
+        .video-preview {
+            margin-top: 12px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #e5e7eb;
+            background: #000;
+        }
+        
+        .video-preview iframe {
+            width: 100%;
+            display: block;
+        }
+        
         .mockup-actions {
             display: flex;
             gap: 8px;
@@ -480,6 +497,16 @@ $form_data = [
             max-width: 100%;
             height: auto;
             border-radius: 8px;
+        }
+        
+        .preview-video {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .preview-video iframe {
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         
         .preview-preheadline {
@@ -610,6 +637,69 @@ $form_data = [
             opacity: 0.95;
             line-height: 1.6;
         }
+
+        .video-format-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .format-option {
+            position: relative;
+            cursor: pointer;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .format-option:hover {
+            border-color: #8B5CF6;
+            background: rgba(139, 92, 246, 0.05);
+        }
+
+        .format-option input {
+            position: absolute;
+            opacity: 0;
+        }
+
+        .format-option.selected {
+            border-color: #8B5CF6;
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .format-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .format-name {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .format-check {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 20px;
+            height: 20px;
+            background: #8B5CF6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .format-option input:checked ~ .format-check {
+            opacity: 1;
+        }
         
         @media (max-width: 1200px) {
             .editor-grid {
@@ -655,6 +745,59 @@ $form_data = [
                     <div class="legal-info">
                         <h3>⚖️ Rechtstexte automatisch verknüpft!</h3>
                         <p>Sobald du dieses Freebie speicherst, werden automatisch deine Impressum- und Datenschutz-Links im Footer der Freebie-Seite angezeigt. Du kannst deine Rechtstexte unter <strong>"Dashboard → Rechtstexte"</strong> bearbeiten.</p>
+                    </div>
+                    
+                    <!-- Video -->
+                    <div class="form-section">
+                        <div class="section-title">🎥 Video</div>
+                        <div class="info-box">
+                            <div class="info-box-title">💡 Hinweis</div>
+                            <div class="info-box-text">
+                                Füge hier die URL deines Videos ein (YouTube, Vimeo, etc.). Das Video wird automatisch eingebettet und responsiv dargestellt.
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Video URL</label>
+                            <input type="url" name="video_url" id="videoUrl" class="form-input"
+                                   value="<?php echo htmlspecialchars($form_data['video_url']); ?>"
+                                   placeholder="https://www.youtube.com/watch?v=... oder https://vimeo.com/..."
+                                   oninput="updatePreview()">
+                            
+                            <div class="video-format-options">
+                                <label class="format-option <?php echo $form_data['video_format'] === 'widescreen' ? 'selected' : ''; ?>">
+                                    <input type="radio" name="video_format" value="widescreen" 
+                                           <?php echo $form_data['video_format'] === 'widescreen' ? 'checked' : ''; ?>
+                                           onchange="updatePreview(); updateFormatSelection(this)">
+                                    <div class="format-content">
+                                        <div class="format-icon">🖥️</div>
+                                        <div class="format-name">Widescreen (16:9)</div>
+                                    </div>
+                                    <div class="format-check">✓</div>
+                                </label>
+                                
+                                <label class="format-option <?php echo $form_data['video_format'] === 'portrait' ? 'selected' : ''; ?>">
+                                    <input type="radio" name="video_format" value="portrait"
+                                           <?php echo $form_data['video_format'] === 'portrait' ? 'checked' : ''; ?>
+                                           onchange="updatePreview(); updateFormatSelection(this)">
+                                    <div class="format-content">
+                                        <div class="format-icon">📱</div>
+                                        <div class="format-name">Hochformat (9:16)</div>
+                                    </div>
+                                    <div class="format-check">✓</div>
+                                </label>
+                            </div>
+                            
+                            <?php if (!empty($form_data['video_url'])): ?>
+                            <div class="video-preview" id="videoPreviewContainer">
+                                <!-- Video preview will be inserted here by JavaScript -->
+                            </div>
+                            <div class="mockup-actions">
+                                <button type="button" class="btn-mockup btn-mockup-remove" onclick="removeVideo()">
+                                    🗑️ Video entfernen
+                                </button>
+                            </div>
+                            <?php endif; ?>
+                        </div>
                     </div>
                     
                     <!-- Mockup-Bild -->
@@ -864,8 +1007,15 @@ $form_data = [
     </div>
     
     <script>
-        const mockupUrl = document.getElementById('mockupImageUrl').value;
-        
+        function removeVideo() {
+            document.getElementById('videoUrl').value = '';
+            const container = document.getElementById('videoPreviewContainer');
+            if (container) {
+                container.remove();
+            }
+            updatePreview();
+        }
+
         function removeMockup() {
             document.getElementById('mockupImageUrl').value = '';
             const container = document.getElementById('mockupPreviewContainer');
@@ -875,16 +1025,36 @@ $form_data = [
             updatePreview();
         }
         
-        // Mockup-Vorschau beim Eingeben aktualisieren
-        document.getElementById('mockupImageUrl').addEventListener('input', function() {
-            updatePreview();
-        });
-        
+        function updateFormatSelection(radio) {
+            document.querySelectorAll('.format-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            radio.closest('.format-option').classList.add('selected');
+        }
+
         function updateLayoutSelection(radio) {
             document.querySelectorAll('.layout-option').forEach(opt => {
                 opt.classList.remove('selected');
             });
             radio.closest('.layout-option').classList.add('selected');
+        }
+        
+        function getVideoEmbedUrl(url) {
+            if (!url) return null;
+            
+            // YouTube
+            let youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+            if (youtubeMatch) {
+                return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
+            }
+            
+            // Vimeo
+            let vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+            if (vimeoMatch) {
+                return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+            }
+            
+            return null;
         }
         
         function updatePreview() {
@@ -897,6 +1067,8 @@ $form_data = [
             const primaryColor = document.getElementById('primary_color').value;
             const backgroundColor = document.getElementById('background_color').value;
             const mockupImageUrl = document.getElementById('mockupImageUrl').value;
+            const videoUrl = document.getElementById('videoUrl').value;
+            const videoFormat = document.querySelector('input[name="video_format"]:checked').value;
             
             const previewContent = document.getElementById('previewContent');
             previewContent.style.background = backgroundColor;
@@ -925,6 +1097,29 @@ $form_data = [
                 `;
             }
             
+            let videoHTML = '';
+            const embedUrl = getVideoEmbedUrl(videoUrl);
+            if (embedUrl) {
+                const isPortrait = videoFormat === 'portrait';
+                const videoWidth = isPortrait ? '315px' : '100%';
+                const videoHeight = isPortrait ? '560px' : '315px';
+                const videoMaxWidth = isPortrait ? '315px' : '560px';
+                
+                videoHTML = `
+                    <div class="preview-video" style="max-width: ${videoMaxWidth}; margin: 0 auto;">
+                        <iframe 
+                            width="${videoWidth}" 
+                            height="${videoHeight}" 
+                            src="${embedUrl}" 
+                            frameborder="0" 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                            allowfullscreen
+                            style="display: block; margin: 0 auto;">
+                        </iframe>
+                    </div>
+                `;
+            }
+            
             const preheadlineHTML = preheadline ? `
                 <div class="preview-preheadline" style="color: ${primaryColor};">
                     ${escapeHtml(preheadline)}
@@ -935,12 +1130,15 @@ $form_data = [
                 <div class="preview-subheadline">${escapeHtml(subheadline)}</div>
             ` : '';
             
+            // Priorität: Video > Mockup > Icon
+            const mediaElement = videoHTML || mockupHTML || `<div style="text-align: center; color: ${primaryColor}; font-size: 50px;">🎁</div>`;
+            
             let layoutHTML = '';
             
             if (layout === 'centered') {
                 layoutHTML = `
                     <div style="max-width: 800px; margin: 0 auto;">
-                        ${mockupHTML}
+                        ${mediaElement}
                         ${preheadlineHTML}
                         <div class="preview-headline" style="color: ${primaryColor};">
                             ${escapeHtml(headline || 'Deine Hauptüberschrift')}
@@ -955,10 +1153,9 @@ $form_data = [
                     </div>
                 `;
             } else if (layout === 'hybrid') {
-                const mockupOrIcon = mockupImageUrl ? mockupHTML : `<div style="text-align: center; color: ${primaryColor}; font-size: 50px;">🎁</div>`;
                 layoutHTML = `
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
-                        <div>${mockupOrIcon}</div>
+                        <div>${mediaElement}</div>
                         <div>
                             ${preheadlineHTML}
                             <div class="preview-headline" style="color: ${primaryColor}; text-align: left;">
@@ -975,7 +1172,6 @@ $form_data = [
                     </div>
                 `;
             } else { // sidebar
-                const mockupOrIcon = mockupImageUrl ? mockupHTML : `<div style="text-align: center; color: ${primaryColor}; font-size: 50px;">🎁</div>`;
                 layoutHTML = `
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
                         <div>
@@ -991,7 +1187,7 @@ $form_data = [
                                 </button>
                             </div>
                         </div>
-                        <div>${mockupOrIcon}</div>
+                        <div>${mediaElement}</div>
                     </div>
                 `;
             }
