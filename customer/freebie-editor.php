@@ -71,39 +71,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
     // Mockup-Image-URL aus Template holen (falls nicht schon vorhanden)
     $mockup_image_url = $customer_freebie['mockup_image_url'] ?? $template['mockup_image_url'] ?? '';
     
+    // Font-Einstellungen vom Template übernehmen (falls noch nicht vorhanden)
+    $preheadline_font = $customer_freebie['preheadline_font'] ?? $template['preheadline_font'] ?? 'Poppins';
+    $preheadline_size = $customer_freebie['preheadline_size'] ?? $template['preheadline_size'] ?? 14;
+    $headline_font = $customer_freebie['headline_font'] ?? $template['headline_font'] ?? 'Poppins';
+    $headline_size = $customer_freebie['headline_size'] ?? $template['headline_size'] ?? 48;
+    $subheadline_font = $customer_freebie['subheadline_font'] ?? $template['subheadline_font'] ?? 'Poppins';
+    $subheadline_size = $customer_freebie['subheadline_size'] ?? $template['subheadline_size'] ?? 20;
+    $bulletpoints_font = $customer_freebie['bulletpoints_font'] ?? $template['bulletpoints_font'] ?? 'Poppins';
+    $bulletpoints_size = $customer_freebie['bulletpoints_size'] ?? $template['bulletpoints_size'] ?? 16;
+    
     try {
         if ($customer_freebie) {
-            // Update existing customer_freebies - INKLUSIVE mockup_image_url!
+            // Update existing customer_freebies - INKLUSIVE Font-Felder!
             $stmt = $pdo->prepare("
                 UPDATE customer_freebies SET
                     headline = ?, subheadline = ?, preheadline = ?,
                     bullet_points = ?, cta_text = ?, layout = ?,
                     background_color = ?, primary_color = ?, raw_code = ?,
-                    mockup_image_url = ?, updated_at = NOW()
+                    mockup_image_url = ?,
+                    preheadline_font = ?, preheadline_size = ?,
+                    headline_font = ?, headline_size = ?,
+                    subheadline_font = ?, subheadline_size = ?,
+                    bulletpoints_font = ?, bulletpoints_size = ?,
+                    updated_at = NOW()
                 WHERE id = ?
             ");
             $stmt->execute([
                 $headline, $subheadline, $preheadline,
                 $bullet_points, $cta_text, $layout,
                 $background_color, $primary_color, $raw_code,
-                $mockup_image_url, $customer_freebie['id']
+                $mockup_image_url,
+                $preheadline_font, $preheadline_size,
+                $headline_font, $headline_size,
+                $subheadline_font, $subheadline_size,
+                $bulletpoints_font, $bulletpoints_size,
+                $customer_freebie['id']
             ]);
             $customer_freebie_id = $customer_freebie['id'];
             
             $success_message = "✅ Freebie erfolgreich aktualisiert!";
         } else {
-            // Create new in customer_freebies - MIT freebie_type = 'template'
+            // Create new in customer_freebies - MIT Font-Feldern
             $stmt = $pdo->prepare("
                 INSERT INTO customer_freebies (
                     customer_id, template_id, headline, subheadline, preheadline,
                     bullet_points, cta_text, layout, background_color, primary_color,
-                    raw_code, unique_id, url_slug, mockup_image_url, freebie_type, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'template', NOW())
+                    raw_code, unique_id, url_slug, mockup_image_url,
+                    preheadline_font, preheadline_size,
+                    headline_font, headline_size,
+                    subheadline_font, subheadline_size,
+                    bulletpoints_font, bulletpoints_size,
+                    freebie_type, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'template', NOW())
             ");
             $stmt->execute([
                 $customer_id, $template_id, $headline, $subheadline, $preheadline,
                 $bullet_points, $cta_text, $layout, $background_color, $primary_color,
-                $raw_code, $unique_id, $url_slug, $template['mockup_image_url']
+                $raw_code, $unique_id, $url_slug, $mockup_image_url,
+                $preheadline_font, $preheadline_size,
+                $headline_font, $headline_size,
+                $subheadline_font, $subheadline_size,
+                $bulletpoints_font, $bulletpoints_size
             ]);
             $customer_freebie_id = $pdo->lastInsertId();
             
