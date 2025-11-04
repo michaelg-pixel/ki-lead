@@ -1,132 +1,3 @@
-<?php
-// Verhindere jegliche Ausgabe vor JSON
-ob_start();
-
-// PHP Installation Logic
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'install') {
-    // Lösche alle bisherigen Ausgaben
-    ob_clean();
-    
-    header('Content-Type: application/json');
-    
-    try {
-        // Direkte Datenbankverbindung ohne config/database.php
-        $host = 'localhost';
-        $database = 'lumisaas';
-        $username = 'lumisaas52';
-        $password = 'I1zx1XdL1hrWd75yu57e';
-        
-        $checks = [];
-        $allChecksOk = true;
-        
-        // Verbindung herstellen
-        try {
-            $dsn = "mysql:host=$host;dbname=$database;charset=utf8mb4";
-            $pdo = new PDO($dsn, $username, $password, array(
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES => false
-            ));
-            $checks[] = ['status' => 'ok', 'message' => 'Datenbankverbindung erfolgreich'];
-        } catch (PDOException $e) {
-            $checks[] = ['status' => 'error', 'message' => 'Datenbankverbindung fehlgeschlagen: ' . $e->getMessage()];
-            echo json_encode([
-                'success' => false,
-                'message' => 'Datenbankverbindung fehlgeschlagen',
-                'error' => $e->getMessage(),
-                'checks' => $checks
-            ]);
-            exit;
-        }
-        
-        // Check 2: Users Tabelle existiert
-        try {
-            $stmt = $pdo->query("SHOW TABLES LIKE 'users'");
-            if ($stmt->rowCount() > 0) {
-                $checks[] = ['status' => 'ok', 'message' => 'Users-Tabelle gefunden'];
-            } else {
-                $checks[] = ['status' => 'error', 'message' => 'Users-Tabelle nicht gefunden'];
-                $allChecksOk = false;
-            }
-        } catch (Exception $e) {
-            $checks[] = ['status' => 'error', 'message' => 'Fehler beim Prüfen der Users-Tabelle: ' . $e->getMessage()];
-            $allChecksOk = false;
-        }
-        
-        // Check 3: Tabelle existiert bereits?
-        try {
-            $stmt = $pdo->query("SHOW TABLES LIKE 'user_company_data'");
-            if ($stmt->rowCount() > 0) {
-                $checks[] = ['status' => 'ok', 'message' => 'Tabelle existiert bereits (wird aktualisiert)'];
-            } else {
-                $checks[] = ['status' => 'ok', 'message' => 'Tabelle wird neu erstellt'];
-            }
-        } catch (Exception $e) {
-            $checks[] = ['status' => 'error', 'message' => 'Fehler beim Prüfen der Tabelle: ' . $e->getMessage()];
-        }
-        
-        if (!$allChecksOk) {
-            echo json_encode([
-                'success' => false,
-                'message' => 'System-Checks fehlgeschlagen. Bitte behebe die Fehler und versuche es erneut.',
-                'checks' => $checks
-            ]);
-            exit;
-        }
-        
-        // Installation durchführen
-        $sql = "
-        CREATE TABLE IF NOT EXISTS user_company_data (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT NOT NULL,
-            company_name VARCHAR(255) NOT NULL,
-            company_address VARCHAR(255) NOT NULL,
-            company_zip VARCHAR(10) NOT NULL,
-            company_city VARCHAR(100) NOT NULL,
-            company_country VARCHAR(100) DEFAULT 'Deutschland',
-            contact_person VARCHAR(255),
-            contact_email VARCHAR(255),
-            contact_phone VARCHAR(50),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-            UNIQUE KEY unique_user (user_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-        ";
-        
-        $pdo->exec($sql);
-        $checks[] = ['status' => 'ok', 'message' => 'Tabelle erfolgreich erstellt/aktualisiert'];
-        
-        // Index erstellen (falls noch nicht vorhanden)
-        try {
-            $pdo->exec("CREATE INDEX IF NOT EXISTS idx_user_company_data_user_id ON user_company_data(user_id)");
-            $checks[] = ['status' => 'ok', 'message' => 'Index erfolgreich erstellt'];
-        } catch (Exception $e) {
-            // Index existiert möglicherweise bereits, das ist ok
-            $checks[] = ['status' => 'ok', 'message' => 'Index bereits vorhanden'];
-        }
-        
-        echo json_encode([
-            'success' => true,
-            'message' => 'Tabelle "user_company_data" wurde erfolgreich installiert!',
-            'checks' => $checks
-        ]);
-        
-    } catch (Exception $e) {
-        echo json_encode([
-            'success' => false,
-            'message' => 'Fehler bei der Installation',
-            'error' => $e->getMessage(),
-            'checks' => $checks ?? []
-        ]);
-    }
-    
-    exit;
-}
-
-// Lösche Output Buffer für HTML-Seite
-ob_end_clean();
-?>
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -256,19 +127,6 @@ ob_end_clean();
         .check-item.error {
             color: #dc2626;
         }
-        ul {
-            margin-left: 24px;
-            margin-top: 8px;
-        }
-        li {
-            margin-bottom: 4px;
-        }
-        code {
-            background: #f3f4f6;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 13px;
-        }
     </style>
 </head>
 <body>
@@ -358,13 +216,13 @@ updated_at      TIMESTAMP</div>
                 });
                 
                 const text = await response.text();
-                console.log('Response:', text); // Für Debugging
+                console.log('Server Response:', text);
                 
                 let data;
                 try {
                     data = JSON.parse(text);
                 } catch (e) {
-                    throw new Error('Serverfehler: Ungültige JSON-Antwort. Antwort: ' + text.substring(0, 200));
+                    throw new Error('Server hat keine gültige JSON-Antwort zurückgegeben. Response: ' + text.substring(0, 200));
                 }
                 
                 // Checks anzeigen
@@ -405,13 +263,12 @@ updated_at      TIMESTAMP</div>
                 }
                 
             } catch (error) {
-                console.error('Installation error:', error);
                 result.style.display = 'block';
                 result.className = 'result error';
                 result.innerHTML = `
                     <strong>❌ Fehler bei der Installation</strong><br><br>
                     ${error.message}<br><br>
-                    Bitte überprüfe die Browser-Konsole (F12) für weitere Details.
+                    Bitte überprüfe die Datenbankverbindung und versuche es erneut.
                 `;
                 installBtn.disabled = false;
                 installBtn.textContent = '🔄 Erneut versuchen';
@@ -420,3 +277,126 @@ updated_at      TIMESTAMP</div>
     </script>
 </body>
 </html>
+
+<?php
+// PHP Installation Logic
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'install') {
+    // Verhindere HTML-Output
+    ob_start();
+    
+    header('Content-Type: application/json');
+    
+    $checks = [];
+    $allChecksOk = true;
+    
+    try {
+        // Datenbankverbindung manuell erstellen (ohne HTML-Output)
+        $host = 'localhost';
+        $database = 'lumisaas';
+        $username = 'lumisaas52';
+        $password = 'I1zx1XdL1hrWd75yu57e';
+        
+        try {
+            $dsn = "mysql:host=$host;dbname=$database;charset=utf8mb4";
+            $pdo = new PDO($dsn, $username, $password, array(
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
+            ));
+            $checks[] = ['status' => 'ok', 'message' => 'Datenbankverbindung erfolgreich'];
+        } catch (PDOException $e) {
+            $checks[] = ['status' => 'error', 'message' => 'Datenbankverbindung fehlgeschlagen: ' . $e->getMessage()];
+            $allChecksOk = false;
+        }
+        
+        if ($allChecksOk) {
+            // Check: Users Tabelle existiert
+            try {
+                $stmt = $pdo->query("SHOW TABLES LIKE 'users'");
+                if ($stmt->rowCount() > 0) {
+                    $checks[] = ['status' => 'ok', 'message' => 'Users-Tabelle gefunden'];
+                } else {
+                    $checks[] = ['status' => 'error', 'message' => 'Users-Tabelle nicht gefunden'];
+                    $allChecksOk = false;
+                }
+            } catch (Exception $e) {
+                $checks[] = ['status' => 'error', 'message' => 'Fehler beim Prüfen der Users-Tabelle: ' . $e->getMessage()];
+                $allChecksOk = false;
+            }
+            
+            // Check: Tabelle existiert bereits?
+            try {
+                $stmt = $pdo->query("SHOW TABLES LIKE 'user_company_data'");
+                if ($stmt->rowCount() > 0) {
+                    $checks[] = ['status' => 'ok', 'message' => 'Tabelle existiert bereits (wird aktualisiert)'];
+                } else {
+                    $checks[] = ['status' => 'ok', 'message' => 'Tabelle wird neu erstellt'];
+                }
+            } catch (Exception $e) {
+                $checks[] = ['status' => 'error', 'message' => 'Fehler beim Prüfen der Tabelle: ' . $e->getMessage()];
+            }
+        }
+        
+        if (!$allChecksOk) {
+            ob_end_clean();
+            echo json_encode([
+                'success' => false,
+                'message' => 'System-Checks fehlgeschlagen. Bitte behebe die Fehler und versuche es erneut.',
+                'checks' => $checks
+            ]);
+            exit;
+        }
+        
+        // Installation durchführen
+        $sql = "
+        CREATE TABLE IF NOT EXISTS user_company_data (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            company_name VARCHAR(255) NOT NULL,
+            company_address VARCHAR(255) NOT NULL,
+            company_zip VARCHAR(10) NOT NULL,
+            company_city VARCHAR(100) NOT NULL,
+            company_country VARCHAR(100) DEFAULT 'Deutschland',
+            contact_person VARCHAR(255),
+            contact_email VARCHAR(255),
+            contact_phone VARCHAR(50),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY unique_user (user_id),
+            CONSTRAINT fk_user_company_data_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        ";
+        
+        $pdo->exec($sql);
+        $checks[] = ['status' => 'ok', 'message' => 'Tabelle erfolgreich erstellt/aktualisiert'];
+        
+        // Index erstellen (falls noch nicht vorhanden)
+        try {
+            $pdo->exec("CREATE INDEX idx_user_company_data_user_id ON user_company_data(user_id)");
+            $checks[] = ['status' => 'ok', 'message' => 'Index erfolgreich erstellt'];
+        } catch (Exception $e) {
+            // Index existiert möglicherweise bereits
+            $checks[] = ['status' => 'ok', 'message' => 'Index bereits vorhanden'];
+        }
+        
+        ob_end_clean();
+        echo json_encode([
+            'success' => true,
+            'message' => 'Tabelle "user_company_data" wurde erfolgreich installiert!',
+            'checks' => $checks
+        ]);
+        
+    } catch (Exception $e) {
+        ob_end_clean();
+        echo json_encode([
+            'success' => false,
+            'message' => 'Fehler bei der Installation',
+            'error' => $e->getMessage(),
+            'checks' => $checks
+        ]);
+    }
+    
+    exit;
+}
+?>
