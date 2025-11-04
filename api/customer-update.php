@@ -2,6 +2,7 @@
 /**
  * Admin API: Update Customer
  * Bearbeiten von Kundendaten durch Admin
+ * SICHERE VERSION - funktioniert auch ohne optionale Spalten
  */
 
 header('Content-Type: application/json');
@@ -25,9 +26,6 @@ try {
     $userId = $_POST['user_id'] ?? null;
     $name = trim($_POST['name'] ?? '');
     $email = trim($_POST['email'] ?? '');
-    $rawCode = trim($_POST['raw_code'] ?? '');
-    $companyName = trim($_POST['company_name'] ?? '');
-    $companyEmail = trim($_POST['company_email'] ?? '');
     
     // Validierung
     if (!$userId) {
@@ -60,26 +58,39 @@ try {
         throw new Exception('Diese E-Mail-Adresse wird bereits verwendet');
     }
     
-    // Kundendaten aktualisieren
-    $updateStmt = $pdo->prepare("
-        UPDATE users 
-        SET 
-            name = ?,
-            email = ?,
-            raw_code = ?,
-            company_name = ?,
-            company_email = ?
-        WHERE id = ? AND role = 'customer'
-    ");
+    // Prüfen welche Spalten existieren
+    $tableColumns = $pdo->query("SHOW COLUMNS FROM users")->fetchAll(PDO::FETCH_COLUMN);
     
-    $updateStmt->execute([
-        $name,
-        $email,
-        $rawCode ?: null,
-        $companyName ?: null,
-        $companyEmail ?: null,
-        $userId
-    ]);
+    // Basis-Update (immer vorhanden)
+    $updateFields = ['name = ?', 'email = ?'];
+    $updateValues = [$name, $email];
+    
+    // Optionale Felder nur hinzufügen wenn Spalte existiert
+    if (in_array('raw_code', $tableColumns)) {
+        $rawCode = trim($_POST['raw_code'] ?? '');
+        $updateFields[] = 'raw_code = ?';
+        $updateValues[] = $rawCode ?: null;
+    }
+    
+    if (in_array('company_name', $tableColumns)) {
+        $companyName = trim($_POST['company_name'] ?? '');
+        $updateFields[] = 'company_name = ?';
+        $updateValues[] = $companyName ?: null;
+    }
+    
+    if (in_array('company_email', $tableColumns)) {
+        $companyEmail = trim($_POST['company_email'] ?? '');
+        $updateFields[] = 'company_email = ?';
+        $updateValues[] = $companyEmail ?: null;
+    }
+    
+    // User ID für WHERE clause
+    $updateValues[] = $userId;
+    
+    // Kundendaten aktualisieren
+    $updateQuery = "UPDATE users SET " . implode(', ', $updateFields) . " WHERE id = ? AND role = 'customer'";
+    $updateStmt = $pdo->prepare($updateQuery);
+    $updateStmt->execute($updateValues);
     
     // Optional: Passwort ändern (nur wenn angegeben)
     if (!empty($_POST['new_password'])) {
@@ -95,18 +106,21 @@ try {
     }
     
     // Aktivitätslog (optional, falls Tabelle existiert)
-    try {
-        $logStmt = $pdo->prepare("
-            INSERT INTO user_activity_log (user_id, action, details, ip_address) 
-            VALUES (?, 'profile_updated_by_admin', ?, ?)
-        ");
-        $logStmt->execute([
-            $userId,
-            json_encode(['updated_by' => $_SESSION['user_id'], 'name' => $_SESSION['name']]),
-            $_SERVER['REMOTE_ADDR'] ?? 'unknown'
-        ]);
-    } catch (Exception $e) {
-        // Ignorieren, falls Log-Tabelle nicht existiert
+    $tables = $pdo->query("SHOW TABLES LIKE 'user_activity_log'")->fetchAll();
+    if (count($tables) > 0) {
+        try {
+            $logStmt = $pdo->prepare("
+                INSERT INTO user_activity_log (user_id, action, details, ip_address) 
+                VALUES (?, 'profile_updated_by_admin', ?, ?)
+            ");
+            $logStmt->execute([
+                $userId,
+                json_encode(['updated_by' => $_SESSION['user_id'], 'name' => $_SESSION['name'] ?? 'Admin']),
+                $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+            ]);
+        } catch (Exception $e) {
+            // Ignorieren, falls Log-Tabelle Probleme hat
+        }
     }
     
     echo json_encode([
