@@ -23,7 +23,7 @@ $courses = $pdo->query("
                 Verwalte deine Video-Kurse und PDF-Kurse
             </p>
         </div>
-        <button onclick="showCreateCourseModal()" class="btn-primary">
+        <button onclick="showCreateCourseModal()" class="btn btn-primary">
             <span style="font-size: 18px;">+</span> Neuer Kurs
         </button>
     </div>
@@ -81,13 +81,13 @@ $courses = $pdo->query("
                     
                     <!-- Actions -->
                     <div class="course-actions">
-                        <button onclick="previewCourse(<?php echo $course['id']; ?>)" class="btn-action btn-preview">
+                        <button onclick="previewCourse(<?php echo $course['id']; ?>)" class="action-btn action-btn-view">
                             👁️ Vorschau
                         </button>
-                        <button onclick="editCourse(<?php echo $course['id']; ?>)" class="btn-action btn-edit">
+                        <button onclick="editCourse(<?php echo $course['id']; ?>)" class="action-btn action-btn-edit">
                             ✏️ Bearbeiten
                         </button>
-                        <button onclick="deleteCourse(<?php echo $course['id']; ?>)" class="btn-action btn-delete">
+                        <button onclick="deleteCourse(<?php echo $course['id']; ?>)" class="action-btn action-btn-delete">
                             🗑️ Löschen
                         </button>
                     </div>
@@ -101,7 +101,7 @@ $courses = $pdo->query("
                 <p style="color: var(--text-secondary); margin-bottom: 24px;">
                     Erstelle deinen ersten Video- oder PDF-Kurs
                 </p>
-                <button onclick="showCreateCourseModal()" class="btn-primary">
+                <button onclick="showCreateCourseModal()" class="btn btn-primary">
                     + Ersten Kurs erstellen
                 </button>
             </div>
@@ -179,10 +179,10 @@ $courses = $pdo->query("
             </div>
             
             <div class="modal-footer">
-                <button type="button" onclick="closeCreateCourseModal()" class="btn-secondary">
+                <button type="button" onclick="closeCreateCourseModal()" class="btn btn-outline">
                     Abbrechen
                 </button>
-                <button type="submit" class="btn-primary">
+                <button type="submit" class="btn btn-primary">
                     Kurs erstellen
                 </button>
             </div>
@@ -215,8 +215,8 @@ $courses = $pdo->query("
 
 /* Course Card */
 .course-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: rgba(26, 26, 46, 0.9);
+    border: 1px solid rgba(168, 85, 247, 0.3);
     border-radius: 16px;
     overflow: hidden;
     transition: all 0.3s ease;
@@ -226,7 +226,7 @@ $courses = $pdo->query("
 
 .course-card:hover {
     transform: translateY(-8px);
-    border-color: var(--primary);
+    border-color: rgba(168, 85, 247, 0.6);
     box-shadow: 0 20px 40px rgba(168, 85, 247, 0.3);
 }
 
@@ -259,26 +259,28 @@ $courses = $pdo->query("
     position: absolute;
     top: 12px;
     left: 12px;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.8);
     backdrop-filter: blur(10px);
-    padding: 6px 12px;
+    padding: 6px 14px;
     border-radius: 20px;
     font-size: 12px;
     font-weight: 600;
     color: white;
+    border: 1px solid rgba(168, 85, 247, 0.3);
 }
 
 .course-freebie-badge {
     position: absolute;
     top: 12px;
     right: 12px;
-    background: rgba(74, 222, 128, 0.9);
+    background: rgba(16, 185, 129, 0.9);
     backdrop-filter: blur(10px);
-    padding: 6px 12px;
+    padding: 6px 14px;
     border-radius: 20px;
     font-size: 12px;
     font-weight: 600;
     color: white;
+    border: 1px solid rgba(16, 185, 129, 0.5);
 }
 
 /* Course Info */
@@ -297,7 +299,7 @@ $courses = $pdo->query("
 
 .course-description {
     font-size: 14px;
-    color: var(--text-secondary);
+    color: #b0b0b0;
     line-height: 1.6;
     margin: 0 0 16px 0;
 }
@@ -306,76 +308,36 @@ $courses = $pdo->query("
     display: flex;
     gap: 16px;
     font-size: 13px;
-    color: var(--text-secondary);
+    color: #a0a0a0;
     padding-bottom: 12px;
-    border-bottom: 1px solid var(--border-light);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     flex-wrap: wrap;
 }
 
 .course-digistore {
     margin-top: 12px;
     font-size: 12px;
-    color: var(--text-secondary);
+    color: #a0a0a0;
     word-break: break-all;
 }
 
 .course-digistore code {
-    background: rgba(168, 85, 247, 0.1);
+    background: rgba(168, 85, 247, 0.2);
     padding: 2px 8px;
     border-radius: 4px;
-    color: var(--primary-light);
+    color: #c084fc;
     font-family: 'Courier New', monospace;
+    border: 1px solid rgba(168, 85, 247, 0.3);
 }
 
 /* Course Actions */
 .course-actions {
     padding: 16px 20px;
-    background: rgba(0, 0, 0, 0.2);
-    border-top: 1px solid var(--border-light);
+    background: rgba(0, 0, 0, 0.3);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: 8px;
-}
-
-.btn-action {
-    padding: 10px;
-    border: none;
-    border-radius: 8px;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    white-space: nowrap;
-}
-
-.btn-preview {
-    background: rgba(59, 130, 246, 0.1);
-    color: #60a5fa;
-    border: 1px solid rgba(59, 130, 246, 0.2);
-}
-
-.btn-preview:hover {
-    background: rgba(59, 130, 246, 0.2);
-}
-
-.btn-edit {
-    background: rgba(168, 85, 247, 0.1);
-    color: var(--primary-light);
-    border: 1px solid var(--border);
-}
-
-.btn-edit:hover {
-    background: rgba(168, 85, 247, 0.2);
-}
-
-.btn-delete {
-    background: rgba(251, 113, 133, 0.1);
-    color: #fb7185;
-    border: 1px solid rgba(251, 113, 133, 0.2);
-}
-
-.btn-delete:hover {
-    background: rgba(251, 113, 133, 0.2);
 }
 
 /* Empty State */
@@ -383,46 +345,9 @@ $courses = $pdo->query("
     grid-column: 1 / -1;
     text-align: center;
     padding: 80px 20px;
-    background: var(--bg-card);
-    border: 2px dashed var(--border);
+    background: rgba(26, 26, 46, 0.7);
+    border: 2px dashed rgba(168, 85, 247, 0.3);
     border-radius: 16px;
-}
-
-/* Buttons */
-.btn-primary {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-    color: white;
-    padding: 12px 24px;
-    border: none;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.2s;
-}
-
-.btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(168, 85, 247, 0.4);
-}
-
-.btn-secondary {
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-    padding: 12px 24px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.btn-secondary:hover {
-    background: var(--bg-card);
 }
 
 /* Modal */
@@ -447,8 +372,8 @@ $courses = $pdo->query("
 }
 
 .modal-content {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
+    background: rgba(26, 26, 46, 0.95);
+    border: 1px solid rgba(168, 85, 247, 0.3);
     border-radius: 16px;
     width: 100%;
     max-width: 600px;
@@ -461,7 +386,7 @@ $courses = $pdo->query("
 
 .modal-header {
     padding: 24px;
-    border-bottom: 1px solid var(--border-light);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -477,7 +402,7 @@ $courses = $pdo->query("
     background: none;
     border: none;
     font-size: 28px;
-    color: var(--text-secondary);
+    color: #a0a0a0;
     cursor: pointer;
     width: 32px;
     height: 32px;
@@ -496,7 +421,7 @@ $courses = $pdo->query("
 
 .modal-footer {
     padding: 24px;
-    border-top: 1px solid var(--border-light);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     gap: 12px;
     justify-content: flex-end;
@@ -523,17 +448,17 @@ $courses = $pdo->query("
 .form-group label {
     font-size: 14px;
     font-weight: 600;
-    color: var(--text-primary);
+    color: #e0e0e0;
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(168, 85, 247, 0.3);
     border-radius: 8px;
     padding: 12px;
-    color: var(--text-primary);
+    color: #e0e0e0;
     font-size: 14px;
     transition: all 0.2s;
 }
@@ -542,13 +467,13 @@ $courses = $pdo->query("
 .form-group select:focus,
 .form-group textarea:focus {
     outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
+    border-color: #a855f7;
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2);
 }
 
 .form-group small {
     font-size: 12px;
-    color: var(--text-muted);
+    color: #a0a0a0;
 }
 
 .checkbox-wrapper {
@@ -643,11 +568,6 @@ $courses = $pdo->query("
         gap: 8px;
     }
     
-    .btn-action {
-        font-size: 13px;
-        padding: 10px;
-    }
-    
     /* Empty State */
     .empty-state-courses {
         padding: 60px 20px;
@@ -727,11 +647,6 @@ $courses = $pdo->query("
     
     .course-stats {
         font-size: 11px;
-    }
-    
-    .btn-action {
-        font-size: 12px;
-        padding: 8px;
     }
     
     .empty-state-courses {
