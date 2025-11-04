@@ -517,21 +517,21 @@ for ($i = 6; $i >= 0; $i--) {
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
             <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.1s; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
                 <div style="color: white;">
-                    <div class="stat-value"><?php echo number_format($stats['total_leads']); ?></div>
+                    <div class="stat-value"><?php echo number_format((int)($stats['total_leads'] ?? 0)); ?></div>
                     <div class="stat-label">Gesamt Leads</div>
                 </div>
             </div>
             
             <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.2s; background: linear-gradient(135deg, #8b5cf6, #7c3aed); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
                 <div style="color: white;">
-                    <div class="stat-value"><?php echo number_format($stats['referred_leads']); ?></div>
+                    <div class="stat-value"><?php echo number_format((int)($stats['referred_leads'] ?? 0)); ?></div>
                     <div class="stat-label">Über Empfehlung</div>
                 </div>
             </div>
             
             <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.3s; background: linear-gradient(135deg, #10b981, #059669); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
                 <div style="color: white;">
-                    <div class="stat-value"><?php echo number_format($stats['successful_referrals']); ?></div>
+                    <div class="stat-value"><?php echo number_format((int)($stats['successful_referrals'] ?? 0)); ?></div>
                     <div class="stat-label">Lead-Empfehlungen</div>
                 </div>
             </div>
