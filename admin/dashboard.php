@@ -71,7 +71,8 @@ $page = $_GET['page'] ?? 'overview';
     </style>
     <?php endif; ?>
     
-    <link rel="stylesheet" href="styles/dashboard.css">
+    <!-- CSS mit Cache-Buster -->
+    <link rel="stylesheet" href="styles/dashboard.css?v=2.0">
 </head>
 <body>
     <!-- Loading Screen für Editor-Seiten -->
