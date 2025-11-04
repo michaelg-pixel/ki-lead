@@ -1,0 +1,28 @@
+# Zugriff auf Backup-Dateien verhindern
+<Files "*">
+    Require all denied
+</Files>
+
+# Zugriff auf admin.php erlauben
+<Files "admin.php">
+    Require all granted
+</Files>
+
+# PHP-Execution verhindern (außer admin.php)
+<FilesMatch "\.php$">
+    <FilesMatch "admin\.php$">
+        Require all granted
+    </FilesMatch>
+    <FilesMatch "^(?!admin\.php$).*\.php$">
+        Require all denied
+    </FilesMatch>
+</FilesMatch>
+
+# Directory Listing deaktivieren
+Options -Indexes
+
+# Zusätzliche Sicherheit
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "DENY"
+</IfModule>
