@@ -106,12 +106,22 @@ foreach ($tutorials as $tutorial) {
         overflow: hidden;
     }
     
+    .video-thumbnail .mockup-image {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        z-index: 0;
+    }
+    
     .video-thumbnail::before {
         content: '';
         position: absolute;
         inset: 0;
         background: rgba(0, 0, 0, 0.3);
         transition: all 0.3s;
+        z-index: 1;
     }
     
     .video-card:hover .video-thumbnail::before {
@@ -122,8 +132,9 @@ foreach ($tutorials as $tutorial) {
         font-size: 60px;
         color: white;
         position: relative;
-        z-index: 1;
+        z-index: 2;
         transition: all 0.3s;
+        filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.6));
     }
     
     .video-card:hover .play-icon {
@@ -382,6 +393,9 @@ foreach ($tutorials as $tutorial) {
                         <?php foreach ($grouped[$category['id']] as $tutorial): ?>
                             <div class="video-card" onclick="playVideo('<?= htmlspecialchars($tutorial['vimeo_url']) ?>', '<?= htmlspecialchars($tutorial['title']) ?>')">
                                 <div class="video-thumbnail">
+                                    <?php if (!empty($tutorial['mockup_image'])): ?>
+                                        <img src="<?= htmlspecialchars($tutorial['mockup_image']) ?>" alt="<?= htmlspecialchars($tutorial['title']) ?>" class="mockup-image">
+                                    <?php endif; ?>
                                     <div class="play-icon">▶</div>
                                 </div>
                                 <div class="video-info">
