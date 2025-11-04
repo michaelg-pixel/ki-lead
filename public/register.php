@@ -479,7 +479,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         <div class="form-group">
                             <label>Nachname</label>
-                            <input type="text" name="nachname" placeholder="Ihr Nachname" required value="<?php echo htmlspecialchars($_POST['nachname'] ?? ''); ?>">
+                            <input type="text" name="nachname" placeholder="Ihr Nachname" required value="<?php echo htmlspecialchars($_POST['vorname'] ?? ''); ?>">
                         </div>
                     </div>
                     
@@ -497,8 +497,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="checkbox-group">
                         <input type="checkbox" name="agb_accepted" id="agb" required>
                         <label for="agb">
-                            Ich stimme dem <a href="/public/av-vertrag.php" target="_blank">AV-Vertrag</a> und der 
-                            <a href="https://info-xxl.de/datenschutz/" target="_blank">Datenschutzerklärung</a> zu. *
+                            Ich stimme dem <a href="/public/av-vertrag.php" target="_blank">AV-Vertrag</a>, der 
+                            <a href="https://info-xxl.de/datenschutz/" target="_blank">Datenschutzerklärung</a> und den 
+                            <a href="https://app.mehr-infos-jetzt.de/public/agb.php" target="_blank">AGBs</a> zu. *
                         </label>
                     </div>
                     
