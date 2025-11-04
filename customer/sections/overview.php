@@ -268,6 +268,74 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
+        
+        /* ===== NEUE PULSIERENDE BUTTON ANIMATION ===== */
+        @keyframes buttonPulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7),
+                            0 0 20px rgba(255, 255, 255, 0.3);
+                transform: scale(1);
+            }
+            50% {
+                box-shadow: 0 0 0 15px rgba(255, 255, 255, 0),
+                            0 0 30px rgba(255, 255, 255, 0.5);
+                transform: scale(1.05);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 255, 255, 0),
+                            0 0 20px rgba(255, 255, 255, 0.3);
+                transform: scale(1);
+            }
+        }
+        
+        @keyframes buttonGlow {
+            0%, 100% {
+                filter: brightness(1);
+            }
+            50% {
+                filter: brightness(1.2);
+            }
+        }
+        
+        .cta-button {
+            animation: buttonPulse 2s ease-in-out infinite,
+                       buttonGlow 3s ease-in-out infinite;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .cta-button::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                45deg,
+                transparent,
+                rgba(255, 255, 255, 0.1),
+                transparent
+            );
+            transform: rotate(45deg);
+            animation: shimmer 3s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% {
+                transform: translateX(-100%) translateY(-100%) rotate(45deg);
+            }
+            100% {
+                transform: translateX(100%) translateY(100%) rotate(45deg);
+            }
+        }
+        
+        .cta-button:hover {
+            animation: none;
+            transform: scale(1.08) !important;
+            box-shadow: 0 0 40px rgba(255, 255, 255, 0.6),
+                        0 10px 30px rgba(0, 0, 0, 0.3) !important;
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 min-h-screen">
@@ -297,9 +365,9 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
                     <?php endif; ?>
                 </p>
                 <a href="?page=tutorials" 
-                   class="inline-flex items-center gap-2 bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-purple-50 transition-all transform hover:scale-105 shadow-lg"
+                   class="cta-button inline-flex items-center gap-3 bg-white text-purple-600 px-8 py-4 rounded-xl font-bold text-lg hover:bg-purple-50 transition-all shadow-2xl"
                    data-track="button-tutorials">
-                    <i class="fas fa-rocket"></i>
+                    <i class="fas fa-rocket text-2xl"></i>
                     Jetzt starten
                 </a>
             </div>
