@@ -1,12 +1,18 @@
 <?php
 /**
- * Backup Admin Interface
+ * Backup Admin Interface - ENHANCED mit Security & One-Click-Restore
  * Separate Administrationsoberfläche für Backup-Verwaltung
  */
 
 session_start();
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/engine.php';
+require_once __DIR__ . '/security.php';
+require_once __DIR__ . '/restore.php';
+
+// Security Layer initialisieren
+$security = new BackupSecurity();
+$security->checkRateLimit();
 
 // Login-Check
 if (!isset($_SESSION['backup_admin_logged_in'])) {
@@ -15,8 +21,13 @@ if (!isset($_SESSION['backup_admin_logged_in'])) {
         $username = $_POST['username'] ?? '';
         $password = $_POST['password'] ?? '';
         
-        if ($username === BACKUP_ADMIN_USER && password_verify($password, BACKUP_ADMIN_PASS)) {
+        $success = ($username === BACKUP_ADMIN_USER && password_verify($password, BACKUP_ADMIN_PASS));
+        $security->checkLoginAttempt($username, $success);
+        
+        if ($success) {
             $_SESSION['backup_admin_logged_in'] = true;
+            $_SESSION['backup_admin_user'] = $username;
+            $_SESSION['csrf_token'] = BackupSecurity::generateCSRFToken();
             header('Location: ' . $_SERVER['PHP_SELF']);
             exit;
         } else {
@@ -136,6 +147,15 @@ if (isset($_GET['logout'])) {
     exit;
 }
 
+// CSRF-Token für alle POST-Requests validieren
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action'])) {
+    $token = $_POST['csrf_token'] ?? '';
+    if (!BackupSecurity::validateCSRFToken($token)) {
+        http_response_code(403);
+        die(json_encode(['success' => false, 'error' => 'Invalid CSRF token']));
+    }
+}
+
 // API-Endpunkte
 if (isset($_GET['action'])) {
     header('Content-Type: application/json');
@@ -146,20 +166,46 @@ if (isset($_GET['action'])) {
             break;
             
         case 'create_backup':
-            $type = $_POST['type'] ?? 'full';
+            $type = BackupSecurity::sanitizeInput($_POST['type'] ?? 'full');
             $engine = new BackupEngine();
             $success = $engine->execute($type);
             echo json_encode(['success' => $success]);
             break;
             
+        case 'restore_backup':
+            $file = BackupSecurity::sanitizeInput($_POST['file'] ?? '');
+            $type = BackupSecurity::sanitizeInput($_POST['type'] ?? '');
+            $restore = new RestoreEngine();
+            
+            if ($type === 'database') {
+                $result = $restore->restoreDatabase($file);
+            } else {
+                $result = $restore->restoreFiles($file);
+            }
+            
+            echo json_encode($result);
+            break;
+            
+        case 'rollback':
+            $file = BackupSecurity::sanitizeInput($_POST['file'] ?? '');
+            $restore = new RestoreEngine();
+            $result = $restore->rollback($file);
+            echo json_encode($result);
+            break;
+            
+        case 'list_rollbacks':
+            $restore = new RestoreEngine();
+            echo json_encode($restore->listRollbacks());
+            break;
+            
         case 'delete_backup':
-            $file = $_POST['file'] ?? '';
+            $file = BackupSecurity::sanitizeInput($_POST['file'] ?? '');
             $success = deleteBackup($file);
             echo json_encode(['success' => $success]);
             break;
             
         case 'download_backup':
-            $file = $_GET['file'] ?? '';
+            $file = BackupSecurity::sanitizeInput($_GET['file'] ?? '');
             downloadBackup($file);
             break;
             
@@ -169,6 +215,30 @@ if (isset($_GET['action'])) {
             
         case 'get_stats':
             echo json_encode(getStats());
+            break;
+            
+        case 'emergency_restore':
+            // Notfall-Wiederherstellung (neuestes Backup)
+            $backups = getBackupsList();
+            $restore = new RestoreEngine();
+            
+            $results = [];
+            
+            // Neuestes DB-Backup
+            if (!empty($backups['database'])) {
+                $latestDB = $backups['database'][0]['filename'];
+                $results['database'] = $restore->restoreDatabase($latestDB);
+            }
+            
+            // Neueste Dateien (optional, da zeitintensiv)
+            if (isset($_POST['include_files']) && $_POST['include_files'] === 'true') {
+                if (!empty($backups['files'])) {
+                    $latestFiles = $backups['files'][0]['filename'];
+                    $results['files'] = $restore->restoreFiles($latestFiles);
+                }
+            }
+            
+            echo json_encode($results);
             break;
     }
     exit;
@@ -208,24 +278,30 @@ function getBackupsList() {
 }
 
 function deleteBackup($filename) {
-    $file = BACKUP_DB_DIR . '/' . basename($filename);
+    // Path Traversal verhindern
+    $filename = basename($filename);
+    
+    $file = BACKUP_DB_DIR . '/' . $filename;
     if (!file_exists($file)) {
-        $file = BACKUP_FILES_DIR . '/' . basename($filename);
+        $file = BACKUP_FILES_DIR . '/' . $filename;
     }
     
-    if (file_exists($file)) {
+    if (file_exists($file) && BackupSecurity::validatePath($file, BACKUP_ROOT_DIR)) {
         return unlink($file);
     }
     return false;
 }
 
 function downloadBackup($filename) {
-    $file = BACKUP_DB_DIR . '/' . basename($filename);
+    // Path Traversal verhindern
+    $filename = basename($filename);
+    
+    $file = BACKUP_DB_DIR . '/' . $filename;
     if (!file_exists($file)) {
-        $file = BACKUP_FILES_DIR . '/' . basename($filename);
+        $file = BACKUP_FILES_DIR . '/' . $filename;
     }
     
-    if (file_exists($file)) {
+    if (file_exists($file) && BackupSecurity::validatePath($file, BACKUP_ROOT_DIR)) {
         header('Content-Type: application/octet-stream');
         header('Content-Disposition: attachment; filename="' . basename($file) . '"');
         header('Content-Length: ' . filesize($file));
@@ -289,6 +365,8 @@ function formatBytes($bytes) {
     }
     return round($bytes, 2) . ' ' . $units[$i];
 }
+
+$csrfToken = BackupSecurity::generateCSRFToken();
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -371,6 +449,44 @@ function formatBytes($bytes) {
             color: #667eea;
         }
         
+        /* Emergency Button */
+        .emergency-section {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .emergency-section h2 {
+            color: #856404;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .btn-emergency {
+            background: #dc3545;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .btn-emergency:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(220,53,69,0.3);
+        }
+        
         .actions {
             background: white;
             padding: 25px;
@@ -418,6 +534,16 @@ function formatBytes($bytes) {
             color: white;
         }
         
+        .btn-warning {
+            background: #ffc107;
+            color: #333;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
         .btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
@@ -427,6 +553,11 @@ function formatBytes($bytes) {
             opacity: 0.5;
             cursor: not-allowed;
             transform: none;
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
         }
         
         .section {
@@ -510,11 +641,6 @@ function formatBytes($bytes) {
             gap: 10px;
         }
         
-        .btn-sm {
-            padding: 6px 12px;
-            font-size: 12px;
-        }
-        
         .alert {
             padding: 15px;
             border-radius: 5px;
@@ -531,6 +657,12 @@ function formatBytes($bytes) {
             background: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
+        }
+        
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
         }
         
         .loading {
@@ -558,6 +690,46 @@ function formatBytes($bytes) {
             overflow-y: auto;
             white-space: pre-wrap;
         }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 90%;
+        }
+        
+        .modal-content h3 {
+            margin-bottom: 15px;
+        }
+        
+        .modal-content p {
+            margin-bottom: 20px;
+            color: #666;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
     </style>
 </head>
 <body>
@@ -569,6 +741,20 @@ function formatBytes($bytes) {
     </div>
     
     <div class="container">
+        <!-- Notfall-Wiederherstellung -->
+        <div class="emergency-section">
+            <h2>
+                🚨 Notfall-Wiederherstellung
+            </h2>
+            <p style="margin-bottom: 15px; color: #856404;">
+                Bei einem Angriff oder System-Crash: Stelle mit einem Klick das neueste Backup wieder her.
+                <strong>Das System erstellt automatisch einen Rollback-Punkt!</strong>
+            </p>
+            <button class="btn-emergency" onclick="emergencyRestore()">
+                🚨 NOTFALL-WIEDERHERSTELLUNG STARTEN
+            </button>
+        </div>
+        
         <!-- Statistiken -->
         <div class="stats-grid" id="stats">
             <div class="stat-card">
@@ -612,6 +798,7 @@ function formatBytes($bytes) {
             <div class="tabs">
                 <button class="tab active" onclick="switchTab('database')">Datenbank-Backups</button>
                 <button class="tab" onclick="switchTab('files')">Datei-Backups</button>
+                <button class="tab" onclick="switchTab('rollbacks')">Rollback-Punkte</button>
                 <button class="tab" onclick="switchTab('logs')">Logs</button>
             </div>
             
@@ -623,13 +810,35 @@ function formatBytes($bytes) {
                 <ul class="backup-list" id="files-backups"></ul>
             </div>
             
+            <div id="tab-rollbacks" class="tab-content">
+                <ul class="backup-list" id="rollback-list"></ul>
+            </div>
+            
             <div id="tab-logs" class="tab-content">
                 <div class="log-viewer" id="log-viewer">Lade Logs...</div>
             </div>
         </div>
     </div>
     
+    <!-- Restore-Bestätigungs-Modal -->
+    <div id="restore-modal" class="modal">
+        <div class="modal-content">
+            <h3>⚠️ Wiederherstellung bestätigen</h3>
+            <p id="restore-message"></p>
+            <div class="alert alert-warning">
+                <strong>Wichtig:</strong> Ein Rollback-Punkt wird automatisch erstellt, sodass du diese Aktion rückgängig machen kannst.
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeRestoreModal()">Abbrechen</button>
+                <button class="btn btn-danger" onclick="confirmRestore()">Wiederherstellen</button>
+            </div>
+        </div>
+    </div>
+    
     <script>
+        const csrfToken = '<?= $csrfToken ?>';
+        let restoreData = null;
+        
         // Seite initialisieren
         document.addEventListener('DOMContentLoaded', function() {
             loadStats();
@@ -666,6 +875,42 @@ function formatBytes($bytes) {
             }
         }
         
+        // Rollbacks laden
+        async function loadRollbacks() {
+            try {
+                const response = await fetch('?action=list_rollbacks');
+                const rollbacks = await response.json();
+                
+                const list = document.getElementById('rollback-list');
+                
+                if (rollbacks.length === 0) {
+                    list.innerHTML = '<li class="backup-item">Keine Rollback-Punkte vorhanden</li>';
+                    return;
+                }
+                
+                list.innerHTML = rollbacks.map(rollback => `
+                    <li class="backup-item">
+                        <div class="backup-info">
+                            <div class="name">${rollback.filename}</div>
+                            <div class="meta">
+                                ${rollback.created_formatted} • ${rollback.size_formatted} • ${rollback.type}
+                            </div>
+                        </div>
+                        <div class="backup-actions">
+                            <button class="btn btn-warning btn-sm" onclick="rollbackToPoint('${rollback.filename}')">
+                                ↩️ Rollback
+                            </button>
+                            <button class="btn btn-primary btn-sm" onclick="downloadBackup('${rollback.filename}')">
+                                ⬇️ Download
+                            </button>
+                        </div>
+                    </li>
+                `).join('');
+            } catch (error) {
+                console.error('Fehler beim Laden der Rollbacks:', error);
+            }
+        }
+        
         // Backup-Liste rendern
         function renderBackupList(type, backups) {
             const list = document.getElementById(`${type}-backups`);
@@ -684,6 +929,9 @@ function formatBytes($bytes) {
                         </div>
                     </div>
                     <div class="backup-actions">
+                        <button class="btn btn-success btn-sm" onclick="restoreBackup('${backup.filename}', '${type}')">
+                            🔄 Wiederherstellen
+                        </button>
                         <button class="btn btn-primary btn-sm" onclick="downloadBackup('${backup.filename}')">
                             ⬇️ Download
                         </button>
@@ -705,6 +953,7 @@ function formatBytes($bytes) {
             try {
                 const formData = new FormData();
                 formData.append('type', type);
+                formData.append('csrf_token', csrfToken);
                 
                 const response = await fetch('?action=create_backup', {
                     method: 'POST',
@@ -727,6 +976,139 @@ function formatBytes($bytes) {
             }
         }
         
+        // Backup wiederherstellen (mit Bestätigung)
+        function restoreBackup(filename, type) {
+            restoreData = { filename, type };
+            document.getElementById('restore-message').textContent = 
+                `Möchtest du "${filename}" wirklich wiederherstellen? Dies überschreibt die aktuelle ${type === 'database' ? 'Datenbank' : 'Dateien'}.`;
+            document.getElementById('restore-modal').classList.add('active');
+        }
+        
+        // Restore-Modal schließen
+        function closeRestoreModal() {
+            document.getElementById('restore-modal').classList.remove('active');
+            restoreData = null;
+        }
+        
+        // Restore bestätigen und ausführen
+        async function confirmRestore() {
+            if (!restoreData) return;
+            
+            closeRestoreModal();
+            
+            const { filename, type } = restoreData;
+            
+            if (!confirm('⚠️ LETZTE WARNUNG: Wiederherstellung jetzt starten?')) return;
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', filename);
+                formData.append('type', type);
+                formData.append('csrf_token', csrfToken);
+                
+                const response = await fetch('?action=restore_backup', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Wiederherstellung erfolgreich!\n\nRollback-Punkt erstellt: ${result.rollback_file || 'N/A'}\n\nQueries ausgeführt: ${result.queries_executed || 'N/A'}`);
+                    loadStats();
+                    loadBackups();
+                } else {
+                    alert('❌ Wiederherstellung fehlgeschlagen:\n' + (result.error || 'Unbekannter Fehler'));
+                }
+            } catch (error) {
+                alert('❌ Fehler: ' + error.message);
+            }
+        }
+        
+        // Notfall-Wiederherstellung
+        async function emergencyRestore() {
+            if (!confirm('🚨 NOTFALL-WIEDERHERSTELLUNG\n\nDies stellt das neueste Backup wieder her.\n\nFortfahren?')) return;
+            
+            if (!confirm('⚠️ LETZTE WARNUNG!\n\nDies ist eine kritische Operation.\nEin Rollback-Punkt wird automatisch erstellt.\n\nJETZT STARTEN?')) return;
+            
+            try {
+                const includeFiles = confirm('Auch Dateien wiederherstellen?\n\n(Dies kann mehrere Minuten dauern)\n\nJa = Vollständige Wiederherstellung\nNein = Nur Datenbank');
+                
+                const formData = new FormData();
+                formData.append('include_files', includeFiles ? 'true' : 'false');
+                formData.append('csrf_token', csrfToken);
+                
+                alert('⏳ Wiederherstellung läuft...\n\nBitte warten und diese Seite NICHT schließen!');
+                
+                const response = await fetch('?action=emergency_restore', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                let message = '✅ NOTFALL-WIEDERHERSTELLUNG ABGESCHLOSSEN!\n\n';
+                
+                if (result.database) {
+                    if (result.database.success) {
+                        message += `✅ Datenbank: Erfolgreich\n`;
+                        message += `   Rollback: ${result.database.rollback_file}\n\n`;
+                    } else {
+                        message += `❌ Datenbank: Fehlgeschlagen\n   Fehler: ${result.database.error}\n\n`;
+                    }
+                }
+                
+                if (result.files) {
+                    if (result.files.success) {
+                        message += `✅ Dateien: Erfolgreich\n`;
+                        message += `   Rollback: ${result.files.rollback_file}\n`;
+                    } else {
+                        message += `❌ Dateien: Fehlgeschlagen\n   Fehler: ${result.files.error}\n`;
+                    }
+                }
+                
+                alert(message);
+                
+                // Seite neu laden
+                setTimeout(() => {
+                    if (confirm('System wiederhergestellt!\n\nSeite jetzt neu laden?')) {
+                        location.reload();
+                    }
+                }, 1000);
+                
+            } catch (error) {
+                alert('❌ Notfall-Wiederherstellung fehlgeschlagen:\n' + error.message);
+            }
+        }
+        
+        // Rollback zu einem Punkt
+        async function rollbackToPoint(filename) {
+            if (!confirm(`Rollback zu "${filename}" durchführen?\n\nDies stellt den System-Zustand zum Zeitpunkt dieses Rollback-Punkts wieder her.`)) return;
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', filename);
+                formData.append('csrf_token', csrfToken);
+                
+                const response = await fetch('?action=rollback', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('✅ Rollback erfolgreich!');
+                    loadStats();
+                    loadBackups();
+                } else {
+                    alert('❌ Rollback fehlgeschlagen:\n' + (result.error || 'Unbekannter Fehler'));
+                }
+            } catch (error) {
+                alert('❌ Fehler: ' + error.message);
+            }
+        }
+        
         // Backup herunterladen
         function downloadBackup(filename) {
             window.location.href = `?action=download_backup&file=${encodeURIComponent(filename)}`;
@@ -739,6 +1121,7 @@ function formatBytes($bytes) {
             try {
                 const formData = new FormData();
                 formData.append('file', filename);
+                formData.append('csrf_token', csrfToken);
                 
                 const response = await fetch('?action=delete_backup', {
                     method: 'POST',
@@ -769,9 +1152,11 @@ function formatBytes($bytes) {
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             document.getElementById(`tab-${tabName}`).classList.add('active');
             
-            // Logs laden wenn Tab geöffnet
+            // Spezielle Aktionen
             if (tabName === 'logs') {
                 loadLogs();
+            } else if (tabName === 'rollbacks') {
+                loadRollbacks();
             }
         }
         
