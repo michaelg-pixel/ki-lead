@@ -2,6 +2,7 @@
 -- Datum: 2025-11-04
 -- Beschreibung: Fügt freebie_id Spalte zur reward_definitions Tabelle hinzu
 --              um Belohnungen mit spezifischen Freebies zu verknüpfen
+-- FIX: Foreign Key verweist auf customer_freebies(id) statt freebies(id)
 
 -- Prüfen ob Spalte bereits existiert
 SET @column_exists = (
@@ -15,7 +16,7 @@ SET @column_exists = (
 -- Nur hinzufügen wenn sie noch nicht existiert
 SET @sql = IF(@column_exists = 0,
     'ALTER TABLE reward_definitions 
-     ADD COLUMN freebie_id INT NULL COMMENT "Verknüpfung zum Freebie (optional)" 
+     ADD COLUMN freebie_id INT NULL COMMENT "Verknüpfung zum customer_freebie (optional)" 
      AFTER user_id',
     'SELECT "Column freebie_id already exists" AS result'
 );
@@ -24,8 +25,8 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
--- Foreign Key hinzufügen (nur wenn Spalte neu erstellt wurde)
-SET @fk_exists = (
+-- Alte Foreign Key entfernen falls vorhanden (auf freebies)
+SET @old_fk_exists = (
     SELECT COUNT(*) 
     FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE 
     WHERE TABLE_SCHEMA = DATABASE()
@@ -33,11 +34,29 @@ SET @fk_exists = (
     AND CONSTRAINT_NAME = 'fk_reward_def_freebie'
 );
 
+SET @sql_drop_old_fk = IF(@old_fk_exists > 0,
+    'ALTER TABLE reward_definitions DROP FOREIGN KEY fk_reward_def_freebie',
+    'SELECT "Old foreign key does not exist" AS result'
+);
+
+PREPARE stmt_drop_old FROM @sql_drop_old_fk;
+EXECUTE stmt_drop_old;
+DEALLOCATE PREPARE stmt_drop_old;
+
+-- Neuen Foreign Key hinzufügen (auf customer_freebies)
+SET @fk_exists = (
+    SELECT COUNT(*) 
+    FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE 
+    WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'reward_definitions' 
+    AND CONSTRAINT_NAME = 'fk_reward_def_customer_freebie'
+);
+
 SET @sql_fk = IF(@fk_exists = 0 AND @column_exists = 0,
     'ALTER TABLE reward_definitions 
-     ADD CONSTRAINT fk_reward_def_freebie
+     ADD CONSTRAINT fk_reward_def_customer_freebie
      FOREIGN KEY (freebie_id) 
-     REFERENCES freebies(id) 
+     REFERENCES customer_freebies(id) 
      ON DELETE SET NULL
      ON UPDATE CASCADE',
     'SELECT "Foreign key already exists or not needed" AS result'
@@ -87,10 +106,12 @@ DEALLOCATE PREPARE stmt_idx_combo;
 SELECT 
     'reward_definitions' AS table_name,
     @column_exists AS column_existed_before,
-    @fk_exists AS foreign_key_existed,
+    @old_fk_exists AS old_foreign_key_existed,
+    @fk_exists AS new_foreign_key_existed,
     @idx_exists AS index_existed,
     @idx_combo_exists AS combo_index_existed,
-    'Migration completed' AS status;
+    'Migration completed' AS status,
+    'freebie_id references customer_freebies(id)' AS note;
 
 -- Daten prüfen
 SELECT 
@@ -102,5 +123,6 @@ FROM reward_definitions;
 -- HINWEISE:
 -- 1. Diese Migration ist idempotent - kann mehrmals ausgeführt werden
 -- 2. freebie_id ist NULL-able, existierende Rewards bleiben gültig
--- 3. Nach Migration können Belohnungen optional mit Freebies verknüpft werden
+-- 3. Nach Migration können Belohnungen optional mit customer_freebies verknüpft werden
 -- 4. Foreign Key CASCADE: Bei Löschen eines Freebies wird freebie_id auf NULL gesetzt
+-- 5. WICHTIG: freebie_id verweist auf customer_freebies(id), NICHT auf freebies(id)
