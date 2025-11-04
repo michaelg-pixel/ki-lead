@@ -16,7 +16,7 @@ $domain = $_SERVER['HTTP_HOST'];
 <div class="section">
     <div class="section-header">
         <h3 class="section-title">Freebie Templates</h3>
-        <a href="?page=freebie-create" class="btn">+ Neues Template</a>
+        <a href="?page=freebie-create" class="btn btn-primary">+ Neues Template</a>
     </div>
     
     <?php if (count($freebies) > 0): ?>
@@ -91,12 +91,13 @@ $domain = $_SERVER['HTTP_HOST'];
                 
                 <div class="freebie-actions">
                     <button onclick='previewTemplate(<?php echo json_encode($freebie); ?>)' 
-                            class="btn-preview" 
-                            title="Vorschau öffnen">
+                            class="action-btn action-btn-view" 
+                            title="Vorschau öffnen"
+                            style="grid-column: 1 / -1;">
                         👁️ Vorschau
                     </button>
-                    <a href="?page=freebie-edit&id=<?php echo $freebie['id']; ?>" class="btn-secondary">Bearbeiten</a>
-                    <button onclick="deleteTemplate(<?php echo $freebie['id']; ?>, '<?php echo htmlspecialchars($freebie['name'], ENT_QUOTES); ?>')" class="btn-danger">Löschen</button>
+                    <a href="?page=freebie-edit&id=<?php echo $freebie['id']; ?>" class="action-btn action-btn-edit">✏️ Bearbeiten</a>
+                    <button onclick="deleteTemplate(<?php echo $freebie['id']; ?>, '<?php echo htmlspecialchars($freebie['name'], ENT_QUOTES); ?>')" class="action-btn action-btn-delete">🗑️ Löschen</button>
                 </div>
             </div>
         </div>
@@ -106,13 +107,14 @@ $domain = $_SERVER['HTTP_HOST'];
     <div class="empty-state">
         <div class="empty-state-icon">🎁</div>
         <p>Noch keine Freebie Templates erstellt</p>
-        <a href="?page=freebie-create" class="btn" style="margin-top: 16px;">Erstes Template erstellen</a>
+        <a href="?page=freebie-create" class="btn btn-primary" style="margin-top: 16px;">Erstes Template erstellen</a>
     </div>
     <?php endif; ?>
 </div>
 
 <!-- VORSCHAU MODAL -->
 <div id="previewModal" class="preview-modal">
+    <div class="modal-overlay" onclick="closePreview()"></div>
     <div class="preview-container">
         <div class="preview-header">
             <h3>Template Vorschau</h3>
@@ -125,6 +127,8 @@ $domain = $_SERVER['HTTP_HOST'];
 </div>
 
 <style>
+    /* VERBESSERTE FARBEN - Violett-Pink Theme */
+    
     /* Grid für Freebie Cards */
     .freebies-grid {
         display: grid;
@@ -134,21 +138,23 @@ $domain = $_SERVER['HTTP_HOST'];
     }
     
     .freebie-card {
-        background: linear-gradient(135deg, #1e1e3f 0%, #2a2a4f 100%);
-        border: 1px solid rgba(102, 126, 234, 0.2);
+        background: rgba(26, 26, 46, 0.7);
+        border: 1px solid rgba(168, 85, 247, 0.3);
         border-radius: 16px;
         overflow: hidden;
-        transition: transform 0.2s;
+        transition: all 0.2s;
     }
     
     .freebie-card:hover {
         transform: translateY(-4px);
+        border-color: #a855f7;
+        box-shadow: 0 12px 24px rgba(168, 85, 247, 0.3);
     }
     
     .freebie-mockup {
         width: 100%;
         height: 200px;
-        background: #0f0f1e;
+        background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -163,7 +169,8 @@ $domain = $_SERVER['HTTP_HOST'];
     
     .no-mockup {
         font-size: 48px;
-        opacity: 0.3;
+        color: white;
+        opacity: 0.6;
     }
     
     .freebie-content {
@@ -177,7 +184,7 @@ $domain = $_SERVER['HTTP_HOST'];
     }
     
     .freebie-content p {
-        color: #888;
+        color: #b0b0b0;
         font-size: 14px;
         margin-bottom: 16px;
         display: -webkit-box;
@@ -204,8 +211,8 @@ $domain = $_SERVER['HTTP_HOST'];
     }
     
     .stat {
-        background: rgba(102, 126, 234, 0.1);
-        border: 1px solid rgba(102, 126, 234, 0.3);
+        background: rgba(168, 85, 247, 0.15);
+        border: 1px solid rgba(168, 85, 247, 0.3);
         border-radius: 8px;
         padding: 12px;
         text-align: center;
@@ -227,7 +234,7 @@ $domain = $_SERVER['HTTP_HOST'];
     
     .stat-label {
         display: block;
-        color: #888;
+        color: #a0a0a0;
         font-size: 11px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -235,8 +242,8 @@ $domain = $_SERVER['HTTP_HOST'];
     
     /* LINK SECTIONS */
     .link-section {
-        background: rgba(102, 126, 234, 0.05);
-        border: 1px solid rgba(102, 126, 234, 0.2);
+        background: rgba(168, 85, 247, 0.08);
+        border: 1px solid rgba(168, 85, 247, 0.2);
         border-radius: 8px;
         padding: 12px;
         margin-bottom: 12px;
@@ -246,7 +253,7 @@ $domain = $_SERVER['HTTP_HOST'];
         display: flex;
         align-items: center;
         gap: 8px;
-        color: #667eea;
+        color: #c084fc;
         font-size: 13px;
         font-weight: 600;
         margin-bottom: 8px;
@@ -263,10 +270,10 @@ $domain = $_SERVER['HTTP_HOST'];
     
     .link-input {
         flex: 1;
-        background: rgba(0, 0, 0, 0.2);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(168, 85, 247, 0.2);
         border-radius: 6px;
-        color: white;
+        color: #e0e0e0;
         padding: 8px 12px;
         font-size: 12px;
         font-family: 'Courier New', monospace;
@@ -275,10 +282,10 @@ $domain = $_SERVER['HTTP_HOST'];
     
     .btn-copy {
         padding: 8px 12px;
-        background: rgba(102, 126, 234, 0.3);
-        border: 1px solid #667eea;
+        background: rgba(168, 85, 247, 0.2);
+        border: 1px solid rgba(168, 85, 247, 0.4);
         border-radius: 6px;
-        color: white;
+        color: #c084fc;
         cursor: pointer;
         font-size: 14px;
         transition: all 0.2s;
@@ -286,7 +293,8 @@ $domain = $_SERVER['HTTP_HOST'];
     }
     
     .btn-copy:hover {
-        background: rgba(102, 126, 234, 0.5);
+        background: rgba(168, 85, 247, 0.3);
+        border-color: #a855f7;
     }
     
     .freebie-actions {
@@ -294,57 +302,6 @@ $domain = $_SERVER['HTTP_HOST'];
         grid-template-columns: 1fr 1fr;
         gap: 8px;
         margin-top: 16px;
-    }
-    
-    .btn-preview {
-        grid-column: 1 / -1;
-        padding: 10px 16px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        text-align: center;
-        text-decoration: none;
-        font-weight: 600;
-        transition: all 0.2s;
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-        cursor: pointer;
-    }
-    
-    .btn-preview:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
-    }
-    
-    .btn-secondary {
-        padding: 8px 16px;
-        background: rgba(102, 126, 234, 0.2);
-        color: #667eea;
-        border: 1px solid #667eea;
-        border-radius: 8px;
-        text-align: center;
-        text-decoration: none;
-        font-weight: 500;
-        transition: all 0.2s;
-    }
-    
-    .btn-secondary:hover {
-        background: rgba(102, 126, 234, 0.3);
-    }
-    
-    .btn-danger {
-        padding: 8px 16px;
-        background: rgba(255, 107, 107, 0.1);
-        color: #ff6b6b;
-        border: 1px solid #ff6b6b;
-        border-radius: 8px;
-        font-weight: 500;
-        transition: all 0.2s;
-        cursor: pointer;
-    }
-    
-    .btn-danger:hover {
-        background: rgba(255, 107, 107, 0.2);
     }
     
     /* PREVIEW MODAL */
@@ -355,11 +312,21 @@ $domain = $_SERVER['HTTP_HOST'];
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0,0,0,0.9);
         z-index: 10000;
         align-items: center;
         justify-content: center;
         padding: 20px;
+    }
+    
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.9);
+        backdrop-filter: blur(4px);
+        z-index: -1;
     }
     
     .preview-container {
@@ -370,6 +337,7 @@ $domain = $_SERVER['HTTP_HOST'];
         max-height: 90vh;
         overflow-y: auto;
         position: relative;
+        z-index: 1;
     }
     
     .preview-header {
@@ -391,13 +359,14 @@ $domain = $_SERVER['HTTP_HOST'];
     }
     
     .preview-close {
-        padding: 8px 16px;
+        padding: 10px 20px;
         background: #f3f4f6;
         border: none;
-        border-radius: 6px;
+        border-radius: 8px;
         cursor: pointer;
-        font-weight: 500;
-        transition: background 0.2s;
+        font-weight: 600;
+        transition: all 0.2s;
+        color: #374151;
     }
     
     .preview-close:hover {
@@ -489,13 +458,6 @@ $domain = $_SERVER['HTTP_HOST'];
             gap: 6px;
         }
         
-        .btn-preview,
-        .btn-secondary,
-        .btn-danger {
-            padding: 8px 12px;
-            font-size: 13px;
-        }
-        
         /* Preview Modal */
         .preview-modal {
             padding: 10px;
@@ -565,11 +527,6 @@ $domain = $_SERVER['HTTP_HOST'];
             grid-template-columns: 1fr;
         }
         
-        .btn-secondary,
-        .btn-danger {
-            grid-column: 1;
-        }
-        
         .preview-body {
             padding: 16px 12px;
         }
@@ -606,10 +563,14 @@ function copyLink(inputId) {
         const originalText = button.innerHTML;
         button.innerHTML = '✓';
         button.style.background = 'rgba(34, 197, 94, 0.3)';
+        button.style.borderColor = 'rgba(34, 197, 94, 0.5)';
+        button.style.color = '#86efac';
         
         setTimeout(() => {
             button.innerHTML = originalText;
             button.style.background = '';
+            button.style.borderColor = '';
+            button.style.color = '';
         }, 2000);
     } catch (err) {
         alert('Fehler beim Kopieren');
@@ -632,7 +593,7 @@ function previewTemplate(template) {
         cta_button_text: template.cta_text || 'Jetzt kostenlos sichern',
         layout: layoutMapping[template.layout] || 'hybrid',
         background_color: template.background_color || '#FFFFFF',
-        primary_color: template.primary_color || '#7C3AED',
+        primary_color: template.primary_color || '#a855f7',
         mockup_image_url: template.mockup_image_url || '',
         show_mockup: template.mockup_image_url ? '1' : '0',
         
@@ -666,7 +627,7 @@ function closePreview() {
 function generatePreviewHTML(data) {
     const layout = data.layout || 'hybrid';
     const bgColor = data.background_color || '#FFFFFF';
-    const primaryColor = data.primary_color || '#7C3AED';
+    const primaryColor = data.primary_color || '#a855f7';
     const showMockup = data.show_mockup === '1';
     const mockupUrl = data.mockup_image_url || '';
     
@@ -765,7 +726,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const modal = document.getElementById('previewModal');
     if (modal) {
         modal.addEventListener('click', function(e) {
-            if (e.target === this) {
+            if (e.target.classList.contains('modal-overlay')) {
                 closePreview();
             }
         });
