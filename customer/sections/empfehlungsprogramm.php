@@ -2,6 +2,7 @@
 /**
  * Customer Dashboard - Empfehlungsprogramm Section
  * Zeigt Freebie-Auswahl, korrekten Referral-Link und konfigurierte Belohnungen
+ * FIXED: Lädt nun auch freigeschaltete Template-Freebies aus customer_freebies
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -91,22 +92,51 @@ try {
         return strtotime($b['invited_at']) - strtotime($a['invited_at']);
     });
     
-    // Freebies laden
-    $stmt_freebies = $pdo->prepare("
-        SELECT DISTINCT
-            f.id,
-            f.unique_id,
-            f.name as title,
-            f.description,
-            f.mockup_image_url as image_path,
-            f.user_id,
-            f.created_at
-        FROM freebies f
-        WHERE f.user_id = ?
-        ORDER BY f.created_at DESC
+    // FREEBIES LADEN - KOMBINIERT EIGENE UND FREIGESCHALTETE TEMPLATE-FREEBIES
+    // 1. Eigene Freebies (custom type aus customer_freebies)
+    $stmt_custom = $pdo->prepare("
+        SELECT 
+            cf.id as customer_freebie_id,
+            cf.unique_id,
+            cf.headline as title,
+            cf.subheadline as description,
+            cf.mockup_image_url as image_path,
+            cf.created_at,
+            'custom' as freebie_source
+        FROM customer_freebies cf
+        WHERE cf.customer_id = ? 
+        AND cf.freebie_type = 'custom'
     ");
-    $stmt_freebies->execute([$customer_id]);
-    $freebies = $stmt_freebies->fetchAll(PDO::FETCH_ASSOC);
+    $stmt_custom->execute([$customer_id]);
+    $custom_freebies = $stmt_custom->fetchAll(PDO::FETCH_ASSOC);
+    
+    // 2. Freigeschaltete Template-Freebies (aus customer_freebies mit template_id)
+    $stmt_templates = $pdo->prepare("
+        SELECT DISTINCT
+            cf.id as customer_freebie_id,
+            cf.unique_id,
+            COALESCE(cf.headline, f.headline, f.name) as title,
+            COALESCE(cf.subheadline, f.subheadline) as description,
+            COALESCE(cf.mockup_image_url, f.mockup_image_url) as image_path,
+            cf.created_at,
+            'template' as freebie_source,
+            f.id as template_id
+        FROM customer_freebies cf
+        INNER JOIN freebies f ON cf.template_id = f.id
+        WHERE cf.customer_id = ?
+        AND (cf.freebie_type = 'template' OR cf.freebie_type IS NULL)
+        AND cf.template_id IS NOT NULL
+    ");
+    $stmt_templates->execute([$customer_id]);
+    $template_freebies = $stmt_templates->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Kombiniere beide Listen
+    $freebies = array_merge($custom_freebies, $template_freebies);
+    
+    // Nach Datum sortieren (neueste zuerst)
+    usort($freebies, function($a, $b) {
+        return strtotime($b['created_at']) - strtotime($a['created_at']);
+    });
     
     // Belohnungen laden (die der Kunde konfiguriert hat)
     $stmt_rewards = $pdo->prepare("
@@ -273,6 +303,27 @@ for ($i = 6; $i >= 0; $i--) {
         .freebie-card.selected {
             border-color: #10b981;
             box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+        }
+        
+        .freebie-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+        }
+        
+        .badge-custom {
+            background: rgba(251, 191, 36, 0.95);
+            color: white;
+        }
+        
+        .badge-template {
+            background: rgba(59, 130, 246, 0.95);
+            color: white;
         }
         
         .reward-card {
@@ -461,10 +512,10 @@ for ($i = 6; $i >= 0; $i--) {
                         Keine Freebies verfügbar
                     </h4>
                     <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 1.5rem;">
-                        Du hast noch keine Freebies erstellt
+                        Du hast noch keine Freebies freigeschaltet oder erstellt
                     </p>
                     <a href="?page=freebies" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #667eea, #764ba2); color: white; text-decoration: none; border-radius: 0.5rem; font-weight: 600;">
-                        <i class="fas fa-plus"></i> Freebie erstellen
+                        <i class="fas fa-plus"></i> Freebie freischalten
                     </a>
                 </div>
                 <?php else: ?>
@@ -473,6 +524,10 @@ for ($i = 6; $i >= 0; $i--) {
                     <div class="freebie-card" 
                          data-freebie-unique-id="<?php echo htmlspecialchars($freebie['unique_id']); ?>"
                          onclick="selectFreebie('<?php echo htmlspecialchars($freebie['unique_id'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($freebie['title'], ENT_QUOTES); ?>')">
+                        
+                        <span class="freebie-badge <?php echo $freebie['freebie_source'] === 'custom' ? 'badge-custom' : 'badge-template'; ?>">
+                            <?php echo $freebie['freebie_source'] === 'custom' ? '✨ Eigenes' : '📚 Template'; ?>
+                        </span>
                         
                         <?php if (!empty($freebie['image_path'])): ?>
                         <div style="width: 100%; height: 120px; border-radius: 0.5rem; overflow: hidden; margin-bottom: 1rem; background: #111827;">
