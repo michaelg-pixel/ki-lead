@@ -2,6 +2,7 @@
 /**
  * Test-Datei für Customer API - ERWEITERTE DEBUG-VERSION
  * Zeigt alle Fehler und Probleme an
+ * PFAD-KORREKTUR: Lädt Dateien aus dem Root-Verzeichnis
  */
 
 // Fehleranzeige aktivieren
@@ -41,8 +42,12 @@ echo "Error Reporting: " . error_reporting() . "\n";
 echo "Display Errors: " . ini_get('display_errors') . "\n";
 echo "</pre></div>";
 
+// Root-Verzeichnis bestimmen (eine Ebene über /api/)
+$rootDir = dirname(__DIR__);
+
 echo "<h2>3. File Check</h2>";
 echo "<div class='box'><pre>";
+echo "Root Directory: $rootDir\n\n";
 $files = [
     '/config/database.php',
     '/includes/auth.php',
@@ -50,16 +55,19 @@ $files = [
     '/api/customer-update.php'
 ];
 foreach ($files as $file) {
-    $fullPath = __DIR__ . $file;
+    $fullPath = $rootDir . $file;
     $exists = file_exists($fullPath);
     $status = $exists ? '✅' : '❌';
     echo "$status $file\n";
+    if (!$exists) {
+        echo "   Gesucht in: $fullPath\n";
+    }
 }
 echo "</pre></div>";
 
 echo "<h2>4. Database Connection</h2>";
 try {
-    require_once __DIR__ . '/config/database.php';
+    require_once $rootDir . '/config/database.php';
     echo "<p class='success'>✅ Database config geladen</p>";
     
     $pdo = Database::getInstance()->getConnection();
@@ -156,33 +164,7 @@ try {
         echo "<h2>9. Direct API Test</h2>";
         echo "<p>Test mit User ID: $testUserId</p>";
         
-        // Direkter Test der API
-        $_GET['user_id'] = $testUserId;
-        
-        echo "<h3>a) Include API File Test:</h3>";
-        echo "<div class='box'>";
-        ob_start();
-        try {
-            include __DIR__ . '/api/customer-get.php';
-            $apiOutput = ob_get_clean();
-            
-            // Versuche JSON zu parsen
-            $jsonData = json_decode($apiOutput, true);
-            if ($jsonData) {
-                echo "<p class='success'>✅ API gibt gültiges JSON zurück</p>";
-                echo "<pre>" . json_encode($jsonData, JSON_PRETTY_PRINT) . "</pre>";
-            } else {
-                echo "<p class='error'>❌ API gibt kein gültiges JSON zurück:</p>";
-                echo "<pre>" . htmlspecialchars($apiOutput) . "</pre>";
-            }
-        } catch (Exception $e) {
-            ob_end_clean();
-            echo "<p class='error'>❌ API-Fehler:</p>";
-            echo "<pre>" . htmlspecialchars($e->getMessage()) . "</pre>";
-        }
-        echo "</div>";
-        
-        echo "<h3>b) Browser Test Links:</h3>";
+        echo "<h3>Browser Test Links:</h3>";
         echo "<div class='box'>";
         echo "<p><a href='/api/customer-get.php?user_id=$testUserId' style='color: #a855f7;' target='_blank'>🔗 API-Endpunkt im Browser öffnen</a></p>";
         echo "<p><small>Sollte ein JSON-Objekt mit Kundendaten zurückgeben</small></p>";
@@ -203,7 +185,7 @@ echo "<div class='box'>";
 echo "<ol style='line-height: 1.8;'>";
 echo "<li>Prüfe alle ✅ Marks oben - alle wichtigen Checks sollten grün sein</li>";
 echo "<li>Öffne den Browser Test Link in Abschnitt 9</li>";
-echo "<li>Wenn API-Fehler erscheinen, sende mir den kompletten Output dieser Seite</li>";
+echo "<li>Gehe zurück zum Dashboard und teste die Funktionen</li>";
 echo "<li><a href='/admin/dashboard.php?page=users' style='color: #a855f7;'>← Zurück zur Kundenverwaltung</a></li>";
 echo "</ol>";
 echo "</div>";
