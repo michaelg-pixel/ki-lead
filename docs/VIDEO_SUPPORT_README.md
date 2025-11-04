@@ -1,88 +1,222 @@
-# Video-Support für Customer Freebies
+# Video-Support für Custom Freebie Editor
 
-## Übersicht
-Ab sofort können Kunden in ihren eigenen Freebies **Videos** statt Mockup-Bildern verwenden.
+## 📹 Überblick
 
-## Neue Funktionen
+Der Custom Freebie Editor unterstützt jetzt die Integration von Videos (YouTube, Vimeo) in zwei Formaten:
+- **Widescreen (16:9)** - Standard-Format für horizontale Videos
+- **Hochformat (9:16)** - Optimiert für vertikale Videos (Stories, Reels, TikTok, etc.)
 
-### 1. Video oder Bild wählen
-- Radio Buttons: **Bild** oder **Video**
-- Beim Wechsel werden die entsprechenden Felder ein-/ausgeblendet
+## ✅ Was wurde implementiert?
 
-### 2. Video-Einbindung
-- **Video-URL**: YouTube, Vimeo, oder direkte MP4/WebM URLs
-- **Video-Format**: 
-  - **16:9** (Querformat) - Standard für YouTube/Vimeo
-  - **9:16** (Hochformat) - Für TikTok/Instagram Reels
+### 1. Datenbank-Erweiterungen
 
-### 3. Automatische Erkennung
-- YouTube URLs werden automatisch zu Embeds konvertiert
-- Vimeo URLs werden automatisch zu Embeds konvertiert
-- Direkte Video-URLs werden als HTML5 Video eingebettet
-
-## Datenbankänderungen
-
+**Neue Spalten in `customer_freebies`:**
 ```sql
-ALTER TABLE customer_freebies 
-ADD COLUMN video_url VARCHAR(500) DEFAULT NULL AFTER mockup_image_url,
-ADD COLUMN video_format ENUM('16:9', '9:16') DEFAULT '16:9' AFTER video_url;
+- video_url VARCHAR(500) NULL          -- Speichert die Video-URL
+- video_format ENUM('portrait', 'widescreen') DEFAULT 'widescreen'  -- Bestimmt das Anzeigeformat
 ```
 
-## Beispiel Video-URLs
+**Migration:**
+- SQL-Datei: `database/migrations/2025-11-04_add_video_support_to_customer_freebies.sql`
+- Browser-Script: `database/migrate-video-support.php`
 
-### YouTube
+### 2. Editor-Funktionen
+
+**Custom Freebie Editor (`customer/custom-freebie-editor.php`):**
+
+#### Neue Formularfelder:
+- **Video URL**: Eingabefeld für YouTube/Vimeo Links
+- **Video-Format-Auswahl**: Radio-Buttons für Widescreen (16:9) oder Hochformat (9:16)
+
+#### Live-Vorschau:
+- Videos werden in Echtzeit im Editor angezeigt
+- Format-Änderungen werden sofort übernommen
+- Video-Preview mit korrekter Aspect Ratio
+
+#### Unterstützte Video-Plattformen:
+- **YouTube**: `https://www.youtube.com/watch?v=...` oder `https://youtu.be/...`
+- **Vimeo**: `https://vimeo.com/...`
+
+## 🎨 Layout-Verhalten
+
+### Widescreen (16:9)
 ```
-https://www.youtube.com/watch?v=dQw4w9WgXcQ
-https://youtu.be/dQw4w9WgXcQ
+Größe: 100% Breite, max. 560px
+Höhe: 315px
+Ideal für: Standard YouTube-Videos, Tutorials, Webinare
 ```
 
-### Vimeo
+### Hochformat (9:16)
 ```
-https://vimeo.com/123456789
-```
-
-### Direkte Videos
-```
-https://example.com/video.mp4
-https://example.com/video.webm
+Breite: 315px
+Höhe: 560px
+Ideal für: Stories, Reels, TikTok-Videos, Shorts
 ```
 
-## Video-Formate
+## 🚀 Verwendung
 
-### 16:9 (Querformat)
-- Breite: 560px
-- Höhe: 315px
-- Ideal für: YouTube, Vimeo, Standard-Videos
+### 1. Migration durchführen
 
-### 9:16 (Hochformat)
-- Breite: 360px
-- Höhe: 640px
-- Ideal für: TikTok, Instagram Reels, Stories
+**Option A - Browser (empfohlen):**
+```
+https://app.mehr-infos-jetzt.de/database/migrate-video-support.php
+```
 
-## Änderungen in den Dateien
-
-1. **customer/custom-freebie-editor.php**
-   - Radio Buttons für Bild/Video Auswahl
-   - Video-URL Eingabefeld
-   - Video-Format Auswahl (16:9 / 9:16)
-   - Live-Preview mit Video-Unterstützung
-
-2. **freebie/index.php**
-   - Video-Anzeige statt Mockup
-   - YouTube/Vimeo Embed-Unterstützung
-   - HTML5 Video für direkte URLs
-   - Responsive Video-Container
-
-## Migration
-
-Führe das SQL-Script aus:
+**Option B - SQL direkt:**
 ```bash
-mysql -u username -p database_name < scripts/migrations/add_video_support_to_freebies.sql
+mysql -u username -p database < database/migrations/2025-11-04_add_video_support_to_customer_freebies.sql
 ```
 
-## Hinweise
+### 2. Video im Editor hinzufügen
 
-- Videos und Bilder schließen sich gegenseitig aus
-- Wenn eine Video-URL eingegeben wird, wird das Mockup-Bild ignoriert
-- Videos werden automatisch responsive eingebettet
-- Bei YouTube/Vimeo werden die Tracking-Parameter entfernt
+1. Öffne den Custom Freebie Editor: `https://app.mehr-infos-jetzt.de/customer/custom-freebie-editor.php`
+2. Scrolle zum Abschnitt **"🎥 Video"**
+3. Füge die Video-URL ein (YouTube oder Vimeo)
+4. Wähle das Format:
+   - **🖥️ Widescreen (16:9)** für horizontale Videos
+   - **📱 Hochformat (9:16)** für vertikale Videos
+5. Die Live-Vorschau zeigt das Video sofort an
+6. Speichere das Freebie
+
+### 3. Video entfernen
+
+- Klicke auf **"🗑️ Video entfernen"** unter der Vorschau
+- Oder lösche die URL im Eingabefeld
+
+## 📝 Beispiele
+
+### YouTube Video (Widescreen)
+```
+Video-URL: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+Format: Widescreen (16:9)
+Ergebnis: Standard YouTube-Embed mit 560x315px
+```
+
+### Vimeo Video (Hochformat)
+```
+Video-URL: https://vimeo.com/123456789
+Format: Hochformat (9:16)
+Ergebnis: Vertikales Video mit 315x560px
+```
+
+## 🎯 Feature-Priorität
+
+Im Freebie werden Medien in dieser Reihenfolge priorisiert:
+1. **Video** (wenn vorhanden)
+2. **Mockup-Bild** (wenn kein Video)
+3. **Standard-Icon** 🎁 (wenn weder Video noch Mockup)
+
+## 🔧 Technische Details
+
+### Video-URL-Erkennung
+
+**JavaScript-Funktion im Editor:**
+```javascript
+function getVideoEmbedUrl(url) {
+    // YouTube-Erkennung
+    let youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+    if (youtubeMatch) {
+        return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
+    }
+    
+    // Vimeo-Erkennung
+    let vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+    if (vimeoMatch) {
+        return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+    }
+    
+    return null;
+}
+```
+
+### Datenbank-Speicherung
+
+```php
+// In customer/custom-freebie-editor.php
+$video_url = trim($_POST['video_url'] ?? '');
+$video_format = $_POST['video_format'] ?? 'widescreen';
+
+$stmt = $pdo->prepare("
+    INSERT INTO customer_freebies (..., video_url, video_format, ...)
+    VALUES (..., ?, ?, ...)
+");
+$stmt->execute([..., $video_url, $video_format, ...]);
+```
+
+## 📱 Responsive Design
+
+### Desktop
+- Widescreen: Volle Breite bis max. 560px
+- Hochformat: Zentriert mit fester Größe 315x560px
+
+### Tablet (< 968px)
+- Beide Formate werden zentriert angezeigt
+- Maximale Breite angepasst
+
+### Mobile (< 768px)
+- Videos werden auf 100% Breite skaliert
+- Aspect Ratio bleibt erhalten
+- Hochformat-Videos bleiben vertikal
+
+## ⚠️ Wichtige Hinweise
+
+1. **Video-Links müssen gültig sein**: Stelle sicher, dass die URL von YouTube oder Vimeo ist
+2. **Format-Auswahl**: Wähle das richtige Format für dein Video
+3. **Mockup-Bilder**: Videos haben Vorrang vor Mockup-Bildern
+4. **Performance**: Videos werden als iframe eingebettet (externe Ressource)
+
+## 🔄 Kompatibilität
+
+### Unterstützte Browser:
+- Chrome 90+
+- Firefox 88+
+- Safari 14+
+- Edge 90+
+
+### Mobile Geräte:
+- iOS 14+
+- Android 8+
+
+## 🐛 Troubleshooting
+
+### Video wird nicht angezeigt?
+1. Prüfe, ob die Video-URL korrekt ist
+2. Teste die URL im Browser
+3. Stelle sicher, dass das Video öffentlich zugänglich ist
+4. Prüfe die Browser-Konsole auf Fehler
+
+### Falsches Format?
+1. Gehe zurück zum Editor
+2. Wähle das richtige Format
+3. Speichere das Freebie erneut
+
+### Migration-Fehler?
+1. Prüfe Datenbankverbindung
+2. Stelle sicher, dass du Schreibrechte hast
+3. Führe die Migration erneut aus
+
+## 📚 Weitere Ressourcen
+
+- [YouTube Embed API](https://developers.google.com/youtube/iframe_api_reference)
+- [Vimeo Player API](https://developer.vimeo.com/player/sdk)
+- [Custom Freebie Editor Dokumentation](../CUSTOMER_FREEBIES_README.md)
+
+## 🎉 Changelog
+
+**Version 1.1.0** (2025-11-04)
+- ✅ Video-URL Feld hinzugefügt
+- ✅ Video-Format-Auswahl (Widescreen/Hochformat)
+- ✅ Live-Vorschau im Editor
+- ✅ YouTube und Vimeo Support
+- ✅ Responsive Design
+- ✅ Datenbank-Migration
+- ✅ Browser-basiertes Migrations-Script
+
+**Version 1.0.0** (Ursprüngliche Version)
+- Video-Support Basis-Implementierung
+
+---
+
+**Entwickelt für:** KI Leadsystem  
+**Datum:** 04.11.2025  
+**Version:** 1.1.0
