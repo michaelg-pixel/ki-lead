@@ -1,8 +1,10 @@
 <?php
 /**
  * Customer Dashboard - Empfehlungsprogramm Section
- * Zeigt Freebie-Auswahl, korrekten Referral-Link und konfigurierte Belohnungen
- * FIXED: Lädt nun auch freigeschaltete Template-Freebies aus customer_freebies
+ * KOMPLETT ÜBERARBEITET für separate Freebie-Belohnungen
+ * - Jedes Freebie hat eigenen Empfehlungslink
+ * - Jedes Freebie kann eigene Belohnungen haben
+ * - Korrekte ID-Übergabe an Belohnungsstufen
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -92,7 +94,7 @@ try {
         return strtotime($b['invited_at']) - strtotime($a['invited_at']);
     });
     
-    // FREEBIES LADEN - KOMBINIERT EIGENE UND FREIGESCHALTETE TEMPLATE-FREEBIES
+    // FREEBIES LADEN MIT BELOHNUNGS-COUNT
     // 1. Eigene Freebies (custom type aus customer_freebies)
     $stmt_custom = $pdo->prepare("
         SELECT 
@@ -102,12 +104,13 @@ try {
             cf.subheadline as description,
             cf.mockup_image_url as image_path,
             cf.created_at,
-            'custom' as freebie_source
+            'custom' as freebie_source,
+            (SELECT COUNT(*) FROM reward_definitions WHERE freebie_id = cf.id AND user_id = ?) as reward_count
         FROM customer_freebies cf
         WHERE cf.customer_id = ? 
         AND cf.freebie_type = 'custom'
     ");
-    $stmt_custom->execute([$customer_id]);
+    $stmt_custom->execute([$customer_id, $customer_id]);
     $custom_freebies = $stmt_custom->fetchAll(PDO::FETCH_ASSOC);
     
     // 2. Freigeschaltete Template-Freebies (aus customer_freebies mit template_id)
@@ -120,14 +123,15 @@ try {
             COALESCE(cf.mockup_image_url, f.mockup_image_url) as image_path,
             cf.created_at,
             'template' as freebie_source,
-            f.id as template_id
+            f.id as template_id,
+            (SELECT COUNT(*) FROM reward_definitions WHERE freebie_id = cf.id AND user_id = ?) as reward_count
         FROM customer_freebies cf
         INNER JOIN freebies f ON cf.template_id = f.id
         WHERE cf.customer_id = ?
         AND (cf.freebie_type = 'template' OR cf.freebie_type IS NULL)
         AND cf.template_id IS NOT NULL
     ");
-    $stmt_templates->execute([$customer_id]);
+    $stmt_templates->execute([$customer_id, $customer_id]);
     $template_freebies = $stmt_templates->fetchAll(PDO::FETCH_ASSOC);
     
     // Kombiniere beide Listen
@@ -137,28 +141,6 @@ try {
     usort($freebies, function($a, $b) {
         return strtotime($b['created_at']) - strtotime($a['created_at']);
     });
-    
-    // Belohnungen laden (die der Kunde konfiguriert hat)
-    $stmt_rewards = $pdo->prepare("
-        SELECT 
-            id,
-            tier_level,
-            tier_name,
-            tier_description,
-            required_referrals,
-            reward_type,
-            reward_title,
-            reward_description,
-            reward_icon,
-            reward_color,
-            reward_value,
-            is_active
-        FROM reward_definitions 
-        WHERE user_id = ?
-        ORDER BY tier_level ASC
-    ");
-    $stmt_rewards->execute([$customer_id]);
-    $rewards = $stmt_rewards->fetchAll(PDO::FETCH_ASSOC);
     
     // Chart-Daten
     $stmt_chart = $pdo->prepare("
@@ -191,7 +173,6 @@ try {
     ];
     $all_leads = [];
     $freebies = [];
-    $rewards = [];
     $chart_data = [];
 }
 
@@ -282,70 +263,133 @@ for ($i = 6; $i >= 0; $i--) {
             transform: translateX(30px);
         }
         
-        .freebie-card {
+        .freebie-card-expanded {
             background: linear-gradient(to bottom right, #1f2937, #374151);
             border: 1px solid rgba(102, 126, 234, 0.3);
             border-radius: 1rem;
-            padding: 1.25rem;
+            padding: 1.5rem;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-            transition: all 0.3s;
-            cursor: pointer;
-            position: relative;
+            margin-bottom: 1.5rem;
+        }
+        
+        .freebie-header {
+            display: flex;
+            gap: 1.5rem;
+            align-items: start;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .freebie-image {
+            width: 150px;
+            height: 150px;
+            border-radius: 0.75rem;
             overflow: hidden;
+            background: #111827;
+            flex-shrink: 0;
         }
         
-        .freebie-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4);
-            border-color: rgba(102, 126, 234, 0.6);
-        }
-        
-        .freebie-card.selected {
-            border-color: #10b981;
-            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+        .freebie-info {
+            flex: 1;
+            min-width: 250px;
         }
         
         .freebie-badge {
-            position: absolute;
-            top: 12px;
-            right: 12px;
+            display: inline-block;
             padding: 4px 12px;
             border-radius: 12px;
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 600;
-            backdrop-filter: blur(10px);
+            margin-bottom: 0.75rem;
         }
         
         .badge-custom {
-            background: rgba(251, 191, 36, 0.95);
-            color: white;
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
         }
         
         .badge-template {
-            background: rgba(59, 130, 246, 0.95);
-            color: white;
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
         }
         
-        .reward-card {
-            background: linear-gradient(to bottom right, #1f2937, #374151);
-            border: 1px solid rgba(102, 126, 234, 0.3);
-            border-radius: 1rem;
-            padding: 1.25rem;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
+        .freebie-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
         
-        .reward-card .icon {
-            font-size: 2rem;
-            width: 60px;
-            height: 60px;
+        .action-card {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            text-align: center;
+        }
+        
+        .action-label {
+            color: #9ca3af;
+            font-size: 0.75rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .link-input-group {
             display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .link-input {
+            flex: 1;
+            background: #111827;
+            border: 1px solid #374151;
+            border-radius: 0.5rem;
+            color: white;
+            padding: 0.5rem;
+            font-size: 0.75rem;
+            font-family: monospace;
+        }
+        
+        .btn-copy {
+            padding: 0.5rem 1rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .btn-rewards {
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            border-radius: 12px;
-            background: rgba(0, 0, 0, 0.2);
+            gap: 0.5rem;
+            padding: 0.75rem 1.25rem;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            text-decoration: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: all 0.3s;
+        }
+        
+        .btn-rewards:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.5);
+        }
+        
+        .reward-count {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
         }
         
         .page-title {
@@ -376,12 +420,6 @@ for ($i = 6; $i >= 0; $i--) {
             font-size: 1.25rem;
             font-weight: 600;
             margin-bottom: 1rem;
-        }
-        
-        .section-text {
-            color: #9ca3af;
-            margin-bottom: 1rem;
-            font-size: 0.875rem;
         }
         
         table {
@@ -433,6 +471,13 @@ for ($i = 6; $i >= 0; $i--) {
             .stat-value {
                 font-size: 2rem;
             }
+            .freebie-header {
+                flex-direction: column;
+            }
+            .freebie-image {
+                width: 100%;
+                height: 200px;
+            }
         }
     </style>
 </head>
@@ -448,7 +493,7 @@ for ($i = 6; $i >= 0; $i--) {
                             <i class="fas fa-rocket"></i> Empfehlungsprogramm
                         </h1>
                         <p class="page-subtitle">
-                            Wähle ein Freebie und teile deinen Empfehlungslink
+                            Verwalte deine Freebies und Empfehlungslinks
                         </p>
                     </div>
                     
@@ -492,150 +537,111 @@ for ($i = 6; $i >= 0; $i--) {
             </div>
         </div>
         
-        <!-- Freebie Auswahl -->
+        <!-- Freebies mit individuellen Links und Belohnungen -->
         <?php if ($referralEnabled): ?>
-        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.4s; margin-bottom: 1.5rem;">
-            <div style="background: linear-gradient(to bottom right, #1f2937, #374151); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-                <h3 class="section-title">
-                    <i class="fas fa-gift"></i> Wähle dein Freebie
-                </h3>
-                <p class="section-text">
-                    Wähle ein Freebie aus, das du über dein Empfehlungsprogramm teilen möchtest
-                </p>
-                
-                <?php if (empty($freebies)): ?>
-                <div style="text-align: center; padding: 3rem 1rem; background: rgba(0, 0, 0, 0.2); border-radius: 0.5rem;">
-                    <div style="font-size: 3rem; color: #374151; margin-bottom: 1rem;">
-                        <i class="fas fa-inbox"></i>
-                    </div>
-                    <h4 style="color: white; font-size: 1.125rem; margin-bottom: 0.5rem;">
-                        Keine Freebies verfügbar
-                    </h4>
-                    <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 1.5rem;">
-                        Du hast noch keine Freebies freigeschaltet oder erstellt
-                    </p>
-                    <a href="?page=freebies" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #667eea, #764ba2); color: white; text-decoration: none; border-radius: 0.5rem; font-weight: 600;">
-                        <i class="fas fa-plus"></i> Freebie freischalten
-                    </a>
+        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.4s;">
+            <h3 class="section-title">
+                <i class="fas fa-gift"></i> Deine Freebies (<?php echo count($freebies); ?>)
+            </h3>
+            
+            <?php if (empty($freebies)): ?>
+            <div style="text-align: center; padding: 3rem 1rem; background: rgba(0, 0, 0, 0.2); border-radius: 1rem; border: 1px solid rgba(102, 126, 234, 0.3);">
+                <div style="font-size: 3rem; color: #374151; margin-bottom: 1rem;">
+                    <i class="fas fa-inbox"></i>
                 </div>
-                <?php else: ?>
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
-                    <?php foreach ($freebies as $freebie): ?>
-                    <div class="freebie-card" 
-                         data-freebie-unique-id="<?php echo htmlspecialchars($freebie['unique_id']); ?>"
-                         onclick="selectFreebie('<?php echo htmlspecialchars($freebie['unique_id'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($freebie['title'], ENT_QUOTES); ?>')">
-                        
-                        <span class="freebie-badge <?php echo $freebie['freebie_source'] === 'custom' ? 'badge-custom' : 'badge-template'; ?>">
-                            <?php echo $freebie['freebie_source'] === 'custom' ? '✨ Eigenes' : '📚 Template'; ?>
-                        </span>
-                        
+                <h4 style="color: white; font-size: 1.125rem; margin-bottom: 0.5rem;">
+                    Keine Freebies verfügbar
+                </h4>
+                <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 1.5rem;">
+                    Du hast noch keine Freebies freigeschaltet oder erstellt
+                </p>
+                <a href="?page=freebies" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #667eea, #764ba2); color: white; text-decoration: none; border-radius: 0.5rem; font-weight: 600;">
+                    <i class="fas fa-plus"></i> Freebie freischalten
+                </a>
+            </div>
+            <?php else: ?>
+                <?php foreach ($freebies as $freebie): 
+                    $referralLink = $baseUrl . '/freebie/index.php?id=' . $freebie['unique_id'] . '&ref=' . $referralCode;
+                ?>
+                <div class="freebie-card-expanded">
+                    <div class="freebie-header">
                         <?php if (!empty($freebie['image_path'])): ?>
-                        <div style="width: 100%; height: 120px; border-radius: 0.5rem; overflow: hidden; margin-bottom: 1rem; background: #111827;">
+                        <div class="freebie-image">
                             <img src="<?php echo htmlspecialchars($freebie['image_path']); ?>" 
                                  alt="<?php echo htmlspecialchars($freebie['title']); ?>"
                                  style="width: 100%; height: 100%; object-fit: cover;">
                         </div>
                         <?php endif; ?>
                         
-                        <h4 style="color: white; font-size: 1.125rem; font-weight: 600; margin-bottom: 0.5rem;">
-                            <?php echo htmlspecialchars($freebie['title']); ?>
-                        </h4>
-                        
-                        <?php if (!empty($freebie['description'])): ?>
-                        <p style="color: #9ca3af; font-size: 0.8125rem; line-height: 1.5; margin-bottom: 0.75rem;">
-                            <?php echo htmlspecialchars(substr($freebie['description'], 0, 100)) . (strlen($freebie['description']) > 100 ? '...' : ''); ?>
-                        </p>
-                        <?php endif; ?>
-                        
-                        <div style="display: flex; align-items: center; justify-content: center; padding: 0.75rem; background: rgba(102, 126, 234, 0.1); border-radius: 0.5rem;">
-                            <i class="fas fa-check-circle" style="color: #10b981; margin-right: 0.5rem; display: none;" data-check-icon></i>
-                            <span style="color: #667eea; font-weight: 600; font-size: 0.875rem;">
-                                Auswählen
+                        <div class="freebie-info">
+                            <span class="freebie-badge <?php echo $freebie['freebie_source'] === 'custom' ? 'badge-custom' : 'badge-template'; ?>">
+                                <?php echo $freebie['freebie_source'] === 'custom' ? '✨ Eigenes Freebie' : '📚 Template-Freebie'; ?>
                             </span>
-                        </div>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-                <?php endif; ?>
-            </div>
-        </div>
-        
-        <!-- Empfehlungslink -->
-        <div id="referralLinkSection" style="display: none;" class="animate-fade-in-up">
-            <div style="background: linear-gradient(to bottom right, #1f2937, #374151); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); margin-bottom: 1.5rem;">
-                <h3 class="section-title">
-                    <i class="fas fa-link"></i> Dein Empfehlungslink
-                </h3>
-                <p class="section-text">
-                    Teile diesen Link für das ausgewählte Freebie: <strong id="selectedFreebieTitle" style="color: #667eea;"></strong>
-                </p>
-                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;">
-                    <input type="text" 
-                           id="referralLinkInput" 
-                           readonly
-                           style="flex: 1; min-width: 200px; padding: 0.625rem 0.875rem; background: #1f2937; border: 1px solid #374151; border-radius: 0.5rem; color: white; font-family: monospace; font-size: 0.8125rem;">
-                    <button onclick="copyReferralLink()" 
-                            style="padding: 0.625rem 1.25rem; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem;">
-                        <i class="fas fa-copy"></i>
-                        <span id="copyButtonText">Kopieren</span>
-                    </button>
-                </div>
-                <a href="?page=belohnungsstufen" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.625rem 1.25rem; background: linear-gradient(135deg, #10b981, #059669); color: white; text-decoration: none; border-radius: 0.5rem; font-weight: 600; font-size: 0.875rem;">
-                    <i class="fas fa-trophy"></i>
-                    Belohnungen konfigurieren
-                </a>
-            </div>
-        </div>
-        
-        <!-- Belohnungen -->
-        <?php if (!empty($rewards)): ?>
-        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.5s; margin-bottom: 1.5rem;">
-            <div style="background: linear-gradient(to bottom right, #1f2937, #374151); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-                <h3 class="section-title">
-                    <i class="fas fa-trophy"></i> Deine konfigurierten Belohnungen (<?php echo count($rewards); ?>)
-                </h3>
-                <?php foreach ($rewards as $reward): 
-                    $icon_class = $reward['reward_icon'] ?? 'fa-gift';
-                    $color = $reward['reward_color'] ?? '#667eea';
-                ?>
-                <div class="reward-card">
-                    <div class="icon" style="color: <?php echo $color; ?>;">
-                        <i class="fas <?php echo $icon_class; ?>"></i>
-                    </div>
-                    <div style="flex: 1;">
-                        <div style="color: <?php echo $color; ?>; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.25rem;">
-                            <?php echo htmlspecialchars($reward['tier_name']); ?> - Stufe <?php echo $reward['tier_level']; ?>
-                        </div>
-                        <h4 style="color: white; font-size: 1.125rem; font-weight: 600; margin-bottom: 0.25rem;">
-                            <?php echo htmlspecialchars($reward['reward_title']); ?>
-                        </h4>
-                        <?php if ($reward['reward_description']): ?>
-                        <p style="color: #9ca3af; font-size: 0.8125rem; margin-bottom: 0.25rem;">
-                            <?php echo htmlspecialchars($reward['reward_description']); ?>
-                        </p>
-                        <?php endif; ?>
-                        <div style="color: #10b981; font-size: 0.875rem; font-weight: 600;">
-                            <i class="fas fa-check-circle"></i> <?php echo $reward['required_referrals']; ?> Empfehlungen benötigt
-                            <?php if ($reward['reward_value']): ?>
-                                • <?php echo htmlspecialchars($reward['reward_value']); ?>
+                            
+                            <h4 style="color: white; font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;">
+                                <?php echo htmlspecialchars($freebie['title']); ?>
+                            </h4>
+                            
+                            <?php if (!empty($freebie['description'])): ?>
+                            <p style="color: #9ca3af; font-size: 0.9375rem; line-height: 1.6; margin-bottom: 1rem;">
+                                <?php echo htmlspecialchars($freebie['description']); ?>
+                            </p>
                             <?php endif; ?>
+                            
+                            <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                                <span style="color: #3b82f6; font-size: 0.875rem;">
+                                    <i class="fas fa-calendar"></i> <?php echo date('d.m.Y', strtotime($freebie['created_at'])); ?>
+                                </span>
+                                <span style="color: #10b981; font-size: 0.875rem;">
+                                    <i class="fas fa-trophy"></i> <?php echo $freebie['reward_count']; ?> Belohnung<?php echo $freebie['reward_count'] != 1 ? 'en' : ''; ?>
+                                </span>
+                            </div>
                         </div>
                     </div>
-                    <?php if (!$reward['is_active']): ?>
-                    <div style="padding: 0.5rem 1rem; background: rgba(239, 68, 68, 0.2); color: #ef4444; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600;">
-                        Inaktiv
+                    
+                    <div class="freebie-actions">
+                        <div class="action-card">
+                            <div class="action-label">Empfehlungslink</div>
+                            <div class="link-input-group">
+                                <input type="text" 
+                                       readonly 
+                                       value="<?php echo htmlspecialchars($referralLink); ?>" 
+                                       class="link-input"
+                                       id="link-<?php echo $freebie['customer_freebie_id']; ?>">
+                                <button onclick="copyLink('link-<?php echo $freebie['customer_freebie_id']; ?>')" 
+                                        class="btn-copy">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                            <small style="color: #6b7280; font-size: 0.75rem;">Teile diesen Link mit deinen Kontakten</small>
+                        </div>
+                        
+                        <div class="action-card">
+                            <div class="action-label">Belohnungen</div>
+                            <a href="?page=belohnungsstufen&freebie_id=<?php echo $freebie['customer_freebie_id']; ?>" 
+                               class="btn-rewards">
+                                <i class="fas fa-trophy"></i>
+                                <?php if ($freebie['reward_count'] > 0): ?>
+                                    Belohnungen verwalten
+                                    <span class="reward-count"><?php echo $freebie['reward_count']; ?></span>
+                                <?php else: ?>
+                                    Belohnungen einrichten
+                                <?php endif; ?>
+                            </a>
+                            <small style="color: #6b7280; font-size: 0.75rem; display: block; margin-top: 0.5rem;">
+                                Konfiguriere Belohnungen für Empfehlungen
+                            </small>
+                        </div>
                     </div>
-                    <?php endif; ?>
                 </div>
                 <?php endforeach; ?>
-            </div>
+            <?php endif; ?>
         </div>
-        <?php endif; ?>
         <?php endif; ?>
         
         <!-- Aktivitätsgraph -->
         <?php if (!empty($chart_data)): ?>
-        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.6s; margin-bottom: 1.5rem;">
+        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.5s; margin-top: 1.5rem; margin-bottom: 1.5rem;">
             <div style="background: linear-gradient(to bottom right, #1f2937, #374151); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
                 <h3 class="section-title">
                     <i class="fas fa-chart-line"></i> Lead-Registrierungen (Letzte 7 Tage)
@@ -648,7 +654,7 @@ for ($i = 6; $i >= 0; $i--) {
         <?php endif; ?>
         
         <!-- Leads-Liste -->
-        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.7s;">
+        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.6s;">
             <div style="background: linear-gradient(to bottom right, #1f2937, #374151); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
                 <h3 class="section-title">
                     <i class="fas fa-users"></i> Deine Leads (<?php echo count($all_leads); ?>)
@@ -718,48 +724,14 @@ for ($i = 6; $i >= 0; $i--) {
     </div>
     
     <script>
-        let selectedFreebieUniqueId = null;
-        let referralCode = '<?php echo $referralCode; ?>';
-        let baseUrl = '<?php echo $baseUrl; ?>';
-        
-        // Freebie auswählen
-        function selectFreebie(freebieUniqueId, freebieTitle) {
-            selectedFreebieUniqueId = freebieUniqueId;
-            
-            // Alle Karten deselektieren
-            document.querySelectorAll('.freebie-card').forEach(card => {
-                card.classList.remove('selected');
-                card.querySelector('[data-check-icon]').style.display = 'none';
-            });
-            
-            // Ausgewählte Karte markieren
-            const selectedCard = document.querySelector(`.freebie-card[data-freebie-unique-id="${freebieUniqueId}"]`);
-            selectedCard.classList.add('selected');
-            selectedCard.querySelector('[data-check-icon]').style.display = 'inline';
-            
-            // Korrekter Freebie-Link
-            const referralLink = `${baseUrl}/freebie/index.php?id=${freebieUniqueId}&ref=${referralCode}`;
-            document.getElementById('referralLinkInput').value = referralLink;
-            document.getElementById('selectedFreebieTitle').textContent = freebieTitle;
-            document.getElementById('referralLinkSection').style.display = 'block';
-            
-            showNotification(`Freebie "${freebieTitle}" ausgewählt!`, 'success');
-        }
-        
         // Link kopieren
-        function copyReferralLink() {
-            const input = document.getElementById('referralLinkInput');
-            const button = document.getElementById('copyButtonText');
-            
+        function copyLink(inputId) {
+            const input = document.getElementById(inputId);
             input.select();
             input.setSelectionRange(0, 99999);
             
             navigator.clipboard.writeText(input.value).then(() => {
-                button.textContent = 'Kopiert!';
-                setTimeout(() => {
-                    button.textContent = 'Kopieren';
-                }, 2000);
-                showNotification('Link in Zwischenablage kopiert!', 'success');
+                showNotification('Link kopiert!', 'success');
             }).catch(err => {
                 console.error('Kopieren fehlgeschlagen:', err);
                 showNotification('Kopieren fehlgeschlagen', 'error');
