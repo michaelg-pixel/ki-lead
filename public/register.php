@@ -559,6 +559,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <a href="https://info-xxl.de/impressum/" target="_blank">Impressum</a>
             <a href="https://info-xxl.de/datenschutz/" target="_blank">Datenschutz</a>
             <a href="/public/av-vertrag.php">AV-Vertrag</a>
+            <a href="/public/agb.php" target="_blank">AGB</a>
         </div>
     </div>
 </body>
