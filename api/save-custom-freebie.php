@@ -12,6 +12,9 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
 require_once __DIR__ . '/../config/database.php';
 $pdo = getDBConnection();
 
+// Font-Konfiguration laden
+$fontConfig = require __DIR__ . '/../config/fonts.php';
+
 $customer_id = $_SESSION['user_id'];
 
 // JSON-Daten empfangen
@@ -53,6 +56,16 @@ try {
     $bulletPoints = $input['bullet_points'] ?? [];
     $bulletPointsJson = json_encode($bulletPoints);
     
+    // Font-Einstellungen mit Fallbacks
+    $preheadlineFont = $input['preheadline_font'] ?? $fontConfig['defaults']['preheadline_font'];
+    $preheadlineSize = (int)($input['preheadline_size'] ?? $fontConfig['defaults']['preheadline_size']);
+    $headlineFont = $input['headline_font'] ?? $fontConfig['defaults']['headline_font'];
+    $headlineSize = (int)($input['headline_size'] ?? $fontConfig['defaults']['headline_size']);
+    $subheadlineFont = $input['subheadline_font'] ?? $fontConfig['defaults']['subheadline_font'];
+    $subheadlineSize = (int)($input['subheadline_size'] ?? $fontConfig['defaults']['subheadline_size']);
+    $bulletpointsFont = $input['bulletpoints_font'] ?? $fontConfig['defaults']['bulletpoints_font'];
+    $bulletpointsSize = (int)($input['bulletpoints_size'] ?? $fontConfig['defaults']['bulletpoints_size']);
+    
     // Unique ID generieren (falls neu)
     $uniqueId = $id ? null : 'custom-' . uniqid() . '-' . time();
     
@@ -72,6 +85,14 @@ try {
                 layout = ?,
                 bullet_points = ?,
                 course_id = ?,
+                preheadline_font = ?,
+                preheadline_size = ?,
+                headline_font = ?,
+                headline_size = ?,
+                subheadline_font = ?,
+                subheadline_size = ?,
+                bulletpoints_font = ?,
+                bulletpoints_size = ?,
                 updated_at = NOW()
             WHERE id = ? AND customer_id = ? AND freebie_type = 'custom'
         ");
@@ -89,6 +110,14 @@ try {
             $input['layout'] ?? 'centered',
             $bulletPointsJson,
             !empty($input['course_id']) ? $input['course_id'] : null,
+            $preheadlineFont,
+            $preheadlineSize,
+            $headlineFont,
+            $headlineSize,
+            $subheadlineFont,
+            $subheadlineSize,
+            $bulletpointsFont,
+            $bulletpointsSize,
             $id,
             $customer_id
         ]);
@@ -118,11 +147,19 @@ try {
                 layout,
                 bullet_points,
                 course_id,
+                preheadline_font,
+                preheadline_size,
+                headline_font,
+                headline_size,
+                subheadline_font,
+                subheadline_size,
+                bulletpoints_font,
+                bulletpoints_size,
                 unique_id,
                 is_active,
                 created_at,
                 updated_at
-            ) VALUES (?, NULL, 'custom', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())
+            ) VALUES (?, NULL, 'custom', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())
         ");
         
         $stmt->execute([
@@ -139,6 +176,14 @@ try {
             $input['layout'] ?? 'centered',
             $bulletPointsJson,
             !empty($input['course_id']) ? $input['course_id'] : null,
+            $preheadlineFont,
+            $preheadlineSize,
+            $headlineFont,
+            $headlineSize,
+            $subheadlineFont,
+            $subheadlineSize,
+            $bulletpointsFont,
+            $bulletpointsSize,
             $uniqueId
         ]);
         
