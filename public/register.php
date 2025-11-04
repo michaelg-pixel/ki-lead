@@ -479,7 +479,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         <div class="form-group">
                             <label>Nachname</label>
-                            <input type="text" name="nachname" placeholder="Ihr Nachname" required value="<?php echo htmlspecialchars($_POST['vorname'] ?? ''); ?>">
+                            <input type="text" name="nachname" placeholder="Ihr Nachname" required value="<?php echo htmlspecialchars($_POST['nachname'] ?? ''); ?>">
                         </div>
                     </div>
                     
