@@ -35,11 +35,32 @@ $customer_param = isset($_GET['customer']) ? intval($_GET['customer']) : null;
 
 $customer_id = null;
 $freebie_db_id = null;
+$template = null;
 
 try {
     // FIX: mockup_image_url bevorzugt aus customer_freebies, fallback zu freebies Template
+    // Jetzt auch Font-Felder mit Fallback auf Template laden
     $stmt = $pdo->prepare("
-        SELECT cf.*, u.id as customer_id, COALESCE(cf.mockup_image_url, f.mockup_image_url) as mockup_image_url 
+        SELECT 
+            cf.*,
+            u.id as customer_id,
+            f.preheadline_font as template_preheadline_font,
+            f.preheadline_size as template_preheadline_size,
+            f.headline_font as template_headline_font,
+            f.headline_size as template_headline_size,
+            f.subheadline_font as template_subheadline_font,
+            f.subheadline_size as template_subheadline_size,
+            f.bulletpoints_font as template_bulletpoints_font,
+            f.bulletpoints_size as template_bulletpoints_size,
+            COALESCE(cf.mockup_image_url, f.mockup_image_url) as mockup_image_url,
+            COALESCE(cf.preheadline_font, f.preheadline_font) as preheadline_font,
+            COALESCE(cf.preheadline_size, f.preheadline_size) as preheadline_size,
+            COALESCE(cf.headline_font, f.headline_font) as headline_font,
+            COALESCE(cf.headline_size, f.headline_size) as headline_size,
+            COALESCE(cf.subheadline_font, f.subheadline_font) as subheadline_font,
+            COALESCE(cf.subheadline_size, f.subheadline_size) as subheadline_size,
+            COALESCE(cf.bulletpoints_font, f.bulletpoints_font) as bulletpoints_font,
+            COALESCE(cf.bulletpoints_size, f.bulletpoints_size) as bulletpoints_size
         FROM customer_freebies cf 
         LEFT JOIN users u ON cf.customer_id = u.id 
         LEFT JOIN freebies f ON cf.template_id = f.id 
@@ -53,6 +74,7 @@ try {
         $stmt = $pdo->prepare("SELECT * FROM freebies WHERE unique_id = ? OR url_slug = ? LIMIT 1");
         $stmt->execute([$identifier, $identifier]);
         $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
+        $template = $freebie; // Bei Master Templates ist das Freebie selbst das Template
     } else {
         $customer_id = $freebie['customer_id'] ?? null;
         $freebie_db_id = $freebie['id'] ?? null;
