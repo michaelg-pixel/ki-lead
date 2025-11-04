@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migration ausführen - Font-Felder für Customer Freebies</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+        }
+        h1 {
+            font-size: 28px;
+            color: #1a202c;
+            margin-bottom: 12px;
+        }
+        .subtitle {
+            color: #718096;
+            margin-bottom: 32px;
+            font-size: 16px;
+        }
+        .step {
+            background: #f7fafc;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+        .step-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+        .step-desc {
+            color: #4a5568;
+            line-height: 1.6;
+        }
+        .button {
+            display: inline-block;
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.2s;
+            margin-top: 24px;
+        }
+        .button:hover {
+            transform: translateY(-2px);
+        }
+        .warning {
+            background: #fef3cd;
+            border-left: 4px solid #f59e0b;
+            padding: 16px;
+            margin-bottom: 24px;
+            border-radius: 8px;
+        }
+        .warning-title {
+            font-weight: 600;
+            color: #92400e;
+            margin-bottom: 8px;
+        }
+        .warning-text {
+            color: #78350f;
+            line-height: 1.6;
+        }
+        .code {
+            background: #2d3748;
+            color: #f7fafc;
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin-top: 12px;
+        }
+        .success {
+            background: #d1fae5;
+            border-left: 4px solid #10b981;
+            padding: 16px;
+            margin-bottom: 24px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Migration: Font-Felder für Customer Freebies</h1>
+        <p class="subtitle">Diese Migration fügt Schriftart- und Schriftgrößen-Felder zur customer_freebies Tabelle hinzu.</p>
+        
+        <div class="warning">
+            <div class="warning-title">⚠️ Wichtig vor der Ausführung</div>
+            <div class="warning-text">
+                Diese Migration ändert die Datenbankstruktur. Es wird empfohlen, vor der Ausführung ein Backup zu erstellen.
+            </div>
+        </div>
+        
+        <div class="step">
+            <div class="step-title">📋 Was wird gemacht?</div>
+            <div class="step-desc">
+                <ul style="margin-left: 20px; margin-top: 8px;">
+                    <li>Font-Felder werden zur customer_freebies Tabelle hinzugefügt</li>
+                    <li>Bestehende Customer Freebies werden mit Font-Einstellungen aus ihren Templates aktualisiert</li>
+                    <li>Alle neuen Freebies erhalten automatisch die korrekten Schriftarten</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="step">
+            <div class="step-title">🚀 Migration ausführen</div>
+            <div class="step-desc">
+                Führe den folgenden Befehl auf deinem Server aus:
+                <div class="code">
+php /home/u163674869/domains/app.mehr-infos-jetzt.de/public_html/database/migrate-customer-freebies-fonts.php
+                </div>
+            </div>
+        </div>
+        
+        <div class="step">
+            <div class="step-title">✅ Nach der Migration</div>
+            <div class="step-desc">
+                Nach erfolgreicher Migration:
+                <ul style="margin-left: 20px; margin-top: 8px;">
+                    <li>Admin kann Schriftarten im Template-Editor wählen</li>
+                    <li>Font-Einstellungen werden automatisch zu Customer Freebies kopiert</li>
+                    <li>Freebies werden mit den korrekten Schriftarten angezeigt</li>
+                </ul>
+            </div>
+        </div>
+        
+        <a href="../admin/dashboard.php?page=freebies" class="button">← Zurück zum Admin Dashboard</a>
+    </div>
+</body>
+</html>
