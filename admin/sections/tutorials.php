@@ -74,17 +74,14 @@ foreach ($videos as $video) {
                                             </div>
                                         </div>
                                         <div class="video-actions">
-                                            <button class="action-btn btn-edit" onclick="editVideo(<?php echo $video['id']; ?>)" title="Video bearbeiten">
-                                                <i class="fas fa-edit"></i>
-                                                <span>Bearbeiten</span>
+                                            <button class="action-btn action-btn-view" onclick="previewVideo('<?php echo htmlspecialchars($video['vimeo_url']); ?>', '<?php echo htmlspecialchars($video['title']); ?>')" title="Video-Vorschau">
+                                                👁️
                                             </button>
-                                            <button class="action-btn btn-preview" onclick="previewVideo('<?php echo htmlspecialchars($video['vimeo_url']); ?>', '<?php echo htmlspecialchars($video['title']); ?>')" title="Video-Vorschau">
-                                                <i class="fas fa-eye"></i>
-                                                <span>Vorschau</span>
+                                            <button class="action-btn action-btn-edit" onclick="editVideo(<?php echo $video['id']; ?>)" title="Video bearbeiten">
+                                                ✏️
                                             </button>
-                                            <button class="action-btn btn-delete" onclick="deleteVideo(<?php echo $video['id']; ?>)" title="Video löschen">
-                                                <i class="fas fa-trash-alt"></i>
-                                                <span>Löschen</span>
+                                            <button class="action-btn action-btn-delete" onclick="deleteVideo(<?php echo $video['id']; ?>)" title="Video löschen">
+                                                🗑️
                                             </button>
                                         </div>
                                     </div>
@@ -133,13 +130,11 @@ foreach ($videos as $video) {
                                 </span>
                             </div>
                             <div class="category-actions">
-                                <button class="action-btn btn-edit" onclick="editCategory(<?php echo $category['id']; ?>)" title="Kategorie bearbeiten">
-                                    <i class="fas fa-edit"></i>
-                                    <span>Bearbeiten</span>
+                                <button class="action-btn action-btn-edit" onclick="editCategory(<?php echo $category['id']; ?>)" title="Kategorie bearbeiten">
+                                    ✏️
                                 </button>
-                                <button class="action-btn btn-delete" onclick="deleteCategory(<?php echo $category['id']; ?>)" title="Kategorie löschen">
-                                    <i class="fas fa-trash-alt"></i>
-                                    <span>Löschen</span>
+                                <button class="action-btn action-btn-delete" onclick="deleteCategory(<?php echo $category['id']; ?>)" title="Kategorie löschen">
+                                    🗑️
                                 </button>
                             </div>
                         </div>
@@ -160,6 +155,7 @@ foreach ($videos as $video) {
 
 <!-- Video Modal -->
 <div id="videoModal" class="modal">
+    <div class="modal-overlay" onclick="closeVideoModal()"></div>
     <div class="modal-content">
         <div class="modal-header">
             <h3 id="videoModalTitle">Video hinzufügen</h3>
@@ -203,12 +199,12 @@ foreach ($videos as $video) {
             <div class="form-group">
                 <label class="checkbox-label">
                     <input type="checkbox" id="videoActive" name="is_active" checked>
-                    Video ist aktiv (für Kunden sichtbar)
+                    <span>Video ist aktiv (für Kunden sichtbar)</span>
                 </label>
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeVideoModal()">Abbrechen</button>
+                <button type="button" class="btn btn-outline" onclick="closeVideoModal()">Abbrechen</button>
                 <button type="submit" class="btn btn-primary">Video speichern</button>
             </div>
         </form>
@@ -217,6 +213,7 @@ foreach ($videos as $video) {
 
 <!-- Category Modal -->
 <div id="categoryModal" class="modal">
+    <div class="modal-overlay" onclick="closeCategoryModal()"></div>
     <div class="modal-content">
         <div class="modal-header">
             <h3 id="categoryModalTitle">Kategorie erstellen</h3>
@@ -244,7 +241,7 @@ foreach ($videos as $video) {
             <div class="form-group">
                 <label>Icon (Font Awesome)</label>
                 <input type="text" id="categoryIcon" name="icon" value="video" class="form-control" placeholder="z.B. rocket, graduation-cap, star">
-                <small>Siehe <a href="https://fontawesome.com/icons" target="_blank">Font Awesome Icons</a></small>
+                <small>Siehe <a href="https://fontawesome.com/icons" target="_blank" style="color: #a855f7;">Font Awesome Icons</a></small>
             </div>
 
             <div class="form-group">
@@ -253,7 +250,7 @@ foreach ($videos as $video) {
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeCategoryModal()">Abbrechen</button>
+                <button type="button" class="btn btn-outline" onclick="closeCategoryModal()">Abbrechen</button>
                 <button type="submit" class="btn btn-primary">Kategorie speichern</button>
             </div>
         </form>
@@ -262,6 +259,7 @@ foreach ($videos as $video) {
 
 <!-- Preview Modal -->
 <div id="previewModal" class="modal">
+    <div class="modal-overlay" onclick="closePreviewModal()"></div>
     <div class="modal-content modal-large">
         <div class="modal-header">
             <h3 id="previewTitle">Video Vorschau</h3>
@@ -274,12 +272,14 @@ foreach ($videos as $video) {
 </div>
 
 <style>
+/* VERBESSERTE FARBEN & KONTRASTE */
+
 /* Tabs */
 .tabs-container {
     display: flex;
     gap: 8px;
     margin-bottom: 24px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid rgba(168, 85, 247, 0.3);
 }
 
 .tab-btn {
@@ -287,7 +287,7 @@ foreach ($videos as $video) {
     background: transparent;
     border: none;
     border-bottom: 2px solid transparent;
-    color: var(--text-secondary);
+    color: #a0a0a0;
     cursor: pointer;
     font-weight: 500;
     transition: all 0.2s;
@@ -297,12 +297,12 @@ foreach ($videos as $video) {
 }
 
 .tab-btn:hover {
-    color: var(--primary);
+    color: #c084fc;
 }
 
 .tab-btn.active {
-    color: var(--primary);
-    border-bottom-color: var(--primary);
+    color: #a855f7;
+    border-bottom-color: #a855f7;
 }
 
 .tab-content {
@@ -324,7 +324,7 @@ foreach ($videos as $video) {
     align-items: center;
     margin-bottom: 16px;
     padding-bottom: 12px;
-    border-bottom: 2px solid var(--border);
+    border-bottom: 2px solid rgba(168, 85, 247, 0.3);
 }
 
 .category-info {
@@ -335,7 +335,7 @@ foreach ($videos as $video) {
 
 .category-info i {
     font-size: 24px;
-    color: var(--primary);
+    color: #a855f7;
 }
 
 .category-info h5 {
@@ -346,11 +346,12 @@ foreach ($videos as $video) {
 
 .video-count {
     background: rgba(168, 85, 247, 0.2);
-    color: var(--primary-light);
+    color: #c084fc;
     padding: 4px 12px;
     border-radius: 12px;
     font-size: 12px;
     font-weight: 600;
+    border: 1px solid rgba(168, 85, 247, 0.3);
 }
 
 /* Videos Grid */
@@ -361,21 +362,22 @@ foreach ($videos as $video) {
 }
 
 .video-card {
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border);
+    background: rgba(26, 26, 46, 0.7);
+    border: 1px solid rgba(168, 85, 247, 0.3);
     border-radius: 12px;
     overflow: hidden;
     transition: all 0.2s;
 }
 
 .video-card:hover {
-    border-color: var(--primary);
+    border-color: #a855f7;
     transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(168, 85, 247, 0.3);
 }
 
 .video-thumbnail {
     aspect-ratio: 16/9;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -395,7 +397,7 @@ foreach ($videos as $video) {
 
 .video-info p {
     font-size: 13px;
-    color: var(--text-secondary);
+    color: #b0b0b0;
     margin-bottom: 12px;
     line-height: 1.4;
 }
@@ -407,92 +409,33 @@ foreach ($videos as $video) {
 }
 
 .status-badge {
-    padding: 4px 10px;
-    border-radius: 12px;
+    padding: 6px 12px;
+    border-radius: 20px;
     font-size: 11px;
     font-weight: 600;
+    border: 1px solid;
 }
 
 .status-badge.active {
-    background: rgba(74, 222, 128, 0.2);
-    color: var(--success);
+    background: rgba(34, 197, 94, 0.2);
+    color: #86efac;
+    border-color: rgba(34, 197, 94, 0.4);
 }
 
 .status-badge.inactive {
-    background: rgba(251, 113, 133, 0.2);
-    color: var(--danger);
+    background: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+    border-color: rgba(239, 68, 68, 0.4);
 }
 
-/* VERBESSERTE ACTION BUTTONS */
-.video-actions {
+/* Action Buttons - konsistent mit globalem Theme */
+.video-actions,
+.category-actions {
     display: flex;
     gap: 8px;
     padding: 12px;
     background: rgba(0, 0, 0, 0.3);
-    border-top: 1px solid var(--border);
-}
-
-.action-btn {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 10px 12px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--bg-card);
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 13px;
-    font-weight: 500;
-}
-
-.action-btn i {
-    font-size: 14px;
-}
-
-.action-btn span {
-    display: block;
-}
-
-.action-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.btn-edit {
-    border-color: rgba(168, 85, 247, 0.5);
-    color: var(--primary-light);
-}
-
-.btn-edit:hover {
-    background: rgba(168, 85, 247, 0.15);
-    border-color: var(--primary);
-    color: white;
-}
-
-.btn-preview {
-    border-color: rgba(59, 130, 246, 0.5);
-    color: #60a5fa;
-}
-
-.btn-preview:hover {
-    background: rgba(59, 130, 246, 0.15);
-    border-color: #3b82f6;
-    color: white;
-}
-
-.btn-delete {
-    border-color: rgba(251, 113, 133, 0.5);
-    color: var(--danger);
-}
-
-.btn-delete:hover {
-    background: rgba(251, 113, 133, 0.15);
-    border-color: var(--danger-dark);
-    color: white;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Categories List */
@@ -507,20 +450,21 @@ foreach ($videos as $video) {
     align-items: center;
     gap: 16px;
     padding: 16px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border);
+    background: rgba(26, 26, 46, 0.7);
+    border: 1px solid rgba(168, 85, 247, 0.3);
     border-radius: 12px;
     transition: all 0.2s;
 }
 
 .category-item:hover {
-    border-color: var(--primary);
+    border-color: #a855f7;
+    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.2);
 }
 
 .category-icon {
     width: 48px;
     height: 48px;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
     border-radius: 12px;
     display: flex;
     align-items: center;
@@ -528,6 +472,7 @@ foreach ($videos as $video) {
     font-size: 24px;
     color: white;
     flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
 }
 
 .category-details {
@@ -542,13 +487,13 @@ foreach ($videos as $video) {
 
 .category-details p {
     font-size: 13px;
-    color: var(--text-secondary);
+    color: #b0b0b0;
     margin-bottom: 4px;
 }
 
 .category-slug {
     font-size: 11px;
-    color: var(--text-muted);
+    color: #888;
     font-family: monospace;
 }
 
@@ -559,31 +504,15 @@ foreach ($videos as $video) {
 
 .stat-badge {
     background: rgba(168, 85, 247, 0.2);
-    color: var(--primary-light);
+    color: #c084fc;
     padding: 6px 12px;
     border-radius: 12px;
     font-size: 12px;
     font-weight: 600;
+    border: 1px solid rgba(168, 85, 247, 0.3);
 }
 
-.category-actions {
-    display: flex;
-    gap: 8px;
-}
-
-/* Buttons */
-.btn-primary {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-    color: white;
-}
-
-.btn-secondary {
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-    border: 1px solid var(--border);
-}
-
-/* Modal Styles */
+/* VERBESSERTE MODAL STYLES */
 .modal {
     display: none;
     position: fixed;
@@ -591,26 +520,39 @@ foreach ($videos as $video) {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    z-index: 1000;
+    z-index: 10000;
     padding: 20px;
     overflow-y: auto;
-}
-
-.modal.active {
-    display: flex;
     align-items: center;
     justify-content: center;
 }
 
+.modal.active {
+    display: flex;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(4px);
+    z-index: -1;
+}
+
 .modal-content {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: rgba(26, 26, 46, 0.98);
+    border: 1px solid rgba(168, 85, 247, 0.4);
     border-radius: 16px;
     width: 100%;
     max-width: 600px;
     max-height: 90vh;
     overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    position: relative;
+    z-index: 1;
 }
 
 .modal-content.modal-large {
@@ -621,33 +563,36 @@ foreach ($videos as $video) {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px 24px;
-    border-bottom: 1px solid var(--border);
+    padding: 24px;
+    border-bottom: 1px solid rgba(168, 85, 247, 0.2);
 }
 
 .modal-header h3 {
     font-size: 20px;
     color: white;
+    margin: 0;
 }
 
 .modal-close {
-    background: none;
-    border: none;
-    font-size: 28px;
-    color: var(--text-secondary);
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    font-size: 24px;
+    color: #f87171;
     cursor: pointer;
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 8px;
     transition: all 0.2s;
+    flex-shrink: 0;
 }
 
 .modal-close:hover {
-    background: rgba(251, 113, 133, 0.2);
-    color: var(--danger);
+    background: rgba(239, 68, 68, 0.25);
+    border-color: rgba(239, 68, 68, 0.5);
+    transform: scale(1.1);
 }
 
 .modal-body {
@@ -660,10 +605,10 @@ foreach ($videos as $video) {
     gap: 12px;
     padding-top: 20px;
     margin-top: 20px;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid rgba(168, 85, 247, 0.2);
 }
 
-/* Form Styles */
+/* VERBESSERTE FORM STYLES */
 .form-group {
     margin-bottom: 20px;
 }
@@ -671,46 +616,53 @@ foreach ($videos as $video) {
 .form-group label {
     display: block;
     margin-bottom: 8px;
-    color: var(--text-primary);
-    font-weight: 500;
+    color: #e0e0e0;
+    font-weight: 600;
     font-size: 14px;
 }
 
 .form-control {
     width: 100%;
-    padding: 10px 14px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border);
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(168, 85, 247, 0.3);
     border-radius: 8px;
-    color: var(--text-primary);
+    color: #e0e0e0;
     font-size: 14px;
     transition: all 0.2s;
 }
 
+.form-control::placeholder {
+    color: #666;
+}
+
 .form-control:focus {
     outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
+    border-color: #a855f7;
+    background: rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2);
 }
 
 .form-group small {
     display: block;
     margin-top: 6px;
-    color: var(--text-muted);
+    color: #888;
     font-size: 12px;
 }
 
 .checkbox-label {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     cursor: pointer;
+    color: #e0e0e0;
 }
 
 .checkbox-label input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     cursor: pointer;
+    accent-color: #a855f7;
 }
 
 .video-preview-container {
@@ -723,6 +675,18 @@ foreach ($videos as $video) {
 .video-preview-container iframe {
     width: 100%;
     height: 100%;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #888;
+}
+
+.empty-state-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: 0.5;
 }
 
 /* Responsive */
@@ -740,22 +704,9 @@ foreach ($videos as $video) {
         justify-content: flex-end;
     }
     
-    .action-btn span {
-        display: none;
-    }
-    
-    .action-btn {
-        padding: 10px;
-    }
-}
-
-@media (max-width: 480px) {
-    .video-actions {
-        flex-direction: column;
-    }
-    
-    .action-btn span {
-        display: block;
+    .modal-content {
+        max-width: 100%;
+        margin: 0;
     }
 }
 </style>
@@ -790,10 +741,12 @@ function openVideoModal(videoId = null) {
     }
     
     modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
 }
 
 function closeVideoModal() {
     document.getElementById('videoModal').classList.remove('active');
+    document.body.style.overflow = '';
 }
 
 function editVideo(videoId) {
@@ -882,6 +835,7 @@ function previewVideo(vimeoUrl, title) {
     container.innerHTML = `<iframe src="${vimeoUrl}" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
     
     modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
 }
 
 function closePreviewModal() {
@@ -889,6 +843,7 @@ function closePreviewModal() {
     const container = document.getElementById('previewContainer');
     container.innerHTML = '';
     modal.classList.remove('active');
+    document.body.style.overflow = '';
 }
 
 // Category Modal Functions
@@ -906,10 +861,12 @@ function openCategoryModal(categoryId = null) {
     }
     
     modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
 }
 
 function closeCategoryModal() {
     document.getElementById('categoryModal').classList.remove('active');
+    document.body.style.overflow = '';
 }
 
 function editCategory(categoryId) {
