@@ -1,8 +1,10 @@
 <?php
 /**
  * Customer Dashboard - Belohnungsstufen verwalten
- * Mit Freebie-Verknüpfung aus Empfehlungsprogramm
- * UPDATED: Unterstützt nun unique_id als Parameter
+ * KOMPLETT ÜBERARBEITET für Freebie-spezifische Belohnungen
+ * - Korrekte Verarbeitung von customer_freebie_id
+ * - Separate Belohnungen pro Freebie
+ * - Automatische Freebie-Info-Anzeige
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -10,37 +12,8 @@ if (!isset($customer_id)) {
     die('Nicht autorisiert');
 }
 
-// Freebie-ID aus URL oder Session holen - KANN JETZT unique_id oder numerische ID sein
-$freebie_param = isset($_GET['freebie_id']) ? trim($_GET['freebie_id']) : null;
-$freebie_id = null; // Numerische ID für Datenbank-Abfragen
-
-// Wenn Parameter vorhanden, versuche die numerische ID zu ermitteln
-if ($freebie_param) {
-    try {
-        // Prüfe ob es eine numerische ID oder unique_id ist
-        if (is_numeric($freebie_param)) {
-            $freebie_id = (int)$freebie_param;
-        } else {
-            // Es ist eine unique_id - hole die numerische ID
-            $stmt = $pdo->prepare("SELECT id FROM freebies WHERE unique_id = ? LIMIT 1");
-            $stmt->execute([$freebie_param]);
-            $result = $stmt->fetch(PDO::FETCH_ASSOC);
-            if ($result) {
-                $freebie_id = (int)$result['id'];
-            }
-        }
-        
-        // In Session speichern
-        if ($freebie_id) {
-            $_SESSION['selected_freebie_id'] = $freebie_id;
-        }
-    } catch (PDOException $e) {
-        error_log("Freebie ID Resolution Error: " . $e->getMessage());
-    }
-} elseif (isset($_SESSION['selected_freebie_id'])) {
-    // Aus Session holen
-    $freebie_id = $_SESSION['selected_freebie_id'];
-}
+// Freebie-ID aus URL Parameter holen (customer_freebie_id)
+$freebie_id = isset($_GET['freebie_id']) ? (int)$_GET['freebie_id'] : null;
 
 // Freebie-Details laden wenn ID vorhanden
 $selected_freebie = null;
@@ -48,24 +21,18 @@ if ($freebie_id) {
     try {
         $stmt = $pdo->prepare("
             SELECT 
-                f.id,
-                f.unique_id,
-                f.name as title,
-                f.description,
-                f.mockup_image_url as image_path,
-                CASE 
-                    WHEN f.user_id = ? THEN 'own'
-                    ELSE 'unlocked'
-                END as freebie_type
-            FROM freebies f
-            LEFT JOIN customer_freebies cf ON f.id = cf.freebie_id AND cf.customer_id = ?
-            WHERE f.id = ?
-            AND (
-                f.user_id = ?
-                OR cf.is_unlocked = 1
-            )
+                cf.id as customer_freebie_id,
+                cf.unique_id,
+                COALESCE(cf.headline, f.headline, f.name) as title,
+                COALESCE(cf.subheadline, f.subheadline) as description,
+                COALESCE(cf.mockup_image_url, f.mockup_image_url) as image_path,
+                cf.freebie_type,
+                cf.created_at
+            FROM customer_freebies cf
+            LEFT JOIN freebies f ON cf.template_id = f.id
+            WHERE cf.id = ? AND cf.customer_id = ?
         ");
-        $stmt->execute([$customer_id, $customer_id, $freebie_id, $customer_id]);
+        $stmt->execute([$freebie_id, $customer_id]);
         $selected_freebie = $stmt->fetch(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
         error_log("Freebie Load Error: " . $e->getMessage());
@@ -293,10 +260,12 @@ if ($freebie_id) {
                             Konfiguriere die Belohnungen für dein Empfehlungsprogramm
                         </p>
                     </div>
+                    <?php if ($selected_freebie): ?>
                     <button onclick="openRewardModal()" class="btn btn-primary" id="createBtn">
                         <i class="fas fa-plus"></i>
                         Neue Belohnungsstufe
                     </button>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -318,7 +287,7 @@ if ($freebie_id) {
             
             <div style="flex: 1;">
                 <div style="color: rgba(255, 255, 255, 0.7); font-size: 0.8125rem; margin-bottom: 0.25rem;">
-                    Ausgewähltes Freebie
+                    Belohnungen für Freebie
                 </div>
                 <h3 style="color: white; font-size: 1.125rem; font-weight: 600; margin-bottom: 0.25rem;">
                     <?php echo htmlspecialchars($selected_freebie['title']); ?>
@@ -331,7 +300,7 @@ if ($freebie_id) {
             </div>
             
             <a href="?page=empfehlungsprogramm" style="color: white; background: rgba(255, 255, 255, 0.2); padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; font-size: 0.875rem; white-space: nowrap;">
-                <i class="fas fa-exchange-alt"></i> Ändern
+                <i class="fas fa-arrow-left"></i> Zurück
             </a>
         </div>
         <?php else: ?>
@@ -369,14 +338,10 @@ if ($freebie_id) {
                     <i class="fas fa-exclamation-triangle"></i>
                 </div>
                 <h3 style="color: white; font-size: 1.5rem; margin-bottom: 1rem;">
-                    Setup erforderlich
+                    Fehler beim Laden
                 </h3>
                 <p id="errorMessage" style="color: #9ca3af; margin-bottom: 2rem; font-size: 1rem;">
                 </p>
-                <a href="/setup-reward-definitions.php" target="_blank" class="btn btn-primary">
-                    <i class="fas fa-wrench"></i>
-                    Setup jetzt ausführen
-                </a>
             </div>
         </div>
         
@@ -458,7 +423,7 @@ if ($freebie_id) {
                                 <option value="course">Kurs-Zugang</option>
                                 <option value="voucher">Gutschein</option>
                                 <option value="discount">Rabatt</option>
-                                <option value="freebie">Freebie</option>
+                                <option value="freebie">Zusätzliches Freebie</option>
                                 <option value="other">Sonstiges</option>
                             </select>
                         </div>
@@ -558,7 +523,7 @@ if ($freebie_id) {
         
         // Belohnungen laden
         function loadRewards() {
-            const url = freebieId ? `/api/rewards/list.php?freebie_id=${freebieId}` : '/api/rewards/list.php';
+            const url = `/api/rewards/list.php?freebie_id=${freebieId}`;
             
             fetch(url)
                 .then(response => response.json())
@@ -569,10 +534,8 @@ if ($freebie_id) {
                         rewards = data.data;
                         renderRewards();
                     } else {
-                        // Fehler anzeigen
-                        document.getElementById('errorMessage').textContent = data.error;
+                        document.getElementById('errorMessage').textContent = data.error || 'Unbekannter Fehler';
                         document.getElementById('errorState').style.display = 'block';
-                        document.getElementById('createBtn').style.display = 'none';
                     }
                 })
                 .catch(error => {
@@ -580,7 +543,6 @@ if ($freebie_id) {
                     document.getElementById('loadingState').style.display = 'none';
                     document.getElementById('errorMessage').textContent = 'Verbindungsfehler beim Laden der Belohnungsstufen.';
                     document.getElementById('errorState').style.display = 'block';
-                    document.getElementById('createBtn').style.display = 'none';
                 });
         }
         
@@ -786,7 +748,7 @@ if ($freebie_id) {
         
         // Belohnung löschen
         function deleteReward(id, name) {
-            if (!confirm(`Belohnungsstufe "${name}" wirklich löschen?\n\nHinweis: Wenn sie bereits vergeben wurde, wird sie nur deaktiviert.`)) {
+            if (!confirm(`Belohnungsstufe "${name}" wirklich löschen?`)) {
                 return;
             }
             
@@ -798,7 +760,7 @@ if ($freebie_id) {
             .then(response => response.json())
             .then(result => {
                 if (result.success) {
-                    showNotification(result.message, result.deactivated ? 'info' : 'success');
+                    showNotification(result.message, 'success');
                     loadRewards();
                 } else {
                     showNotification('Fehler: ' + result.error, 'error');
