@@ -2,13 +2,14 @@
 /**
  * Admin API: Get Customer Details
  * Abrufen vollständiger Kundendaten für Admin-Ansicht
- * SICHERE VERSION - funktioniert auch ohne optionale Tabellen/Spalten
+ * PFAD-KORREKTUR: Lädt Dateien aus dem Root-Verzeichnis
  */
 
 header('Content-Type: application/json');
 
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/auth.php';
+// KORRIGIERTE PFADE - eine Ebene höher vom /api/ Verzeichnis
+require_once dirname(__DIR__) . '/config/database.php';
+require_once dirname(__DIR__) . '/includes/auth.php';
 
 session_start();
 
