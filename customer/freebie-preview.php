@@ -10,6 +10,9 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
 require_once '../config/database.php';
 $pdo = getDBConnection();
 
+// Font-Konfiguration laden
+$fontConfig = require __DIR__ . '/../config/fonts.php';
+
 $customer_id = $_SESSION['user_id'];
 $freebie_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
@@ -37,6 +40,16 @@ try {
 } catch (PDOException $e) {
     die('Datenbankfehler: ' . $e->getMessage());
 }
+
+// Font-Einstellungen aus DB mit Fallback auf Defaults
+$preheadlineFont = $freebie['preheadline_font'] ?? $fontConfig['defaults']['preheadline_font'];
+$preheadlineSize = $freebie['preheadline_size'] ?? $fontConfig['defaults']['preheadline_size'];
+$headlineFont = $freebie['headline_font'] ?? $fontConfig['defaults']['headline_font'];
+$headlineSize = $freebie['headline_size'] ?? $fontConfig['defaults']['headline_size'];
+$subheadlineFont = $freebie['subheadline_font'] ?? $fontConfig['defaults']['subheadline_font'];
+$subheadlineSize = $freebie['subheadline_size'] ?? $fontConfig['defaults']['subheadline_size'];
+$bulletpointsFont = $freebie['bulletpoints_font'] ?? $fontConfig['defaults']['bulletpoints_font'];
+$bulletpointsSize = $freebie['bulletpoints_size'] ?? $fontConfig['defaults']['bulletpoints_size'];
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -44,7 +57,10 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Freebie Vorschau - <?php echo htmlspecialchars($freebie['headline'] ?? 'Freebie'); ?></title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Google Fonts laden - alle verfügbaren Schriftarten -->
+    <link href="<?php echo $fontConfig['google_fonts_url']; ?>" rel="stylesheet">
+    
     <style>
         * {
             margin: 0;
@@ -159,7 +175,8 @@ try {
         
         .freebie-preheadline {
             color: <?php echo htmlspecialchars($freebie['primary_color'] ?? '#667eea'); ?>;
-            font-size: 14px;
+            font-size: <?php echo (int)$preheadlineSize; ?>px;
+            font-family: '<?php echo htmlspecialchars($preheadlineFont); ?>', sans-serif;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -169,7 +186,8 @@ try {
         
         .freebie-headline {
             color: <?php echo htmlspecialchars($freebie['primary_color'] ?? '#667eea'); ?>;
-            font-size: 48px;
+            font-size: <?php echo (int)$headlineSize; ?>px;
+            font-family: '<?php echo htmlspecialchars($headlineFont); ?>', sans-serif;
             font-weight: 800;
             line-height: 1.2;
             margin-bottom: 24px;
@@ -178,7 +196,8 @@ try {
         
         .freebie-subheadline {
             color: #6b7280;
-            font-size: 20px;
+            font-size: <?php echo (int)$subheadlineSize; ?>px;
+            font-family: '<?php echo htmlspecialchars($subheadlineFont); ?>', sans-serif;
             margin-bottom: 40px;
             text-align: center;
             line-height: 1.6;
@@ -203,7 +222,8 @@ try {
         
         .bullet-text {
             color: #374151;
-            font-size: 18px;
+            font-size: <?php echo (int)$bulletpointsSize; ?>px;
+            font-family: '<?php echo htmlspecialchars($bulletpointsFont); ?>', sans-serif;
             line-height: 1.6;
         }
         
@@ -317,11 +337,15 @@ try {
             }
             
             .freebie-headline {
-                font-size: 32px;
+                font-size: <?php echo max(24, (int)$headlineSize - 10); ?>px;
             }
             
             .freebie-subheadline {
-                font-size: 16px;
+                font-size: <?php echo max(14, (int)$subheadlineSize - 2); ?>px;
+            }
+            
+            .bullet-text {
+                font-size: <?php echo max(14, (int)$bulletpointsSize - 2); ?>px;
             }
             
             .action-bar {
