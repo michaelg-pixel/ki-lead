@@ -62,6 +62,10 @@ foreach ($videos as $video) {
                                 <?php foreach ($grouped_videos[$category['id']] as $video): ?>
                                     <div class="video-card">
                                         <div class="video-thumbnail">
+                                            <?php if (!empty($video['mockup_image'])): ?>
+                                                <img src="<?php echo htmlspecialchars($video['mockup_image']); ?>" alt="Mockup" class="mockup-image">
+                                                <div class="mockup-badge">📱 Mit Mockup</div>
+                                            <?php endif; ?>
                                             <i class="fas fa-play-circle"></i>
                                         </div>
                                         <div class="video-info">
@@ -161,8 +165,10 @@ foreach ($videos as $video) {
             <h3 id="videoModalTitle">Video hinzufügen</h3>
             <button class="modal-close" onclick="closeVideoModal()">&times;</button>
         </div>
-        <form id="videoForm" class="modal-body">
+        <form id="videoForm" class="modal-body" enctype="multipart/form-data">
             <input type="hidden" id="videoId" name="id">
+            <input type="hidden" id="currentMockup" name="current_mockup">
+            <input type="hidden" id="deleteMockup" name="delete_mockup" value="0">
             
             <div class="form-group">
                 <label>Titel *</label>
@@ -178,6 +184,18 @@ foreach ($videos as $video) {
                 <label>Vimeo Video URL *</label>
                 <input type="url" id="videoUrl" name="vimeo_url" required class="form-control" placeholder="https://player.vimeo.com/video/123456789">
                 <small>Füge die Vimeo Player-URL ein (z.B. https://player.vimeo.com/video/123456789)</small>
+            </div>
+
+            <div class="form-group">
+                <label>Mockup-Bild (optional) 📱</label>
+                <div id="mockupPreviewContainer" class="mockup-preview-container" style="display: none;">
+                    <img id="mockupPreview" src="" alt="Mockup Vorschau" class="mockup-preview-image">
+                    <button type="button" class="btn-remove-mockup" onclick="removeMockup()">
+                        <i class="fas fa-times"></i> Mockup entfernen
+                    </button>
+                </div>
+                <input type="file" id="mockupImage" name="mockup_image" accept="image/*" class="form-control" onchange="previewMockupImage(this)">
+                <small>Optional: Lade ein Mockup-Bild hoch (JPG, PNG, GIF, WebP). Wird im Customer Dashboard angezeigt.</small>
             </div>
 
             <div class="form-group">
@@ -383,6 +401,37 @@ foreach ($videos as $video) {
     justify-content: center;
     color: white;
     font-size: 48px;
+    position: relative;
+    overflow: hidden;
+}
+
+.video-thumbnail .mockup-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+}
+
+.video-thumbnail .fa-play-circle {
+    position: relative;
+    z-index: 2;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+}
+
+.mockup-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(168, 85, 247, 0.9);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    z-index: 3;
+    backdrop-filter: blur(8px);
 }
 
 .video-info {
@@ -510,6 +559,41 @@ foreach ($videos as $video) {
     font-size: 12px;
     font-weight: 600;
     border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+/* Mockup Preview Styles */
+.mockup-preview-container {
+    margin-bottom: 12px;
+    position: relative;
+    border: 2px solid rgba(168, 85, 247, 0.3);
+    border-radius: 8px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.mockup-preview-image {
+    width: 100%;
+    max-height: 200px;
+    object-fit: contain;
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+
+.btn-remove-mockup {
+    width: 100%;
+    padding: 8px;
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #f87171;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.btn-remove-mockup:hover {
+    background: rgba(239, 68, 68, 0.3);
+    border-color: rgba(239, 68, 68, 0.5);
 }
 
 /* VERBESSERTE MODAL STYLES */
@@ -738,6 +822,8 @@ function openVideoModal(videoId = null) {
         title.textContent = 'Video hinzufügen';
         form.reset();
         document.getElementById('videoActive').checked = true;
+        document.getElementById('mockupPreviewContainer').style.display = 'none';
+        document.getElementById('deleteMockup').value = '0';
     }
     
     modal.classList.add('active');
@@ -766,10 +852,42 @@ async function loadVideoData(videoId) {
             document.getElementById('videoCategory').value = data.video.category_id;
             document.getElementById('videoSortOrder').value = data.video.sort_order;
             document.getElementById('videoActive').checked = data.video.is_active == 1;
+            
+            // Mockup-Vorschau anzeigen falls vorhanden
+            if (data.video.mockup_image) {
+                document.getElementById('currentMockup').value = data.video.mockup_image;
+                document.getElementById('mockupPreview').src = data.video.mockup_image;
+                document.getElementById('mockupPreviewContainer').style.display = 'block';
+            } else {
+                document.getElementById('mockupPreviewContainer').style.display = 'none';
+            }
+            document.getElementById('deleteMockup').value = '0';
         }
     } catch (error) {
         console.error('Fehler beim Laden:', error);
         alert('Fehler beim Laden des Videos');
+    }
+}
+
+// Mockup Vorschau
+function previewMockupImage(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('mockupPreview').src = e.target.result;
+            document.getElementById('mockupPreviewContainer').style.display = 'block';
+            document.getElementById('deleteMockup').value = '0';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function removeMockup() {
+    if (confirm('Möchtest du das Mockup wirklich entfernen?')) {
+        document.getElementById('mockupImage').value = '';
+        document.getElementById('mockupPreviewContainer').style.display = 'none';
+        document.getElementById('deleteMockup').value = '1';
+        document.getElementById('currentMockup').value = '';
     }
 }
 
