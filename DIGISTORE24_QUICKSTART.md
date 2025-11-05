@@ -5,7 +5,7 @@
 ### 1️⃣ Datenbank einrichten
 
 ```
-https://app.ki-leadsystem.com/database/setup-digistore-products.php
+https://app.mehr-infos-jetzt.de/database/setup-digistore-products.php
 ```
 ✅ Erstellt `digistore_products` Tabelle  
 ✅ Legt 4 Standard-Produkte an
@@ -15,7 +15,7 @@ https://app.ki-leadsystem.com/database/setup-digistore-products.php
 ### 2️⃣ Zusätzliche Tabellen erstellen
 
 ```
-https://app.ki-leadsystem.com/database/migrate-referral-slots.php
+https://app.mehr-infos-jetzt.de/database/migrate-referral-slots.php
 ```
 ✅ Erstellt `customer_referral_slots`  
 ✅ Erstellt `customer_freebies`  
@@ -43,7 +43,7 @@ https://app.ki-leadsystem.com/database/migrate-referral-slots.php
 2. Produkt → IPN Settings
 3. URL eintragen:
    ```
-   https://app.ki-leadsystem.com/webhook/digistore24.php
+   https://app.mehr-infos-jetzt.de/webhook/digistore24.php
    ```
 4. Speichern!
 
@@ -119,7 +119,7 @@ SELECT * FROM customer_freebie_limits WHERE customer_id = XXX;
 ### Test-Tool nutzen
 
 ```
-https://app.ki-leadsystem.com/webhook/test-digistore.php?product_id=DEINE_ID
+https://app.mehr-infos-jetzt.de/webhook/test-digistore.php?product_id=DEINE_ID
 ```
 
 ---
