@@ -23,7 +23,7 @@ Das Digistore24 Webhook-System ermöglicht die zentrale Verwaltung von Produkten
 
 Rufe folgende URL auf:
 ```
-https://app.ki-leadsystem.com/database/setup-digistore-products.php
+https://app.mehr-infos-jetzt.de/database/setup-digistore-products.php
 ```
 
 Das Script:
@@ -48,7 +48,7 @@ Das Script:
 3. Klicke auf **"IPN Settings"**
 4. Trage folgende URL ein:
    ```
-   https://app.ki-leadsystem.com/webhook/digistore24.php
+   https://app.mehr-infos-jetzt.de/webhook/digistore24.php
    ```
 5. Speichern!
 
@@ -200,7 +200,7 @@ Der Webhook schaltet den Kurs automatisch frei wenn das Produkt gekauft wird.
 ### Der Webhook wird nicht ausgelöst?
 
 1. **Prüfe die IPN-URL in Digistore24**
-   - Muss exakt sein: `https://app.ki-leadsystem.com/webhook/digistore24.php`
+   - Muss exakt sein: `https://app.mehr-infos-jetzt.de/webhook/digistore24.php`
    - Keine Leerzeichen oder zusätzliche Zeichen
 
 2. **Prüfe ob Produkt aktiv ist**
