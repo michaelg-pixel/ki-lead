@@ -50,6 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
     $subheadline = trim($_POST['subheadline'] ?? '');
     $preheadline = trim($_POST['preheadline'] ?? '');
     $bullet_points = trim($_POST['bullet_points'] ?? '');
+    $bullet_icon_style = $_POST['bullet_icon_style'] ?? 'standard'; // 🆕 NEUES FELD
     $cta_text = trim($_POST['cta_text'] ?? '');
     $layout = $_POST['layout'] ?? 'hybrid';
     $background_color = $_POST['background_color'] ?? '#FFFFFF';
@@ -82,11 +83,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
     
     try {
         if ($freebie) {
-            // Update existing - MIT POPUP-FELDERN
+            // Update existing - MIT POPUP-FELDERN UND BULLET_ICON_STYLE
             $stmt = $pdo->prepare("
                 UPDATE customer_freebies SET
                     headline = ?, subheadline = ?, preheadline = ?,
-                    bullet_points = ?, cta_text = ?, layout = ?,
+                    bullet_points = ?, bullet_icon_style = ?, cta_text = ?, layout = ?,
                     background_color = ?, primary_color = ?, raw_code = ?,
                     mockup_image_url = ?, video_url = ?, video_format = ?,
                     optin_display_mode = ?, popup_message = ?, cta_animation = ?,
@@ -95,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
             ");
             $stmt->execute([
                 $headline, $subheadline, $preheadline,
-                $bullet_points, $cta_text, $layout,
+                $bullet_points, $bullet_icon_style, $cta_text, $layout,
                 $background_color, $primary_color, $combined_code,
                 $mockup_image_url, $video_url, $video_format,
                 $optin_display_mode, $popup_message, $cta_animation,
@@ -104,19 +105,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
             
             $success_message = "✅ Freebie erfolgreich aktualisiert!";
         } else {
-            // Create new - MIT POPUP-FELDERN
+            // Create new - MIT POPUP-FELDERN UND BULLET_ICON_STYLE
             $stmt = $pdo->prepare("
                 INSERT INTO customer_freebies (
                     customer_id, headline, subheadline, preheadline,
-                    bullet_points, cta_text, layout, background_color, primary_color,
+                    bullet_points, bullet_icon_style, cta_text, layout, background_color, primary_color,
                     raw_code, mockup_image_url, video_url, video_format,
                     optin_display_mode, popup_message, cta_animation,
                     unique_id, url_slug, freebie_type, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'custom', NOW())
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'custom', NOW())
             ");
             $stmt->execute([
                 $customer_id, $headline, $subheadline, $preheadline,
-                $bullet_points, $cta_text, $layout, $background_color, $primary_color,
+                $bullet_points, $bullet_icon_style, $cta_text, $layout, $background_color, $primary_color,
                 $combined_code, $mockup_image_url, $video_url, $video_format,
                 $optin_display_mode, $popup_message, $cta_animation,
                 $unique_id, $url_slug
@@ -153,12 +154,13 @@ if ($freebie && !empty($freebie['raw_code'])) {
     $custom_tracking_code = isset($parts[1]) ? trim($parts[1]) : '';
 }
 
-// Daten für Formular vorbereiten - MIT POPUP-FELDERN
+// Daten für Formular vorbereiten - MIT POPUP-FELDERN UND BULLET_ICON_STYLE
 $form_data = [
     'headline' => $freebie['headline'] ?? 'Sichere dir jetzt deinen kostenlosen Zugang',
     'subheadline' => $freebie['subheadline'] ?? '',
     'preheadline' => $freebie['preheadline'] ?? '',
     'bullet_points' => $freebie['bullet_points'] ?? "✓ Sofortiger Zugang\n✓ Professionelle Inhalte\n✓ Schritt für Schritt Anleitung",
+    'bullet_icon_style' => $freebie['bullet_icon_style'] ?? 'standard', // 🆕 NEUES FELD
     'cta_text' => $freebie['cta_text'] ?? 'JETZT KOSTENLOS SICHERN',
     'layout' => $freebie['layout'] ?? 'hybrid',
     'background_color' => $freebie['background_color'] ?? '#FFFFFF',
@@ -802,6 +804,76 @@ $form_data = [
         .animate-bounce { animation: bounce 1s ease-in-out infinite; }
         .animate-glow { animation: glow 2s ease-in-out infinite; }
         
+        /* 🆕 BULLET ICON STYLE OPTIONEN */
+        .bullet-style-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .bullet-style-option {
+            position: relative;
+            cursor: pointer;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        
+        .bullet-style-option:hover {
+            border-color: #8B5CF6;
+            background: rgba(139, 92, 246, 0.05);
+        }
+        
+        .bullet-style-option input {
+            position: absolute;
+            opacity: 0;
+        }
+        
+        .bullet-style-option.selected {
+            border-color: #8B5CF6;
+            background: rgba(139, 92, 246, 0.1);
+        }
+        
+        .bullet-style-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        
+        .bullet-style-name {
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .bullet-style-desc {
+            font-size: 11px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+        
+        .bullet-style-check {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 20px;
+            height: 20px;
+            background: #8B5CF6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .bullet-style-option input:checked ~ .bullet-style-check {
+            opacity: 1;
+        }
+        
         @media (max-width: 1200px) {
             .editor-grid {
                 grid-template-columns: 1fr;
@@ -958,8 +1030,45 @@ $form_data = [
                                    oninput="updatePreview()">
                         </div>
                         
+                        <!-- 🆕 BULLET ICON STYLE AUSWAHL -->
+                        <div class="form-group">
+                            <label class="form-label">Bulletpoint-Stil</label>
+                            <div class="bullet-style-options">
+                                <label class="bullet-style-option <?php echo $form_data['bullet_icon_style'] === 'standard' ? 'selected' : ''; ?>">
+                                    <input type="radio" name="bullet_icon_style" value="standard" 
+                                           <?php echo $form_data['bullet_icon_style'] === 'standard' ? 'checked' : ''; ?>
+                                           onchange="updatePreview(); updateBulletStyleSelection(this)">
+                                    <div class="bullet-style-content">
+                                        <div class="bullet-style-icon">✓</div>
+                                        <div class="bullet-style-name">Standard Checkmarken</div>
+                                        <div class="bullet-style-desc">Grüne Haken</div>
+                                    </div>
+                                    <div class="bullet-style-check">✓</div>
+                                </label>
+                                
+                                <label class="bullet-style-option <?php echo $form_data['bullet_icon_style'] === 'custom' ? 'selected' : ''; ?>">
+                                    <input type="radio" name="bullet_icon_style" value="custom"
+                                           <?php echo $form_data['bullet_icon_style'] === 'custom' ? 'checked' : ''; ?>
+                                           onchange="updatePreview(); updateBulletStyleSelection(this)">
+                                    <div class="bullet-style-content">
+                                        <div class="bullet-style-icon">🎨</div>
+                                        <div class="bullet-style-name">Eigene Icons</div>
+                                        <div class="bullet-style-desc">Emojis oder Icons</div>
+                                    </div>
+                                    <div class="bullet-style-check">✓</div>
+                                </label>
+                            </div>
+                        </div>
+                        
                         <div class="form-group">
                             <label class="form-label">Bullet Points (eine pro Zeile)</label>
+                            <div class="info-box" id="bulletPointsHint">
+                                <div class="info-box-title">💡 Hinweis</div>
+                                <div class="info-box-text" id="bulletPointsHintText">
+                                    Bei "Standard Checkmarken": Text eingeben, Haken werden automatisch hinzugefügt<br>
+                                    Bei "Eigene Icons": Emoji/Icon am Anfang jeder Zeile einfügen (z.B. 💻 Text)
+                                </div>
+                            </div>
                             <textarea name="bullet_points" class="form-textarea" style="font-family: inherit;"
                                       oninput="updatePreview()"><?php echo htmlspecialchars($form_data['bullet_points']); ?></textarea>
                         </div>
@@ -1194,6 +1303,14 @@ $form_data = [
             });
             radio.closest('.toggle-option').classList.add('selected');
         }
+        
+        // 🆕 BULLET STYLE TOGGLE FUNKTION
+        function updateBulletStyleSelection(radio) {
+            document.querySelectorAll('.bullet-style-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            radio.closest('.bullet-style-option').classList.add('selected');
+        }
 
         function removeVideo() {
             document.getElementById('videoUrl').value = '';
@@ -1245,11 +1362,37 @@ $form_data = [
             return null;
         }
         
+        // 🆕 FUNKTION ZUM EXTRAHIEREN VON EMOJIS/ICONS
+        function extractIconFromBullet(bullet) {
+            // Regex um Emojis am Anfang zu erkennen
+            const emojiRegex = /^([\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}])/u;
+            const match = bullet.match(emojiRegex);
+            
+            if (match) {
+                return {
+                    icon: match[1],
+                    text: bullet.substring(match[1].length).trim()
+                };
+            }
+            
+            // Fallback: erstes Zeichen prüfen (könnte ein Icon sein)
+            const firstChar = bullet.charAt(0);
+            if (firstChar && !/[a-zA-Z0-9\s]/.test(firstChar)) {
+                return {
+                    icon: firstChar,
+                    text: bullet.substring(1).trim()
+                };
+            }
+            
+            return null;
+        }
+        
         function updatePreview() {
             const preheadline = document.querySelector('input[name="preheadline"]').value;
             const headline = document.querySelector('input[name="headline"]').value;
             const subheadline = document.querySelector('input[name="subheadline"]').value;
             const bulletPoints = document.querySelector('textarea[name="bullet_points"]').value;
+            const bulletIconStyle = document.querySelector('input[name="bullet_icon_style"]:checked').value; // 🆕 NEUER WERT
             const ctaText = document.querySelector('input[name="cta_text"]').value;
             const layout = document.querySelector('input[name="layout"]:checked').value;
             const primaryColor = document.getElementById('primary_color').value;
@@ -1267,15 +1410,37 @@ $form_data = [
             let bulletHTML = '';
             if (bulletPoints.trim()) {
                 const bullets = bulletPoints.split('\n').filter(b => b.trim());
+                
                 bulletHTML = bullets.map(bullet => {
-                    const cleanBullet = bullet.replace(/^[✓✔︎•-]\s*/, '');
+                    let icon = '✓';
+                    let text = bullet;
+                    
+                    // 🆕 LOGIK FÜR BULLET ICON STYLE
+                    if (bulletIconStyle === 'custom') {
+                        // Versuche Icon aus dem Text zu extrahieren
+                        const extracted = extractIconFromBullet(bullet);
+                        if (extracted) {
+                            icon = extracted.icon;
+                            text = extracted.text;
+                        } else {
+                            // Kein Icon gefunden, nutze den vollständigen Text
+                            text = bullet;
+                        }
+                    } else {
+                        // Standard: Text bereinigen und grünen Haken nutzen
+                        text = bullet.replace(/^[✓✔︎•-]\s*/, '').trim();
+                    }
+                    
+                    const iconColor = bulletIconStyle === 'standard' ? primaryColor : 'inherit';
+                    
                     return `
                         <div class="preview-bullet">
-                            <span class="preview-bullet-icon" style="color: ${primaryColor};">✓</span>
-                            <span class="preview-bullet-text">${escapeHtml(cleanBullet)}</span>
+                            <span class="preview-bullet-icon" style="color: ${iconColor};">${icon}</span>
+                            <span class="preview-bullet-text">${escapeHtml(text)}</span>
                         </div>
                     `;
                 }).join('');
+                
                 bulletHTML = `<div class="preview-bullets">${bulletHTML}</div>`;
             }
             
