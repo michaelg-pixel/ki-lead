@@ -1,6 +1,6 @@
 <?php
 /**
- * API: Kunden-Status ändern (Sperren/Aktivieren)
+ * API: Benutzer-Status ändern (Sperren/Aktivieren) - Kunden & Admins
  */
 
 session_start();
@@ -26,12 +26,12 @@ try {
     }
     
     // Aktuellen Status abrufen
-    $stmt = $pdo->prepare("SELECT id, name, email, is_active FROM users WHERE id = ? AND role = 'customer'");
+    $stmt = $pdo->prepare("SELECT id, name, email, role, is_active FROM users WHERE id = ?");
     $stmt->execute([$userId]);
     $user = $stmt->fetch();
     
     if (!$user) {
-        throw new Exception('Kunde nicht gefunden');
+        throw new Exception('Benutzer nicht gefunden');
     }
     
     // Status umkehren
@@ -41,16 +41,19 @@ try {
     $stmt = $pdo->prepare("UPDATE users SET is_active = ?, updated_at = NOW() WHERE id = ?");
     $stmt->execute([$newStatus, $userId]);
     
-    // E-Mail senden wenn gesperrt
-    if ($newStatus === 0) {
-        sendSuspensionEmail($user['email'], $user['name']);
-    } else {
-        sendReactivationEmail($user['email'], $user['name']);
+    // E-Mail senden (nur für Kunden, nicht für Admins)
+    if ($user['role'] === 'customer') {
+        if ($newStatus === 0) {
+            sendSuspensionEmail($user['email'], $user['name']);
+        } else {
+            sendReactivationEmail($user['email'], $user['name']);
+        }
     }
     
+    $userType = $user['role'] === 'admin' ? 'Admin' : 'Kunde';
     echo json_encode([
         'success' => true,
-        'message' => $newStatus ? 'Kunde aktiviert' : 'Kunde gesperrt',
+        'message' => $newStatus ? "$userType aktiviert" : "$userType gesperrt",
         'new_status' => $newStatus
     ]);
     
