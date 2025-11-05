@@ -29,7 +29,7 @@ $testData = [
 ];
 
 // Sende Request an Webhook
-$ch = curl_init('https://app.ki-leadsystem.com/webhook/digistore24.php');
+$ch = curl_init('https://app.mehr-infos-jetzt.de/webhook/digistore24.php');
 curl_setopt($ch, CURLOPT_POST, 1);
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($testData));
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
