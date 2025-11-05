@@ -1,7 +1,11 @@
 <?php
 /**
  * Layout 1 Template - ALL 3 LAYOUTS (Hybrid, Centered, Sidebar)
+ * 🆕 MIT BULLET ICON STYLE SUPPORT
  */
+
+// 🆕 BULLET ICON STYLE LADEN
+$bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -121,6 +125,13 @@
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
         }
+        
+        /* 🆕 CUSTOM ICON STYLING */
+        .bullet-icon-custom {
+            font-size: 1.5rem;
+            line-height: 1;
+            flex-shrink: 0;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -149,13 +160,71 @@
         <?php endif; ?>
         
         <?php
+        // 🆕 FUNKTION ZUM VERARBEITEN DER BULLETPOINTS
+        function processBulletPoint($bullet, $bulletIconStyle, $primaryColor) {
+            $bullet = trim($bullet);
+            if (empty($bullet)) {
+                return null;
+            }
+            
+            $icon = '✓';
+            $text = $bullet;
+            $iconColor = $primaryColor;
+            $iconType = 'fontawesome'; // oder 'emoji'
+            
+            if ($bulletIconStyle === 'custom') {
+                // Versuche Emoji/Icon am Anfang zu extrahieren
+                if (preg_match('/^([\x{1F300}-\x{1F9FF}]|[\x{2600}-\x{26FF}]|[\x{2700}-\x{27BF}])/u', $bullet, $matches)) {
+                    $icon = $matches[1];
+                    $text = trim(substr($bullet, strlen($icon)));
+                    $iconColor = 'inherit';
+                    $iconType = 'emoji';
+                } else {
+                    // Fallback: erstes Zeichen prüfen
+                    $firstChar = mb_substr($bullet, 0, 1);
+                    if ($firstChar && !preg_match('/[a-zA-Z0-9\s]/', $firstChar)) {
+                        $icon = $firstChar;
+                        $text = trim(mb_substr($bullet, 1));
+                        $iconColor = 'inherit';
+                        $iconType = 'emoji';
+                    } else {
+                        // Kein Icon gefunden, nutze den vollständigen Text
+                        $text = $bullet;
+                        $iconType = 'none';
+                    }
+                }
+            } else {
+                // Standard: Text bereinigen und grünen Haken nutzen
+                $text = preg_replace('/^[✓✔︎•\-\*]\s*/', '', $bullet);
+                $iconType = 'fontawesome';
+            }
+            
+            return [
+                'icon' => $icon,
+                'text' => $text,
+                'iconColor' => $iconColor,
+                'iconType' => $iconType
+            ];
+        }
+        
         // Bulletpoints vorbereiten
         $bullets = [];
         if (!empty($freebie['bullet_points'])) {
             if (is_string($freebie['bullet_points'])) {
-                $bullets = array_filter(explode("\n", $freebie['bullet_points']), 'trim');
+                $rawBullets = array_filter(explode("\n", $freebie['bullet_points']), 'trim');
+                foreach ($rawBullets as $bullet) {
+                    $processed = processBulletPoint($bullet, $bulletIconStyle, $freebie['primary_color'] ?? '#7C3AED');
+                    if ($processed) {
+                        $bullets[] = $processed;
+                    }
+                }
             } elseif (is_array($freebie['bullet_points'])) {
-                $bullets = $freebie['bullet_points'];
+                foreach ($freebie['bullet_points'] as $bullet) {
+                    $processed = processBulletPoint($bullet, $bulletIconStyle, $freebie['primary_color'] ?? '#7C3AED');
+                    if ($processed) {
+                        $bullets[] = $processed;
+                    }
+                }
             }
         }
         ?>
@@ -190,17 +259,18 @@
                 <?php if (!empty($bullets)): ?>
                     <ul class="space-y-4 mb-12 max-w-2xl mx-auto">
                         <?php foreach ($bullets as $bullet): ?>
-                            <?php 
-                            $clean_bullet = trim($bullet);
-                            $clean_bullet = preg_replace('/^[✓✔︎•\-\*]\s*/', '', $clean_bullet);
-                            if ($clean_bullet): 
-                            ?>
-                                <li class="flex items-start gap-4 justify-center">
+                            <li class="flex items-start gap-4 justify-center">
+                                <?php if ($bullet['iconType'] === 'fontawesome'): ?>
                                     <i class="fas fa-check-circle text-2xl mt-1" 
-                                       style="color: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>"></i>
-                                    <span class="text-lg text-gray-700"><?= htmlspecialchars($clean_bullet) ?></span>
-                                </li>
-                            <?php endif; ?>
+                                       style="color: <?= htmlspecialchars($bullet['iconColor']) ?>"></i>
+                                <?php elseif ($bullet['iconType'] === 'emoji'): ?>
+                                    <span class="bullet-icon-custom mt-1" 
+                                          style="color: <?= htmlspecialchars($bullet['iconColor']) ?>">
+                                        <?= htmlspecialchars($bullet['icon']) ?>
+                                    </span>
+                                <?php endif; ?>
+                                <span class="text-lg text-gray-700"><?= htmlspecialchars($bullet['text']) ?></span>
+                            </li>
                         <?php endforeach; ?>
                     </ul>
                 <?php endif; ?>
@@ -250,17 +320,18 @@
                     <?php if (!empty($bullets)): ?>
                         <ul class="space-y-4 mb-8">
                             <?php foreach ($bullets as $bullet): ?>
-                                <?php 
-                                $clean_bullet = trim($bullet);
-                                $clean_bullet = preg_replace('/^[✓✔︎•\-\*]\s*/', '', $clean_bullet);
-                                if ($clean_bullet): 
-                                ?>
-                                    <li class="flex items-start gap-4">
+                                <li class="flex items-start gap-4">
+                                    <?php if ($bullet['iconType'] === 'fontawesome'): ?>
                                         <i class="fas fa-check-circle text-2xl mt-1" 
-                                           style="color: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>"></i>
-                                        <span class="text-lg text-gray-700"><?= htmlspecialchars($clean_bullet) ?></span>
-                                    </li>
-                                <?php endif; ?>
+                                           style="color: <?= htmlspecialchars($bullet['iconColor']) ?>"></i>
+                                    <?php elseif ($bullet['iconType'] === 'emoji'): ?>
+                                        <span class="bullet-icon-custom mt-1" 
+                                              style="color: <?= htmlspecialchars($bullet['iconColor']) ?>">
+                                            <?= htmlspecialchars($bullet['icon']) ?>
+                                        </span>
+                                    <?php endif; ?>
+                                    <span class="text-lg text-gray-700"><?= htmlspecialchars($bullet['text']) ?></span>
+                                </li>
                             <?php endforeach; ?>
                         </ul>
                     <?php endif; ?>
@@ -357,17 +428,18 @@
                     <?php if (!empty($bullets)): ?>
                         <ul class="space-y-4 mb-8">
                             <?php foreach ($bullets as $bullet): ?>
-                                <?php 
-                                $clean_bullet = trim($bullet);
-                                $clean_bullet = preg_replace('/^[✓✔︎•\-\*]\s*/', '', $clean_bullet);
-                                if ($clean_bullet): 
-                                ?>
-                                    <li class="flex items-start gap-4">
+                                <li class="flex items-start gap-4">
+                                    <?php if ($bullet['iconType'] === 'fontawesome'): ?>
                                         <i class="fas fa-check-circle text-2xl mt-1" 
-                                           style="color: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>"></i>
-                                        <span class="text-lg text-gray-700"><?= htmlspecialchars($clean_bullet) ?></span>
-                                    </li>
-                                <?php endif; ?>
+                                           style="color: <?= htmlspecialchars($bullet['iconColor']) ?>"></i>
+                                    <?php elseif ($bullet['iconType'] === 'emoji'): ?>
+                                        <span class="bullet-icon-custom mt-1" 
+                                              style="color: <?= htmlspecialchars($bullet['iconColor']) ?>">
+                                            <?= htmlspecialchars($bullet['icon']) ?>
+                                        </span>
+                                    <?php endif; ?>
+                                    <span class="text-lg text-gray-700"><?= htmlspecialchars($bullet['text']) ?></span>
+                                </li>
                             <?php endforeach; ?>
                         </ul>
                     <?php endif; ?>
