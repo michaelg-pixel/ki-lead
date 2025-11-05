@@ -1,7 +1,7 @@
 <?php
 /**
- * Digistore24 Webhook-Zentrale - VERSION 3.1
- * Mit globalem Sync-Button und editierbaren Limits
+ * Digistore24 Webhook-Zentrale - VERSION 3.2
+ * Mit globalem Sync-Button für ALLE Kunden (inkl. manuell angelegte)
  */
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
@@ -371,6 +371,16 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
     box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
 }
 
+.btn-warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+}
+
+.btn-warning:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(245, 158, 11, 0.3);
+}
+
 .btn-secondary {
     background: #f3f4f6;
     color: #4b5563;
@@ -495,8 +505,9 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
         2. Passe die <strong>Limits</strong> nach Bedarf an (klicke auf die Zahlen)<br>
         3. Aktiviere das Produkt mit dem Schalter<br>
         4. Speichere die Änderungen<br>
-        5. Nutze "🔄 Alle Kunden aktualisieren" um die neuen Limits auf alle bestehenden Kunden anzuwenden<br>
-        6. Der Webhook erkennt automatisch welches Produkt gekauft wurde!
+        5. Nutze <strong>"🔄 Alle Kunden aktualisieren"</strong> um die neuen Limits auf bestehende Kunden anzuwenden<br>
+        6. Nutze <strong>"🌐 ALLE Kunden global aktualisieren"</strong> um ALLE Kunden (auch manuell angelegte) zu aktualisieren<br>
+        7. Der Webhook erkennt automatisch welches Produkt gekauft wurde!
     </div>
     
     <!-- Produkte -->
@@ -548,7 +559,7 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
                         
                         <div class="product-features">
                             <div class="feature-box">
-                                <label class="feature-label" for="own_freebies_<?php echo $product['id']; ?>">Eigene Freebies</label>
+                                <label class="feature-label" for="own_freebies_<?php echo $product['id']; ?>">🎁 Eigene Freebies</label>
                                 <input type="number" 
                                        id="own_freebies_<?php echo $product['id']; ?>"
                                        name="own_freebies_limit"
@@ -560,7 +571,7 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
                             
                             <?php if ($product['product_type'] === 'launch' || $product['ready_freebies_count'] > 0): ?>
                             <div class="feature-box">
-                                <label class="feature-label" for="ready_freebies_<?php echo $product['id']; ?>">Fertige Freebies</label>
+                                <label class="feature-label" for="ready_freebies_<?php echo $product['id']; ?>">📚 Fertige Freebies</label>
                                 <input type="number" 
                                        id="ready_freebies_<?php echo $product['id']; ?>"
                                        name="ready_freebies_count"
@@ -572,7 +583,7 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
                             <?php endif; ?>
                             
                             <div class="feature-box">
-                                <label class="feature-label" for="referral_slots_<?php echo $product['id']; ?>">Empfehlungs-Slots</label>
+                                <label class="feature-label" for="referral_slots_<?php echo $product['id']; ?>">🚀 Empfehlungs-Slots</label>
                                 <input type="number" 
                                        id="referral_slots_<?php echo $product['id']; ?>"
                                        name="referral_program_slots"
@@ -593,7 +604,7 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
                                     name="product_id" 
                                     id="product_id_<?php echo $product['id']; ?>"
                                     value="<?php echo htmlspecialchars($product['product_id']); ?>"
-                                    placeholder="z.B. 123456 oder PRODUCT_2024"
+                                    placeholder="z.B. 639493 oder LAUNCH_2025"
                                     required
                                 >
                             </div>
@@ -615,9 +626,16 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
                                 <?php if ($product['is_active'] && !empty($product['product_id'])): ?>
                                     <button type="button" 
                                             class="btn btn-success" 
-                                            onclick="syncProduct('<?php echo htmlspecialchars($product['product_id']); ?>', '<?php echo htmlspecialchars($product['product_name']); ?>', false)"
+                                            onclick="syncProduct('<?php echo htmlspecialchars($product['product_id']); ?>', '<?php echo htmlspecialchars($product['product_name']); ?>', false, false)"
                                             title="Alle Kunden mit diesem Tarif auf die aktuellen Limits aktualisieren">
                                         🔄 Alle Kunden aktualisieren
+                                    </button>
+                                    
+                                    <button type="button" 
+                                            class="btn btn-warning" 
+                                            onclick="syncProduct('<?php echo htmlspecialchars($product['product_id']); ?>', '<?php echo htmlspecialchars($product['product_name']); ?>', false, true)"
+                                            title="ALLE Kunden des Systems (inkl. manuell angelegte) auf diese Limits aktualisieren">
+                                        🌐 ALLE Kunden global
                                     </button>
                                     
                                     <a href="/webhook/test-digistore.php?product_id=<?php echo urlencode($product['product_id']); ?>" 
@@ -663,7 +681,7 @@ function confirmSave(event, form) {
                     `• Eigene Freebies: ${ownFreebies}\n` +
                     `• Fertige Freebies: ${readyFreebies}\n` +
                     `• Empfehlungs-Slots: ${referralSlots}\n\n` +
-                    `Hinweis: Um die neuen Limits auf bestehende Kunden anzuwenden, nutze den "Alle Kunden aktualisieren" Button.`;
+                    `Hinweis: Um die neuen Limits auf bestehende Kunden anzuwenden, nutze die Update-Buttons.`;
     
     if (confirm(message)) {
         form.submit();
@@ -672,8 +690,25 @@ function confirmSave(event, form) {
     return false;
 }
 
-async function syncProduct(productId, productName, overwriteManual = false) {
-    const message = `🔄 Tarif-Synchronisation\n\nMöchtest du ALLE Kunden mit dem Tarif "${productName}" auf die aktuellen Limits aktualisieren?\n\nDies betrifft:\n- Freebie-Limits\n- Empfehlungsprogramm-Slots\n\nManuell gesetzte Limits werden ${overwriteManual ? 'ÜBERSCHRIEBEN' : 'NICHT überschrieben'}.`;
+async function syncProduct(productId, productName, overwriteManual = false, includeAll = false) {
+    let message = '';
+    
+    if (includeAll) {
+        message = `🌐 GLOBALE Tarif-Synchronisation\n\n` +
+                 `⚠️ ACHTUNG: Diese Aktion betrifft ALLE Kunden im System!\n\n` +
+                 `Das bedeutet:\n` +
+                 `- Alle Kunden (auch manuell angelegte)\n` +
+                 `- Werden auf Tarif "${productName}" gesetzt\n` +
+                 `- Bekommen die aktuellen Limits dieses Tarifs\n\n` +
+                 `Bist du sicher?`;
+    } else {
+        message = `🔄 Tarif-Synchronisation\n\n` +
+                 `Möchtest du alle Kunden mit dem Tarif "${productName}" auf die aktuellen Limits aktualisieren?\n\n` +
+                 `Dies betrifft:\n` +
+                 `- Freebie-Limits\n` +
+                 `- Empfehlungsprogramm-Slots\n\n` +
+                 `Manuell gesetzte Limits werden ${overwriteManual ? 'ÜBERSCHRIEBEN' : 'NICHT überschrieben'}.`;
+    }
     
     if (!confirm(message)) {
         return;
@@ -682,6 +717,7 @@ async function syncProduct(productId, productName, overwriteManual = false) {
     const formData = new FormData();
     formData.append('product_id', productId);
     formData.append('overwrite_manual', overwriteManual ? '1' : '0');
+    formData.append('include_all', includeAll ? '1' : '0');
     
     const btn = event.target;
     const originalText = btn.innerHTML;
@@ -706,13 +742,17 @@ async function syncProduct(productId, productName, overwriteManual = false) {
             message += `- Freebie-Limits aktualisiert: ${stats.freebies_updated}\n`;
             message += `- Referral-Slots aktualisiert: ${stats.referrals_updated}\n`;
             
+            if (stats.new_entries_created > 0) {
+                message += `- Neue Einträge erstellt: ${stats.new_entries_created}\n`;
+            }
+            
             if (stats.manual_skipped > 0) {
                 message += `- Manuell gesetzte übersprungen: ${stats.manual_skipped}\n\n`;
                 message += `💡 Tipp: Diese ${stats.manual_skipped} Kunden haben manuell gesetzte Limits.\n`;
                 message += `Möchtest du auch diese überschreiben?`;
                 
                 if (confirm(message)) {
-                    await syncProduct(productId, productName, true);
+                    await syncProduct(productId, productName, true, includeAll);
                     return;
                 }
             }
