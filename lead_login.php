@@ -238,6 +238,8 @@ function checkAndUnlockRewards($db, $lead_id) {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
+            display: flex;
+            flex-direction: column;
         }
         
         .page-container {
@@ -247,6 +249,7 @@ function checkAndUnlockRewards($db, $lead_id) {
             grid-template-columns: 1fr 1fr;
             gap: 30px;
             align-items: start;
+            flex: 1;
         }
         
         /* Info Section */
@@ -477,6 +480,48 @@ function checkAndUnlockRewards($db, $lead_id) {
             border-left: 4px solid #28a745;
         }
         
+        /* Footer Styles */
+        .footer {
+            margin-top: 40px;
+            padding: 20px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .footer-links a {
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+            padding: 8px 16px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .footer-links a:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .footer-copyright {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 12px;
+            margin-top: 15px;
+        }
+        
         /* Mobile */
         @media (max-width: 968px) {
             .page-container {
@@ -490,6 +535,11 @@ function checkAndUnlockRewards($db, $lead_id) {
             
             .info-title {
                 font-size: 28px;
+            }
+            
+            .footer-links {
+                flex-direction: column;
+                gap: 10px;
             }
         }
     </style>
@@ -632,6 +682,21 @@ function checkAndUnlockRewards($db, $lead_id) {
             </div>
         </div>
     </div>
+    
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-links">
+            <a href="impressum.php" target="_blank" rel="noopener noreferrer">
+                <i class="fas fa-info-circle"></i> Impressum
+            </a>
+            <a href="datenschutz.php" target="_blank" rel="noopener noreferrer">
+                <i class="fas fa-shield-alt"></i> Datenschutz
+            </a>
+        </div>
+        <div class="footer-copyright">
+            © <?php echo date('Y'); ?> - Alle Rechte vorbehalten
+        </div>
+    </footer>
     
     <script>
         function switchTab(tab) {
