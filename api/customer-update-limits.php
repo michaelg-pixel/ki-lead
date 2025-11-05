@@ -1,6 +1,7 @@
 <?php
 /**
  * Admin API: Freebie-Limits und Empfehlungs-Slots manuell anpassen
+ * VERSION 2.0 - Mit Source-Tracking
  */
 
 session_start();
@@ -50,23 +51,28 @@ try {
         $exists = $stmt->fetch();
         
         if ($exists) {
-            // Update
+            // Update - WICHTIG: source = 'manual' setzen!
             $stmt = $pdo->prepare("
                 UPDATE customer_freebie_limits 
-                SET freebie_limit = ?, updated_at = NOW()
+                SET freebie_limit = ?, 
+                    source = 'manual',
+                    product_id = 'manual',
+                    product_name = 'Manuell vom Admin gesetzt',
+                    updated_at = NOW()
                 WHERE customer_id = ?
             ");
             $stmt->execute([$freebieLimit, $userId]);
         } else {
             // Insert
             $stmt = $pdo->prepare("
-                INSERT INTO customer_freebie_limits (customer_id, freebie_limit, product_id, product_name)
-                VALUES (?, ?, 'manual', 'Manuell gesetzt')
+                INSERT INTO customer_freebie_limits (
+                    customer_id, freebie_limit, product_id, product_name, source
+                ) VALUES (?, ?, 'manual', 'Manuell vom Admin gesetzt', 'manual')
             ");
             $stmt->execute([$userId, $freebieLimit]);
         }
         
-        $updated[] = "Freebie-Limit: $freebieLimit";
+        $updated[] = "Freebie-Limit: $freebieLimit (manuell)";
     }
     
     // Empfehlungs-Slots aktualisieren
@@ -77,23 +83,29 @@ try {
         $exists = $stmt->fetch();
         
         if ($exists) {
-            // Update
+            // Update - WICHTIG: source = 'manual' setzen!
             $stmt = $pdo->prepare("
                 UPDATE customer_referral_slots 
-                SET total_slots = ?, updated_at = NOW()
+                SET total_slots = ?, 
+                    source = 'manual',
+                    product_id = 'manual',
+                    product_name = 'Manuell vom Admin gesetzt',
+                    updated_at = NOW()
                 WHERE customer_id = ?
             ");
             $stmt->execute([$referralSlots, $userId]);
         } else {
             // Insert
             $stmt = $pdo->prepare("
-                INSERT INTO customer_referral_slots (customer_id, total_slots, used_slots)
-                VALUES (?, ?, 0)
+                INSERT INTO customer_referral_slots (
+                    customer_id, total_slots, used_slots, 
+                    product_id, product_name, source
+                ) VALUES (?, ?, 0, 'manual', 'Manuell vom Admin gesetzt', 'manual')
             ");
             $stmt->execute([$userId, $referralSlots]);
         }
         
-        $updated[] = "Empfehlungs-Slots: $referralSlots";
+        $updated[] = "Empfehlungs-Slots: $referralSlots (manuell)";
     }
     
     if (empty($updated)) {
@@ -102,7 +114,7 @@ try {
     
     // Log-Eintrag
     $logMessage = sprintf(
-        "Admin '%s' hat Limits für '%s' (%s) aktualisiert: %s",
+        "Admin '%s' hat Limits für '%s' (%s) manuell aktualisiert: %s",
         $_SESSION['name'] ?? $_SESSION['email'],
         $user['name'],
         $user['email'],
@@ -111,7 +123,7 @@ try {
     
     $stmt = $pdo->prepare("
         INSERT INTO admin_logs (admin_id, action, details, created_at) 
-        VALUES (?, 'customer_limits_update', ?, NOW())
+        VALUES (?, 'customer_limits_manual_update', ?, NOW())
     ");
     
     try {
@@ -122,8 +134,9 @@ try {
     
     echo json_encode([
         'success' => true,
-        'message' => 'Limits erfolgreich aktualisiert',
-        'updated' => $updated
+        'message' => 'Limits erfolgreich manuell aktualisiert',
+        'updated' => $updated,
+        'warning' => 'Diese Limits sind jetzt als "manuell" markiert und werden vom Webhook nicht überschrieben'
     ]);
     
 } catch (Exception $e) {
