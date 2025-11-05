@@ -1,7 +1,7 @@
 <?php
 /**
- * Globale Tarif-Synchronisation
- * Aktualisiert alle Kunden eines Tarifs, wenn Admin die Limits ändert
+ * Globale Tarif-Synchronisation - VERSION 2.0
+ * Aktualisiert Kunden eines Tarifs ODER alle Kunden (auch manuell angelegte)
  */
 
 session_start();
@@ -26,6 +26,7 @@ try {
     
     $productId = $_POST['product_id'] ?? null;
     $overwriteManual = isset($_POST['overwrite_manual']) && $_POST['overwrite_manual'] === '1';
+    $allCustomers = isset($_POST['all_customers']) && $_POST['all_customers'] === '1'; // NEUE OPTION
     
     if (!$productId) {
         throw new Exception('Produkt-ID fehlt');
@@ -55,43 +56,67 @@ try {
         throw new Exception('Produkt ist nicht aktiv');
     }
     
-    // Finde alle Kunden mit diesem Produkt
-    $sql = "
-        SELECT DISTINCT u.id, u.name, u.email,
-               cfl.freebie_limit as current_freebie_limit,
-               cfl.source as freebie_source,
-               crs.total_slots as current_referral_slots,
-               crs.source as referral_source
-        FROM users u
-        LEFT JOIN customer_freebie_limits cfl ON u.id = cfl.customer_id
-        LEFT JOIN customer_referral_slots crs ON u.id = crs.customer_id
-        WHERE u.role = 'customer'
-        AND (u.digistore_product_id = ? 
-             OR cfl.product_id = ?
-             OR crs.product_id = ?)
-    ";
+    // Finde Kunden basierend auf Option
+    if ($allCustomers) {
+        // ALLE Kunden des Systems (auch manuell angelegte)
+        $sql = "
+            SELECT DISTINCT u.id, u.name, u.email, u.digistore_product_id,
+                   cfl.freebie_limit as current_freebie_limit,
+                   cfl.source as freebie_source,
+                   crs.total_slots as current_referral_slots,
+                   crs.source as referral_source
+            FROM users u
+            LEFT JOIN customer_freebie_limits cfl ON u.id = cfl.customer_id
+            LEFT JOIN customer_referral_slots crs ON u.id = crs.customer_id
+            WHERE u.role = 'customer'
+        ";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute();
+    } else {
+        // Nur Kunden mit diesem Produkt (wie bisher)
+        $sql = "
+            SELECT DISTINCT u.id, u.name, u.email, u.digistore_product_id,
+                   cfl.freebie_limit as current_freebie_limit,
+                   cfl.source as freebie_source,
+                   crs.total_slots as current_referral_slots,
+                   crs.source as referral_source
+            FROM users u
+            LEFT JOIN customer_freebie_limits cfl ON u.id = cfl.customer_id
+            LEFT JOIN customer_referral_slots crs ON u.id = crs.customer_id
+            WHERE u.role = 'customer'
+            AND (u.digistore_product_id = ? 
+                 OR cfl.product_id = ?
+                 OR crs.product_id = ?)
+        ";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$productId, $productId, $productId]);
+    }
     
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([$productId, $productId, $productId]);
     $customers = $stmt->fetchAll();
     
     if (empty($customers)) {
-        throw new Exception('Keine Kunden mit diesem Produkt gefunden');
+        throw new Exception('Keine Kunden gefunden');
     }
     
     $updated = [
         'freebies' => 0,
         'referrals' => 0,
-        'skipped_manual' => 0
+        'skipped_manual' => 0,
+        'newly_initialized' => 0
     ];
     
     $pdo->beginTransaction();
     
     foreach ($customers as $customer) {
         $customerId = $customer['id'];
+        $isNewCustomer = empty($customer['current_freebie_limit']) && empty($customer['current_referral_slots']);
         
         // Freebie-Limits aktualisieren
-        if ($overwriteManual || $customer['freebie_source'] !== 'manual') {
+        $shouldUpdateFreebies = $overwriteManual || 
+                                $customer['freebie_source'] !== 'manual' || 
+                                $customer['freebie_source'] === null;
+        
+        if ($shouldUpdateFreebies) {
             // Update oder Insert
             $stmt = $pdo->prepare("
                 INSERT INTO customer_freebie_limits (
@@ -117,7 +142,11 @@ try {
         }
         
         // Referral-Slots aktualisieren
-        if ($overwriteManual || $customer['referral_source'] !== 'manual') {
+        $shouldUpdateReferrals = $overwriteManual || 
+                                 $customer['referral_source'] !== 'manual' || 
+                                 $customer['referral_source'] === null;
+        
+        if ($shouldUpdateReferrals) {
             $stmt = $pdo->prepare("
                 INSERT INTO customer_referral_slots (
                     customer_id, total_slots, used_slots, product_id, product_name, source
@@ -138,18 +167,35 @@ try {
             ]);
             $updated['referrals']++;
         }
+        
+        // Digistore-Produkt-ID in User-Tabelle setzen falls nicht vorhanden
+        if (empty($customer['digistore_product_id']) || $allCustomers) {
+            $stmt = $pdo->prepare("
+                UPDATE users 
+                SET digistore_product_id = ?,
+                    digistore_product_name = ?
+                WHERE id = ?
+            ");
+            $stmt->execute([$productId, $product['product_name'], $customerId]);
+        }
+        
+        if ($isNewCustomer) {
+            $updated['newly_initialized']++;
+        }
     }
     
     $pdo->commit();
     
     // Log-Eintrag
+    $scope = $allCustomers ? 'ALLE Kunden' : "Kunden mit Tarif '{$product['product_name']}'";
     $logMessage = sprintf(
-        "Admin '%s' hat Tarif '%s' synchronisiert: %d Kunden betroffen, %d Freebie-Limits, %d Referral-Slots aktualisiert, %d manuell übersprungen",
+        "Admin '%s' hat %s synchronisiert: %d Kunden betroffen, %d Freebie-Limits, %d Referral-Slots aktualisiert, %d neu initialisiert, %d manuell übersprungen",
         $_SESSION['name'] ?? $_SESSION['email'],
-        $product['product_name'],
+        $scope,
         count($customers),
         $updated['freebies'],
         $updated['referrals'],
+        $updated['newly_initialized'],
         $updated['skipped_manual']
     );
     
@@ -171,7 +217,9 @@ try {
             'total_customers' => count($customers),
             'freebies_updated' => $updated['freebies'],
             'referrals_updated' => $updated['referrals'],
-            'manual_skipped' => $updated['skipped_manual']
+            'newly_initialized' => $updated['newly_initialized'],
+            'manual_skipped' => $updated['skipped_manual'],
+            'scope' => $allCustomers ? 'all' : 'product'
         ],
         'product' => [
             'name' => $product['product_name'],
