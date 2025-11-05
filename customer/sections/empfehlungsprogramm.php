@@ -1,10 +1,7 @@
 <?php
 /**
  * Customer Dashboard - Empfehlungsprogramm Section
- * KOMPLETT ÜBERARBEITET für separate Freebie-Belohnungen
- * - Jedes Freebie hat eigenen Empfehlungslink
- * - Jedes Freebie kann eigene Belohnungen haben
- * - Korrekte ID-Übergabe an Belohnungsstufen
+ * KOMPLETT ÜBERARBEITET mit Slots-Verwaltung und Admin-Hinweisen
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -29,6 +26,59 @@ try {
     
     if (!$user) {
         throw new Exception("User nicht gefunden");
+    }
+    
+    // EMPFEHLUNGS-SLOTS LADEN
+    $stmt_slots = $pdo->prepare("
+        SELECT 
+            total_slots,
+            used_slots,
+            product_name,
+            source,
+            updated_at
+        FROM customer_referral_slots 
+        WHERE customer_id = ?
+    ");
+    $stmt_slots->execute([$customer_id]);
+    $slots_data = $stmt_slots->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$slots_data) {
+        // Fallback wenn keine Slots-Daten vorhanden
+        $slots_data = [
+            'total_slots' => 0,
+            'used_slots' => 0,
+            'product_name' => 'Nicht zugewiesen',
+            'source' => 'webhook',
+            'updated_at' => null
+        ];
+    }
+    
+    $total_slots = (int)$slots_data['total_slots'];
+    $used_slots = (int)$slots_data['used_slots'];
+    $available_slots = max(0, $total_slots - $used_slots);
+    $slots_source = $slots_data['source'];
+    $product_name = $slots_data['product_name'] ?? 'Nicht zugewiesen';
+    
+    // FREEBIE-LIMIT LADEN
+    $stmt_freebie_limit = $pdo->prepare("
+        SELECT 
+            freebie_limit,
+            product_name as freebie_product_name,
+            source as freebie_source
+        FROM customer_freebie_limits 
+        WHERE customer_id = ?
+    ");
+    $stmt_freebie_limit->execute([$customer_id]);
+    $freebie_limit_data = $stmt_freebie_limit->fetch(PDO::FETCH_ASSOC);
+    
+    if ($freebie_limit_data) {
+        $freebie_limit = (int)$freebie_limit_data['freebie_limit'];
+        $freebie_source = $freebie_limit_data['freebie_source'];
+        $freebie_product_name = $freebie_limit_data['freebie_product_name'] ?? 'Nicht zugewiesen';
+    } else {
+        $freebie_limit = 0;
+        $freebie_source = 'webhook';
+        $freebie_product_name = 'Nicht zugewiesen';
     }
     
     // Statistiken
@@ -142,6 +192,13 @@ try {
         return strtotime($b['created_at']) - strtotime($a['created_at']);
     });
     
+    // Anzahl erstellter Freebies zählen
+    $stmt_freebie_count = $pdo->prepare("
+        SELECT COUNT(*) FROM customer_freebies WHERE customer_id = ?
+    ");
+    $stmt_freebie_count->execute([$customer_id]);
+    $freebies_created = (int)$stmt_freebie_count->fetchColumn();
+    
     // Chart-Daten
     $stmt_chart = $pdo->prepare("
         SELECT 
@@ -174,6 +231,15 @@ try {
     $all_leads = [];
     $freebies = [];
     $chart_data = [];
+    $total_slots = 0;
+    $used_slots = 0;
+    $available_slots = 0;
+    $slots_source = 'webhook';
+    $product_name = 'Nicht zugewiesen';
+    $freebie_limit = 0;
+    $freebies_created = 0;
+    $freebie_source = 'webhook';
+    $freebie_product_name = 'Nicht zugewiesen';
 }
 
 $referralEnabled = $user['referral_enabled'] ?? 0;
@@ -217,6 +283,59 @@ for ($i = 6; $i >= 0; $i--) {
         
         .animate-fade-in-up {
             animation: fadeInUp 0.6s ease-out forwards;
+        }
+        
+        .admin-notice {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            border: 2px solid #fbbf24;
+            border-radius: 1rem;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.3);
+        }
+        
+        .admin-notice-title {
+            color: white;
+            font-size: 1.125rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .admin-notice-content {
+            color: rgba(255, 255, 255, 0.95);
+            font-size: 0.9375rem;
+            line-height: 1.6;
+        }
+        
+        .limits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .limit-box {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0.75rem;
+            padding: 1rem;
+        }
+        
+        .limit-label {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+        
+        .limit-value {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 700;
         }
         
         .toggle-switch {
@@ -513,6 +632,41 @@ for ($i = 6; $i >= 0; $i--) {
             </div>
         </div>
         
+        <!-- Admin-Hinweis wenn Limits manuell gesetzt wurden -->
+        <?php if ($slots_source === 'manual' || $freebie_source === 'manual'): ?>
+        <div class="animate-fade-in-up admin-notice" style="opacity: 0; animation-delay: 0.05s;">
+            <div class="admin-notice-title">
+                <i class="fas fa-user-shield"></i> Hinweis: Limits vom Administrator angepasst
+            </div>
+            <div class="admin-notice-content">
+                <p style="margin-bottom: 0.75rem;">
+                    Deine Limits wurden manuell vom Administrator angepasst und werden nicht automatisch durch Tarif-Upgrades überschrieben.
+                </p>
+                <div class="limits-grid">
+                    <?php if ($freebie_source === 'manual'): ?>
+                    <div class="limit-box">
+                        <div class="limit-label">🎁 Freebie-Limit</div>
+                        <div class="limit-value"><?php echo $freebies_created; ?> / <?php echo $freebie_limit; ?></div>
+                        <small style="color: rgba(255,255,255,0.7); font-size: 0.75rem; display: block; margin-top: 0.25rem;">
+                            Manuell vom Admin gesetzt
+                        </small>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <?php if ($slots_source === 'manual'): ?>
+                    <div class="limit-box">
+                        <div class="limit-label">🚀 Empfehlungs-Slots</div>
+                        <div class="limit-value"><?php echo $used_slots; ?> / <?php echo $total_slots; ?></div>
+                        <small style="color: rgba(255,255,255,0.7); font-size: 0.75rem; display: block; margin-top: 0.25rem;">
+                            Manuell vom Admin gesetzt • <?php echo $available_slots; ?> verfügbar
+                        </small>
+                    </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+        
         <!-- Statistiken -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
             <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.1s; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
@@ -524,15 +678,15 @@ for ($i = 6; $i >= 0; $i--) {
             
             <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.2s; background: linear-gradient(135deg, #8b5cf6, #7c3aed); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
                 <div style="color: white;">
-                    <div class="stat-value"><?php echo number_format((int)($stats['referred_leads'] ?? 0)); ?></div>
-                    <div class="stat-label">Über Empfehlung</div>
+                    <div class="stat-value"><?php echo $used_slots; ?> / <?php echo $total_slots; ?></div>
+                    <div class="stat-label">Empfehlungs-Slots genutzt</div>
                 </div>
             </div>
             
             <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.3s; background: linear-gradient(135deg, #10b981, #059669); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
                 <div style="color: white;">
-                    <div class="stat-value"><?php echo number_format((int)($stats['successful_referrals'] ?? 0)); ?></div>
-                    <div class="stat-label">Lead-Empfehlungen</div>
+                    <div class="stat-value"><?php echo $available_slots; ?></div>
+                    <div class="stat-label">Verfügbare Slots</div>
                 </div>
             </div>
         </div>
