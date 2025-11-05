@@ -66,8 +66,7 @@ try {
             throw new Exception('Ungültige Base64-Daten');
         }
         
-        // WICHTIG: Mockups werden jetzt im /uploads/mockups/ Ordner gespeichert
-        $upload_dir = __DIR__ . '/../uploads/mockups';
+        $upload_dir = __DIR__ . '/../uploads/freebies';
         if (!file_exists($upload_dir)) {
             mkdir($upload_dir, 0755, true);
         }
@@ -85,8 +84,7 @@ try {
             throw new Exception('Fehler beim Speichern der Datei');
         }
         
-        // WICHTIG: Pfad auf /uploads/mockups/ setzen
-        $mockup_image_url = '/uploads/mockups/' . $new_filename;
+        $mockup_image_url = '/uploads/freebies/' . $new_filename;
     }
     
     // Datenbankverbindung
@@ -174,13 +172,11 @@ try {
     if ($template_id) {
         // UPDATE
         if (empty($mockup_image_url)) {
-            // Keine neue Mockup-URL -> bestehende beibehalten
             $stmt = $pdo->prepare("SELECT mockup_image_url FROM freebies WHERE id = ?");
             $stmt->execute([$template_id]);
             $existing = $stmt->fetch(PDO::FETCH_ASSOC);
             $mockup_image_url = $existing['mockup_image_url'] ?? '';
         } else {
-            // Neue Mockup-URL -> alte Datei löschen
             $stmt = $pdo->prepare("SELECT mockup_image_url FROM freebies WHERE id = ?");
             $stmt->execute([$template_id]);
             $existing = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -290,6 +286,14 @@ try {
             $allow_customer_image,
             $template_id
         ]);
+        
+        // WICHTIG: Mockup-URL auch in customer_freebies aktualisieren!
+        $updateCustomerFreebies = $pdo->prepare("
+            UPDATE customer_freebies 
+            SET mockup_image_url = ? 
+            WHERE template_id = ? AND freebie_type = 'template'
+        ");
+        $updateCustomerFreebies->execute([$mockup_image_url, $template_id]);
         
         $response = [
             'success' => true,
