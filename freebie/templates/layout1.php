@@ -1,7 +1,7 @@
 <?php
 /**
  * Layout 1 Template - ALL 3 LAYOUTS (Hybrid, Centered, Sidebar)
- * 🆕 MIT BULLET ICON STYLE SUPPORT
+ * 🆕 MIT BULLET ICON STYLE SUPPORT & FONT-SYSTEM
  */
 
 // 🆕 BULLET ICON STYLE LADEN
@@ -15,10 +15,31 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
     <title><?= htmlspecialchars($freebie['headline']) ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- 🆕 GOOGLE FONTS DYNAMISCH LADEN -->
+    <?php if (isset($is_google_font_heading) && $is_google_font_heading || isset($is_google_font_body) && $is_google_font_body): ?>
+    <link href="https://fonts.googleapis.com/css2?family=<?php 
+        $fonts_to_load = [];
+        if (isset($is_google_font_heading) && $is_google_font_heading && isset($font_heading)) {
+            $fonts_to_load[] = str_replace(' ', '+', $font_heading) . ':wght@400;600;700;800';
+        }
+        if (isset($is_google_font_body) && $is_google_font_body && isset($font_body) && $font_body !== $font_heading) {
+            $fonts_to_load[] = str_replace(' ', '+', $font_body) . ':wght@400;600;700;800';
+        }
+        echo implode('&family=', $fonts_to_load);
+    ?>&display=swap" rel="stylesheet">
+    <?php endif; ?>
+    
     <style>
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-family: <?= isset($font_body_stack) ? $font_body_stack : '\'Inter\', -apple-system, BlinkMacSystemFont, \'Segoe UI\', sans-serif' ?>;
+            font-size: <?= isset($sizes) && isset($sizes['body']) ? $sizes['body'] : 16 ?>px;
         }
+        
+        h1, h2, h3, h4, h5, h6, .headline, .preheadline {
+            font-family: <?= isset($font_heading_stack) ? $font_heading_stack : '\'Inter\', -apple-system, BlinkMacSystemFont, \'Segoe UI\', sans-serif' ?>;
+        }
+        
         .container-custom {
             max-width: 1200px;
             margin: 0 auto;
@@ -140,21 +161,23 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
         <!-- Preheadline - IMMER ZENTRIERT -->
         <?php if (!empty($freebie['preheadline'])): ?>
             <div class="text-center mb-4">
-                <p class="text-sm font-bold uppercase tracking-wider" 
-                   style="color: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>">
+                <p class="preheadline text-sm font-bold uppercase tracking-wider" 
+                   style="color: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>; font-size: <?= isset($sizes) && isset($sizes['preheadline']) ? $sizes['preheadline'] : 13 ?>px;">
                     <?= htmlspecialchars($freebie['preheadline']) ?>
                 </p>
             </div>
         <?php endif; ?>
         
         <!-- Headline - IMMER ZENTRIERT -->
-        <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold text-center text-gray-900 mb-6 leading-tight">
+        <h1 class="headline font-bold text-center text-gray-900 mb-6 leading-tight"
+            style="font-size: <?= isset($sizes) && isset($sizes['headline']) ? $sizes['headline'] : 40 ?>px;">
             <?= htmlspecialchars($freebie['headline']) ?>
         </h1>
         
         <!-- Subheadline - IMMER ZENTRIERT -->
         <?php if (!empty($freebie['subheadline'])): ?>
-            <p class="text-xl md:text-2xl text-center text-gray-600 mb-12 max-w-3xl mx-auto">
+            <p class="text-center text-gray-600 mb-12 max-w-3xl mx-auto"
+               style="font-size: <?= isset($sizes) && isset($sizes['subheadline']) ? $sizes['subheadline'] : 20 ?>px;">
                 <?= htmlspecialchars($freebie['subheadline']) ?>
             </p>
         <?php endif; ?>
@@ -269,7 +292,9 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
                                         <?= htmlspecialchars($bullet['icon']) ?>
                                     </span>
                                 <?php endif; ?>
-                                <span class="text-lg text-gray-700"><?= htmlspecialchars($bullet['text']) ?></span>
+                                <span class="text-lg text-gray-700" style="font-size: <?= isset($sizes) && isset($sizes['body']) ? $sizes['body'] : 16 ?>px;">
+                                    <?= htmlspecialchars($bullet['text']) ?>
+                                </span>
                             </li>
                         <?php endforeach; ?>
                     </ul>
@@ -330,7 +355,9 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
                                             <?= htmlspecialchars($bullet['icon']) ?>
                                         </span>
                                     <?php endif; ?>
-                                    <span class="text-lg text-gray-700"><?= htmlspecialchars($bullet['text']) ?></span>
+                                    <span class="text-lg text-gray-700" style="font-size: <?= isset($sizes) && isset($sizes['body']) ? $sizes['body'] : 16 ?>px;">
+                                        <?= htmlspecialchars($bullet['text']) ?>
+                                    </span>
                                 </li>
                             <?php endforeach; ?>
                         </ul>
@@ -438,7 +465,9 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
                                             <?= htmlspecialchars($bullet['icon']) ?>
                                         </span>
                                     <?php endif; ?>
-                                    <span class="text-lg text-gray-700"><?= htmlspecialchars($bullet['text']) ?></span>
+                                    <span class="text-lg text-gray-700" style="font-size: <?= isset($sizes) && isset($sizes['body']) ? $sizes['body'] : 16 ?>px;">
+                                        <?= htmlspecialchars($bullet['text']) ?>
+                                    </span>
                                 </li>
                             <?php endforeach; ?>
                         </ul>
@@ -504,7 +533,7 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
                     ×
                 </button>
                 <div class="text-6xl mb-4">🎁</div>
-                <h2 class="text-3xl font-bold mb-3" 
+                <h2 class="headline text-3xl font-bold mb-3" 
                     style="color: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>">
                     <?= htmlspecialchars($freebie['headline'] ?? '') ?>
                 </h2>
