@@ -1,7 +1,7 @@
 <?php
 /**
  * Kundenverwaltung - Admin Dashboard
- * Mit Digistore24 Integration - RESPONSIVE OPTIMIERT
+ * Mit Digistore24 Integration & Limits-Verwaltung - RESPONSIVE OPTIMIERT
  */
 
 // Kunden aus Datenbank laden
@@ -341,6 +341,68 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     margin-top: 24px;
 }
 
+/* Limits Management Styles */
+.limits-info-box {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.limits-info-box .info-title {
+    color: #60a5fa;
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.limits-info-box .info-text {
+    color: #a0a0a0;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.limit-section {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(168, 85, 247, 0.2);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.limit-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.limit-section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #c084fc;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.current-value {
+    background: rgba(168, 85, 247, 0.2);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-weight: 600;
+    color: #c084fc;
+    font-size: 14px;
+}
+
+.limit-description {
+    color: #888;
+    font-size: 13px;
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
+
 /* Detail View Styles */
 .detail-section {
     margin-bottom: 24px;
@@ -661,6 +723,11 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
                                 ➕
                             </button>
                             <button class="action-btn" 
+                                    onclick="manageLimits(<?php echo $customer['id']; ?>)" 
+                                    title="Limits verwalten">
+                                📊
+                            </button>
+                            <button class="action-btn" 
                                     onclick="editCustomer(<?php echo $customer['id']; ?>)" 
                                     title="Bearbeiten">
                                 ✏️
@@ -719,6 +786,23 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
                 <button type="submit" class="btn btn-primary">Kunde hinzufügen</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Modal: Limits verwalten -->
+<div id="limitsModal" class="modal">
+    <div class="modal-content large">
+        <div class="modal-header">
+            <h3 class="modal-title">📊 Limits verwalten</h3>
+            <button class="modal-close" onclick="closeModal('limitsModal')">×</button>
+        </div>
+        
+        <div id="limitsContent">
+            <div style="text-align: center; padding: 40px;">
+                <div class="loading-spinner"></div>
+                <p style="color: #888; margin-top: 16px;">Lade Limit-Daten...</p>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -862,6 +946,146 @@ function closeModal(modalId) {
 
 function openAddCustomerModal() {
     openModal('addCustomerModal');
+}
+
+// Limits verwalten
+let currentLimitsUserId = null;
+
+async function manageLimits(userId) {
+    currentLimitsUserId = userId;
+    openModal('limitsModal');
+    
+    try {
+        const response = await fetch(`/api/customer-get-limits.php?user_id=${userId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            displayLimitsForm(result.data);
+        } else {
+            document.getElementById('limitsContent').innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #f87171;">
+                    <p>❌ ${result.error}</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        document.getElementById('limitsContent').innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #f87171;">
+                <p>❌ Fehler beim Laden der Limit-Daten</p>
+            </div>
+        `;
+    }
+}
+
+function displayLimitsForm(data) {
+    document.getElementById('limitsContent').innerHTML = `
+        <div class="limits-info-box">
+            <div class="info-title">ℹ️ Hinweis zu manuellen Änderungen</div>
+            <div class="info-text">
+                Wenn du hier Limits manuell anpasst, werden diese als "manuell gesetzt" markiert 
+                und NICHT vom Digistore24 Webhook überschrieben. Dies gibt dir volle Kontrolle für Sonderfälle.
+            </div>
+        </div>
+        
+        <form id="updateLimitsForm">
+            <input type="hidden" name="user_id" value="${data.user.id}">
+            
+            <!-- Freebie Limits -->
+            <div class="limit-section">
+                <div class="limit-section-header">
+                    <div class="limit-section-title">
+                        🎁 Freebie-Limits
+                    </div>
+                    <div class="current-value">${data.freebies_created} / ${data.freebie_limit}</div>
+                </div>
+                <div class="limit-description">
+                    Der Kunde hat aktuell <strong>${data.freebies_created}</strong> von 
+                    <strong>${data.freebie_limit}</strong> möglichen Freebies erstellt.
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Neues Freebie-Limit</label>
+                    <input type="number" 
+                           class="form-input" 
+                           name="freebie_limit" 
+                           value="${data.freebie_limit}"
+                           min="0"
+                           step="1"
+                           required>
+                    <small style="color: #888; font-size: 12px; display: block; margin-top: 4px;">
+                        Anzahl der Freebies, die der Kunde erstellen kann
+                    </small>
+                </div>
+            </div>
+            
+            <!-- Empfehlungs-Slots -->
+            <div class="limit-section">
+                <div class="limit-section-header">
+                    <div class="limit-section-title">
+                        🚀 Empfehlungsprogramm-Slots
+                    </div>
+                    <div class="current-value">${data.referral_slots_used} / ${data.referral_slots}</div>
+                </div>
+                <div class="limit-description">
+                    Der Kunde hat aktuell <strong>${data.referral_slots_used}</strong> von 
+                    <strong>${data.referral_slots}</strong> Empfehlungs-Slots genutzt. 
+                    <strong>${data.referral_slots_available}</strong> Slots verfügbar.
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Neue Anzahl Slots</label>
+                    <input type="number" 
+                           class="form-input" 
+                           name="referral_slots" 
+                           value="${data.referral_slots}"
+                           min="0"
+                           step="1"
+                           required>
+                    <small style="color: #888; font-size: 12px; display: block; margin-top: 4px;">
+                        Anzahl der Empfehlungen, die der Kunde registrieren kann
+                    </small>
+                </div>
+            </div>
+            
+            <div style="background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 8px; padding: 16px; margin-top: 20px;">
+                <div style="color: #fbbf24; font-weight: 600; margin-bottom: 8px;">
+                    ⚠️ Wichtiger Hinweis
+                </div>
+                <div style="color: #a0a0a0; font-size: 13px; line-height: 1.5;">
+                    Diese Limits werden als "manuell vom Admin gesetzt" markiert. 
+                    Sie werden <strong>NICHT</strong> durch Digistore24 Webhook-Aktualisierungen überschrieben.
+                    Tarif: <strong>${data.product_name}</strong>
+                </div>
+            </div>
+            
+            <div class="modal-actions" style="margin-top: 24px;">
+                <button type="button" class="btn btn-outline" onclick="closeModal('limitsModal')">Abbrechen</button>
+                <button type="submit" class="btn btn-primary">💾 Limits aktualisieren</button>
+            </div>
+        </form>
+    `;
+    
+    // Form Submit Handler
+    document.getElementById('updateLimitsForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        
+        try {
+            const response = await fetch('/api/customer-update-limits.php', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('✅ Limits erfolgreich aktualisiert!\n\n' + result.warning);
+                closeModal('limitsModal');
+                window.location.reload();
+            } else {
+                alert('❌ Fehler: ' + result.error);
+            }
+        } catch (error) {
+            alert('❌ Fehler beim Aktualisieren der Limits');
+        }
+    });
 }
 
 // Kunde hinzufügen
