@@ -1,3 +1,8 @@
+<?php
+/**
+ * Layout 1 Template mit POPUP & VIDEO Support
+ */
+?>
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -16,108 +21,100 @@
             padding: 40px 20px;
         }
         
-        /* E-Mail Optin Styling */
-        .email-optin-wrapper {
-            max-width: 600px;
+        /* Button Animationen */
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+            50% { transform: scale(1.05); box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15); }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-8px); }
+            20%, 40%, 60%, 80% { transform: translateX(8px); }
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 10px currentColor, 0 0 20px currentColor; }
+            50% { box-shadow: 0 0 20px currentColor, 0 0 40px currentColor; }
+        }
+        
+        .animate-pulse { animation: pulse 2s ease-in-out infinite; }
+        .animate-shake { animation: shake 0.6s ease-in-out infinite; }
+        .animate-bounce { animation: bounce 1.2s ease-in-out infinite; }
+        .animate-glow { animation: glow 2s ease-in-out infinite; }
+        
+        /* Popup Styles */
+        .popup-overlay {
+            backdrop-filter: blur(8px);
+        }
+        
+        body.popup-open {
+            overflow: hidden;
+        }
+        
+        /* Video Container */
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%;
+            height: 0;
+            overflow: hidden;
+            border-radius: 16px;
+        }
+        
+        .video-container.shorts {
+            padding-bottom: 177.78%; /* 9:16 ratio for Shorts */
+            max-width: 400px;
             margin: 0 auto;
         }
         
-        .email-optin-wrapper input[type="text"],
-        .email-optin-wrapper input[type="email"] {
-            width: 100%;
-            padding: 14px 20px;
-            margin-bottom: 12px;
-            border: 2px solid #e5e7eb;
-            border-radius: 12px;
-            font-size: 16px;
-            transition: all 0.3s;
-        }
-        
-        .email-optin-wrapper input[type="text"]:focus,
-        .email-optin-wrapper input[type="email"]:focus {
-            outline: none;
-            border-color: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>;
-            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
-        }
-        
-        .email-optin-wrapper button[type="submit"] {
-            width: 100%;
-            padding: 16px 24px;
-            background: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>;
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 18px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4);
-        }
-        
-        .email-optin-wrapper button[type="submit"]:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
-        }
-        
-        /* Cookie Modal */
-        #cookie-settings-modal {
-            backdrop-filter: blur(5px);
-            background: rgba(0, 0, 0, 0.5);
-        }
-        
-        .cookie-toggle {
-            position: relative;
-            width: 44px;
-            height: 24px;
-            background: #cbd5e0;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .cookie-toggle.active {
-            background: #48bb78;
-        }
-        
-        .cookie-toggle::after {
-            content: '';
+        .video-container iframe {
             position: absolute;
-            top: 2px;
-            left: 2px;
-            width: 20px;
-            height: 20px;
-            background: white;
-            border-radius: 50%;
-            transition: all 0.3s;
-        }
-        
-        .cookie-toggle.active::after {
-            transform: translateX(20px);
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
         }
     </style>
 </head>
 <body class="bg-gray-50">
 
     <div class="container-custom">
-        <!-- Preheadline - ZENTRIERT -->
+        <!-- Preheadline -->
         <?php if (!empty($freebie['preheadline'])): ?>
             <div class="text-center mb-4">
-                <p class="text-sm font-bold uppercase tracking-wider" style="color: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>">
+                <p class="text-sm font-bold uppercase tracking-wider" 
+                   style="color: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>">
                     <?= htmlspecialchars($freebie['preheadline']) ?>
                 </p>
             </div>
         <?php endif; ?>
         
-        <!-- Headline - ZENTRIERT -->
+        <!-- Headline -->
         <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold text-center text-gray-900 mb-6 leading-tight">
             <?= htmlspecialchars($freebie['headline']) ?>
         </h1>
         
-        <!-- Subheadline - ZENTRIERT -->
+        <!-- Subheadline -->
         <?php if (!empty($freebie['subheadline'])): ?>
             <p class="text-xl md:text-2xl text-center text-gray-600 mb-12 max-w-3xl mx-auto">
                 <?= htmlspecialchars($freebie['subheadline']) ?>
             </p>
+        <?php endif; ?>
+        
+        <!-- Video (wenn vorhanden) -->
+        <?php if (!empty($videoEmbedUrl)): ?>
+            <div class="mb-12 max-w-4xl mx-auto">
+                <div class="video-container <?= $videoFormat === 'shorts' ? 'shorts' : '' ?>">
+                    <iframe 
+                        src="<?= htmlspecialchars($videoEmbedUrl) ?>" 
+                        frameborder="0" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                        allowfullscreen>
+                    </iframe>
+                </div>
+            </div>
         <?php endif; ?>
         
         <div class="grid md:grid-cols-2 gap-12 items-start mb-12">
@@ -127,14 +124,10 @@
                     <img src="<?= htmlspecialchars($freebie['mockup_image_url']) ?>" 
                          alt="<?= htmlspecialchars($freebie['headline']) ?>" 
                          class="w-full max-w-sm rounded-2xl shadow-2xl">
-                <?php elseif (!empty($course['thumbnail'])): ?>
-                    <img src="../uploads/thumbnails/<?= htmlspecialchars($course['thumbnail']) ?>" 
-                         alt="Course" 
-                         class="w-full max-w-sm rounded-2xl shadow-2xl">
                 <?php endif; ?>
             </div>
             
-            <!-- Bulletpoints -->
+            <!-- Bulletpoints & Optin -->
             <div>
                 <?php 
                 $bullets = [];
@@ -165,64 +158,49 @@
                     </ul>
                 <?php endif; ?>
                 
-                <!-- E-Mail Optin unter den Bulletpoints -->
-                <div class="email-optin-wrapper">
-                    <?php if (!empty($freebie['raw_code'])): ?>
-                        <div class="bg-white rounded-2xl shadow-xl p-8">
+                <!-- E-Mail Optin -->
+                <?php if ($optinDisplayMode === 'popup'): ?>
+                    <!-- Popup-Button -->
+                    <div class="text-center">
+                        <button 
+                            onclick="openOptinPopup()" 
+                            class="px-8 py-4 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-xl <?= $ctaAnimation !== 'none' ? 'animate-' . $ctaAnimation : '' ?>"
+                            style="background: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>">
+                            <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt kostenlos sichern') ?>
+                        </button>
+                    </div>
+                <?php else: ?>
+                    <!-- Direkte Anzeige -->
+                    <div class="bg-white rounded-2xl shadow-xl p-8">
+                        <?php if (!empty($freebie['raw_code'])): ?>
                             <?= $freebie['raw_code'] ?>
-                        </div>
-                    <?php else: ?>
-                        <div class="bg-white rounded-2xl shadow-xl p-8">
+                        <?php else: ?>
                             <form class="space-y-4">
-                                <input type="text" 
-                                       name="first_name"
-                                       placeholder="Vorname" 
-                                       class="w-full">
-                                <input type="email" 
-                                       name="email"
-                                       placeholder="E-Mail-Adresse" 
-                                       required
-                                       class="w-full">
-                                <button type="submit">
-                                    <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt kostenlos bestellen') ?>
+                                <input type="text" name="first_name" placeholder="Vorname" 
+                                       class="w-full p-3 border-2 border-gray-300 rounded-lg">
+                                <input type="email" name="email" placeholder="E-Mail-Adresse" required
+                                       class="w-full p-3 border-2 border-gray-300 rounded-lg">
+                                <button type="submit" 
+                                        class="w-full p-4 text-white rounded-lg font-bold"
+                                        style="background: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>">
+                                    <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt anmelden') ?>
                                 </button>
                             </form>
                             <p class="text-sm text-gray-500 mt-4 text-center">
                                 <i class="fas fa-lock mr-1"></i> 
-                                100% Datenschutz • Kein Spam • Jederzeit abmelden
+                                100% Datenschutz • Kein Spam
                             </p>
-                        </div>
-                    <?php endif; ?>
-                </div>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
-        
-        <!-- Hinweis -->
-        <?php if (!empty($freebie['urgency_text'])): ?>
-            <div class="text-center mb-8">
-                <p class="text-red-600 font-bold text-lg">
-                    <?= htmlspecialchars($freebie['urgency_text']) ?>
-                </p>
-            </div>
-        <?php endif; ?>
     </div>
     
-    <!-- Footer mit kundenspezifischen Links -->
+    <!-- Footer -->
     <footer class="bg-gray-100 border-t border-gray-200 py-8 mt-16">
         <div class="container-custom">
             <div class="flex flex-wrap justify-center gap-6 text-sm text-gray-600">
-                <?php
-                // Customer-ID ermitteln für Footer-Links
-                $customer_id_footer = null;
-                if (isset($customer_id)) {
-                    $customer_id_footer = $customer_id;
-                } elseif (isset($freebie['customer_id'])) {
-                    $customer_id_footer = $freebie['customer_id'];
-                }
-                
-                $impressum_link = $customer_id_footer ? "/impressum.php?customer=" . $customer_id_footer : "/impressum.php";
-                $datenschutz_link = $customer_id_footer ? "/datenschutz.php?customer=" . $customer_id_footer : "/datenschutz.php";
-                ?>
                 <a href="<?= $impressum_link ?>" class="hover:text-gray-900 transition">Impressum</a>
                 <span class="text-gray-400">•</span>
                 <a href="<?= $datenschutz_link ?>" class="hover:text-gray-900 transition">Datenschutzerklärung</a>
@@ -230,178 +208,130 @@
         </div>
     </footer>
 
-    <!-- MODERNISIERTER Cookie Banner -->
-    <div id="cookie-banner" class="hidden fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 shadow-2xl z-50">
-        <div class="max-w-7xl mx-auto p-6">
-            <div class="flex flex-col md:flex-row items-center justify-between gap-4">
-                <div class="flex items-start gap-4 flex-1">
-                    <div class="text-3xl">🍪</div>
-                    <div>
-                        <h3 class="font-bold text-gray-900 mb-1">Wir respektieren Ihre Privatsphäre</h3>
-                        <p class="text-sm text-gray-600">
-                            Wir verwenden Cookies, um Ihnen die bestmögliche Erfahrung zu bieten. 
-                            <a href="<?= $datenschutz_link ?>" class="text-blue-600 hover:underline">Mehr erfahren</a>
-                        </p>
-                    </div>
-                </div>
-                <div class="flex flex-wrap gap-3">
-                    <button onclick="openCookieSettings()" 
-                            class="px-5 py-2.5 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition">
-                        <i class="fas fa-cog mr-2"></i>Einstellungen
-                    </button>
-                    <button onclick="rejectCookies()" 
-                            class="px-5 py-2.5 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition">
-                        Nur notwendige
-                    </button>
-                    <button onclick="acceptAllCookies()" 
-                            class="px-6 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition shadow-md">
-                        <i class="fas fa-check mr-2"></i>Alle akzeptieren
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Cookie Settings Modal -->
-    <div id="cookie-settings-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-t-2xl">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-2xl font-bold">Cookie-Einstellungen</h2>
-                    <button onclick="closeCookieSettings()" class="text-white hover:text-gray-200 text-2xl">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-            
-            <div class="p-6 space-y-6">
-                <p class="text-gray-600">
-                    Wir verwenden Cookies und ähnliche Technologien, um Ihnen das beste Erlebnis auf unserer Website zu bieten.
+    <?php if ($optinDisplayMode === 'popup'): ?>
+    <!-- Popup Overlay -->
+    <div id="optinPopupOverlay" 
+         class="popup-overlay hidden fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4" 
+         onclick="if(event.target === this) closeOptinPopup()">
+        <div class="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl" onclick="event.stopPropagation()">
+            <!-- Popup Header -->
+            <div class="relative p-8 text-center border-b-2 border-gray-100">
+                <button onclick="closeOptinPopup()" 
+                        class="absolute top-6 right-6 w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-600 text-3xl rounded-full hover:bg-gray-100 transition">
+                    ×
+                </button>
+                <div class="text-6xl mb-4">🎁</div>
+                <h2 class="text-3xl font-bold mb-3" 
+                    style="color: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>">
+                    <?= htmlspecialchars($freebie['headline'] ?? '') ?>
+                </h2>
+                <p class="text-lg text-gray-600">
+                    <?= htmlspecialchars($popupMessage ?? 'Trage dich jetzt unverbindlich ein!') ?>
                 </p>
-                
-                <div class="border-2 border-gray-200 rounded-xl p-4">
-                    <div class="flex justify-between items-center mb-2">
-                        <div>
-                            <h3 class="font-bold text-gray-900">Notwendige Cookies</h3>
-                            <p class="text-sm text-gray-600 mt-1">Diese Cookies sind für die Funktion der Website erforderlich.</p>
-                        </div>
-                        <div class="cookie-toggle active" data-locked="true"></div>
-                    </div>
-                </div>
-                
-                <div class="border-2 border-gray-200 rounded-xl p-4">
-                    <div class="flex justify-between items-center mb-2">
-                        <div>
-                            <h3 class="font-bold text-gray-900">Analyse & Statistik</h3>
-                            <p class="text-sm text-gray-600 mt-1">Helfen uns zu verstehen, wie Besucher mit der Website interagieren.</p>
-                        </div>
-                        <div class="cookie-toggle" id="analytics-toggle" onclick="toggleCookie('analytics')"></div>
-                    </div>
-                </div>
-                
-                <div class="border-2 border-gray-200 rounded-xl p-4">
-                    <div class="flex justify-between items-center mb-2">
-                        <div>
-                            <h3 class="font-bold text-gray-900">Marketing & Werbung</h3>
-                            <p class="text-sm text-gray-600 mt-1">Werden verwendet, um Besuchern relevante Anzeigen zu zeigen.</p>
-                        </div>
-                        <div class="cookie-toggle" id="marketing-toggle" onclick="toggleCookie('marketing')"></div>
-                    </div>
-                </div>
             </div>
             
-            <div class="bg-gray-50 p-6 rounded-b-2xl flex flex-wrap gap-3 justify-end">
-                <button onclick="saveSettings()" 
-                        class="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition">
-                    Einstellungen speichern
-                </button>
-                <button onclick="acceptAllFromModal()" 
-                        class="px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition">
-                    Alle akzeptieren
-                </button>
+            <!-- Popup Content -->
+            <div class="p-8">
+                <?php if (!empty($freebie['raw_code'])): ?>
+                    <div class="optin-form-wrapper">
+                        <?= $freebie['raw_code'] ?>
+                    </div>
+                <?php else: ?>
+                    <form class="space-y-4">
+                        <input type="text" name="first_name" placeholder="Vorname" 
+                               class="w-full p-4 border-2 border-gray-300 rounded-xl text-lg focus:border-purple-500 focus:outline-none transition">
+                        <input type="email" name="email" placeholder="E-Mail-Adresse" required
+                               class="w-full p-4 border-2 border-gray-300 rounded-xl text-lg focus:border-purple-500 focus:outline-none transition">
+                        <button type="submit" 
+                                class="w-full p-4 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-xl"
+                                style="background: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>">
+                            <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt anmelden') ?>
+                        </button>
+                    </form>
+                    <p class="text-sm text-gray-500 mt-4 text-center">
+                        <i class="fas fa-lock mr-1"></i> 
+                        100% Datenschutz • Kein Spam • Jederzeit abmelden
+                    </p>
+                <?php endif; ?>
+                
+                <!-- Datenschutz-Hinweis -->
+                <div class="mt-6 pt-6 border-t border-gray-200">
+                    <p class="text-xs text-gray-500 text-center">
+                        Mit der Anmeldung akzeptierst du unsere 
+                        <a href="<?= $datenschutz_link ?>" target="_blank" 
+                           class="underline hover:no-underline"
+                           style="color: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>">
+                            Datenschutzbestimmungen
+                        </a>.
+                    </p>
+                </div>
             </div>
         </div>
     </div>
-
+    
     <script>
-        let cookiePreferences = {
-            necessary: true,
-            analytics: false,
-            marketing: false
-        };
-
-        window.addEventListener('DOMContentLoaded', function() {
-            if (!localStorage.getItem('cookieConsent')) {
-                document.getElementById('cookie-banner').classList.remove('hidden');
+        function openOptinPopup() {
+            document.getElementById('optinPopupOverlay').classList.remove('hidden');
+            document.body.classList.add('popup-open');
+        }
+        
+        function closeOptinPopup() {
+            document.getElementById('optinPopupOverlay').classList.add('hidden');
+            document.body.classList.remove('popup-open');
+        }
+        
+        // ESC-Taste zum Schließen
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeOptinPopup();
             }
         });
-
-        function toggleCookie(type) {
-            cookiePreferences[type] = !cookiePreferences[type];
-            const toggle = document.getElementById(type + '-toggle');
-            if (cookiePreferences[type]) {
-                toggle.classList.add('active');
-            } else {
-                toggle.classList.remove('active');
-            }
-        }
-
-        function openCookieSettings() {
-            document.getElementById('cookie-settings-modal').classList.remove('hidden');
-            const saved = localStorage.getItem('cookiePreferences');
-            if (saved) {
-                cookiePreferences = JSON.parse(saved);
-                if (cookiePreferences.analytics) {
-                    document.getElementById('analytics-toggle').classList.add('active');
+        
+        // Formular-Styling im Popup
+        document.addEventListener('DOMContentLoaded', function() {
+            const popupForm = document.querySelector('#optinPopupOverlay .optin-form-wrapper form');
+            if (popupForm) {
+                const inputs = popupForm.querySelectorAll('input[type="email"], input[type="text"]');
+                inputs.forEach(input => {
+                    input.style.cssText = `
+                        width: 100%;
+                        padding: 16px;
+                        border: 2px solid #e5e7eb;
+                        border-radius: 12px;
+                        font-size: 16px;
+                        margin-bottom: 12px;
+                        transition: all 0.2s;
+                    `;
+                    
+                    input.addEventListener('focus', function() {
+                        this.style.borderColor = '<?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>';
+                        this.style.outline = 'none';
+                    });
+                    
+                    input.addEventListener('blur', function() {
+                        this.style.borderColor = '#e5e7eb';
+                    });
+                });
+                
+                const submitBtn = popupForm.querySelector('button[type="submit"], input[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.style.cssText = `
+                        width: 100%;
+                        padding: 16px;
+                        background: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>;
+                        color: white;
+                        border: none;
+                        border-radius: 12px;
+                        font-size: 16px;
+                        font-weight: 700;
+                        cursor: pointer;
+                        transition: all 0.3s;
+                    `;
                 }
-                if (cookiePreferences.marketing) {
-                    document.getElementById('marketing-toggle').classList.add('active');
-                }
             }
-        }
-
-        function closeCookieSettings() {
-            document.getElementById('cookie-settings-modal').classList.add('hidden');
-        }
-
-        function saveSettings() {
-            localStorage.setItem('cookieConsent', 'custom');
-            localStorage.setItem('cookiePreferences', JSON.stringify(cookiePreferences));
-            document.getElementById('cookie-banner').classList.add('hidden');
-            closeCookieSettings();
-        }
-
-        function acceptAllCookies() {
-            cookiePreferences = {
-                necessary: true,
-                analytics: true,
-                marketing: true
-            };
-            localStorage.setItem('cookieConsent', 'all');
-            localStorage.setItem('cookiePreferences', JSON.stringify(cookiePreferences));
-            document.getElementById('cookie-banner').classList.add('hidden');
-        }
-
-        function acceptAllFromModal() {
-            cookiePreferences = {
-                necessary: true,
-                analytics: true,
-                marketing: true
-            };
-            saveSettings();
-        }
-
-        function rejectCookies() {
-            cookiePreferences = {
-                necessary: true,
-                analytics: false,
-                marketing: false
-            };
-            localStorage.setItem('cookieConsent', 'necessary');
-            localStorage.setItem('cookiePreferences', JSON.stringify(cookiePreferences));
-            document.getElementById('cookie-banner').classList.add('hidden');
-        }
+        });
     </script>
+    <?php endif; ?>
 
 </body>
 </html>
