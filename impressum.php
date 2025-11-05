@@ -2,13 +2,24 @@
 require_once 'config/database.php';
 
 // Support both old 'customer' and new 'user' parameter for backward compatibility
+// If no user specified, try to find the first admin/user
 $user_id = isset($_GET['user']) ? (int)$_GET['user'] : (isset($_GET['customer']) ? (int)$_GET['customer'] : 0);
 
+$conn = getDBConnection();
+
+// If no user_id provided, get the first user with legal texts
 if (!$user_id) {
-    die('Ungültige Benutzer-ID');
+    $stmt = $conn->prepare("SELECT user_id FROM legal_texts WHERE impressum IS NOT NULL AND impressum != '' LIMIT 1");
+    $stmt->execute();
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($result) {
+        $user_id = $result['user_id'];
+    } else {
+        die('Impressum nicht verfügbar.');
+    }
 }
 
-$conn = getDBConnection();
 $stmt = $conn->prepare("SELECT impressum FROM legal_texts WHERE user_id = ?");
 $stmt->execute([$user_id]);
 $legal_text = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -26,6 +37,7 @@ if (!$legal_text || empty($legal_text['impressum'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Impressum</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-gray-50 py-12">
     <div class="max-w-4xl mx-auto px-6">
