@@ -1,6 +1,6 @@
 <?php
 /**
- * Freebie Public Page mit Cookie-Banner + REFERRAL-TRACKING
+ * Freebie Public Page mit Cookie-Banner + REFERRAL-TRACKING + VIDEO-SUPPORT
  */
 
 error_reporting(E_ALL);
@@ -39,7 +39,7 @@ $template = null;
 
 try {
     // FIX: mockup_image_url bevorzugt aus customer_freebies, fallback zu freebies Template
-    // Jetzt auch Font-Felder mit Fallback auf Template laden
+    // VIDEO-SUPPORT: video_url und video_format hinzugefügt
     $stmt = $pdo->prepare("
         SELECT 
             cf.*,
@@ -53,6 +53,8 @@ try {
             f.bulletpoints_font as template_bulletpoints_font,
             f.bulletpoints_size as template_bulletpoints_size,
             COALESCE(cf.mockup_image_url, f.mockup_image_url) as mockup_image_url,
+            COALESCE(cf.video_url, f.video_url) as video_url,
+            COALESCE(cf.video_format, f.video_format, 'widescreen') as video_format,
             COALESCE(cf.preheadline_font, f.preheadline_font) as preheadline_font,
             COALESCE(cf.preheadline_size, f.preheadline_size) as preheadline_size,
             COALESCE(cf.headline_font, f.headline_font) as headline_font,
@@ -103,6 +105,8 @@ $headline = $freebie['headline'] ?? 'Willkommen';
 $subheadline = $freebie['subheadline'] ?? '';
 $ctaText = $freebie['cta_text'] ?? 'JETZT KOSTENLOS DOWNLOADEN';
 $mockupUrl = $freebie['mockup_image_url'] ?? '';
+$videoUrl = $freebie['video_url'] ?? '';
+$videoFormat = $freebie['video_format'] ?? 'widescreen';
 $layout = $freebie['layout'] ?? 'hybrid';
 
 // Font-Einstellungen aus DB mit Fallback auf Defaults
@@ -125,6 +129,25 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
 
 // Speichere Referral-Code für Later Use
 $referral_code_to_pass = $ref_code;
+
+// Video Embed URL Konvertierung (PHP-Funktion)
+function getVideoEmbedUrl($url) {
+    if (empty($url)) return null;
+    
+    // YouTube
+    if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/', $url, $matches)) {
+        return 'https://www.youtube.com/embed/' . $matches[1];
+    }
+    
+    // Vimeo
+    if (preg_match('/vimeo\.com\/(\d+)/', $url, $matches)) {
+        return 'https://player.vimeo.com/video/' . $matches[1];
+    }
+    
+    return null;
+}
+
+$videoEmbedUrl = getVideoEmbedUrl($videoUrl);
 
 // Hilfsfunktion für Fehleranzeige
 function showError($title, $message, $details = '') {
@@ -278,7 +301,7 @@ function showError($title, $message, $details = '') {
             max-width: 700px;
             margin: 0 auto 25px;
         }
-        .layout-centered .mockup-container {
+        .layout-centered .media-container {
             margin-bottom: 30px;
         }
         .layout-centered .bullet-points {
@@ -290,17 +313,53 @@ function showError($title, $message, $details = '') {
             max-width: 500px;
         }
         
-        .mockup-container { 
+        /* VIDEO & MOCKUP CONTAINER */
+        .media-container { 
             text-align: center;
             display: flex;
             align-items: center;
             justify-content: center;
         }
+        
+        .video-container {
+            width: 100%;
+            max-width: 560px;
+            margin: 0 auto;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        }
+        
+        .video-container.portrait {
+            max-width: 315px;
+        }
+        
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+            background: #000;
+        }
+        
+        .video-wrapper.portrait {
+            padding-bottom: 177.78%; /* 9:16 aspect ratio */
+        }
+        
+        .video-wrapper iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+        
         .mockup-image {
             max-width: 260px;
             height: auto;
             display: block;
         }
+        
         .content-container { display: flex; flex-direction: column; }
         .bullet-points { list-style: none; margin-bottom: 20px; }
         .bullet-points li {
@@ -637,7 +696,7 @@ function showError($title, $message, $details = '') {
            1. Preheadline
            2. Headline
            3. Subheadline
-           4. Mockup
+           4. Video/Mockup
            5. Bulletpoints (OHNE Haken-Icons)
            6. Email Optin + Button
            7. Footer
@@ -656,22 +715,31 @@ function showError($title, $message, $details = '') {
                 margin: 0 auto 25px;
             }
             
-            /* Mockup erscheint nach Header (Order 1) */
-            .mockup-container {
+            /* Media Container (Video/Mockup) erscheint nach Header (Order 1) */
+            .media-container {
                 order: 1;
                 width: 100%;
-                max-width: 320px;
+                max-width: 100%;
                 margin: 0 auto 10px;
             }
             
-            .mockup-container .mockup-image { 
+            .video-container {
                 max-width: 100%;
+            }
+            
+            .video-container.portrait {
+                max-width: 315px;
+                margin: 0 auto;
+            }
+            
+            .media-container .mockup-image { 
+                max-width: 280px;
                 height: auto;
                 margin: 0 auto;
                 display: block;
             }
             
-            /* Content Container erscheint nach Mockup (Order 2) */
+            /* Content Container erscheint nach Media (Order 2) */
             .content-container {
                 order: 2;
                 width: 100%;
@@ -743,10 +811,6 @@ function showError($title, $message, $details = '') {
             
             .header { margin-bottom: 20px; }
             
-            .mockup-container {
-                max-width: 280px;
-            }
-            
             .bullet-points li {
                 font-size: <?php echo max(12, (int)$bulletpointsSize - 3); ?>px;
                 padding: 7px 0 7px 0 !important;
@@ -812,10 +876,6 @@ function showError($title, $message, $details = '') {
                 font-size: <?php echo max(12, (int)$subheadlineSize - 3); ?>px;
             }
             
-            .mockup-container {
-                max-width: 240px;
-            }
-            
             .bullet-points {
                 margin-bottom: 16px;
             }
@@ -842,10 +902,23 @@ function showError($title, $message, $details = '') {
         <?php if ($layout === 'centered'): ?>
             <!-- ZENTRIERTES LAYOUT -->
             <div class="main-content layout-centered">
-                <div class="mockup-container">
-                    <?php if ($mockupUrl): ?>
+                <div class="media-container">
+                    <?php if ($videoEmbedUrl): ?>
+                        <!-- VIDEO hat Priorität -->
+                        <div class="video-container <?php echo $videoFormat === 'portrait' ? 'portrait' : 'widescreen'; ?>">
+                            <div class="video-wrapper <?php echo $videoFormat === 'portrait' ? 'portrait' : ''; ?>">
+                                <iframe 
+                                    src="<?php echo htmlspecialchars($videoEmbedUrl); ?>"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                    allowfullscreen>
+                                </iframe>
+                            </div>
+                        </div>
+                    <?php elseif ($mockupUrl): ?>
+                        <!-- Fallback: Mockup-Bild -->
                         <img src="<?php echo htmlspecialchars($mockupUrl); ?>" alt="Mockup" class="mockup-image">
                     <?php else: ?>
+                        <!-- Fallback: Platzhalter-Icon -->
                         <div style="width:260px;height:300px;background:linear-gradient(135deg,<?php echo htmlspecialchars($primaryColor); ?> 0%,#667eea 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:60px;color:white;">🎁</div>
                     <?php endif; ?>
                 </div>
@@ -869,7 +942,7 @@ function showError($title, $message, $details = '') {
             </div>
             
         <?php elseif ($layout === 'sidebar'): ?>
-            <!-- SIDEBAR LAYOUT (Content links, Mockup rechts) -->
+            <!-- SIDEBAR LAYOUT (Content links, Media rechts) -->
             <div class="main-content layout-sidebar">
                 <div class="content-container">
                     <?php if (!empty($bulletPoints)): ?>
@@ -890,22 +963,48 @@ function showError($title, $message, $details = '') {
                     </div>
                 </div>
                 
-                <div class="mockup-container">
-                    <?php if ($mockupUrl): ?>
+                <div class="media-container">
+                    <?php if ($videoEmbedUrl): ?>
+                        <!-- VIDEO hat Priorität -->
+                        <div class="video-container <?php echo $videoFormat === 'portrait' ? 'portrait' : 'widescreen'; ?>">
+                            <div class="video-wrapper <?php echo $videoFormat === 'portrait' ? 'portrait' : ''; ?>">
+                                <iframe 
+                                    src="<?php echo htmlspecialchars($videoEmbedUrl); ?>"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                    allowfullscreen>
+                                </iframe>
+                            </div>
+                        </div>
+                    <?php elseif ($mockupUrl): ?>
+                        <!-- Fallback: Mockup-Bild -->
                         <img src="<?php echo htmlspecialchars($mockupUrl); ?>" alt="Mockup" class="mockup-image">
                     <?php else: ?>
+                        <!-- Fallback: Platzhalter-Icon -->
                         <div style="width:260px;height:300px;background:linear-gradient(135deg,<?php echo htmlspecialchars($primaryColor); ?> 0%,#667eea 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:60px;color:white;">🎁</div>
                     <?php endif; ?>
                 </div>
             </div>
             
         <?php else: ?>
-            <!-- HYBRID LAYOUT (Mockup LINKS, Content RECHTS) -->
+            <!-- HYBRID LAYOUT (Media LINKS, Content RECHTS) -->
             <div class="main-content layout-hybrid">
-                <div class="mockup-container">
-                    <?php if ($mockupUrl): ?>
+                <div class="media-container">
+                    <?php if ($videoEmbedUrl): ?>
+                        <!-- VIDEO hat Priorität -->
+                        <div class="video-container <?php echo $videoFormat === 'portrait' ? 'portrait' : 'widescreen'; ?>">
+                            <div class="video-wrapper <?php echo $videoFormat === 'portrait' ? 'portrait' : ''; ?>">
+                                <iframe 
+                                    src="<?php echo htmlspecialchars($videoEmbedUrl); ?>"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                    allowfullscreen>
+                                </iframe>
+                            </div>
+                        </div>
+                    <?php elseif ($mockupUrl): ?>
+                        <!-- Fallback: Mockup-Bild -->
                         <img src="<?php echo htmlspecialchars($mockupUrl); ?>" alt="Mockup" class="mockup-image">
                     <?php else: ?>
+                        <!-- Fallback: Platzhalter-Icon -->
                         <div style="width:260px;height:300px;background:linear-gradient(135deg,<?php echo htmlspecialchars($primaryColor); ?> 0%,#667eea 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:60px;color:white;">🎁</div>
                     <?php endif; ?>
                 </div>
