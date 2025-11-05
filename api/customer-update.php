@@ -1,7 +1,7 @@
 <?php
 /**
- * Admin API: Update Customer
- * Bearbeiten von Kundendaten durch Admin
+ * Admin API: Update User
+ * Bearbeiten von Benutzerdaten durch Admin (Kunden & Admins)
  * ANGEPASST AN BESTEHENDES SYSTEM
  */
 
@@ -24,6 +24,7 @@ try {
     $userId = $_POST['user_id'] ?? null;
     $name = trim($_POST['name'] ?? '');
     $email = trim($_POST['email'] ?? '');
+    $role = $_POST['role'] ?? 'customer';
     
     // Validierung
     if (!$userId) {
@@ -42,11 +43,16 @@ try {
         throw new Exception('Ungültige E-Mail-Adresse');
     }
     
-    // Prüfen, ob Kunde existiert
-    $checkStmt = $pdo->prepare("SELECT id FROM users WHERE id = ? AND role = 'customer'");
+    if (!in_array($role, ['customer', 'admin'])) {
+        throw new Exception('Ungültige Rolle');
+    }
+    
+    // Prüfen, ob Benutzer existiert
+    $checkStmt = $pdo->prepare("SELECT id, role FROM users WHERE id = ?");
     $checkStmt->execute([$userId]);
-    if (!$checkStmt->fetch()) {
-        throw new Exception('Kunde nicht gefunden');
+    $existingUser = $checkStmt->fetch();
+    if (!$existingUser) {
+        throw new Exception('Benutzer nicht gefunden');
     }
     
     // Prüfen, ob E-Mail bereits von anderem User verwendet wird
@@ -60,8 +66,8 @@ try {
     $tableColumns = $pdo->query("SHOW COLUMNS FROM users")->fetchAll(PDO::FETCH_COLUMN);
     
     // Basis-Update (immer vorhanden)
-    $updateFields = ['name = ?', 'email = ?'];
-    $updateValues = [$name, $email];
+    $updateFields = ['name = ?', 'email = ?', 'role = ?'];
+    $updateValues = [$name, $email, $role];
     
     // Optionale Felder nur hinzufügen wenn Spalte existiert
     if (in_array('raw_code', $tableColumns)) {
@@ -85,8 +91,8 @@ try {
     // User ID für WHERE clause
     $updateValues[] = $userId;
     
-    // Kundendaten aktualisieren
-    $updateQuery = "UPDATE users SET " . implode(', ', $updateFields) . " WHERE id = ? AND role = 'customer'";
+    // Benutzerdaten aktualisieren
+    $updateQuery = "UPDATE users SET " . implode(', ', $updateFields) . " WHERE id = ?";
     $updateStmt = $pdo->prepare($updateQuery);
     $updateStmt->execute($updateValues);
     
@@ -123,11 +129,11 @@ try {
     
     echo json_encode([
         'success' => true,
-        'message' => 'Kundendaten erfolgreich aktualisiert'
+        'message' => 'Benutzerdaten erfolgreich aktualisiert'
     ]);
     
 } catch (Exception $e) {
-    error_log("Customer Update Error: " . $e->getMessage());
+    error_log("User Update Error: " . $e->getMessage());
     http_response_code(400);
     echo json_encode([
         'success' => false,
