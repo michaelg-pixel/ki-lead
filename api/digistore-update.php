@@ -1,7 +1,7 @@
 <?php
 /**
  * Digistore24 Produkt-Update API
- * Aktualisiert Produkt-IDs und Aktivierungsstatus
+ * Aktualisiert Produkt-IDs, Limits und Aktivierungsstatus
  */
 
 session_start();
@@ -27,6 +27,11 @@ try {
     $productDbId = $_POST['product_db_id'] ?? null;
     $productId = trim($_POST['product_id'] ?? '');
     $isActive = isset($_POST['is_active']) ? 1 : 0;
+    
+    // NEUE FELDER: Limits
+    $ownFreebiesLimit = isset($_POST['own_freebies_limit']) ? (int)$_POST['own_freebies_limit'] : null;
+    $readyFreebiesCount = isset($_POST['ready_freebies_count']) ? (int)$_POST['ready_freebies_count'] : null;
+    $referralProgramSlots = isset($_POST['referral_program_slots']) ? (int)$_POST['referral_program_slots'] : null;
     
     if (!$productDbId) {
         throw new Exception('Produkt-ID fehlt');
@@ -58,21 +63,53 @@ try {
         throw new Exception("Diese Produkt-ID wird bereits von '{$duplicate['product_name']}' verwendet");
     }
     
-    // Produkt aktualisieren
-    $stmt = $pdo->prepare("
-        UPDATE digistore_products 
-        SET product_id = ?, is_active = ?, updated_at = NOW()
-        WHERE id = ?
-    ");
-    $stmt->execute([$productId, $isActive, $productDbId]);
+    // Produkt aktualisieren (inkl. Limits falls angegeben)
+    $updateFields = ['product_id = ?', 'is_active = ?'];
+    $updateValues = [$productId, $isActive];
     
-    // Log-Eintrag (optional)
+    if ($ownFreebiesLimit !== null) {
+        $updateFields[] = 'own_freebies_limit = ?';
+        $updateValues[] = $ownFreebiesLimit;
+    }
+    
+    if ($readyFreebiesCount !== null) {
+        $updateFields[] = 'ready_freebies_count = ?';
+        $updateValues[] = $readyFreebiesCount;
+    }
+    
+    if ($referralProgramSlots !== null) {
+        $updateFields[] = 'referral_program_slots = ?';
+        $updateValues[] = $referralProgramSlots;
+    }
+    
+    $updateFields[] = 'updated_at = NOW()';
+    $updateValues[] = $productDbId;
+    
+    $sql = "UPDATE digistore_products SET " . implode(', ', $updateFields) . " WHERE id = ?";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($updateValues);
+    
+    // Zusammenfassung der Änderungen
+    $changes = [];
+    $changes[] = "Digistore-ID: {$productId}";
+    $changes[] = "Status: " . ($isActive ? 'aktiv' : 'inaktiv');
+    
+    if ($ownFreebiesLimit !== null) {
+        $changes[] = "Eigene Freebies: {$ownFreebiesLimit}";
+    }
+    if ($readyFreebiesCount !== null) {
+        $changes[] = "Fertige Freebies: {$readyFreebiesCount}";
+    }
+    if ($referralProgramSlots !== null) {
+        $changes[] = "Empfehlungs-Slots: {$referralProgramSlots}";
+    }
+    
+    // Log-Eintrag
     $logMessage = sprintf(
-        "Admin '%s' hat Produkt '%s' aktualisiert: Digistore-ID='%s', Status=%s",
+        "Admin '%s' hat Produkt '%s' aktualisiert: %s",
         $_SESSION['name'] ?? $_SESSION['email'],
         $product['product_name'],
-        $productId,
-        $isActive ? 'aktiv' : 'inaktiv'
+        implode(', ', $changes)
     );
     
     $stmt = $pdo->prepare("
@@ -93,7 +130,8 @@ try {
             'success' => true,
             'message' => 'Produkt erfolgreich aktualisiert',
             'product_id' => $productId,
-            'is_active' => $isActive
+            'is_active' => $isActive,
+            'limits_updated' => ($ownFreebiesLimit !== null || $readyFreebiesCount !== null || $referralProgramSlots !== null)
         ]);
     } else {
         // Redirect zurück zum Dashboard
