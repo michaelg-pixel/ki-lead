@@ -50,6 +50,9 @@ $subheadlineFont = $freebie['subheadline_font'] ?? $fontConfig['defaults']['subh
 $subheadlineSize = $freebie['subheadline_size'] ?? $fontConfig['defaults']['subheadline_size'];
 $bulletpointsFont = $freebie['bulletpoints_font'] ?? $fontConfig['defaults']['bulletpoints_font'];
 $bulletpointsSize = $freebie['bulletpoints_size'] ?? $fontConfig['defaults']['bulletpoints_size'];
+
+// 🆕 BULLET ICON STYLE (mit Fallback auf Standard)
+$bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -406,18 +409,44 @@ $bulletpointsSize = $freebie['bulletpoints_size'] ?? $fontConfig['defaults']['bu
                     $subheadline_html = '<div class="freebie-subheadline">' . htmlspecialchars($freebie['subheadline']) . '</div>';
                 }
                 
-                // Bullet Points HTML
+                // 🆕 BULLET POINTS MIT BULLET ICON STYLE LOGIK
                 $bullets_html = '';
                 if (!empty($freebie['bullet_points'])) {
                     $bullets = array_filter(explode("\n", $freebie['bullet_points']), function($b) { return trim($b) !== ''; });
                     if (!empty($bullets)) {
                         $bullets_html = '<div class="freebie-bullets">';
+                        
                         foreach ($bullets as $bullet) {
-                            $clean_bullet = preg_replace('/^[✓✔︎•-]\s*/', '', trim($bullet));
+                            $bullet = trim($bullet);
+                            $icon = '✓';
+                            $text = $bullet;
+                            $iconColor = htmlspecialchars($freebie['primary_color'] ?? '#667eea');
+                            
+                            // 🆕 LOGIK FÜR BULLET ICON STYLE
+                            if ($bulletIconStyle === 'custom') {
+                                // Versuche Emoji/Icon am Anfang zu extrahieren
+                                if (preg_match('/^([\x{1F300}-\x{1F9FF}]|[\x{2600}-\x{26FF}]|[\x{2700}-\x{27BF}])/u', $bullet, $matches)) {
+                                    $icon = $matches[1];
+                                    $text = trim(substr($bullet, strlen($icon)));
+                                    $iconColor = 'inherit';
+                                } else {
+                                    // Fallback: erstes Zeichen prüfen
+                                    $firstChar = mb_substr($bullet, 0, 1);
+                                    if ($firstChar && !preg_match('/[a-zA-Z0-9\s]/', $firstChar)) {
+                                        $icon = $firstChar;
+                                        $text = trim(mb_substr($bullet, 1));
+                                        $iconColor = 'inherit';
+                                    }
+                                }
+                            } else {
+                                // Standard: Text bereinigen und grünen Haken nutzen
+                                $text = preg_replace('/^[✓✔︎•-]\s*/', '', $bullet);
+                            }
+                            
                             $bullets_html .= '
                                 <div class="freebie-bullet">
-                                    <div class="bullet-icon">✓</div>
-                                    <div class="bullet-text">' . htmlspecialchars($clean_bullet) . '</div>
+                                    <div class="bullet-icon" style="color: ' . $iconColor . ';">' . htmlspecialchars($icon) . '</div>
+                                    <div class="bullet-text">' . htmlspecialchars($text) . '</div>
                                 </div>
                             ';
                         }
