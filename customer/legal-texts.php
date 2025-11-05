@@ -62,62 +62,62 @@ if (isset($_POST['save_legal_texts'])) {
 
     <!-- Navigation -->
     <nav class="bg-white shadow-lg">
-        <div class="max-w-7xl mx-auto px-6 py-4">
-            <div class="flex justify-between items-center">
-                <div class="text-2xl font-bold text-purple-600">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+            <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div class="text-xl sm:text-2xl font-bold text-purple-600">
                     🚀 KI Lead-System
                 </div>
-                <div class="flex gap-6">
+                <div class="flex gap-4 sm:gap-6 text-sm sm:text-base">
                     <a href="dashboard.php" class="text-gray-600 hover:text-purple-600">
-                        <i class="fas fa-home mr-2"></i> Dashboard
+                        <i class="fas fa-home mr-1 sm:mr-2"></i> Dashboard
                     </a>
                     <a href="legal-texts.php" class="text-purple-600 font-semibold">
-                        <i class="fas fa-file-contract mr-2"></i> Rechtstexte
+                        <i class="fas fa-file-contract mr-1 sm:mr-2"></i> Rechtstexte
                     </a>
                     <a href="../public/logout.php" class="text-red-600 hover:text-red-700">
-                        <i class="fas fa-sign-out-alt mr-2"></i> Abmelden
+                        <i class="fas fa-sign-out-alt mr-1 sm:mr-2"></i> Abmelden
                     </a>
                 </div>
             </div>
         </div>
     </nav>
 
-    <div class="max-w-5xl mx-auto px-6 py-8">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <?php if (isset($success)): ?>
-            <div class="bg-green-500 text-white px-6 py-4 rounded-lg mb-8 flex items-center gap-4">
-                <i class="fas fa-check-circle text-2xl"></i>
-                <div class="font-semibold"><?= $success ?></div>
+            <div class="bg-green-500 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-lg mb-6 sm:mb-8 flex items-center gap-3 sm:gap-4">
+                <i class="fas fa-check-circle text-xl sm:text-2xl"></i>
+                <div class="font-semibold text-sm sm:text-base"><?= $success ?></div>
             </div>
         <?php endif; ?>
 
         <!-- Header -->
-        <div class="mb-8">
-            <h1 class="text-4xl font-bold text-gray-800 mb-2">Rechtstexte</h1>
-            <p class="text-gray-600">Bearbeite dein Impressum und deine Datenschutzerklärung für deine Freebie-Seiten</p>
+        <div class="mb-6 sm:mb-8">
+            <h1 class="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800 mb-2">Rechtstexte</h1>
+            <p class="text-sm sm:text-base text-gray-600">Bearbeite dein Impressum und deine Datenschutzerklärung für deine Freebie-Seiten</p>
         </div>
 
         <!-- E-RECHT24 GENERATOR HINWEIS - PROMINENT -->
-        <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl p-8 mb-8 text-white shadow-2xl">
-            <div class="flex items-start gap-6">
-                <div class="text-6xl">🎯</div>
+        <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl p-4 sm:p-6 md:p-8 mb-6 sm:mb-8 text-white shadow-2xl">
+            <div class="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
+                <div class="text-4xl sm:text-5xl md:text-6xl mx-auto sm:mx-0">🎯</div>
                 <div class="flex-1">
-                    <h2 class="text-2xl font-bold mb-3">Kostenlose Rechtstexte mit e-recht24 erstellen</h2>
-                    <p class="text-blue-100 mb-4">
+                    <h2 class="text-xl sm:text-2xl font-bold mb-2 sm:mb-3 text-center sm:text-left">Kostenlose Rechtstexte mit e-recht24 erstellen</h2>
+                    <p class="text-sm sm:text-base text-blue-100 mb-3 sm:mb-4 text-center sm:text-left">
                         Erstelle professionelle, rechtssichere Texte in wenigen Minuten - kostenlos und DSGVO-konform!
                     </p>
-                    <div class="grid md:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <a href="https://www.e-recht24.de/impressum-generator.html" target="_blank" 
-                           class="bg-white text-blue-600 hover:bg-blue-50 px-6 py-4 rounded-lg font-bold text-center transition shadow-lg flex items-center justify-center gap-2">
+                           class="bg-white text-blue-600 hover:bg-blue-50 px-4 sm:px-6 py-3 sm:py-4 rounded-lg font-bold text-center transition shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base">
                             <i class="fas fa-external-link-alt"></i>
                             Impressum Generator
                         </a>
                         <a href="https://www.e-recht24.de/muster-datenschutzerklaerung.html" target="_blank" 
-                           class="bg-white text-purple-600 hover:bg-purple-50 px-6 py-4 rounded-lg font-bold text-center transition shadow-lg flex items-center justify-center gap-2">
+                           class="bg-white text-purple-600 hover:bg-purple-50 px-4 sm:px-6 py-3 sm:py-4 rounded-lg font-bold text-center transition shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base">
                             <i class="fas fa-external-link-alt"></i>
                             Datenschutz Generator
                         </a>
                     </div>
-                    <p class="text-sm text-blue-100 mt-4">
+                    <p class="text-xs sm:text-sm text-blue-100 mt-3 sm:mt-4 text-center sm:text-left">
                         <i class="fas fa-info-circle mr-2"></i>
                         Kopiere die generierten Texte einfach in die Felder unten und speichere sie ab.
                     </p>
@@ -126,26 +126,26 @@ if (isset($_POST['save_legal_texts'])) {
         </div>
 
         <!-- Wichtiger Hinweis -->
-        <div class="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-6 mb-8">
-            <div class="flex gap-4">
-                <i class="fas fa-exclamation-triangle text-3xl text-yellow-600"></i>
-                <div>
-                    <h3 class="font-bold text-lg mb-2">Wichtiger rechtlicher Hinweis</h3>
-                    <p class="text-gray-700 text-sm mb-3">
+        <div class="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 sm:p-6 mb-6 sm:mb-8">
+            <div class="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                <i class="fas fa-exclamation-triangle text-2xl sm:text-3xl text-yellow-600 mx-auto sm:mx-0"></i>
+                <div class="flex-1">
+                    <h3 class="font-bold text-base sm:text-lg mb-2 text-center sm:text-left">Wichtiger rechtlicher Hinweis</h3>
+                    <p class="text-gray-700 text-xs sm:text-sm mb-3">
                         Die hier hinterlegten Texte werden automatisch auf allen deinen Freebie-Seiten im Footer verlinkt. 
                         Sie sind rechtlich bindend und müssen vollständig und korrekt sein.
                     </p>
-                    <div class="space-y-2 text-sm">
+                    <div class="space-y-2 text-xs sm:text-sm">
                         <div class="flex items-center gap-2">
-                            <i class="fas fa-check text-green-600"></i>
+                            <i class="fas fa-check text-green-600 flex-shrink-0"></i>
                             <span><strong>Empfohlen:</strong> Nutze professionelle Generatoren wie e-recht24 (siehe oben)</span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <i class="fas fa-check text-green-600"></i>
+                            <i class="fas fa-check text-green-600 flex-shrink-0"></i>
                             <span>Bei geschäftlicher Nutzung: Rechtliche Beratung einholen</span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <i class="fas fa-check text-green-600"></i>
+                            <i class="fas fa-check text-green-600 flex-shrink-0"></i>
                             <span>Aktualisiere deine Texte regelmäßig bei Änderungen</span>
                         </div>
                     </div>
@@ -155,31 +155,31 @@ if (isset($_POST['save_legal_texts'])) {
 
         <form method="POST">
             <!-- Impressum -->
-            <div class="bg-white rounded-lg shadow-lg p-8 mb-8">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold">
+            <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6 md:p-8 mb-6 sm:mb-8">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 sm:mb-6">
+                    <h2 class="text-xl sm:text-2xl font-bold">
                         <i class="fas fa-address-card mr-2 text-purple-600"></i> Impressum
                     </h2>
                     <button type="button" onclick="loadTemplate('impressum')" 
-                            class="text-sm bg-purple-100 text-purple-700 px-4 py-2 rounded-lg hover:bg-purple-200 flex items-center gap-2">
+                            class="w-full sm:w-auto text-xs sm:text-sm bg-purple-100 text-purple-700 px-3 sm:px-4 py-2 rounded-lg hover:bg-purple-200 flex items-center justify-center gap-2">
                         <i class="fas fa-file-import"></i> Mustertext laden
                     </button>
                 </div>
                 
                 <div class="mb-4">
-                    <label class="block text-sm font-semibold mb-2 text-gray-700">
+                    <label class="block text-xs sm:text-sm font-semibold mb-2 text-gray-700">
                         Dein Impressum (wird automatisch im Footer deiner Freebie-Seiten verlinkt)
                     </label>
                     <textarea name="impressum" rows="18" 
-                              class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-purple-400 focus:outline-none font-mono text-sm"
+                              class="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:border-purple-400 focus:outline-none font-mono text-xs sm:text-sm"
                               placeholder="Füge hier dein vollständiges Impressum ein..."><?= htmlspecialchars($legal_texts['impressum']) ?></textarea>
                 </div>
                 
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 class="font-bold text-sm mb-2">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+                    <h4 class="font-bold text-xs sm:text-sm mb-2">
                         <i class="fas fa-info-circle mr-2 text-blue-600"></i> Was muss ins Impressum? (§ 5 TMG)
                     </h4>
-                    <ul class="text-sm text-gray-700 space-y-1 ml-6 list-disc">
+                    <ul class="text-xs sm:text-sm text-gray-700 space-y-1 ml-4 sm:ml-6 list-disc">
                         <li><strong>Name und Anschrift:</strong> Vollständiger Name, Straße, PLZ, Ort</li>
                         <li><strong>Kontakt:</strong> E-Mail-Adresse und Telefonnummer</li>
                         <li><strong>Bei Unternehmen:</strong> Rechtsform, Vertretungsberechtigte, Handelsregister-Nr.</li>
@@ -191,41 +191,56 @@ if (isset($_POST['save_legal_texts'])) {
             </div>
 
             <!-- Datenschutzerklärung -->
-            <div class="bg-white rounded-lg shadow-lg p-8 mb-8">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold">
+            <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6 md:p-8 mb-6 sm:mb-8">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 sm:mb-6">
+                    <h2 class="text-xl sm:text-2xl font-bold">
                         <i class="fas fa-shield-alt mr-2 text-purple-600"></i> Datenschutzerklärung
                     </h2>
                     <button type="button" onclick="loadTemplate('datenschutz')" 
-                            class="text-sm bg-purple-100 text-purple-700 px-4 py-2 rounded-lg hover:bg-purple-200 flex items-center gap-2">
+                            class="w-full sm:w-auto text-xs sm:text-sm bg-purple-100 text-purple-700 px-3 sm:px-4 py-2 rounded-lg hover:bg-purple-200 flex items-center justify-center gap-2">
                         <i class="fas fa-file-import"></i> Mustertext laden
                     </button>
                 </div>
                 
-                <!-- GOOGLE FONTS WARNUNG -->
-                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
-                    <div class="flex">
-                        <div class="flex-shrink-0">
-                            <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                <!-- GOOGLE FONTS WARNUNG - RESPONSIVE -->
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 sm:p-4 md:p-6 mb-6 rounded-r-lg">
+                    <div class="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                        <!-- Icon -->
+                        <div class="flex-shrink-0 flex sm:block justify-center">
+                            <svg class="h-6 w-6 sm:h-5 sm:w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
                                 <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                             </svg>
                         </div>
-                        <div class="ml-3">
-                            <h3 class="text-sm font-bold text-yellow-800 mb-2">
+                        
+                        <!-- Content -->
+                        <div class="flex-1">
+                            <h3 class="text-sm sm:text-base md:text-sm font-bold text-yellow-800 mb-2 text-center sm:text-left">
                                 ⚠️ WICHTIG: Google Fonts Hinweis für Datenschutzerklärung
                             </h3>
-                            <div class="text-sm text-yellow-700 mb-3">
-                                <p class="mb-2">Deine Freebie-Seiten nutzen Google Fonts (externe Schriftarten von Google). <strong>Du MUSST folgenden Text in deine Datenschutzerklärung einfügen</strong>, sonst drohen Abmahnungen!</p>
-                                <p class="text-xs mb-2"><strong>Rechtlicher Hintergrund:</strong> LG München (2022) - Externes Laden von Google Fonts ohne Erwähnung verstößt gegen DSGVO</p>
+                            
+                            <!-- Description -->
+                            <div class="text-xs sm:text-sm text-yellow-700 mb-3 space-y-2">
+                                <p>Deine Freebie-Seiten nutzen Google Fonts (externe Schriftarten von Google). <strong>Du MUSST folgenden Text in deine Datenschutzerklärung einfügen</strong>, sonst drohen Abmahnungen!</p>
+                                <p class="text-xs"><strong>Rechtlicher Hintergrund:</strong> LG München (2022) - Externes Laden von Google Fonts ohne Erwähnung verstößt gegen DSGVO</p>
                             </div>
-                            <div class="bg-white rounded-lg p-4 border-2 border-yellow-300">
-                                <div class="flex justify-between items-center mb-2">
-                                    <span class="text-xs font-bold text-gray-700">📋 TEXT ZUM KOPIEREN:</span>
-                                    <button type="button" onclick="copyGoogleFontsText()" class="text-xs bg-yellow-100 hover:bg-yellow-200 px-3 py-1 rounded text-yellow-800 font-semibold">
-                                        <i class="fas fa-copy mr-1"></i> Kopieren
+                            
+                            <!-- Copy Box -->
+                            <div class="bg-white rounded-lg p-3 sm:p-4 border-2 border-yellow-300">
+                                <!-- Header mit Button -->
+                                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-3">
+                                    <span class="text-xs font-bold text-gray-700 text-center sm:text-left">
+                                        📋 TEXT ZUM KOPIEREN:
+                                    </span>
+                                    <button type="button" 
+                                            onclick="copyGoogleFontsText()" 
+                                            class="w-full sm:w-auto text-xs bg-yellow-100 hover:bg-yellow-200 px-4 py-2 rounded text-yellow-800 font-semibold transition-colors">
+                                        <i class="fas fa-copy mr-1"></i> <span>Text kopieren</span>
                                     </button>
                                 </div>
-                                <div id="googleFontsText" class="text-xs font-mono text-gray-800 bg-gray-50 p-3 rounded leading-relaxed border border-gray-200">
+                                
+                                <!-- Text Box -->
+                                <div id="googleFontsText" 
+                                     class="text-[10px] sm:text-xs font-mono text-gray-800 bg-gray-50 p-2 sm:p-3 rounded leading-relaxed border border-gray-200 overflow-x-auto max-h-64 sm:max-h-80 overflow-y-auto">
 <strong>Google Fonts</strong><br><br>
 Diese Website nutzt Google Fonts zur Darstellung von Schriftarten. Google Fonts ist ein Dienst der Google LLC („Google"). Beim Aufruf dieser Seiten werden folgende Daten an Google übertragen:<br><br>
 - IP-Adresse des Nutzers<br>
@@ -239,7 +254,9 @@ Weitere Informationen:<br>
 Google Datenschutzerklärung: https://policies.google.com/privacy<br>
 Google Fonts Datenschutz: https://developers.google.com/fonts/faq/privacy
                                 </div>
-                                <p class="text-xs text-yellow-700 mt-2">
+                                
+                                <!-- Footer Hinweis -->
+                                <p class="text-[10px] sm:text-xs text-yellow-700 mt-2 text-center sm:text-left">
                                     <i class="fas fa-arrow-down mr-1"></i> Füge diesen Text in deine Datenschutzerklärung unten ein (z.B. unter Punkt 4 oder 7)
                                 </p>
                             </div>
@@ -248,19 +265,19 @@ Google Fonts Datenschutz: https://developers.google.com/fonts/faq/privacy
                 </div>
                 
                 <div class="mb-4">
-                    <label class="block text-sm font-semibold mb-2 text-gray-700">
+                    <label class="block text-xs sm:text-sm font-semibold mb-2 text-gray-700">
                         Deine Datenschutzerklärung (DSGVO-konform)
                     </label>
                     <textarea name="datenschutz" rows="25" 
-                              class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-purple-400 focus:outline-none font-mono text-sm"
+                              class="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:border-purple-400 focus:outline-none font-mono text-xs sm:text-sm"
                               placeholder="Füge hier deine vollständige Datenschutzerklärung ein..."><?= htmlspecialchars($legal_texts['datenschutz']) ?></textarea>
                 </div>
                 
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 class="font-bold text-sm mb-2">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+                    <h4 class="font-bold text-xs sm:text-sm mb-2">
                         <i class="fas fa-info-circle mr-2 text-blue-600"></i> Was muss in die Datenschutzerklärung? (DSGVO)
                     </h4>
-                    <ul class="text-sm text-gray-700 space-y-1 ml-6 list-disc">
+                    <ul class="text-xs sm:text-sm text-gray-700 space-y-1 ml-4 sm:ml-6 list-disc">
                         <li><strong>Verantwortlicher:</strong> Name und Kontaktdaten (Art. 13 Abs. 1a DSGVO)</li>
                         <li><strong>Datenarten:</strong> Welche Daten werden erhoben? (E-Mail, Name, IP-Adresse, etc.)</li>
                         <li><strong>Zweck:</strong> Wofür werden die Daten verwendet? (Newsletter, Lead-Magnet, etc.)</li>
@@ -276,29 +293,29 @@ Google Fonts Datenschutz: https://developers.google.com/fonts/faq/privacy
             </div>
 
             <!-- Speichern Button -->
-            <div class="bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg p-8 text-center shadow-xl">
+            <div class="bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg p-6 sm:p-8 text-center shadow-xl">
                 <button type="submit" name="save_legal_texts" 
-                        class="bg-white text-purple-600 hover:bg-gray-100 px-12 py-4 rounded-lg font-bold text-lg shadow-lg transition transform hover:scale-105">
+                        class="w-full sm:w-auto bg-white text-purple-600 hover:bg-gray-100 px-8 sm:px-12 py-3 sm:py-4 rounded-lg font-bold text-base sm:text-lg shadow-lg transition transform hover:scale-105">
                     <i class="fas fa-save mr-2"></i> Rechtstexte speichern
                 </button>
-                <p class="text-white text-sm mt-4">
+                <p class="text-white text-xs sm:text-sm mt-3 sm:mt-4">
                     Die Texte werden automatisch auf allen deinen Freebie-Seiten im Footer verlinkt
                 </p>
             </div>
         </form>
 
         <!-- Preview Links -->
-        <div class="mt-8 bg-white rounded-lg shadow-lg p-6">
-            <h3 class="font-bold text-lg mb-4">
+        <div class="mt-6 sm:mt-8 bg-white rounded-lg shadow-lg p-4 sm:p-6">
+            <h3 class="font-bold text-base sm:text-lg mb-3 sm:mb-4">
                 <i class="fas fa-eye mr-2 text-purple-600"></i> Deine Rechtstexte-Links
             </h3>
-            <p class="text-sm text-gray-600 mb-4">
+            <p class="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
                 Diese Links werden automatisch im Footer deiner Freebie-Seiten verwendet:
             </p>
-            <div class="grid md:grid-cols-2 gap-4">
-                <div class="bg-gray-50 p-4 rounded-lg">
-                    <div class="text-sm text-gray-600 mb-2 font-semibold">Impressum-Link</div>
-                    <code class="text-xs bg-white px-3 py-2 rounded block break-all">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                <div class="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                    <div class="text-xs sm:text-sm text-gray-600 mb-2 font-semibold">Impressum-Link</div>
+                    <code class="text-[10px] sm:text-xs bg-white px-2 sm:px-3 py-1 sm:py-2 rounded block break-all">
                         /impressum.php?user=<?= $user_id ?>
                     </code>
                     <a href="/impressum.php?user=<?= $user_id ?>" target="_blank" 
@@ -306,9 +323,9 @@ Google Fonts Datenschutz: https://developers.google.com/fonts/faq/privacy
                         <i class="fas fa-external-link-alt mr-1"></i> Vorschau öffnen
                     </a>
                 </div>
-                <div class="bg-gray-50 p-4 rounded-lg">
-                    <div class="text-sm text-gray-600 mb-2 font-semibold">Datenschutz-Link</div>
-                    <code class="text-xs bg-white px-3 py-2 rounded block break-all">
+                <div class="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                    <div class="text-xs sm:text-sm text-gray-600 mb-2 font-semibold">Datenschutz-Link</div>
+                    <code class="text-[10px] sm:text-xs bg-white px-2 sm:px-3 py-1 sm:py-2 rounded block break-all">
                         /datenschutz.php?user=<?= $user_id ?>
                     </code>
                     <a href="/datenschutz.php?user=<?= $user_id ?>" target="_blank" 
