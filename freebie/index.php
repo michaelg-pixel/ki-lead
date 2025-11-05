@@ -1,6 +1,6 @@
 <?php
 /**
- * Freebie Public Page mit POPUP-SUPPORT
+ * Freebie Public Page mit POPUP-SUPPORT & 🆕 FONT-SYSTEM
  */
 
 error_reporting(E_ALL);
@@ -21,9 +21,6 @@ try {
     die('Datenbankfehler: ' . $e->getMessage());
 }
 
-// Font-Konfiguration laden
-$fontConfig = require __DIR__ . '/../config/fonts.php';
-
 $identifier = $_GET['id'] ?? null;
 if (!$identifier) { 
     die('Keine Freebie-ID angegeben');
@@ -36,6 +33,55 @@ $customer_param = isset($_GET['customer']) ? intval($_GET['customer']) : null;
 $customer_id = null;
 $freebie_db_id = null;
 $template = null;
+
+// 🆕 FONT STACKS DEFINITIONEN
+$webfonts = [
+    'System UI' => '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    'Arial' => 'Arial, "Helvetica Neue", Helvetica, sans-serif',
+    'Helvetica' => '"Helvetica Neue", Helvetica, Arial, sans-serif',
+    'Verdana' => 'Verdana, Geneva, sans-serif',
+    'Trebuchet MS' => '"Trebuchet MS", "Lucida Grande", sans-serif',
+    'Georgia' => 'Georgia, "Times New Roman", serif',
+    'Times New Roman' => '"Times New Roman", Times, Georgia, serif',
+    'Courier New' => '"Courier New", Courier, monospace',
+    'Tahoma' => 'Tahoma, Geneva, sans-serif',
+    'Comic Sans MS' => '"Comic Sans MS", "Comic Sans", cursive'
+];
+
+$google_fonts = [
+    'Inter' => '"Inter", sans-serif',
+    'Roboto' => '"Roboto", sans-serif',
+    'Open Sans' => '"Open Sans", sans-serif',
+    'Montserrat' => '"Montserrat", sans-serif',
+    'Poppins' => '"Poppins", sans-serif',
+    'Lato' => '"Lato", sans-serif',
+    'Oswald' => '"Oswald", sans-serif',
+    'Raleway' => '"Raleway", sans-serif',
+    'Playfair Display' => '"Playfair Display", serif',
+    'Merriweather' => '"Merriweather", serif'
+];
+
+// 🆕 FONT SIZE MAPPING
+$fontSizeMap = [
+    'small' => [
+        'headline' => 32,
+        'subheadline' => 16,
+        'body' => 14,
+        'preheadline' => 11
+    ],
+    'medium' => [
+        'headline' => 40,
+        'subheadline' => 20,
+        'body' => 16,
+        'preheadline' => 13
+    ],
+    'large' => [
+        'headline' => 48,
+        'subheadline' => 24,
+        'body' => 18,
+        'preheadline' => 15
+    ]
+];
 
 try {
     $stmt = $pdo->prepare("
@@ -79,6 +125,31 @@ if ($customer_param) {
     $customer_id = $customer_param;
 }
 
+// 🆕 FONT-EINSTELLUNGEN MIT FALLBACK
+$font_heading = $freebie['font_heading'] ?? 'Inter';
+$font_body = $freebie['font_body'] ?? 'Inter';
+$font_size = $freebie['font_size'] ?? 'medium';
+
+// Font-Stacks ermitteln
+if (isset($google_fonts[$font_heading])) {
+    $font_heading_stack = $google_fonts[$font_heading];
+    $is_google_font_heading = true;
+} else {
+    $font_heading_stack = $webfonts[$font_heading] ?? $webfonts['System UI'];
+    $is_google_font_heading = false;
+}
+
+if (isset($google_fonts[$font_body])) {
+    $font_body_stack = $google_fonts[$font_body];
+    $is_google_font_body = true;
+} else {
+    $font_body_stack = $webfonts[$font_body] ?? $webfonts['System UI'];
+    $is_google_font_body = false;
+}
+
+// Font-Größen ermitteln
+$sizes = $fontSizeMap[$font_size] ?? $fontSizeMap['medium'];
+
 // Popup-Einstellungen mit Fallback
 $optinDisplayMode = $freebie['optin_display_mode'] ?? $freebie['template_optin_display_mode'] ?? 'direct';
 $popupMessage = $freebie['popup_message'] ?? $freebie['template_popup_message'] ?? 'Trage dich jetzt unverbindlich ein und erhalte sofortigen Zugang!';
@@ -120,7 +191,7 @@ $templateFile = __DIR__ . '/templates/layout1.php';
 if (file_exists($templateFile)) {
     require $templateFile;
 } else {
-    // Fallback - Direkte Ausgabe
+    // Fallback - Direkte Ausgabe MIT FONTS
     ?>
     <!DOCTYPE html>
     <html lang="de">
@@ -129,15 +200,35 @@ if (file_exists($templateFile)) {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title><?= htmlspecialchars($freebie['headline'] ?? 'Freebie') ?></title>
         <script src="https://cdn.tailwindcss.com"></script>
+        
+        <!-- 🆕 GOOGLE FONTS LADEN -->
+        <?php if ($is_google_font_heading || $is_google_font_body): ?>
+        <link href="https://fonts.googleapis.com/css2?family=<?php 
+            $fonts_to_load = [];
+            if ($is_google_font_heading) $fonts_to_load[] = str_replace(' ', '+', $font_heading) . ':wght@400;600;700;800';
+            if ($is_google_font_body && $font_body !== $font_heading) $fonts_to_load[] = str_replace(' ', '+', $font_body) . ':wght@400;600;700;800';
+            echo implode('&family=', $fonts_to_load);
+        ?>&display=swap" rel="stylesheet">
+        <?php endif; ?>
+        
+        <style>
+            body {
+                font-family: <?= $font_body_stack ?>;
+                font-size: <?= $sizes['body'] ?>px;
+            }
+            h1, h2, h3, h4, h5, h6 {
+                font-family: <?= $font_heading_stack ?>;
+            }
+        </style>
     </head>
     <body class="bg-gray-50">
         <div class="max-w-4xl mx-auto p-8">
-            <h1 class="text-4xl font-bold text-center mb-6">
+            <h1 class="font-bold text-center mb-6" style="font-size: <?= $sizes['headline'] ?>px; font-family: <?= $font_heading_stack ?>;">
                 <?= htmlspecialchars($freebie['headline'] ?? 'Willkommen') ?>
             </h1>
             
             <?php if (!empty($freebie['subheadline'])): ?>
-                <p class="text-xl text-center text-gray-600 mb-8">
+                <p class="text-center text-gray-600 mb-8" style="font-size: <?= $sizes['subheadline'] ?>px; font-family: <?= $font_body_stack ?>;">
                     <?= htmlspecialchars($freebie['subheadline']) ?>
                 </p>
             <?php endif; ?>
