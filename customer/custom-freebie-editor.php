@@ -50,18 +50,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
     $subheadline = trim($_POST['subheadline'] ?? '');
     $preheadline = trim($_POST['preheadline'] ?? '');
     $bullet_points = trim($_POST['bullet_points'] ?? '');
-    $bullet_icon_style = $_POST['bullet_icon_style'] ?? 'standard'; // 🆕 NEUES FELD
+    $bullet_icon_style = $_POST['bullet_icon_style'] ?? 'standard';
     $cta_text = trim($_POST['cta_text'] ?? '');
     $layout = $_POST['layout'] ?? 'hybrid';
     $background_color = $_POST['background_color'] ?? '#FFFFFF';
     $primary_color = $_POST['primary_color'] ?? '#8B5CF6';
     $raw_code = trim($_POST['raw_code'] ?? '');
-    $custom_code = trim($_POST['custom_code'] ?? ''); // Facebook Pixel etc.
+    $custom_code = trim($_POST['custom_code'] ?? '');
     $mockup_image_url = trim($_POST['mockup_image_url'] ?? '');
     $video_url = trim($_POST['video_url'] ?? '');
     $video_format = $_POST['video_format'] ?? 'widescreen';
     
-    // 🆕 POPUP-FELDER
+    // 🆕 FONT-FELDER
+    $font_heading = $_POST['font_heading'] ?? 'Inter';
+    $font_body = $_POST['font_body'] ?? 'Inter';
+    $font_size = $_POST['font_size'] ?? 'medium';
+    
+    // POPUP-FELDER
     $optin_display_mode = $_POST['optin_display_mode'] ?? 'direct';
     $popup_message = trim($_POST['popup_message'] ?? 'Trage dich jetzt unverbindlich ein und erhalte sofortigen Zugang!');
     $cta_animation = $_POST['cta_animation'] ?? 'none';
@@ -83,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
     
     try {
         if ($freebie) {
-            // Update existing - MIT POPUP-FELDERN UND BULLET_ICON_STYLE
+            // Update existing - MIT FONT-FELDERN
             $stmt = $pdo->prepare("
                 UPDATE customer_freebies SET
                     headline = ?, subheadline = ?, preheadline = ?,
@@ -91,6 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
                     background_color = ?, primary_color = ?, raw_code = ?,
                     mockup_image_url = ?, video_url = ?, video_format = ?,
                     optin_display_mode = ?, popup_message = ?, cta_animation = ?,
+                    font_heading = ?, font_body = ?, font_size = ?,
                     updated_at = NOW()
                 WHERE id = ?
             ");
@@ -100,26 +106,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
                 $background_color, $primary_color, $combined_code,
                 $mockup_image_url, $video_url, $video_format,
                 $optin_display_mode, $popup_message, $cta_animation,
+                $font_heading, $font_body, $font_size,
                 $freebie['id']
             ]);
             
             $success_message = "✅ Freebie erfolgreich aktualisiert!";
         } else {
-            // Create new - MIT POPUP-FELDERN UND BULLET_ICON_STYLE
+            // Create new - MIT FONT-FELDERN
             $stmt = $pdo->prepare("
                 INSERT INTO customer_freebies (
                     customer_id, headline, subheadline, preheadline,
                     bullet_points, bullet_icon_style, cta_text, layout, background_color, primary_color,
                     raw_code, mockup_image_url, video_url, video_format,
                     optin_display_mode, popup_message, cta_animation,
+                    font_heading, font_body, font_size,
                     unique_id, url_slug, freebie_type, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'custom', NOW())
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'custom', NOW())
             ");
             $stmt->execute([
                 $customer_id, $headline, $subheadline, $preheadline,
                 $bullet_points, $bullet_icon_style, $cta_text, $layout, $background_color, $primary_color,
                 $combined_code, $mockup_image_url, $video_url, $video_format,
                 $optin_display_mode, $popup_message, $cta_animation,
+                $font_heading, $font_body, $font_size,
                 $unique_id, $url_slug
             ]);
             
@@ -154,13 +163,13 @@ if ($freebie && !empty($freebie['raw_code'])) {
     $custom_tracking_code = isset($parts[1]) ? trim($parts[1]) : '';
 }
 
-// Daten für Formular vorbereiten - MIT POPUP-FELDERN UND BULLET_ICON_STYLE
+// Daten für Formular vorbereiten - MIT FONT-FELDERN
 $form_data = [
     'headline' => $freebie['headline'] ?? 'Sichere dir jetzt deinen kostenlosen Zugang',
     'subheadline' => $freebie['subheadline'] ?? '',
     'preheadline' => $freebie['preheadline'] ?? '',
     'bullet_points' => $freebie['bullet_points'] ?? "✓ Sofortiger Zugang\n✓ Professionelle Inhalte\n✓ Schritt für Schritt Anleitung",
-    'bullet_icon_style' => $freebie['bullet_icon_style'] ?? 'standard', // 🆕 NEUES FELD
+    'bullet_icon_style' => $freebie['bullet_icon_style'] ?? 'standard',
     'cta_text' => $freebie['cta_text'] ?? 'JETZT KOSTENLOS SICHERN',
     'layout' => $freebie['layout'] ?? 'hybrid',
     'background_color' => $freebie['background_color'] ?? '#FFFFFF',
@@ -170,11 +179,47 @@ $form_data = [
     'mockup_image_url' => $freebie['mockup_image_url'] ?? '',
     'video_url' => $freebie['video_url'] ?? '',
     'video_format' => $freebie['video_format'] ?? 'widescreen',
-    // 🆕 POPUP-FELDER
     'optin_display_mode' => $freebie['optin_display_mode'] ?? 'direct',
     'popup_message' => $freebie['popup_message'] ?? 'Trage dich jetzt unverbindlich ein und erhalte sofortigen Zugang!',
-    'cta_animation' => $freebie['cta_animation'] ?? 'none'
+    'cta_animation' => $freebie['cta_animation'] ?? 'none',
+    // 🆕 FONT-FELDER
+    'font_heading' => $freebie['font_heading'] ?? 'Inter',
+    'font_body' => $freebie['font_body'] ?? 'Inter',
+    'font_size' => $freebie['font_size'] ?? 'medium'
 ];
+
+// 🆕 WEBFONTS UND GOOGLE FONTS
+$webfonts = [
+    'System UI' => '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    'Arial' => 'Arial, "Helvetica Neue", Helvetica, sans-serif',
+    'Helvetica' => '"Helvetica Neue", Helvetica, Arial, sans-serif',
+    'Verdana' => 'Verdana, Geneva, sans-serif',
+    'Trebuchet MS' => '"Trebuchet MS", "Lucida Grande", sans-serif',
+    'Georgia' => 'Georgia, "Times New Roman", serif',
+    'Times New Roman' => '"Times New Roman", Times, Georgia, serif',
+    'Courier New' => '"Courier New", Courier, monospace',
+    'Tahoma' => 'Tahoma, Geneva, sans-serif',
+    'Comic Sans MS' => '"Comic Sans MS", "Comic Sans", cursive'
+];
+
+$google_fonts = [
+    'Inter' => 'Inter:wght@400;600;700;800',
+    'Roboto' => 'Roboto:wght@400;500;700;900',
+    'Open Sans' => 'Open+Sans:wght@400;600;700;800',
+    'Montserrat' => 'Montserrat:wght@400;600;700;800',
+    'Poppins' => 'Poppins:wght@400;600;700;800',
+    'Lato' => 'Lato:wght@400;700;900',
+    'Oswald' => 'Oswald:wght@400;600;700',
+    'Raleway' => 'Raleway:wght@400;600;700;800',
+    'Playfair Display' => 'Playfair+Display:wght@400;700;900',
+    'Merriweather' => 'Merriweather:wght@400;700;900'
+];
+
+// Google Fonts URLs generieren
+$google_fonts_urls = [];
+foreach ($google_fonts as $name => $family) {
+    $google_fonts_urls[$name] = "https://fonts.googleapis.com/css2?family={$family}&display=swap";
+}
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -183,6 +228,12 @@ $form_data = [
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $editMode ? 'Freebie bearbeiten' : 'Neues Freebie erstellen'; ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- 🆕 GOOGLE FONTS DYNAMISCH LADEN -->
+    <?php foreach ($google_fonts as $name => $family): ?>
+    <link href="<?php echo $google_fonts_urls[$name]; ?>" rel="stylesheet">
+    <?php endforeach; ?>
+    
     <style>
         * {
             margin: 0;
@@ -720,7 +771,7 @@ $form_data = [
             opacity: 1;
         }
 
-        /* 🆕 POPUP-STYLES */
+        /* POPUP-STYLES */
         .popup-toggle-options {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -804,7 +855,7 @@ $form_data = [
         .animate-bounce { animation: bounce 1s ease-in-out infinite; }
         .animate-glow { animation: glow 2s ease-in-out infinite; }
         
-        /* 🆕 BULLET ICON STYLE OPTIONEN */
+        /* BULLET ICON STYLE OPTIONEN */
         .bullet-style-options {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -871,6 +922,65 @@ $form_data = [
         }
         
         .bullet-style-option input:checked ~ .bullet-style-check {
+            opacity: 1;
+        }
+        
+        /* 🆕 FONT-SIZE OPTIONS */
+        .font-size-options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 12px;
+        }
+        
+        .font-size-option {
+            position: relative;
+            cursor: pointer;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        
+        .font-size-option:hover {
+            border-color: #8B5CF6;
+            background: rgba(139, 92, 246, 0.05);
+        }
+        
+        .font-size-option input {
+            position: absolute;
+            opacity: 0;
+        }
+        
+        .font-size-option.selected {
+            border-color: #8B5CF6;
+            background: rgba(139, 92, 246, 0.1);
+        }
+        
+        .font-size-label {
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .font-size-check {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 20px;
+            height: 20px;
+            background: #8B5CF6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .font-size-option input:checked ~ .font-size-check {
             opacity: 1;
         }
         
@@ -1030,7 +1140,7 @@ $form_data = [
                                    oninput="updatePreview()">
                         </div>
                         
-                        <!-- 🆕 BULLET ICON STYLE AUSWAHL -->
+                        <!-- BULLET ICON STYLE AUSWAHL -->
                         <div class="form-group">
                             <label class="form-label">Bulletpoint-Stil</label>
                             <div class="bullet-style-options">
@@ -1079,6 +1189,87 @@ $form_data = [
                                    value="<?php echo htmlspecialchars($form_data['cta_text']); ?>"
                                    placeholder="JETZT KOSTENLOS SICHERN"
                                    oninput="updatePreview()">
+                        </div>
+                    </div>
+                    
+                    <!-- 🆕 SCHRIFTARTEN & SCHRIFTGRÖSSE -->
+                    <div class="form-section">
+                        <div class="section-title">✨ Schriftarten & Größe</div>
+                        
+                        <div class="info-box">
+                            <div class="info-box-title">💡 Websichere & Google Fonts</div>
+                            <div class="info-box-text">
+                                Wähle zwischen websicheren Fonts (100% DSGVO-konform, keine externen Server) und Google Fonts (hochwertige Premium-Schriften).
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Überschrift-Schriftart</label>
+                            <select name="font_heading" class="form-select" onchange="updatePreview()">
+                                <optgroup label="🌐 Websichere Fonts (DSGVO-konform)">
+                                    <?php foreach ($webfonts as $name => $stack): ?>
+                                    <option value="<?php echo $name; ?>" <?php echo $form_data['font_heading'] === $name ? 'selected' : ''; ?>>
+                                        <?php echo $name; ?>
+                                    </option>
+                                    <?php endforeach; ?>
+                                </optgroup>
+                                <optgroup label="🎨 Google Fonts (Premium-Qualität)">
+                                    <?php foreach ($google_fonts as $name => $family): ?>
+                                    <option value="<?php echo $name; ?>" <?php echo $form_data['font_heading'] === $name ? 'selected' : ''; ?>>
+                                        <?php echo $name; ?>
+                                    </option>
+                                    <?php endforeach; ?>
+                                </optgroup>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Text-Schriftart</label>
+                            <select name="font_body" class="form-select" onchange="updatePreview()">
+                                <optgroup label="🌐 Websichere Fonts (DSGVO-konform)">
+                                    <?php foreach ($webfonts as $name => $stack): ?>
+                                    <option value="<?php echo $name; ?>" <?php echo $form_data['font_body'] === $name ? 'selected' : ''; ?>>
+                                        <?php echo $name; ?>
+                                    </option>
+                                    <?php endforeach; ?>
+                                </optgroup>
+                                <optgroup label="🎨 Google Fonts (Premium-Qualität)">
+                                    <?php foreach ($google_fonts as $name => $family): ?>
+                                    <option value="<?php echo $name; ?>" <?php echo $form_data['font_body'] === $name ? 'selected' : ''; ?>>
+                                        <?php echo $name; ?>
+                                    </option>
+                                    <?php endforeach; ?>
+                                </optgroup>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Schriftgröße</label>
+                            <div class="font-size-options">
+                                <label class="font-size-option <?php echo $form_data['font_size'] === 'small' ? 'selected' : ''; ?>">
+                                    <input type="radio" name="font_size" value="small" 
+                                           <?php echo $form_data['font_size'] === 'small' ? 'checked' : ''; ?>
+                                           onchange="updatePreview(); updateFontSizeSelection(this)">
+                                    <div class="font-size-label" style="font-size: 11px;">Klein</div>
+                                    <div class="font-size-check">✓</div>
+                                </label>
+                                
+                                <label class="font-size-option <?php echo $form_data['font_size'] === 'medium' ? 'selected' : ''; ?>">
+                                    <input type="radio" name="font_size" value="medium"
+                                           <?php echo $form_data['font_size'] === 'medium' ? 'checked' : ''; ?>
+                                           onchange="updatePreview(); updateFontSizeSelection(this)">
+                                    <div class="font-size-label" style="font-size: 13px;">Mittel</div>
+                                    <div class="font-size-check">✓</div>
+                                </label>
+                                
+                                <label class="font-size-option <?php echo $form_data['font_size'] === 'large' ? 'selected' : ''; ?>">
+                                    <input type="radio" name="font_size" value="large"
+                                           <?php echo $form_data['font_size'] === 'large' ? 'checked' : ''; ?>
+                                           onchange="updatePreview(); updateFontSizeSelection(this)">
+                                    <div class="font-size-label" style="font-size: 15px;">Groß</div>
+                                    <div class="font-size-check">✓</div>
+                                </label>
+                            </div>
                         </div>
                     </div>
                     
@@ -1155,7 +1346,7 @@ $form_data = [
                         </div>
                     </div>
                     
-                    <!-- 🆕 E-MAIL OPTIN ANZEIGE-MODUS -->
+                    <!-- E-MAIL OPTIN ANZEIGE-MODUS -->
                     <div class="form-section">
                         <div class="section-title">🎯 E-Mail Optin Anzeige</div>
                         <div class="info-box">
@@ -1286,7 +1477,55 @@ $form_data = [
     </div>
     
     <script>
-        // 🆕 POPUP-TOGGLE FUNKTION
+        // 🆕 FONT STACKS MAPPING
+        const fontStacks = {
+            // Websafe Fonts
+            'System UI': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+            'Arial': 'Arial, "Helvetica Neue", Helvetica, sans-serif',
+            'Helvetica': '"Helvetica Neue", Helvetica, Arial, sans-serif',
+            'Verdana': 'Verdana, Geneva, sans-serif',
+            'Trebuchet MS': '"Trebuchet MS", "Lucida Grande", sans-serif',
+            'Georgia': 'Georgia, "Times New Roman", serif',
+            'Times New Roman': '"Times New Roman", Times, Georgia, serif',
+            'Courier New': '"Courier New", Courier, monospace',
+            'Tahoma': 'Tahoma, Geneva, sans-serif',
+            'Comic Sans MS': '"Comic Sans MS", "Comic Sans", cursive',
+            // Google Fonts
+            'Inter': '"Inter", sans-serif',
+            'Roboto': '"Roboto", sans-serif',
+            'Open Sans': '"Open Sans", sans-serif',
+            'Montserrat': '"Montserrat", sans-serif',
+            'Poppins': '"Poppins", sans-serif',
+            'Lato': '"Lato", sans-serif',
+            'Oswald': '"Oswald", sans-serif',
+            'Raleway': '"Raleway", sans-serif',
+            'Playfair Display': '"Playfair Display", serif',
+            'Merriweather': '"Merriweather", serif'
+        };
+        
+        // 🆕 FONT SIZE MAPPING
+        const fontSizes = {
+            'small': {
+                headline: '20px',
+                subheadline: '12px',
+                bullet: '11px',
+                preheadline: '8px'
+            },
+            'medium': {
+                headline: '22px',
+                subheadline: '13px',
+                bullet: '12px',
+                preheadline: '9px'
+            },
+            'large': {
+                headline: '26px',
+                subheadline: '15px',
+                bullet: '14px',
+                preheadline: '10px'
+            }
+        };
+        
+        // POPUP-TOGGLE FUNKTION
         function togglePopupOptions(radio) {
             const popupOptions = document.getElementById('popupOptions');
             const isPopup = radio.value === 'popup';
@@ -1304,12 +1543,20 @@ $form_data = [
             radio.closest('.toggle-option').classList.add('selected');
         }
         
-        // 🆕 BULLET STYLE TOGGLE FUNKTION
+        // BULLET STYLE TOGGLE FUNKTION
         function updateBulletStyleSelection(radio) {
             document.querySelectorAll('.bullet-style-option').forEach(opt => {
                 opt.classList.remove('selected');
             });
             radio.closest('.bullet-style-option').classList.add('selected');
+        }
+        
+        // 🆕 FONT SIZE SELECTION
+        function updateFontSizeSelection(radio) {
+            document.querySelectorAll('.font-size-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            radio.closest('.font-size-option').classList.add('selected');
         }
 
         function removeVideo() {
@@ -1362,7 +1609,7 @@ $form_data = [
             return null;
         }
         
-        // 🆕 FUNKTION ZUM EXTRAHIEREN VON EMOJIS/ICONS
+        // FUNKTION ZUM EXTRAHIEREN VON EMOJIS/ICONS
         function extractIconFromBullet(bullet) {
             // Regex um Emojis am Anfang zu erkennen
             const emojiRegex = /^([\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}])/u;
@@ -1392,7 +1639,7 @@ $form_data = [
             const headline = document.querySelector('input[name="headline"]').value;
             const subheadline = document.querySelector('input[name="subheadline"]').value;
             const bulletPoints = document.querySelector('textarea[name="bullet_points"]').value;
-            const bulletIconStyle = document.querySelector('input[name="bullet_icon_style"]:checked').value; // 🆕 NEUER WERT
+            const bulletIconStyle = document.querySelector('input[name="bullet_icon_style"]:checked').value;
             const ctaText = document.querySelector('input[name="cta_text"]').value;
             const layout = document.querySelector('input[name="layout"]:checked').value;
             const primaryColor = document.getElementById('primary_color').value;
@@ -1401,11 +1648,24 @@ $form_data = [
             const videoUrl = document.getElementById('videoUrl').value;
             const videoFormat = document.querySelector('input[name="video_format"]:checked').value;
             
-            // 🆕 POPUP-WERTE
+            // 🆕 FONT-WERTE
+            const fontHeading = document.querySelector('select[name="font_heading"]').value;
+            const fontBody = document.querySelector('select[name="font_body"]').value;
+            const fontSize = document.querySelector('input[name="font_size"]:checked').value;
+            
+            // Get font stacks
+            const headingFontFamily = fontStacks[fontHeading] || fontStacks['Inter'];
+            const bodyFontFamily = fontStacks[fontBody] || fontStacks['Inter'];
+            
+            // Get font sizes
+            const sizes = fontSizes[fontSize] || fontSizes['medium'];
+            
+            // POPUP-WERTE
             const ctaAnimation = document.querySelector('select[name="cta_animation"]').value;
             
             const previewContent = document.getElementById('previewContent');
             previewContent.style.background = backgroundColor;
+            previewContent.style.fontFamily = bodyFontFamily;
             
             let bulletHTML = '';
             if (bulletPoints.trim()) {
@@ -1415,7 +1675,7 @@ $form_data = [
                     let icon = '✓';
                     let text = bullet;
                     
-                    // 🆕 LOGIK FÜR BULLET ICON STYLE
+                    // LOGIK FÜR BULLET ICON STYLE
                     if (bulletIconStyle === 'custom') {
                         // Versuche Icon aus dem Text zu extrahieren
                         const extracted = extractIconFromBullet(bullet);
@@ -1435,8 +1695,8 @@ $form_data = [
                     
                     return `
                         <div class="preview-bullet">
-                            <span class="preview-bullet-icon" style="color: ${iconColor};">${icon}</span>
-                            <span class="preview-bullet-text">${escapeHtml(text)}</span>
+                            <span class="preview-bullet-icon" style="color: ${iconColor}; font-size: ${sizes.bullet};">${icon}</span>
+                            <span class="preview-bullet-text" style="font-family: ${bodyFontFamily}; font-size: ${sizes.bullet};">${escapeHtml(text)}</span>
                         </div>
                     `;
                 }).join('');
@@ -1477,22 +1737,22 @@ $form_data = [
             }
             
             const preheadlineHTML = preheadline ? `
-                <div class="preview-preheadline" style="color: ${primaryColor};">
+                <div class="preview-preheadline" style="color: ${primaryColor}; font-family: ${bodyFontFamily}; font-size: ${sizes.preheadline};">
                     ${escapeHtml(preheadline)}
                 </div>
             ` : '';
             
             const subheadlineHTML = subheadline ? `
-                <div class="preview-subheadline">${escapeHtml(subheadline)}</div>
+                <div class="preview-subheadline" style="font-family: ${bodyFontFamily}; font-size: ${sizes.subheadline};">${escapeHtml(subheadline)}</div>
             ` : '';
             
             // Priorität: Video > Mockup > Icon
             const mediaElement = videoHTML || mockupHTML || `<div style="text-align: center; color: ${primaryColor}; font-size: 50px;">🎁</div>`;
             
-            // 🆕 BUTTON MIT ANIMATION
+            // BUTTON MIT ANIMATION
             const animationClass = ctaAnimation !== 'none' ? `animate-${ctaAnimation}` : '';
             const ctaButton = `
-                <button class="preview-button ${animationClass}" style="background: ${primaryColor}; color: white;">
+                <button class="preview-button ${animationClass}" style="background: ${primaryColor}; color: white; font-family: ${bodyFontFamily};">
                     ${escapeHtml(ctaText || 'BUTTON TEXT')}
                 </button>
             `;
@@ -1504,7 +1764,7 @@ $form_data = [
                     <div style="max-width: 800px; margin: 0 auto;">
                         ${mediaElement}
                         ${preheadlineHTML}
-                        <div class="preview-headline" style="color: ${primaryColor};">
+                        <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${sizes.headline};">
                             ${escapeHtml(headline || 'Deine Hauptüberschrift')}
                         </div>
                         ${subheadlineHTML}
@@ -1520,10 +1780,10 @@ $form_data = [
                         <div>${mediaElement}</div>
                         <div>
                             ${preheadlineHTML}
-                            <div class="preview-headline" style="color: ${primaryColor}; text-align: left;">
+                            <div class="preview-headline" style="color: ${primaryColor}; text-align: left; font-family: ${headingFontFamily}; font-size: ${sizes.headline};">
                                 ${escapeHtml(headline || 'Deine Hauptüberschrift')}
                             </div>
-                            ${subheadlineHTML ? `<div class="preview-subheadline" style="text-align: left;">${escapeHtml(subheadline)}</div>` : ''}
+                            ${subheadlineHTML ? `<div class="preview-subheadline" style="text-align: left; font-family: ${bodyFontFamily}; font-size: ${sizes.subheadline};">${escapeHtml(subheadline)}</div>` : ''}
                             ${bulletHTML}
                             <div class="preview-cta" style="text-align: left;">
                                 ${ctaButton}
@@ -1536,10 +1796,10 @@ $form_data = [
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
                         <div>
                             ${preheadlineHTML}
-                            <div class="preview-headline" style="color: ${primaryColor}; text-align: left;">
+                            <div class="preview-headline" style="color: ${primaryColor}; text-align: left; font-family: ${headingFontFamily}; font-size: ${sizes.headline};">
                                 ${escapeHtml(headline || 'Deine Hauptüberschrift')}
                             </div>
-                            ${subheadlineHTML ? `<div class="preview-subheadline" style="text-align: left;">${escapeHtml(subheadline)}</div>` : ''}
+                            ${subheadlineHTML ? `<div class="preview-subheadline" style="text-align: left; font-family: ${bodyFontFamily}; font-size: ${sizes.subheadline};">${escapeHtml(subheadline)}</div>` : ''}
                             ${bulletHTML}
                             <div class="preview-cta" style="text-align: left;">
                                 ${ctaButton}
