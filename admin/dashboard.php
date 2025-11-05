@@ -183,6 +183,7 @@ $page = $_GET['page'] ?? 'overview';
                         'course-edit' => 'Kurs bearbeiten',
                         'tutorials' => 'Anleitungen & Tutorials verwalten',
                         'referrals' => 'Empfehlungsprogramm-Übersicht',
+                        'digistore' => 'Digistore24 Integration',
                         'settings' => 'Einstellungen',
                         'profile' => 'Admin-Profil'
                     ];
@@ -310,6 +311,9 @@ $page = $_GET['page'] ?? 'overview';
             
             <?php elseif ($page === 'referrals'): ?>
                 <?php include 'sections/referrals.php'; ?>
+            
+            <?php elseif ($page === 'digistore'): ?>
+                <?php include 'sections/digistore.php'; ?>
             
             <?php elseif ($page === 'settings'): ?>
                 <?php include 'sections/settings.php'; ?>
