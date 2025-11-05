@@ -1,7 +1,7 @@
 <?php
 /**
- * Digistore24 Webhook-Zentrale - VERSION 3.0
- * Mit globalem Sync-Button für Tarif-Updates
+ * Digistore24 Webhook-Zentrale - VERSION 3.1
+ * Mit globalem Sync-Button und editierbaren Limits
  */
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
@@ -229,19 +229,61 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
     border-radius: 10px;
     text-align: center;
     border: 1px solid #e5e7eb;
+    transition: all 0.2s;
 }
 
-.feature-box .feature-value {
-    font-size: 24px;
-    font-weight: bold;
-    color: #667eea;
-    margin-bottom: 4px;
+.feature-box:hover {
+    background: #f3f4f6;
+    border-color: #667eea;
 }
 
 .feature-box .feature-label {
     font-size: 12px;
     color: #6b7280;
     line-height: 1.4;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.feature-box input {
+    width: 100%;
+    font-size: 24px;
+    font-weight: bold;
+    color: #667eea;
+    text-align: center;
+    border: 2px solid transparent;
+    background: transparent;
+    border-radius: 6px;
+    padding: 4px;
+    transition: all 0.2s;
+}
+
+.feature-box input:hover {
+    border-color: #e5e7eb;
+    background: white;
+}
+
+.feature-box input:focus {
+    outline: none;
+    border-color: #667eea;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.limits-info {
+    background: #dbeafe;
+    border-left: 4px solid #3b82f6;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin: 16px 0;
+    font-size: 13px;
+    color: #1e40af;
+}
+
+.limits-info strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #1e3a8a;
 }
 
 .product-form {
@@ -262,7 +304,7 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
     font-size: 14px;
 }
 
-.form-group input {
+.form-group input[type="text"] {
     width: 100%;
     padding: 12px 16px;
     border: 2px solid #e5e7eb;
@@ -272,10 +314,15 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
     font-family: 'Courier New', monospace;
 }
 
-.form-group input:focus {
+.form-group input[type="text"]:focus {
     outline: none;
     border-color: #667eea;
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-group input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .form-actions {
@@ -445,10 +492,11 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
     <div class="help-text">
         <strong>📖 Anleitung:</strong>
         1. Trage unten bei jedem Produkt die Digistore24 Produkt-ID ein<br>
-        2. Aktiviere das Produkt mit dem Schalter<br>
-        3. Speichere die Änderungen<br>
-        4. Nutze "🔄 Alle Kunden aktualisieren" um bestehende Kunden zu synchronisieren<br>
-        5. Der Webhook erkennt automatisch welches Produkt gekauft wurde!
+        2. Passe die <strong>Limits</strong> nach Bedarf an (klicke auf die Zahlen)<br>
+        3. Aktiviere das Produkt mit dem Schalter<br>
+        4. Speichere die Änderungen<br>
+        5. Nutze "🔄 Alle Kunden aktualisieren" um die neuen Limits auf alle bestehenden Kunden anzuwenden<br>
+        6. Der Webhook erkennt automatisch welches Produkt gekauft wurde!
     </div>
     
     <!-- Produkte -->
@@ -464,7 +512,7 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
         <?php else: ?>
             <?php foreach ($products as $product): ?>
                 <div class="product-card <?php echo $product['is_active'] ? '' : 'inactive'; ?>">
-                    <form method="POST" action="/api/digistore-update.php" onsubmit="return confirm('Änderungen speichern?');">
+                    <form method="POST" action="/api/digistore-update.php" onsubmit="return confirmSave(event, this);">
                         <input type="hidden" name="product_db_id" value="<?php echo $product['id']; ?>">
                         
                         <div class="product-header">
@@ -493,22 +541,45 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
                             </small>
                         </div>
                         
+                        <div class="limits-info">
+                            <strong>💡 Limits global anpassen</strong>
+                            Klicke auf die Zahlen unten, um die Limits für ALLE Kunden mit diesem Tarif zu ändern.
+                        </div>
+                        
                         <div class="product-features">
                             <div class="feature-box">
-                                <div class="feature-value"><?php echo $product['own_freebies_limit']; ?></div>
-                                <div class="feature-label">Eigene Freebies</div>
+                                <label class="feature-label" for="own_freebies_<?php echo $product['id']; ?>">Eigene Freebies</label>
+                                <input type="number" 
+                                       id="own_freebies_<?php echo $product['id']; ?>"
+                                       name="own_freebies_limit"
+                                       value="<?php echo $product['own_freebies_limit']; ?>"
+                                       min="0"
+                                       step="1"
+                                       title="Anzahl eigener Freebies die der Kunde erstellen kann">
                             </div>
                             
-                            <?php if ($product['ready_freebies_count'] > 0): ?>
+                            <?php if ($product['product_type'] === 'launch' || $product['ready_freebies_count'] > 0): ?>
                             <div class="feature-box">
-                                <div class="feature-value"><?php echo $product['ready_freebies_count']; ?></div>
-                                <div class="feature-label">Fertige Freebies</div>
+                                <label class="feature-label" for="ready_freebies_<?php echo $product['id']; ?>">Fertige Freebies</label>
+                                <input type="number" 
+                                       id="ready_freebies_<?php echo $product['id']; ?>"
+                                       name="ready_freebies_count"
+                                       value="<?php echo $product['ready_freebies_count']; ?>"
+                                       min="0"
+                                       step="1"
+                                       title="Anzahl fertiger Template-Freebies">
                             </div>
                             <?php endif; ?>
                             
                             <div class="feature-box">
-                                <div class="feature-value"><?php echo $product['referral_program_slots']; ?></div>
-                                <div class="feature-label">Empfehlungs-Slots</div>
+                                <label class="feature-label" for="referral_slots_<?php echo $product['id']; ?>">Empfehlungs-Slots</label>
+                                <input type="number" 
+                                       id="referral_slots_<?php echo $product['id']; ?>"
+                                       name="referral_program_slots"
+                                       value="<?php echo $product['referral_program_slots']; ?>"
+                                       min="0"
+                                       step="1"
+                                       title="Anzahl der Empfehlungen die der Kunde registrieren kann">
                             </div>
                         </div>
                         
@@ -579,6 +650,28 @@ function copyWebhookUrl() {
     });
 }
 
+function confirmSave(event, form) {
+    event.preventDefault();
+    
+    const productName = form.closest('.product-card').querySelector('.product-title h3').textContent;
+    const ownFreebies = form.querySelector('[name="own_freebies_limit"]')?.value || 'nicht geändert';
+    const readyFreebies = form.querySelector('[name="ready_freebies_count"]')?.value || 'nicht geändert';
+    const referralSlots = form.querySelector('[name="referral_program_slots"]')?.value || 'nicht geändert';
+    
+    const message = `Produkt "${productName}" speichern?\n\n` +
+                    `Neue Limits:\n` +
+                    `• Eigene Freebies: ${ownFreebies}\n` +
+                    `• Fertige Freebies: ${readyFreebies}\n` +
+                    `• Empfehlungs-Slots: ${referralSlots}\n\n` +
+                    `Hinweis: Um die neuen Limits auf bestehende Kunden anzuwenden, nutze den "Alle Kunden aktualisieren" Button.`;
+    
+    if (confirm(message)) {
+        form.submit();
+    }
+    
+    return false;
+}
+
 async function syncProduct(productId, productName, overwriteManual = false) {
     const message = `🔄 Tarif-Synchronisation\n\nMöchtest du ALLE Kunden mit dem Tarif "${productName}" auf die aktuellen Limits aktualisieren?\n\nDies betrifft:\n- Freebie-Limits\n- Empfehlungsprogramm-Slots\n\nManuell gesetzte Limits werden ${overwriteManual ? 'ÜBERSCHRIEBEN' : 'NICHT überschrieben'}.`;
     
@@ -629,6 +722,7 @@ async function syncProduct(productId, productName, overwriteManual = false) {
             message += `- Referral-Slots: ${product.referral_slots}`;
             
             alert(message);
+            location.reload();
         } else {
             alert('❌ Fehler bei der Synchronisation:\n\n' + result.error);
         }
