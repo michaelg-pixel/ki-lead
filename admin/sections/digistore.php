@@ -1,7 +1,7 @@
 <?php
 /**
- * Digistore24 Webhook-Zentrale - VERSION 3.2
- * Mit globalem Sync-Button für ALLE Kunden (inkl. manuell angelegte)
+ * Digistore24 Webhook-Zentrale - VERSION 3.3
+ * KORRIGIERT: Sync-Buttons beziehen sich auf spezifisches Produkt
  */
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
@@ -505,8 +505,8 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
         2. Passe die <strong>Limits</strong> nach Bedarf an (klicke auf die Zahlen)<br>
         3. Aktiviere das Produkt mit dem Schalter<br>
         4. Speichere die Änderungen<br>
-        5. Nutze <strong>"🔄 Alle Kunden aktualisieren"</strong> um die neuen Limits auf bestehende Kunden anzuwenden<br>
-        6. Nutze <strong>"🌐 ALLE Kunden global aktualisieren"</strong> um ALLE Kunden (auch manuell angelegte) zu aktualisieren<br>
+        5. Nutze <strong>"🔄 Kunden aktualisieren"</strong> um Limits für bereits verknüpfte Kunden anzuwenden<br>
+        6. Nutze <strong>"🌐 Inkl. manuell angelegte"</strong> um auch manuell angelegte Kunden MIT DIESEM PRODUKT einzubeziehen<br>
         7. Der Webhook erkennt automatisch welches Produkt gekauft wurde!
     </div>
     
@@ -517,7 +517,7 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
                 <div class="empty-state-icon">🛒</div>
                 <p>Keine Produkte gefunden.</p>
                 <p style="font-size: 14px; margin-top: 12px;">
-                    <a href="/database/setup-digistore-products.php" style="color: #667eea;">→ Datenbank einrichten</a>
+                    <a href="/database/install-products.php" style="color: #667eea;">→ Produkte installieren</a>
                 </p>
             </div>
         <?php else: ?>
@@ -627,15 +627,15 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
                                     <button type="button" 
                                             class="btn btn-success" 
                                             onclick="syncProduct('<?php echo htmlspecialchars($product['product_id']); ?>', '<?php echo htmlspecialchars($product['product_name']); ?>', false, false)"
-                                            title="Alle Kunden mit diesem Tarif auf die aktuellen Limits aktualisieren">
-                                        🔄 Alle Kunden aktualisieren
+                                            title="Kunden die bereits mit diesem Produkt verknüpft sind aktualisieren">
+                                        🔄 Kunden aktualisieren
                                     </button>
                                     
                                     <button type="button" 
                                             class="btn btn-warning" 
                                             onclick="syncProduct('<?php echo htmlspecialchars($product['product_id']); ?>', '<?php echo htmlspecialchars($product['product_name']); ?>', false, true)"
-                                            title="ALLE Kunden des Systems (inkl. manuell angelegte) auf diese Limits aktualisieren">
-                                        🌐 ALLE Kunden global
+                                            title="Auch manuell angelegte Kunden MIT DIESEM PRODUKT einbeziehen">
+                                        🌐 Inkl. manuell angelegte
                                     </button>
                                     
                                     <a href="/webhook/test-digistore.php?product_id=<?php echo urlencode($product['product_id']); ?>" 
@@ -681,7 +681,7 @@ function confirmSave(event, form) {
                     `• Eigene Freebies: ${ownFreebies}\n` +
                     `• Fertige Freebies: ${readyFreebies}\n` +
                     `• Empfehlungs-Slots: ${referralSlots}\n\n` +
-                    `Hinweis: Um die neuen Limits auf bestehende Kunden anzuwenden, nutze die Update-Buttons.`;
+                    `Hinweis: Um die neuen Limits auf Kunden anzuwenden, nutze die Update-Buttons.`;
     
     if (confirm(message)) {
         form.submit();
@@ -690,21 +690,21 @@ function confirmSave(event, form) {
     return false;
 }
 
-async function syncProduct(productId, productName, overwriteManual = false, includeAll = false) {
+async function syncProduct(productId, productName, overwriteManual = false, includeUnlinked = false) {
     let message = '';
     
-    if (includeAll) {
-        message = `🌐 GLOBALE Tarif-Synchronisation\n\n` +
-                 `⚠️ ACHTUNG: Diese Aktion betrifft ALLE Kunden im System!\n\n` +
-                 `Das bedeutet:\n` +
-                 `- Alle Kunden (auch manuell angelegte)\n` +
-                 `- Werden auf Tarif "${productName}" gesetzt\n` +
-                 `- Bekommen die aktuellen Limits dieses Tarifs\n\n` +
-                 `Bist du sicher?`;
+    if (includeUnlinked) {
+        message = `🌐 Erweiterte Synchronisation\n\n` +
+                 `Alle Kunden MIT diesem Produkt "${productName}" aktualisieren?\n\n` +
+                 `Das betrifft:\n` +
+                 `✅ Webhook-Kunden mit diesem Produkt\n` +
+                 `✅ Manuell angelegte Kunden mit diesem Produkt\n` +
+                 `❌ Kunden mit ANDEREN Produkten werden NICHT geändert\n\n` +
+                 `Fortfahren?`;
     } else {
-        message = `🔄 Tarif-Synchronisation\n\n` +
-                 `Möchtest du alle Kunden mit dem Tarif "${productName}" auf die aktuellen Limits aktualisieren?\n\n` +
-                 `Dies betrifft:\n` +
+        message = `🔄 Standard-Synchronisation\n\n` +
+                 `Alle bereits verknüpften Kunden mit "${productName}" aktualisieren?\n\n` +
+                 `Das betrifft:\n` +
                  `- Freebie-Limits\n` +
                  `- Empfehlungsprogramm-Slots\n\n` +
                  `Manuell gesetzte Limits werden ${overwriteManual ? 'ÜBERSCHRIEBEN' : 'NICHT überschrieben'}.`;
@@ -717,7 +717,7 @@ async function syncProduct(productId, productName, overwriteManual = false, incl
     const formData = new FormData();
     formData.append('product_id', productId);
     formData.append('overwrite_manual', overwriteManual ? '1' : '0');
-    formData.append('include_all', includeAll ? '1' : '0');
+    formData.append('include_all', includeUnlinked ? '1' : '0');
     
     const btn = event.target;
     const originalText = btn.innerHTML;
@@ -752,7 +752,7 @@ async function syncProduct(productId, productName, overwriteManual = false, incl
                 message += `Möchtest du auch diese überschreiben?`;
                 
                 if (confirm(message)) {
-                    await syncProduct(productId, productName, true, includeAll);
+                    await syncProduct(productId, productName, true, includeUnlinked);
                     return;
                 }
             }
