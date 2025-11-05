@@ -1,7 +1,9 @@
 <?php
 /**
- * Digistore24 Webhook Handler - MIT KURS-FREISCHALTUNG & FREEBIE-LIMITS
+ * Digistore24 Webhook Handler - ERWEITERTE VERSION
  * Empfängt Kunden von Digistore24 und erstellt automatisch Accounts + Kurs-Zugang + Freebie-Limits
+ * 
+ * Version 2.0 - Mit zentraler Produktverwaltung
  */
 
 require_once '../config/database.php';
@@ -10,7 +12,7 @@ require_once '../config/database.php';
 function logWebhook($data, $type = 'info') {
     $logFile = __DIR__ . '/webhook-logs.txt';
     $timestamp = date('Y-m-d H:i:s');
-    $logEntry = "[$timestamp] [$type] " . json_encode($data, JSON_PRETTY_PRINT) . "\n";
+    $logEntry = "[$timestamp] [$type] " . json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
     file_put_contents($logFile, $logEntry, FILE_APPEND);
 }
 
@@ -47,6 +49,11 @@ try {
             handleRefund($pdo, $webhookData);
             break;
             
+        case 'subscription.cancelled':
+        case 'subscription.expired':
+            handleSubscriptionEnd($pdo, $webhookData);
+            break;
+            
         default:
             logWebhook(['warning' => 'Unknown event type', 'event' => $eventType], 'warning');
             http_response_code(200);
@@ -78,6 +85,30 @@ function handleNewCustomer($pdo, $data) {
         throw new Exception('Email is required');
     }
     
+    if (empty($productId)) {
+        throw new Exception('Product ID is required');
+    }
+    
+    // Produkt-Konfiguration laden
+    $productConfig = getProductConfig($pdo, $productId);
+    
+    if (!$productConfig) {
+        logWebhook([
+            'warning' => 'Product not configured in admin system',
+            'product_id' => $productId,
+            'email' => $email
+        ], 'warning');
+        
+        // Erstelle User trotzdem mit Default-Werten
+        $productConfig = [
+            'product_name' => $productName,
+            'product_type' => 'custom',
+            'own_freebies_limit' => 5,
+            'ready_freebies_count' => 0,
+            'referral_program_slots' => 1
+        ];
+    }
+    
     // Prüfen ob Kunde bereits existiert
     $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
     $stmt->execute([$email]);
@@ -88,32 +119,69 @@ function handleNewCustomer($pdo, $data) {
     
     if ($existingUser) {
         $userId = $existingUser['id'];
-        logWebhook(['message' => 'User already exists, granting access', 'email' => $email, 'user_id' => $userId], 'info');
+        logWebhook([
+            'message' => 'User already exists, granting access',
+            'email' => $email,
+            'user_id' => $userId
+        ], 'info');
     } else {
         // Neuen User erstellen
-        $userId = createNewUser($pdo, $email, $name, $orderId, $productId, $productName);
+        $userId = createNewUser($pdo, $email, $name, $orderId, $productId, $productConfig);
         $isNewUser = true;
     }
     
-    // KURS-ZUGANG GEWÄHREN
+    // KURS-ZUGANG GEWÄHREN (falls konfiguriert)
     grantCourseAccess($pdo, $userId, $productId, $email);
     
-    // FREEBIE-LIMITS SETZEN (NEU!)
-    setFreebieLimit($pdo, $userId, $productId, $productName);
+    // FREEBIE-LIMITS SETZEN
+    setFreebieLimit($pdo, $userId, $productId, $productConfig);
+    
+    // EMPFEHLUNGSPROGRAMM-SLOTS SETZEN
+    setReferralSlots($pdo, $userId, $productConfig);
+    
+    // FERTIGE FREEBIES ZUWEISEN (nur bei Launch)
+    if ($productConfig['ready_freebies_count'] > 0) {
+        assignReadyFreebies($pdo, $userId, $productConfig['ready_freebies_count']);
+    }
     
     logWebhook([
         'message' => 'Customer processed successfully',
         'user_id' => $userId,
         'email' => $email,
         'new_user' => $isNewUser,
-        'product_id' => $productId
+        'product_id' => $productId,
+        'product_type' => $productConfig['product_type'],
+        'freebies_limit' => $productConfig['own_freebies_limit'],
+        'referral_slots' => $productConfig['referral_program_slots']
     ], 'success');
+}
+
+/**
+ * Produkt-Konfiguration aus Admin-System laden
+ */
+function getProductConfig($pdo, $productId) {
+    $stmt = $pdo->prepare("
+        SELECT 
+            product_id,
+            product_name,
+            product_type,
+            price,
+            billing_type,
+            own_freebies_limit,
+            ready_freebies_count,
+            referral_program_slots
+        FROM digistore_products 
+        WHERE product_id = ? AND is_active = 1
+    ");
+    $stmt->execute([$productId]);
+    
+    return $stmt->fetch();
 }
 
 /**
  * Neuen User erstellen
  */
-function createNewUser($pdo, $email, $name, $orderId, $productId, $productName) {
+function createNewUser($pdo, $email, $name, $orderId, $productId, $productConfig) {
     // RAW-Code generieren
     $rawCode = 'RAW-' . date('Y') . '-' . str_pad(rand(1, 999), 3, '0', STR_PAD_LEFT);
     
@@ -145,19 +213,20 @@ function createNewUser($pdo, $email, $name, $orderId, $productId, $productName) 
         $rawCode,
         $orderId,
         $productId,
-        $productName
+        $productConfig['product_name'] ?? 'Unbekannt'
     ]);
     
     $userId = $pdo->lastInsertId();
     
     // Willkommens-E-Mail senden
-    sendWelcomeEmail($email, $name, $password, $rawCode);
+    sendWelcomeEmail($email, $name, $password, $rawCode, $productConfig);
     
     logWebhook([
         'message' => 'New customer created',
         'user_id' => $userId,
         'email' => $email,
-        'raw_code' => $rawCode
+        'raw_code' => $rawCode,
+        'product_type' => $productConfig['product_type'] ?? 'custom'
     ], 'success');
     
     return $userId;
@@ -179,10 +248,10 @@ function grantCourseAccess($pdo, $userId, $productId, $email) {
     
     if (!$course) {
         logWebhook([
-            'warning' => 'No course found for this product_id',
+            'info' => 'No course linked to this product_id',
             'product_id' => $productId,
             'user_id' => $userId
-        ], 'warning');
+        ], 'info');
         return;
     }
     
@@ -221,35 +290,11 @@ function grantCourseAccess($pdo, $userId, $productId, $email) {
 }
 
 /**
- * NEUE FUNKTION: Freebie-Limit für Kunde setzen
+ * Freebie-Limit für Kunde setzen (eigene Freebies)
  */
-function setFreebieLimit($pdo, $userId, $productId, $productName) {
-    if (empty($productId)) {
-        logWebhook(['warning' => 'No product_id provided, cannot set freebie limit'], 'warning');
-        return;
-    }
-    
-    // Freebie-Limit aus Konfiguration holen
-    $stmt = $pdo->prepare("
-        SELECT freebie_limit, product_name 
-        FROM product_freebie_config 
-        WHERE product_id = ? AND is_active = 1
-    ");
-    $stmt->execute([$productId]);
-    $config = $stmt->fetch();
-    
-    $freebieLimit = 5; // Default
-    
-    if ($config) {
-        $freebieLimit = $config['freebie_limit'];
-        $productName = $config['product_name'] ?: $productName;
-    } else {
-        logWebhook([
-            'info' => 'No freebie config found, using default limit',
-            'product_id' => $productId,
-            'default_limit' => $freebieLimit
-        ], 'info');
-    }
+function setFreebieLimit($pdo, $userId, $productId, $productConfig) {
+    $freebieLimit = $productConfig['own_freebies_limit'] ?? 5;
+    $productName = $productConfig['product_name'] ?? 'Unbekannt';
     
     // Prüfen ob bereits ein Limit existiert
     $stmt = $pdo->prepare("SELECT id, freebie_limit FROM customer_freebie_limits WHERE customer_id = ?");
@@ -299,6 +344,84 @@ function setFreebieLimit($pdo, $userId, $productId, $productName) {
 }
 
 /**
+ * Empfehlungsprogramm-Slots setzen
+ */
+function setReferralSlots($pdo, $userId, $productConfig) {
+    $slots = $productConfig['referral_program_slots'] ?? 1;
+    
+    // Prüfen ob Tabelle existiert
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO customer_referral_slots (customer_id, total_slots, used_slots, created_at)
+            VALUES (?, ?, 0, NOW())
+            ON DUPLICATE KEY UPDATE total_slots = GREATEST(total_slots, ?)
+        ");
+        $stmt->execute([$userId, $slots, $slots]);
+        
+        logWebhook([
+            'success' => 'Referral slots set',
+            'user_id' => $userId,
+            'slots' => $slots
+        ], 'success');
+    } catch (PDOException $e) {
+        logWebhook([
+            'info' => 'Referral slots table not available',
+            'error' => $e->getMessage()
+        ], 'info');
+    }
+}
+
+/**
+ * Fertige Freebies zuweisen (nur für Launch-Paket)
+ */
+function assignReadyFreebies($pdo, $userId, $count) {
+    try {
+        // Hole die ersten X "fertigen" Freebies (markiert mit is_template=1)
+        $stmt = $pdo->prepare("
+            SELECT id, title, subtitle 
+            FROM freebies 
+            WHERE is_template = 1 AND is_active = 1
+            LIMIT ?
+        ");
+        $stmt->execute([$count]);
+        $templates = $stmt->fetchAll();
+        
+        if (empty($templates)) {
+            logWebhook([
+                'warning' => 'No template freebies available to assign',
+                'user_id' => $userId,
+                'requested_count' => $count
+            ], 'warning');
+            return;
+        }
+        
+        // Weise jedes Template dem User zu
+        $stmt = $pdo->prepare("
+            INSERT IGNORE INTO customer_freebies (customer_id, freebie_id, assigned_at)
+            VALUES (?, ?, NOW())
+        ");
+        
+        foreach ($templates as $template) {
+            $stmt->execute([$userId, $template['id']]);
+        }
+        
+        logWebhook([
+            'success' => 'Ready freebies assigned',
+            'user_id' => $userId,
+            'count' => count($templates),
+            'freebies' => array_column($templates, 'title')
+        ], 'success');
+        
+    } catch (PDOException $e) {
+        logWebhook([
+            'error' => 'Failed to assign ready freebies',
+            'user_id' => $userId,
+            'message' => $e->getMessage()
+        ], 'error');
+    }
+}
+
+/**
  * Rückerstattung behandeln
  */
 function handleRefund($pdo, $data) {
@@ -329,6 +452,14 @@ function handleRefund($pdo, $data) {
     $stmt = $pdo->prepare("UPDATE customer_freebie_limits SET freebie_limit = 0 WHERE customer_id = ?");
     $stmt->execute([$userId]);
     
+    // Empfehlungs-Slots auf 0
+    try {
+        $stmt = $pdo->prepare("UPDATE customer_referral_slots SET total_slots = 0 WHERE customer_id = ?");
+        $stmt->execute([$userId]);
+    } catch (PDOException $e) {
+        // Tabelle existiert möglicherweise nicht
+    }
+    
     // Kurs-Zugang entfernen (falls Product-ID vorhanden)
     if (!empty($productId)) {
         $stmt = $pdo->prepare("
@@ -337,17 +468,51 @@ function handleRefund($pdo, $data) {
             WHERE ca.user_id = ? AND c.digistore_product_id = ?
         ");
         $stmt->execute([$userId, $productId]);
-        
-        logWebhook([
-            'message' => 'Course access revoked due to refund',
-            'user_id' => $userId,
-            'email' => $email,
-            'product_id' => $productId
-        ], 'info');
     }
     
     logWebhook([
-        'message' => 'User deactivated and freebie limit reset due to refund',
+        'message' => 'Refund processed - access revoked',
+        'user_id' => $userId,
+        'email' => $email,
+        'product_id' => $productId
+    ], 'info');
+}
+
+/**
+ * Abo-Ende behandeln (gekündigt oder abgelaufen)
+ */
+function handleSubscriptionEnd($pdo, $data) {
+    $email = $data['buyer']['email'] ?? '';
+    
+    if (empty($email)) {
+        throw new Exception('Email is required');
+    }
+    
+    // User-ID finden
+    $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
+    $stmt->execute([$email]);
+    $user = $stmt->fetch();
+    
+    if (!$user) {
+        logWebhook(['warning' => 'User not found for subscription end', 'email' => $email], 'warning');
+        return;
+    }
+    
+    $userId = $user['id'];
+    
+    // Auf Freemium downgraden (statt komplett zu deaktivieren)
+    $stmt = $pdo->prepare("UPDATE customer_freebie_limits SET freebie_limit = 2 WHERE customer_id = ?");
+    $stmt->execute([$userId]);
+    
+    try {
+        $stmt = $pdo->prepare("UPDATE customer_referral_slots SET total_slots = 0 WHERE customer_id = ?");
+        $stmt->execute([$userId]);
+    } catch (PDOException $e) {
+        // Tabelle existiert möglicherweise nicht
+    }
+    
+    logWebhook([
+        'message' => 'Subscription ended - downgraded to freemium',
         'user_id' => $userId,
         'email' => $email
     ], 'info');
@@ -356,34 +521,79 @@ function handleRefund($pdo, $data) {
 /**
  * Willkommens-E-Mail senden
  */
-function sendWelcomeEmail($email, $name, $password, $rawCode) {
-    $subject = "Willkommen beim KI Leadsystem!";
+function sendWelcomeEmail($email, $name, $password, $rawCode, $productConfig) {
+    $productName = $productConfig['product_name'] ?? 'KI Leadsystem';
+    $productType = $productConfig['product_type'] ?? 'custom';
+    
+    // Features basierend auf Produkt-Typ
+    $features = [];
+    if (isset($productConfig['own_freebies_limit'])) {
+        $features[] = "✅ <strong>{$productConfig['own_freebies_limit']} eigene Freebies</strong> erstellen";
+    }
+    if (isset($productConfig['ready_freebies_count']) && $productConfig['ready_freebies_count'] > 0) {
+        $features[] = "🎁 <strong>{$productConfig['ready_freebies_count']} fertige Freebie-Templates</strong> sofort verfügbar";
+    }
+    if (isset($productConfig['referral_program_slots'])) {
+        $features[] = "🚀 <strong>{$productConfig['referral_program_slots']} Empfehlungsprogramm-Slots</strong>";
+    }
+    
+    $featuresList = !empty($features) ? '<ul style="list-style: none; padding: 0;">' . 
+                    implode('', array_map(fn($f) => "<li style='padding: 8px 0;'>$f</li>", $features)) . 
+                    '</ul>' : '';
+    
+    $subject = "🎉 Willkommen beim KI Leadsystem - $productName";
     
     $message = "
     <html>
-    <body style='font-family: Arial, sans-serif; line-height: 1.6;'>
+    <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
         <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
-            <h2 style='color: #667eea;'>Willkommen, $name!</h2>
-            <p>Vielen Dank für deinen Kauf! Dein Account wurde erfolgreich erstellt.</p>
-            
-            <div style='background: #f5f7fa; padding: 20px; border-radius: 8px; margin: 20px 0;'>
-                <h3>Deine Zugangsdaten:</h3>
-                <p><strong>E-Mail:</strong> $email</p>
-                <p><strong>Passwort:</strong> $password</p>
-                <p><strong>RAW-Code:</strong> $rawCode</p>
+            <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0;'>
+                <h1 style='color: white; margin: 0; font-size: 32px;'>🎉 Willkommen, $name!</h1>
+                <p style='color: rgba(255,255,255,0.9); margin: 10px 0 0 0;'>Dein Account wurde erfolgreich erstellt</p>
             </div>
             
-            <p>
-                <a href='https://app.mehr-infos-jetzt.de/public/login.php' 
-                   style='display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                          color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px;'>
-                    Jetzt einloggen
-                </a>
-            </p>
-            
-            <p style='color: #888; font-size: 14px; margin-top: 20px;'>
-                Bitte ändere dein Passwort nach dem ersten Login!
-            </p>
+            <div style='background: white; padding: 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);'>
+                <p>Vielen Dank für deinen Kauf von <strong>$productName</strong>!</p>
+                
+                $featuresList
+                
+                <div style='background: #f5f7fa; padding: 20px; border-radius: 8px; margin: 20px 0;'>
+                    <h3 style='margin: 0 0 15px 0; color: #667eea;'>🔑 Deine Zugangsdaten:</h3>
+                    <table style='width: 100%; border-collapse: collapse;'>
+                        <tr>
+                            <td style='padding: 8px 0; color: #6b7280;'>E-Mail:</td>
+                            <td style='padding: 8px 0; font-weight: bold;'>$email</td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 8px 0; color: #6b7280;'>Passwort:</td>
+                            <td style='padding: 8px 0; font-family: monospace; font-weight: bold;'>$password</td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 8px 0; color: #6b7280;'>RAW-Code:</td>
+                            <td style='padding: 8px 0; font-family: monospace; font-weight: bold;'>$rawCode</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <div style='text-align: center; margin: 30px 0;'>
+                    <a href='https://app.mehr-infos-jetzt.de/public/login.php' 
+                       style='display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                              color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;'>
+                        🚀 Jetzt einloggen und loslegen
+                    </a>
+                </div>
+                
+                <div style='background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 6px; margin-top: 20px;'>
+                    <p style='margin: 0; color: #856404; font-size: 14px;'>
+                        <strong>⚠️ Wichtig:</strong> Bitte ändere dein Passwort nach dem ersten Login für maximale Sicherheit!
+                    </p>
+                </div>
+                
+                <p style='color: #888; font-size: 14px; margin-top: 30px; text-align: center;'>
+                    Bei Fragen stehen wir dir gerne zur Verfügung!<br>
+                    Viel Erfolg mit deinem KI Leadsystem! 🎯
+                </p>
+            </div>
         </div>
     </body>
     </html>
@@ -400,7 +610,7 @@ function sendWelcomeEmail($email, $name, $password, $rawCode) {
  * E-Mail mit Kurs-Zugang senden
  */
 function sendCourseAccessEmail($email, $courseTitle) {
-    $subject = "Dein Kurs ist jetzt freigeschaltet!";
+    $subject = "🎓 Dein Kurs ist jetzt freigeschaltet!";
     
     $message = "
     <html>
