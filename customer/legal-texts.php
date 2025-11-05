@@ -202,6 +202,51 @@ if (isset($_POST['save_legal_texts'])) {
                     </button>
                 </div>
                 
+                <!-- GOOGLE FONTS WARNUNG -->
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-bold text-yellow-800 mb-2">
+                                ⚠️ WICHTIG: Google Fonts Hinweis für Datenschutzerklärung
+                            </h3>
+                            <div class="text-sm text-yellow-700 mb-3">
+                                <p class="mb-2">Deine Freebie-Seiten nutzen Google Fonts (externe Schriftarten von Google). <strong>Du MUSST folgenden Text in deine Datenschutzerklärung einfügen</strong>, sonst drohen Abmahnungen!</p>
+                                <p class="text-xs mb-2"><strong>Rechtlicher Hintergrund:</strong> LG München (2022) - Externes Laden von Google Fonts ohne Erwähnung verstößt gegen DSGVO</p>
+                            </div>
+                            <div class="bg-white rounded-lg p-4 border-2 border-yellow-300">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-xs font-bold text-gray-700">📋 TEXT ZUM KOPIEREN:</span>
+                                    <button type="button" onclick="copyGoogleFontsText()" class="text-xs bg-yellow-100 hover:bg-yellow-200 px-3 py-1 rounded text-yellow-800 font-semibold">
+                                        <i class="fas fa-copy mr-1"></i> Kopieren
+                                    </button>
+                                </div>
+                                <div id="googleFontsText" class="text-xs font-mono text-gray-800 bg-gray-50 p-3 rounded leading-relaxed border border-gray-200">
+<strong>Google Fonts</strong><br><br>
+Diese Website nutzt Google Fonts zur Darstellung von Schriftarten. Google Fonts ist ein Dienst der Google LLC („Google"). Beim Aufruf dieser Seiten werden folgende Daten an Google übertragen:<br><br>
+- IP-Adresse des Nutzers<br>
+- Angefragte Schriftart<br>
+- Browsertyp und -version<br><br>
+<strong>Zweck:</strong> Einheitliche und ansprechende Darstellung der Website<br>
+<strong>Rechtsgrundlage:</strong> Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an professioneller Darstellung)<br>
+<strong>Datenverarbeitung:</strong> Google kann die Daten zur Analyse des Nutzerverhaltens verwenden<br>
+<strong>Speicherort:</strong> USA (Angemessenheitsbeschluss nach Art. 45 DSGVO)<br><br>
+Weitere Informationen:<br>
+Google Datenschutzerklärung: https://policies.google.com/privacy<br>
+Google Fonts Datenschutz: https://developers.google.com/fonts/faq/privacy
+                                </div>
+                                <p class="text-xs text-yellow-700 mt-2">
+                                    <i class="fas fa-arrow-down mr-1"></i> Füge diesen Text in deine Datenschutzerklärung unten ein (z.B. unter Punkt 4 oder 7)
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="mb-4">
                     <label class="block text-sm font-semibold mb-2 text-gray-700">
                         Deine Datenschutzerklärung (DSGVO-konform)
@@ -225,6 +270,7 @@ if (isset($_POST['save_legal_texts'])) {
                         <li><strong>Cookies:</strong> Welche Cookies werden verwendet und wofür?</li>
                         <li><strong>Drittanbieter:</strong> z.B. E-Mail-Marketing-Tools, Analyse-Tools, Hosting</li>
                         <li><strong>Widerrufsrecht:</strong> Möglichkeit zum Widerruf der Einwilligung</li>
+                        <li class="text-yellow-700 font-bold"><strong>⚠️ Google Fonts:</strong> Siehe wichtigen Hinweis oben!</li>
                     </ul>
                 </div>
             </div>
@@ -275,6 +321,22 @@ if (isset($_POST['save_legal_texts'])) {
     </div>
 
     <script>
+        function copyGoogleFontsText() {
+            const text = document.getElementById('googleFontsText').innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                // Feedback anzeigen
+                const btn = event.target.closest('button');
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check mr-1"></i> Kopiert!';
+                btn.classList.add('bg-green-200');
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.classList.remove('bg-green-200');
+                }, 2000);
+            });
+        }
+        
         function loadTemplate(type) {
             const templates = {
                 impressum: `Angaben gemäß § 5 TMG
