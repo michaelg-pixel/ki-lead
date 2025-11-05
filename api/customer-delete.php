@@ -1,6 +1,6 @@
 <?php
 /**
- * API: Kunden löschen (permanent)
+ * API: Benutzer löschen (permanent) - Kunden & Admins
  */
 
 session_start();
@@ -25,13 +25,18 @@ try {
         throw new Exception('Ungültige Benutzer-ID');
     }
     
-    // Prüfen ob Kunde existiert
-    $stmt = $pdo->prepare("SELECT id, name, email FROM users WHERE id = ? AND role = 'customer'");
+    // Prüfen ob Benutzer sich selbst löschen will (verhindert versehentliche Selbstlöschung)
+    if ($userId === $_SESSION['user_id']) {
+        throw new Exception('Du kannst deinen eigenen Account nicht löschen');
+    }
+    
+    // Prüfen ob Benutzer existiert
+    $stmt = $pdo->prepare("SELECT id, name, email, role FROM users WHERE id = ?");
     $stmt->execute([$userId]);
     $user = $stmt->fetch();
     
     if (!$user) {
-        throw new Exception('Kunde nicht gefunden');
+        throw new Exception('Benutzer nicht gefunden');
     }
     
     // Transaktion starten
@@ -53,13 +58,15 @@ try {
         // Transaktion bestätigen
         $pdo->commit();
         
+        $userType = $user['role'] === 'admin' ? 'Admin' : 'Kunde';
         echo json_encode([
             'success' => true,
-            'message' => 'Kunde erfolgreich gelöscht',
+            'message' => "$userType erfolgreich gelöscht",
             'deleted_user' => [
                 'id' => $user['id'],
                 'name' => $user['name'],
-                'email' => $user['email']
+                'email' => $user['email'],
+                'role' => $user['role']
             ]
         ]);
         
