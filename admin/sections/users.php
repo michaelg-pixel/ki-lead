@@ -1,19 +1,19 @@
 <?php
 /**
- * Kundenverwaltung - Admin Dashboard
+ * Benutzerverwaltung - Admin Dashboard (inkl. Admin-Accounts)
  * Mit Digistore24 Integration & Limits-Verwaltung - RESPONSIVE OPTIMIERT
  */
 
-// Kunden aus Datenbank laden
+// Benutzer aus Datenbank laden (inkl. Admins)
 $search = $_GET['search'] ?? '';
-$status = $_GET['status'] ?? 'all';
+$role_filter = $_GET['role'] ?? 'all';
 
 $query = "SELECT u.*, 
           GROUP_CONCAT(DISTINCT f.name SEPARATOR ', ') as assigned_freebies
           FROM users u
           LEFT JOIN user_freebies uf ON u.id = uf.user_id
           LEFT JOIN freebies f ON uf.freebie_id = f.id
-          WHERE u.role = 'customer'";
+          WHERE 1=1";
 
 $params = [];
 
@@ -23,16 +23,16 @@ if (!empty($search)) {
     $params = [$searchTerm, $searchTerm, $searchTerm];
 }
 
-if ($status !== 'all') {
-    $query .= " AND u.is_active = ?";
-    $params[] = ($status === 'active') ? 1 : 0;
+if ($role_filter !== 'all') {
+    $query .= " AND u.role = ?";
+    $params[] = $role_filter;
 }
 
-$query .= " GROUP BY u.id ORDER BY u.created_at DESC";
+$query .= " GROUP BY u.id ORDER BY u.role DESC, u.created_at DESC";
 
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
-$customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Alle Freebie Templates laden (aus der richtigen Tabelle!)
 $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
@@ -40,7 +40,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 
 <style>
 /* VERBESSERTE FARBEN - Konsistent mit neuem Dashboard-Theme */
-.customers-header {
+.users-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -76,7 +76,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2);
 }
 
-.status-filter {
+.role-filter {
     padding: 12px 16px;
     background: rgba(26, 26, 46, 0.7);
     border: 1px solid rgba(168, 85, 247, 0.3);
@@ -87,13 +87,13 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     white-space: nowrap;
 }
 
-.status-filter:focus {
+.role-filter:focus {
     outline: none;
     border-color: #a855f7;
     box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2);
 }
 
-.customers-table {
+.users-table {
     background: rgba(26, 26, 46, 0.7);
     border: 1px solid rgba(168, 85, 247, 0.3);
     border-radius: 12px;
@@ -105,13 +105,13 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     -webkit-overflow-scrolling: touch;
 }
 
-.customers-table table {
+.users-table table {
     width: 100%;
     border-collapse: collapse;
     min-width: 800px;
 }
 
-.customers-table th {
+.users-table th {
     background: rgba(168, 85, 247, 0.1);
     color: #c084fc;
     font-weight: 600;
@@ -122,19 +122,27 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     text-align: left;
 }
 
-.customers-table td {
+.users-table td {
     padding: 16px;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     color: #e0e0e0;
     font-size: 14px;
 }
 
-.customers-table tbody tr {
+.users-table tbody tr {
     transition: background 0.2s;
 }
 
-.customers-table tbody tr:hover {
+.users-table tbody tr:hover {
     background: rgba(168, 85, 247, 0.08);
+}
+
+.users-table tbody tr.admin-row {
+    background: rgba(251, 191, 36, 0.05);
+}
+
+.users-table tbody tr.admin-row:hover {
+    background: rgba(251, 191, 36, 0.1);
 }
 
 .raw-code {
@@ -169,6 +177,18 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     background: rgba(239, 68, 68, 0.2);
     color: #fca5a5;
     border-color: rgba(239, 68, 68, 0.4);
+}
+
+.badge-admin {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fbbf24;
+    border-color: rgba(251, 191, 36, 0.4);
+}
+
+.badge-customer {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+    border-color: rgba(59, 130, 246, 0.4);
 }
 
 .assigned-content {
@@ -216,6 +236,12 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 .action-btn.delete:hover {
     background: rgba(239, 68, 68, 0.25);
     border-color: rgba(239, 68, 68, 0.5);
+}
+
+.action-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 .empty-state {
@@ -511,7 +537,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 
 /* Tablets */
 @media (max-width: 1024px) {
-    .customers-header {
+    .users-header {
         flex-wrap: wrap;
     }
     
@@ -534,7 +560,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 
 /* Mobile Geräte */
 @media (max-width: 768px) {
-    .customers-header {
+    .users-header {
         flex-direction: column;
         gap: 12px;
     }
@@ -545,7 +571,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     }
     
     .search-input,
-    .status-filter {
+    .role-filter {
         width: 100%;
     }
     
@@ -560,12 +586,12 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
         padding: 0 16px;
     }
     
-    .customers-table table {
+    .users-table table {
         font-size: 12px;
     }
     
-    .customers-table th,
-    .customers-table td {
+    .users-table th,
+    .users-table td {
         padding: 12px 8px;
     }
     
@@ -614,7 +640,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 
 /* Sehr kleine Mobile Geräte */
 @media (max-width: 480px) {
-    .customers-table {
+    .users-table {
         border-radius: 8px;
         font-size: 11px;
     }
@@ -657,33 +683,34 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 }
 </style>
 
-<div class="customers-header">
+<div class="users-header">
     <div class="search-bar">
         <input type="text" 
                class="search-input" 
                placeholder="Suche nach Name, E-Mail oder RAW-Code..." 
                id="searchInput"
                value="<?php echo htmlspecialchars($search); ?>">
-        <select class="status-filter" id="statusFilter">
-            <option value="all" <?php echo $status === 'all' ? 'selected' : ''; ?>>Alle Status</option>
-            <option value="active" <?php echo $status === 'active' ? 'selected' : ''; ?>>Aktiv</option>
-            <option value="inactive" <?php echo $status === 'inactive' ? 'selected' : ''; ?>>Inaktiv</option>
+        <select class="role-filter" id="roleFilter">
+            <option value="all" <?php echo $role_filter === 'all' ? 'selected' : ''; ?>>Alle Rollen</option>
+            <option value="admin" <?php echo $role_filter === 'admin' ? 'selected' : ''; ?>>Admins</option>
+            <option value="customer" <?php echo $role_filter === 'customer' ? 'selected' : ''; ?>>Kunden</option>
         </select>
     </div>
-    <button class="btn btn-primary" onclick="openAddCustomerModal()">
+    <button class="btn btn-primary" onclick="openAddUserModal()">
         <span>+</span>
-        <span>Neuen Kunden hinzufügen</span>
+        <span>Neuen Benutzer hinzufügen</span>
     </button>
 </div>
 
-<div class="customers-table">
-    <?php if (count($customers) > 0): ?>
+<div class="users-table">
+    <?php if (count($users) > 0): ?>
     <div class="table-wrapper">
         <table>
             <thead>
                 <tr>
                     <th>Name</th>
                     <th>E-Mail</th>
+                    <th>Rolle</th>
                     <th>RAW-Code</th>
                     <th>Zugewiesene Inhalte</th>
                     <th>Registrierung</th>
@@ -692,56 +719,76 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($customers as $customer): ?>
-                <tr>
-                    <td><?php echo htmlspecialchars($customer['name']); ?></td>
-                    <td><?php echo htmlspecialchars($customer['email']); ?></td>
+                <?php foreach ($users as $user): ?>
+                <tr class="<?php echo $user['role'] === 'admin' ? 'admin-row' : ''; ?>">
+                    <td><?php echo htmlspecialchars($user['name']); ?></td>
+                    <td><?php echo htmlspecialchars($user['email']); ?></td>
                     <td>
-                        <span class="raw-code"><?php echo htmlspecialchars($customer['raw_code'] ?? 'N/A'); ?></span>
+                        <span class="status-badge badge-<?php echo $user['role']; ?>">
+                            <?php echo $user['role'] === 'admin' ? '👑 ADMIN' : '👤 KUNDE'; ?>
+                        </span>
                     </td>
                     <td>
-                        <div class="assigned-content" title="<?php echo htmlspecialchars($customer['assigned_freebies'] ?: 'Keine Zuweisungen'); ?>">
-                            <?php echo $customer['assigned_freebies'] ? htmlspecialchars($customer['assigned_freebies']) : 'Keine Zuweisungen'; ?>
+                        <span class="raw-code"><?php echo htmlspecialchars($user['raw_code'] ?? 'N/A'); ?></span>
+                    </td>
+                    <td>
+                        <div class="assigned-content" title="<?php echo htmlspecialchars($user['assigned_freebies'] ?: 'Keine Zuweisungen'); ?>">
+                            <?php echo $user['assigned_freebies'] ? htmlspecialchars($user['assigned_freebies']) : 'Keine Zuweisungen'; ?>
                         </div>
                     </td>
-                    <td><?php echo date('d.m.Y', strtotime($customer['created_at'])); ?></td>
+                    <td><?php echo date('d.m.Y', strtotime($user['created_at'])); ?></td>
                     <td>
-                        <span class="status-badge status-<?php echo $customer['is_active'] ? 'active' : 'inactive'; ?>">
-                            <?php echo $customer['is_active'] ? 'Aktiv' : 'Inaktiv'; ?>
+                        <span class="status-badge status-<?php echo $user['is_active'] ? 'active' : 'inactive'; ?>">
+                            <?php echo $user['is_active'] ? 'Aktiv' : 'Inaktiv'; ?>
                         </span>
                     </td>
                     <td>
                         <div class="action-icons">
                             <button class="action-btn" 
-                                    onclick="viewCustomer(<?php echo $customer['id']; ?>)" 
+                                    onclick="viewUser(<?php echo $user['id']; ?>)" 
                                     title="Ansehen">
                                 👁️
                             </button>
+                            <?php if ($user['role'] === 'customer'): ?>
                             <button class="action-btn" 
-                                    onclick="assignFreebie(<?php echo $customer['id']; ?>)" 
+                                    onclick="assignFreebie(<?php echo $user['id']; ?>)" 
                                     title="Freebie zuweisen">
                                 ➕
                             </button>
                             <button class="action-btn" 
-                                    onclick="manageLimits(<?php echo $customer['id']; ?>)" 
+                                    onclick="manageLimits(<?php echo $user['id']; ?>)" 
                                     title="Limits verwalten">
                                 📊
                             </button>
+                            <?php else: ?>
+                            <button class="action-btn" disabled title="Nicht verfügbar für Admins">
+                                ➕
+                            </button>
+                            <button class="action-btn" disabled title="Nicht verfügbar für Admins">
+                                📊
+                            </button>
+                            <?php endif; ?>
                             <button class="action-btn" 
-                                    onclick="editCustomer(<?php echo $customer['id']; ?>)" 
+                                    onclick="editUser(<?php echo $user['id']; ?>)" 
                                     title="Bearbeiten">
                                 ✏️
                             </button>
                             <button class="action-btn" 
-                                    onclick="toggleStatus(<?php echo $customer['id']; ?>, <?php echo $customer['is_active']; ?>)" 
-                                    title="<?php echo $customer['is_active'] ? 'Sperren' : 'Aktivieren'; ?>">
-                                <?php echo $customer['is_active'] ? '🔒' : '🔓'; ?>
+                                    onclick="toggleStatus(<?php echo $user['id']; ?>, <?php echo $user['is_active']; ?>)" 
+                                    title="<?php echo $user['is_active'] ? 'Sperren' : 'Aktivieren'; ?>">
+                                <?php echo $user['is_active'] ? '🔒' : '🔓'; ?>
                             </button>
+                            <?php if ($user['role'] !== 'admin' || $user['id'] != $_SESSION['user_id']): ?>
                             <button class="action-btn delete" 
-                                    onclick="deleteCustomer(<?php echo $customer['id']; ?>)" 
+                                    onclick="deleteUser(<?php echo $user['id']; ?>)" 
                                     title="Löschen">
                                 🗑️
                             </button>
+                            <?php else: ?>
+                            <button class="action-btn" disabled title="Kann sich selbst nicht löschen">
+                                🗑️
+                            </button>
+                            <?php endif; ?>
                         </div>
                     </td>
                 </tr>
@@ -752,7 +799,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     <?php else: ?>
     <div class="empty-state">
         <div class="empty-state-icon">👥</div>
-        <p>Keine Kunden gefunden</p>
+        <p>Keine Benutzer gefunden</p>
         <?php if (!empty($search)): ?>
         <p style="color: #888; font-size: 14px; margin-top: 8px;">Versuche einen anderen Suchbegriff</p>
         <?php endif; ?>
@@ -760,14 +807,14 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     <?php endif; ?>
 </div>
 
-<!-- Modal: Kunde hinzufügen -->
-<div id="addCustomerModal" class="modal">
+<!-- Modal: Benutzer hinzufügen -->
+<div id="addUserModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3 class="modal-title">Neuen Kunden hinzufügen</h3>
-            <button class="modal-close" onclick="closeModal('addCustomerModal')">×</button>
+            <h3 class="modal-title">Neuen Benutzer hinzufügen</h3>
+            <button class="modal-close" onclick="closeModal('addUserModal')">×</button>
         </div>
-        <form id="addCustomerForm">
+        <form id="addUserForm">
             <div class="form-group">
                 <label class="form-label">Name</label>
                 <input type="text" class="form-input" name="name" required>
@@ -777,13 +824,20 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
                 <input type="email" class="form-input" name="email" required>
             </div>
             <div class="form-group">
+                <label class="form-label">Rolle</label>
+                <select class="form-select" name="role" required>
+                    <option value="customer">Kunde</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+            <div class="form-group">
                 <label class="form-label">Passwort</label>
                 <input type="password" class="form-input" name="password" required>
                 <small style="color: #888; font-size: 12px; display: block; margin-top: 4px;">Mindestens 8 Zeichen</small>
             </div>
             <div class="modal-actions">
-                <button type="button" class="btn btn-outline" onclick="closeModal('addCustomerModal')">Abbrechen</button>
-                <button type="submit" class="btn btn-primary">Kunde hinzufügen</button>
+                <button type="button" class="btn btn-outline" onclick="closeModal('addUserModal')">Abbrechen</button>
+                <button type="submit" class="btn btn-primary">Benutzer hinzufügen</button>
             </div>
         </form>
     </div>
@@ -806,30 +860,30 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
     </div>
 </div>
 
-<!-- Modal: Kunde ansehen (Detail-Ansicht) -->
-<div id="viewCustomerModal" class="modal">
+<!-- Modal: Benutzer ansehen (Detail-Ansicht) -->
+<div id="viewUserModal" class="modal">
     <div class="modal-content large">
         <div class="modal-header">
-            <h3 class="modal-title">👤 Kundendetails</h3>
-            <button class="modal-close" onclick="closeModal('viewCustomerModal')">×</button>
+            <h3 class="modal-title">👤 Benutzerdetails</h3>
+            <button class="modal-close" onclick="closeModal('viewUserModal')">×</button>
         </div>
-        <div id="customerDetailContent">
+        <div id="userDetailContent">
             <div style="text-align: center; padding: 40px;">
                 <div class="loading-spinner"></div>
-                <p style="color: #888; margin-top: 16px;">Lade Kundendaten...</p>
+                <p style="color: #888; margin-top: 16px;">Lade Benutzerdaten...</p>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal: Kunde bearbeiten -->
-<div id="editCustomerModal" class="modal">
+<!-- Modal: Benutzer bearbeiten -->
+<div id="editUserModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3 class="modal-title">✏️ Kunde bearbeiten</h3>
-            <button class="modal-close" onclick="closeModal('editCustomerModal')">×</button>
+            <h3 class="modal-title">✏️ Benutzer bearbeiten</h3>
+            <button class="modal-close" onclick="closeModal('editUserModal')">×</button>
         </div>
-        <form id="editCustomerForm">
+        <form id="editUserForm">
             <input type="hidden" name="user_id" id="editUserId">
             
             <div class="form-group">
@@ -840,6 +894,14 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
             <div class="form-group">
                 <label class="form-label">E-Mail *</label>
                 <input type="email" class="form-input" name="email" id="editEmail" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Rolle</label>
+                <select class="form-select" name="role" id="editRole" required>
+                    <option value="customer">Kunde</option>
+                    <option value="admin">Admin</option>
+                </select>
             </div>
             
             <div class="form-group">
@@ -866,7 +928,7 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
             </div>
             
             <div class="modal-actions">
-                <button type="button" class="btn btn-outline" onclick="closeModal('editCustomerModal')">Abbrechen</button>
+                <button type="button" class="btn btn-outline" onclick="closeModal('editUserModal')">Abbrechen</button>
                 <button type="submit" class="btn btn-primary">💾 Änderungen speichern</button>
             </div>
         </form>
@@ -913,23 +975,23 @@ $freebieTemplates = $pdo->query("SELECT id, name, headline FROM freebies ORDER B
 // Search und Filter
 document.getElementById('searchInput').addEventListener('input', function(e) {
     const search = e.target.value;
-    const status = document.getElementById('statusFilter').value;
-    updateURL(search, status);
+    const role = document.getElementById('roleFilter').value;
+    updateURL(search, role);
 });
 
-document.getElementById('statusFilter').addEventListener('change', function(e) {
+document.getElementById('roleFilter').addEventListener('change', function(e) {
     const search = document.getElementById('searchInput').value;
-    const status = e.target.value;
-    updateURL(search, status);
+    const role = e.target.value;
+    updateURL(search, role);
 });
 
-function updateURL(search, status) {
+function updateURL(search, role) {
     const url = new URL(window.location);
     url.searchParams.set('page', 'users');
     if (search) url.searchParams.set('search', search);
     else url.searchParams.delete('search');
-    if (status !== 'all') url.searchParams.set('status', status);
-    else url.searchParams.delete('status');
+    if (role !== 'all') url.searchParams.set('role', role);
+    else url.searchParams.delete('role');
     window.location = url.toString();
 }
 
@@ -944,8 +1006,8 @@ function closeModal(modalId) {
     document.body.style.overflow = '';
 }
 
-function openAddCustomerModal() {
-    openModal('addCustomerModal');
+function openAddUserModal() {
+    openModal('addUserModal');
 }
 
 // Limits verwalten
@@ -1088,8 +1150,8 @@ function displayLimitsForm(data) {
     });
 }
 
-// Kunde hinzufügen
-document.getElementById('addCustomerForm').addEventListener('submit', async function(e) {
+// Benutzer hinzufügen
+document.getElementById('addUserForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const formData = new FormData(e.target);
     
@@ -1101,105 +1163,114 @@ document.getElementById('addCustomerForm').addEventListener('submit', async func
         const result = await response.json();
         
         if (result.success) {
-            alert('✅ Kunde erfolgreich hinzugefügt!');
+            alert('✅ Benutzer erfolgreich hinzugefügt!');
             window.location.reload();
         } else {
             alert('❌ Fehler: ' + result.message);
         }
     } catch (error) {
-        alert('❌ Fehler beim Hinzufügen des Kunden');
+        alert('❌ Fehler beim Hinzufügen des Benutzers');
     }
 });
 
-// Kunde ansehen (Detail-Ansicht)
-async function viewCustomer(userId) {
-    openModal('viewCustomerModal');
+// Benutzer ansehen (Detail-Ansicht)
+async function viewUser(userId) {
+    openModal('viewUserModal');
     
     try {
         const response = await fetch(`/api/customer-get.php?user_id=${userId}`);
         const result = await response.json();
         
         if (result.success) {
-            displayCustomerDetails(result.customer);
+            displayUserDetails(result.customer);
         } else {
-            document.getElementById('customerDetailContent').innerHTML = `
+            document.getElementById('userDetailContent').innerHTML = `
                 <div style="text-align: center; padding: 40px; color: #f87171;">
                     <p>❌ ${result.message}</p>
                 </div>
             `;
         }
     } catch (error) {
-        document.getElementById('customerDetailContent').innerHTML = `
+        document.getElementById('userDetailContent').innerHTML = `
             <div style="text-align: center; padding: 40px; color: #f87171;">
-                <p>❌ Fehler beim Laden der Kundendaten</p>
+                <p>❌ Fehler beim Laden der Benutzerdaten</p>
             </div>
         `;
     }
 }
 
-function displayCustomerDetails(customer) {
-    const freebiesList = customer.freebies && customer.freebies.length > 0
-        ? customer.freebies.map(f => `<li class="freebie-item">${f.name}</li>`).join('')
+function displayUserDetails(user) {
+    const freebiesList = user.freebies && user.freebies.length > 0
+        ? user.freebies.map(f => `<li class="freebie-item">${f.name}</li>`).join('')
         : '<li class="freebie-item" style="background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2);">Keine Freebies zugewiesen</li>';
     
-    const lastLogin = customer.stats.last_login 
-        ? new Date(customer.stats.last_login).toLocaleString('de-DE')
+    const lastLogin = user.stats?.last_login 
+        ? new Date(user.stats.last_login).toLocaleString('de-DE')
         : 'Noch nie';
     
-    document.getElementById('customerDetailContent').innerHTML = `
+    document.getElementById('userDetailContent').innerHTML = `
         <div class="detail-section">
             <div class="detail-section-title">
                 📋 Grundinformationen
             </div>
             <div class="detail-row">
                 <span class="detail-label">Name</span>
-                <span class="detail-value">${customer.name || '-'}</span>
+                <span class="detail-value">${user.name || '-'}</span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">E-Mail</span>
-                <span class="detail-value">${customer.email || '-'}</span>
+                <span class="detail-value">${user.email || '-'}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Rolle</span>
+                <span class="detail-value">
+                    <span class="status-badge badge-${user.role}">
+                        ${user.role === 'admin' ? '👑 ADMIN' : '👤 KUNDE'}
+                    </span>
+                </span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">RAW-Code</span>
-                <span class="detail-value"><span class="raw-code">${customer.raw_code || 'N/A'}</span></span>
+                <span class="detail-value"><span class="raw-code">${user.raw_code || 'N/A'}</span></span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">Registriert seit</span>
-                <span class="detail-value">${new Date(customer.created_at).toLocaleDateString('de-DE')}</span>
+                <span class="detail-value">${new Date(user.created_at).toLocaleDateString('de-DE')}</span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">Status</span>
                 <span class="detail-value">
-                    <span class="status-badge status-${customer.is_active ? 'active' : 'inactive'}">
-                        ${customer.is_active ? 'Aktiv' : 'Inaktiv'}
+                    <span class="status-badge status-${user.is_active ? 'active' : 'inactive'}">
+                        ${user.is_active ? 'Aktiv' : 'Inaktiv'}
                     </span>
                 </span>
             </div>
         </div>
         
-        ${customer.company_name || customer.company_email ? `
+        ${user.company_name || user.company_email ? `
         <div class="detail-section">
             <div class="detail-section-title">
                 🏢 Firmendaten
             </div>
-            ${customer.company_name ? `
+            ${user.company_name ? `
             <div class="detail-row">
                 <span class="detail-label">Firmenname</span>
-                <span class="detail-value">${customer.company_name}</span>
+                <span class="detail-value">${user.company_name}</span>
             </div>
             ` : ''}
-            ${customer.company_email ? `
+            ${user.company_email ? `
             <div class="detail-row">
                 <span class="detail-label">Firmen-E-Mail</span>
-                <span class="detail-value">${customer.company_email}</span>
+                <span class="detail-value">${user.company_email}</span>
             </div>
             ` : ''}
         </div>
         ` : ''}
         
+        ${user.role === 'customer' ? `
         <div class="detail-section">
             <div class="detail-section-title">
-                🎁 Zugewiesene Freebies (${customer.stats.total_freebies})
+                🎁 Zugewiesene Freebies (${user.stats?.total_freebies || 0})
             </div>
             <ul class="freebie-list">
                 ${freebiesList}
@@ -1212,11 +1283,11 @@ function displayCustomerDetails(customer) {
             </div>
             <div class="stat-grid">
                 <div class="stat-card">
-                    <div class="stat-value">${customer.stats.total_freebies}</div>
+                    <div class="stat-value">${user.stats?.total_freebies || 0}</div>
                     <div class="stat-label">Freebies</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">${customer.stats.total_downloads}</div>
+                    <div class="stat-value">${user.stats?.total_downloads || 0}</div>
                     <div class="stat-label">Downloads</div>
                 </div>
                 <div class="stat-card">
@@ -1225,38 +1296,54 @@ function displayCustomerDetails(customer) {
                 </div>
             </div>
         </div>
+        ` : `
+        <div class="detail-section">
+            <div class="detail-section-title">
+                👑 Admin-Informationen
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Zugriffsstufe</span>
+                <span class="detail-value">Vollzugriff auf alle Funktionen</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Letzter Login</span>
+                <span class="detail-value">${lastLogin}</span>
+            </div>
+        </div>
+        `}
     `;
 }
 
-// Kunde bearbeiten
-async function editCustomer(userId) {
-    openModal('editCustomerModal');
+// Benutzer bearbeiten
+async function editUser(userId) {
+    openModal('editUserModal');
     
-    // Kundendaten laden
+    // Benutzerdaten laden
     try {
         const response = await fetch(`/api/customer-get.php?user_id=${userId}`);
         const result = await response.json();
         
         if (result.success) {
-            const customer = result.customer;
-            document.getElementById('editUserId').value = customer.id;
-            document.getElementById('editName').value = customer.name || '';
-            document.getElementById('editEmail').value = customer.email || '';
-            document.getElementById('editRawCode').value = customer.raw_code || '';
-            document.getElementById('editCompanyName').value = customer.company_name || '';
-            document.getElementById('editCompanyEmail').value = customer.company_email || '';
+            const user = result.customer;
+            document.getElementById('editUserId').value = user.id;
+            document.getElementById('editName').value = user.name || '';
+            document.getElementById('editEmail').value = user.email || '';
+            document.getElementById('editRole').value = user.role || 'customer';
+            document.getElementById('editRawCode').value = user.raw_code || '';
+            document.getElementById('editCompanyName').value = user.company_name || '';
+            document.getElementById('editCompanyEmail').value = user.company_email || '';
             document.getElementById('editPassword').value = '';
         } else {
-            alert('❌ Fehler beim Laden der Kundendaten: ' + result.message);
-            closeModal('editCustomerModal');
+            alert('❌ Fehler beim Laden der Benutzerdaten: ' + result.message);
+            closeModal('editUserModal');
         }
     } catch (error) {
-        alert('❌ Fehler beim Laden der Kundendaten');
-        closeModal('editCustomerModal');
+        alert('❌ Fehler beim Laden der Benutzerdaten');
+        closeModal('editUserModal');
     }
 }
 
-document.getElementById('editCustomerForm').addEventListener('submit', async function(e) {
+document.getElementById('editUserForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const formData = new FormData(e.target);
     
@@ -1268,13 +1355,13 @@ document.getElementById('editCustomerForm').addEventListener('submit', async fun
         const result = await response.json();
         
         if (result.success) {
-            alert('✅ Kundendaten erfolgreich aktualisiert!');
+            alert('✅ Benutzerdaten erfolgreich aktualisiert!');
             window.location.reload();
         } else {
             alert('❌ Fehler: ' + result.message);
         }
     } catch (error) {
-        alert('❌ Fehler beim Aktualisieren der Kundendaten');
+        alert('❌ Fehler beim Aktualisieren der Benutzerdaten');
     }
 });
 
@@ -1309,7 +1396,7 @@ document.getElementById('assignFreebieForm').addEventListener('submit', async fu
 // Status togglen (Sperren/Entsperren)
 async function toggleStatus(userId, currentStatus) {
     const action = currentStatus ? 'sperren' : 'aktivieren';
-    if (!confirm(`Möchtest du diesen Kunden wirklich ${action}?`)) return;
+    if (!confirm(`Möchtest du diesen Benutzer wirklich ${action}?`)) return;
     
     try {
         const response = await fetch('/api/customer-toggle-status.php', {
@@ -1320,7 +1407,7 @@ async function toggleStatus(userId, currentStatus) {
         const result = await response.json();
         
         if (result.success) {
-            alert(`✅ Kunde ${action === 'sperren' ? 'gesperrt' : 'aktiviert'}!`);
+            alert(`✅ Benutzer ${action === 'sperren' ? 'gesperrt' : 'aktiviert'}!`);
             window.location.reload();
         } else {
             alert('❌ Fehler: ' + result.message);
@@ -1330,9 +1417,9 @@ async function toggleStatus(userId, currentStatus) {
     }
 }
 
-// Kunde löschen
-async function deleteCustomer(userId) {
-    if (!confirm('⚠️ ACHTUNG: Möchtest du diesen Kunden wirklich permanent löschen?')) return;
+// Benutzer löschen
+async function deleteUser(userId) {
+    if (!confirm('⚠️ ACHTUNG: Möchtest du diesen Benutzer wirklich permanent löschen?')) return;
     
     try {
         const response = await fetch('/api/customer-delete.php', {
@@ -1343,13 +1430,13 @@ async function deleteCustomer(userId) {
         const result = await response.json();
         
         if (result.success) {
-            alert('✅ Kunde erfolgreich gelöscht!');
+            alert('✅ Benutzer erfolgreich gelöscht!');
             window.location.reload();
         } else {
             alert('❌ Fehler: ' + result.message);
         }
     } catch (error) {
-        alert('❌ Fehler beim Löschen des Kunden');
+        alert('❌ Fehler beim Löschen des Benutzers');
     }
 }
 
