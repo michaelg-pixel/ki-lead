@@ -1,6 +1,6 @@
 <?php
 /**
- * Layout 1 Template - FIXED HYBRID LAYOUT + DIRECT OPTIN STYLING
+ * Layout 1 Template - ALL 3 LAYOUTS (Hybrid, Centered, Sidebar)
  */
 ?>
 <!DOCTYPE html>
@@ -126,7 +126,7 @@
 <body class="bg-gray-50">
 
     <div class="container-custom">
-        <!-- Preheadline -->
+        <!-- Preheadline - IMMER ZENTRIERT -->
         <?php if (!empty($freebie['preheadline'])): ?>
             <div class="text-center mb-4">
                 <p class="text-sm font-bold uppercase tracking-wider" 
@@ -136,26 +136,36 @@
             </div>
         <?php endif; ?>
         
-        <!-- Headline -->
+        <!-- Headline - IMMER ZENTRIERT -->
         <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold text-center text-gray-900 mb-6 leading-tight">
             <?= htmlspecialchars($freebie['headline']) ?>
         </h1>
         
-        <!-- Subheadline -->
+        <!-- Subheadline - IMMER ZENTRIERT -->
         <?php if (!empty($freebie['subheadline'])): ?>
             <p class="text-xl md:text-2xl text-center text-gray-600 mb-12 max-w-3xl mx-auto">
                 <?= htmlspecialchars($freebie['subheadline']) ?>
             </p>
         <?php endif; ?>
         
-        <!-- HYBRID LAYOUT: Video/Mockup LINKS, Bulletpoints + Optin RECHTS -->
-        <div class="grid md:grid-cols-2 gap-12 items-start mb-12">
-            
-            <!-- LINKE SPALTE: Video oder Mockup -->
-            <div class="flex flex-col justify-center items-center">
+        <?php
+        // Bulletpoints vorbereiten
+        $bullets = [];
+        if (!empty($freebie['bullet_points'])) {
+            if (is_string($freebie['bullet_points'])) {
+                $bullets = array_filter(explode("\n", $freebie['bullet_points']), 'trim');
+            } elseif (is_array($freebie['bullet_points'])) {
+                $bullets = $freebie['bullet_points'];
+            }
+        }
+        ?>
+        
+        <?php if ($layout === 'centered'): ?>
+            <!-- CENTERED LAYOUT: Alles vertikal zentriert -->
+            <div class="max-w-4xl mx-auto">
                 <!-- Video (wenn vorhanden) -->
                 <?php if (!empty($videoEmbedUrl)): ?>
-                    <div class="w-full mb-6">
+                    <div class="mb-12">
                         <div class="video-container <?= $videoFormat === 'shorts' ? 'shorts' : '' ?>">
                             <iframe 
                                 src="<?= htmlspecialchars($videoEmbedUrl) ?>" 
@@ -169,35 +179,23 @@
                 
                 <!-- Mockup (wenn vorhanden) -->
                 <?php if (!empty($freebie['mockup_image_url'])): ?>
-                    <img src="<?= htmlspecialchars($freebie['mockup_image_url']) ?>" 
-                         alt="<?= htmlspecialchars($freebie['headline']) ?>" 
-                         class="w-full max-w-md rounded-2xl shadow-2xl">
+                    <div class="flex justify-center mb-12">
+                        <img src="<?= htmlspecialchars($freebie['mockup_image_url']) ?>" 
+                             alt="<?= htmlspecialchars($freebie['headline']) ?>" 
+                             class="w-full max-w-md rounded-2xl shadow-2xl">
+                    </div>
                 <?php endif; ?>
-            </div>
-            
-            <!-- RECHTE SPALTE: Bulletpoints + Optin -->
-            <div>
-                <!-- Bulletpoints -->
-                <?php 
-                $bullets = [];
-                if (!empty($freebie['bullet_points'])) {
-                    if (is_string($freebie['bullet_points'])) {
-                        $bullets = array_filter(explode("\n", $freebie['bullet_points']), 'trim');
-                    } elseif (is_array($freebie['bullet_points'])) {
-                        $bullets = $freebie['bullet_points'];
-                    }
-                }
                 
-                if (!empty($bullets)): 
-                ?>
-                    <ul class="space-y-4 mb-8">
+                <!-- Bulletpoints - zentriert -->
+                <?php if (!empty($bullets)): ?>
+                    <ul class="space-y-4 mb-12 max-w-2xl mx-auto">
                         <?php foreach ($bullets as $bullet): ?>
                             <?php 
                             $clean_bullet = trim($bullet);
                             $clean_bullet = preg_replace('/^[✓✔︎•\-\*]\s*/', '', $clean_bullet);
                             if ($clean_bullet): 
                             ?>
-                                <li class="flex items-start gap-4">
+                                <li class="flex items-start gap-4 justify-center">
                                     <i class="fas fa-check-circle text-2xl mt-1" 
                                        style="color: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>"></i>
                                     <span class="text-lg text-gray-700"><?= htmlspecialchars($clean_bullet) ?></span>
@@ -207,46 +205,207 @@
                     </ul>
                 <?php endif; ?>
                 
-                <!-- E-Mail Optin - UNTER den Bulletpoints -->
-                <?php if ($optinDisplayMode === 'popup'): ?>
-                    <!-- Popup-Button -->
-                    <div class="mt-6">
-                        <button 
-                            onclick="openOptinPopup()" 
-                            class="w-full px-8 py-4 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-xl <?= $ctaAnimation !== 'none' ? 'animate-' . $ctaAnimation : '' ?>"
-                            style="background: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>">
-                            <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt kostenlos sichern') ?>
-                        </button>
-                    </div>
-                <?php else: ?>
-                    <!-- Direkte Anzeige - mit verbessertem Styling -->
-                    <div class="direct-optin-form mt-6">
-                        <?php if (!empty($freebie['raw_code'])): ?>
-                            <div class="optin-form-wrapper">
-                                <?= $freebie['raw_code'] ?>
-                            </div>
-                        <?php else: ?>
-                            <form class="space-y-4">
-                                <input type="text" 
-                                       name="first_name" 
-                                       placeholder="Vorname">
-                                <input type="email" 
-                                       name="email" 
-                                       placeholder="E-Mail-Adresse" 
-                                       required>
-                                <button type="submit">
-                                    <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt anmelden') ?>
-                                </button>
-                            </form>
-                            <p class="text-sm text-gray-500 mt-4 text-center">
-                                <i class="fas fa-lock mr-1"></i> 
-                                100% Datenschutz • Kein Spam • Jederzeit abmelden
-                            </p>
-                        <?php endif; ?>
-                    </div>
-                <?php endif; ?>
+                <!-- Optin - zentriert -->
+                <div class="max-w-xl mx-auto">
+                    <?php if ($optinDisplayMode === 'popup'): ?>
+                        <div class="text-center">
+                            <button 
+                                onclick="openOptinPopup()" 
+                                class="px-8 py-4 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-xl <?= $ctaAnimation !== 'none' ? 'animate-' . $ctaAnimation : '' ?>"
+                                style="background: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>">
+                                <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt kostenlos sichern') ?>
+                            </button>
+                        </div>
+                    <?php else: ?>
+                        <div class="direct-optin-form">
+                            <?php if (!empty($freebie['raw_code'])): ?>
+                                <div class="optin-form-wrapper">
+                                    <?= $freebie['raw_code'] ?>
+                                </div>
+                            <?php else: ?>
+                                <form class="space-y-4">
+                                    <input type="text" name="first_name" placeholder="Vorname">
+                                    <input type="email" name="email" placeholder="E-Mail-Adresse" required>
+                                    <button type="submit">
+                                        <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt anmelden') ?>
+                                    </button>
+                                </form>
+                                <p class="text-sm text-gray-500 mt-4 text-center">
+                                    <i class="fas fa-lock mr-1"></i> 
+                                    100% Datenschutz • Kein Spam
+                                </p>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
             </div>
-        </div>
+            
+        <?php elseif ($layout === 'sidebar'): ?>
+            <!-- SIDEBAR LAYOUT: Bulletpoints LINKS, Video/Mockup RECHTS -->
+            <div class="grid md:grid-cols-2 gap-12 items-start mb-12">
+                
+                <!-- LINKE SPALTE: Bulletpoints + Optin -->
+                <div>
+                    <!-- Bulletpoints -->
+                    <?php if (!empty($bullets)): ?>
+                        <ul class="space-y-4 mb-8">
+                            <?php foreach ($bullets as $bullet): ?>
+                                <?php 
+                                $clean_bullet = trim($bullet);
+                                $clean_bullet = preg_replace('/^[✓✔︎•\-\*]\s*/', '', $clean_bullet);
+                                if ($clean_bullet): 
+                                ?>
+                                    <li class="flex items-start gap-4">
+                                        <i class="fas fa-check-circle text-2xl mt-1" 
+                                           style="color: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>"></i>
+                                        <span class="text-lg text-gray-700"><?= htmlspecialchars($clean_bullet) ?></span>
+                                    </li>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                    
+                    <!-- Optin unter Bulletpoints -->
+                    <?php if ($optinDisplayMode === 'popup'): ?>
+                        <div class="mt-6">
+                            <button 
+                                onclick="openOptinPopup()" 
+                                class="w-full px-8 py-4 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-xl <?= $ctaAnimation !== 'none' ? 'animate-' . $ctaAnimation : '' ?>"
+                                style="background: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>">
+                                <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt kostenlos sichern') ?>
+                            </button>
+                        </div>
+                    <?php else: ?>
+                        <div class="direct-optin-form mt-6">
+                            <?php if (!empty($freebie['raw_code'])): ?>
+                                <div class="optin-form-wrapper">
+                                    <?= $freebie['raw_code'] ?>
+                                </div>
+                            <?php else: ?>
+                                <form class="space-y-4">
+                                    <input type="text" name="first_name" placeholder="Vorname">
+                                    <input type="email" name="email" placeholder="E-Mail-Adresse" required>
+                                    <button type="submit">
+                                        <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt anmelden') ?>
+                                    </button>
+                                </form>
+                                <p class="text-sm text-gray-500 mt-4 text-center">
+                                    <i class="fas fa-lock mr-1"></i> 
+                                    100% Datenschutz • Kein Spam
+                                </p>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+                
+                <!-- RECHTE SPALTE: Video/Mockup -->
+                <div class="flex flex-col justify-center items-center">
+                    <!-- Video (wenn vorhanden) -->
+                    <?php if (!empty($videoEmbedUrl)): ?>
+                        <div class="w-full mb-6">
+                            <div class="video-container <?= $videoFormat === 'shorts' ? 'shorts' : '' ?>">
+                                <iframe 
+                                    src="<?= htmlspecialchars($videoEmbedUrl) ?>" 
+                                    frameborder="0" 
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                    allowfullscreen>
+                                </iframe>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <!-- Mockup (wenn vorhanden) -->
+                    <?php if (!empty($freebie['mockup_image_url'])): ?>
+                        <img src="<?= htmlspecialchars($freebie['mockup_image_url']) ?>" 
+                             alt="<?= htmlspecialchars($freebie['headline']) ?>" 
+                             class="w-full max-w-md rounded-2xl shadow-2xl">
+                    <?php endif; ?>
+                </div>
+            </div>
+            
+        <?php else: ?>
+            <!-- HYBRID LAYOUT (Default): Video/Mockup LINKS, Bulletpoints RECHTS -->
+            <div class="grid md:grid-cols-2 gap-12 items-start mb-12">
+                
+                <!-- LINKE SPALTE: Video/Mockup -->
+                <div class="flex flex-col justify-center items-center">
+                    <!-- Video (wenn vorhanden) -->
+                    <?php if (!empty($videoEmbedUrl)): ?>
+                        <div class="w-full mb-6">
+                            <div class="video-container <?= $videoFormat === 'shorts' ? 'shorts' : '' ?>">
+                                <iframe 
+                                    src="<?= htmlspecialchars($videoEmbedUrl) ?>" 
+                                    frameborder="0" 
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                    allowfullscreen>
+                                </iframe>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <!-- Mockup (wenn vorhanden) -->
+                    <?php if (!empty($freebie['mockup_image_url'])): ?>
+                        <img src="<?= htmlspecialchars($freebie['mockup_image_url']) ?>" 
+                             alt="<?= htmlspecialchars($freebie['headline']) ?>" 
+                             class="w-full max-w-md rounded-2xl shadow-2xl">
+                    <?php endif; ?>
+                </div>
+                
+                <!-- RECHTE SPALTE: Bulletpoints + Optin -->
+                <div>
+                    <!-- Bulletpoints -->
+                    <?php if (!empty($bullets)): ?>
+                        <ul class="space-y-4 mb-8">
+                            <?php foreach ($bullets as $bullet): ?>
+                                <?php 
+                                $clean_bullet = trim($bullet);
+                                $clean_bullet = preg_replace('/^[✓✔︎•\-\*]\s*/', '', $clean_bullet);
+                                if ($clean_bullet): 
+                                ?>
+                                    <li class="flex items-start gap-4">
+                                        <i class="fas fa-check-circle text-2xl mt-1" 
+                                           style="color: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>"></i>
+                                        <span class="text-lg text-gray-700"><?= htmlspecialchars($clean_bullet) ?></span>
+                                    </li>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                    
+                    <!-- Optin unter Bulletpoints -->
+                    <?php if ($optinDisplayMode === 'popup'): ?>
+                        <div class="mt-6">
+                            <button 
+                                onclick="openOptinPopup()" 
+                                class="w-full px-8 py-4 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-xl <?= $ctaAnimation !== 'none' ? 'animate-' . $ctaAnimation : '' ?>"
+                                style="background: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>">
+                                <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt kostenlos sichern') ?>
+                            </button>
+                        </div>
+                    <?php else: ?>
+                        <div class="direct-optin-form mt-6">
+                            <?php if (!empty($freebie['raw_code'])): ?>
+                                <div class="optin-form-wrapper">
+                                    <?= $freebie['raw_code'] ?>
+                                </div>
+                            <?php else: ?>
+                                <form class="space-y-4">
+                                    <input type="text" name="first_name" placeholder="Vorname">
+                                    <input type="email" name="email" placeholder="E-Mail-Adresse" required>
+                                    <button type="submit">
+                                        <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt anmelden') ?>
+                                    </button>
+                                </form>
+                                <p class="text-sm text-gray-500 mt-4 text-center">
+                                    <i class="fas fa-lock mr-1"></i> 
+                                    100% Datenschutz • Kein Spam
+                                </p>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
     
     <!-- Footer -->
