@@ -1,9 +1,10 @@
 <?php
 /**
- * Digistore24 Webhook Handler - ERWEITERTE VERSION
- * Empfängt Kunden von Digistore24 und erstellt automatisch Accounts + Kurs-Zugang + Freebie-Limits
+ * Digistore24 Webhook Handler - VERSION 3.0
+ * Mit Source-Tracking und Konflikt-Schutz
  * 
- * Version 2.0 - Mit zentraler Produktverwaltung
+ * Empfängt Kunden von Digistore24 und erstellt automatisch Accounts + Kurs-Zugang + Freebie-Limits
+ * Respektiert manuelle Admin-Änderungen und verhindert ungewollte Überschreibungen
  */
 
 require_once '../config/database.php';
@@ -101,6 +102,7 @@ function handleNewCustomer($pdo, $data) {
         
         // Erstelle User trotzdem mit Default-Werten
         $productConfig = [
+            'product_id' => $productId,
             'product_name' => $productName,
             'product_type' => 'custom',
             'own_freebies_limit' => 5,
@@ -133,10 +135,10 @@ function handleNewCustomer($pdo, $data) {
     // KURS-ZUGANG GEWÄHREN (falls konfiguriert)
     grantCourseAccess($pdo, $userId, $productId, $email);
     
-    // FREEBIE-LIMITS SETZEN
+    // FREEBIE-LIMITS SETZEN (mit Source-Tracking)
     setFreebieLimit($pdo, $userId, $productId, $productConfig);
     
-    // EMPFEHLUNGSPROGRAMM-SLOTS SETZEN
+    // EMPFEHLUNGSPROGRAMM-SLOTS SETZEN (mit Source-Tracking)
     setReferralSlots($pdo, $userId, $productConfig);
     
     // FERTIGE FREEBIES ZUWEISEN (nur bei Launch)
@@ -290,29 +292,49 @@ function grantCourseAccess($pdo, $userId, $productId, $email) {
 }
 
 /**
- * Freebie-Limit für Kunde setzen (eigene Freebies)
+ * Freebie-Limit für Kunde setzen - VERSION 3.0 mit Source-Tracking
+ * Respektiert manuelle Admin-Änderungen!
  */
 function setFreebieLimit($pdo, $userId, $productId, $productConfig) {
     $freebieLimit = $productConfig['own_freebies_limit'] ?? 5;
     $productName = $productConfig['product_name'] ?? 'Unbekannt';
     
     // Prüfen ob bereits ein Limit existiert
-    $stmt = $pdo->prepare("SELECT id, freebie_limit FROM customer_freebie_limits WHERE customer_id = ?");
+    $stmt = $pdo->prepare("
+        SELECT id, freebie_limit, source, product_id 
+        FROM customer_freebie_limits 
+        WHERE customer_id = ?
+    ");
     $stmt->execute([$userId]);
     $existing = $stmt->fetch();
     
     if ($existing) {
-        // Update nur wenn neues Limit höher ist
+        // KRITISCH: Manuelle Änderungen NICHT überschreiben!
+        if ($existing['source'] === 'manual') {
+            logWebhook([
+                'info' => 'Freebie limit set manually by admin - not overwriting',
+                'user_id' => $userId,
+                'manual_limit' => $existing['freebie_limit'],
+                'webhook_would_set' => $freebieLimit
+            ], 'info');
+            return;
+        }
+        
+        // Bei webhook/upgrade: Nur upgraden, nie downgraden
         if ($freebieLimit > $existing['freebie_limit']) {
             $stmt = $pdo->prepare("
                 UPDATE customer_freebie_limits 
-                SET freebie_limit = ?, product_id = ?, product_name = ?, updated_at = NOW()
+                SET freebie_limit = ?, 
+                    product_id = ?, 
+                    product_name = ?, 
+                    source = 'webhook',
+                    updated_at = NOW()
                 WHERE customer_id = ?
             ");
             $stmt->execute([$freebieLimit, $productId, $productName, $userId]);
             
             logWebhook([
-                'success' => 'Freebie limit upgraded',
+                'success' => 'Freebie limit upgraded via webhook',
                 'user_id' => $userId,
                 'old_limit' => $existing['freebie_limit'],
                 'new_limit' => $freebieLimit,
@@ -320,22 +342,23 @@ function setFreebieLimit($pdo, $userId, $productId, $productConfig) {
             ], 'success');
         } else {
             logWebhook([
-                'info' => 'Existing limit is higher or equal, not downgrading',
+                'info' => 'Webhook limit not higher - keeping existing',
                 'user_id' => $userId,
                 'current_limit' => $existing['freebie_limit'],
-                'new_limit' => $freebieLimit
+                'webhook_limit' => $freebieLimit
             ], 'info');
         }
     } else {
-        // Neues Limit erstellen
+        // Neues Limit erstellen (immer via webhook)
         $stmt = $pdo->prepare("
-            INSERT INTO customer_freebie_limits (customer_id, freebie_limit, product_id, product_name)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO customer_freebie_limits (
+                customer_id, freebie_limit, product_id, product_name, source
+            ) VALUES (?, ?, ?, ?, 'webhook')
         ");
         $stmt->execute([$userId, $freebieLimit, $productId, $productName]);
         
         logWebhook([
-            'success' => 'Freebie limit created',
+            'success' => 'Freebie limit created via webhook',
             'user_id' => $userId,
             'limit' => $freebieLimit,
             'product_id' => $productId
@@ -344,30 +367,79 @@ function setFreebieLimit($pdo, $userId, $productId, $productConfig) {
 }
 
 /**
- * Empfehlungsprogramm-Slots setzen
+ * Empfehlungsprogramm-Slots setzen - VERSION 3.0 mit Source-Tracking
+ * Respektiert manuelle Admin-Änderungen und speichert Produkt-Referenz
  */
 function setReferralSlots($pdo, $userId, $productConfig) {
     $slots = $productConfig['referral_program_slots'] ?? 1;
+    $productId = $productConfig['product_id'] ?? '';
+    $productName = $productConfig['product_name'] ?? '';
     
-    // Prüfen ob Tabelle existiert
     try {
+        // Prüfen ob bereits Slots existieren
         $stmt = $pdo->prepare("
-            INSERT INTO customer_referral_slots (customer_id, total_slots, used_slots, created_at)
-            VALUES (?, ?, 0, NOW())
-            ON DUPLICATE KEY UPDATE total_slots = GREATEST(total_slots, ?)
+            SELECT id, total_slots, source 
+            FROM customer_referral_slots 
+            WHERE customer_id = ?
         ");
-        $stmt->execute([$userId, $slots, $slots]);
+        $stmt->execute([$userId]);
+        $existing = $stmt->fetch();
         
-        logWebhook([
-            'success' => 'Referral slots set',
-            'user_id' => $userId,
-            'slots' => $slots
-        ], 'success');
+        if ($existing) {
+            // KRITISCH: Manuelle Änderungen NICHT überschreiben!
+            if ($existing['source'] === 'manual') {
+                logWebhook([
+                    'info' => 'Referral slots set manually by admin - not overwriting',
+                    'user_id' => $userId,
+                    'manual_slots' => $existing['total_slots'],
+                    'webhook_would_set' => $slots
+                ], 'info');
+                return;
+            }
+            
+            // Bei webhook: Nur upgraden
+            if ($slots > $existing['total_slots']) {
+                $stmt = $pdo->prepare("
+                    UPDATE customer_referral_slots 
+                    SET total_slots = ?, 
+                        product_id = ?,
+                        product_name = ?,
+                        source = 'webhook',
+                        updated_at = NOW()
+                    WHERE customer_id = ?
+                ");
+                $stmt->execute([$slots, $productId, $productName, $userId]);
+                
+                logWebhook([
+                    'success' => 'Referral slots upgraded via webhook',
+                    'user_id' => $userId,
+                    'old_slots' => $existing['total_slots'],
+                    'new_slots' => $slots
+                ], 'success');
+            }
+        } else {
+            // Neue Slots erstellen
+            $stmt = $pdo->prepare("
+                INSERT INTO customer_referral_slots (
+                    customer_id, total_slots, used_slots, 
+                    product_id, product_name, source, created_at
+                ) VALUES (?, ?, 0, ?, ?, 'webhook', NOW())
+            ");
+            $stmt->execute([$userId, $slots, $productId, $productName]);
+            
+            logWebhook([
+                'success' => 'Referral slots created via webhook',
+                'user_id' => $userId,
+                'slots' => $slots,
+                'product_id' => $productId
+            ], 'success');
+        }
     } catch (PDOException $e) {
         logWebhook([
-            'info' => 'Referral slots table not available',
-            'error' => $e->getMessage()
-        ], 'info');
+            'error' => 'Failed to set referral slots',
+            'user_id' => $userId,
+            'message' => $e->getMessage()
+        ], 'error');
     }
 }
 
