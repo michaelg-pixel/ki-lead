@@ -382,6 +382,7 @@ if ($lead['user_id']) {
             padding: 30px;
             border-radius: 15px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
         }
         .referrals-list h2 {
             color: #333;
@@ -459,6 +460,44 @@ if ($lead['user_id']) {
             line-height: 1.5;
         }
         
+        /* Footer Styles */
+        .footer {
+            margin-top: 40px;
+            padding: 25px;
+            text-align: center;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .footer-links a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+            padding: 8px 16px;
+            border-radius: 6px;
+        }
+        
+        .footer-links a:hover {
+            background: #f5f7fa;
+            transform: translateY(-2px);
+        }
+        
+        .footer-copyright {
+            color: #999;
+            font-size: 12px;
+            margin-top: 15px;
+        }
+        
         @media (max-width: 768px) {
             .reward-tier {
                 flex-direction: column;
@@ -469,6 +508,10 @@ if ($lead['user_id']) {
             }
             .freebie-grid {
                 grid-template-columns: 1fr;
+            }
+            .footer-links {
+                flex-direction: column;
+                gap: 10px;
             }
         }
     </style>
@@ -693,6 +736,21 @@ if ($lead['user_id']) {
             </table>
         <?php endif; ?>
     </div>
+    
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-links">
+            <a href="impressum.php" target="_blank" rel="noopener noreferrer">
+                <i class="fas fa-info-circle"></i> Impressum
+            </a>
+            <a href="datenschutz.php" target="_blank" rel="noopener noreferrer">
+                <i class="fas fa-shield-alt"></i> Datenschutz
+            </a>
+        </div>
+        <div class="footer-copyright">
+            © <?php echo date('Y'); ?> - Alle Rechte vorbehalten
+        </div>
+    </footer>
     
     <script>
         const leadReferralCode = '<?php echo $lead['referral_code']; ?>';
