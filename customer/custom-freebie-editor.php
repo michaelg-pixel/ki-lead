@@ -60,6 +60,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
     $video_url = trim($_POST['video_url'] ?? '');
     $video_format = $_POST['video_format'] ?? 'widescreen';
     
+    // 🆕 POPUP-FELDER
+    $optin_display_mode = $_POST['optin_display_mode'] ?? 'direct';
+    $popup_message = trim($_POST['popup_message'] ?? 'Trage dich jetzt unverbindlich ein und erhalte sofortigen Zugang!');
+    $cta_animation = $_POST['cta_animation'] ?? 'none';
+    
     // Custom Code in raw_code speichern (mit Trennzeichen)
     $combined_code = $raw_code;
     if (!empty($custom_code)) {
@@ -77,36 +82,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
     
     try {
         if ($freebie) {
-            // Update existing
+            // Update existing - MIT POPUP-FELDERN
             $stmt = $pdo->prepare("
                 UPDATE customer_freebies SET
                     headline = ?, subheadline = ?, preheadline = ?,
                     bullet_points = ?, cta_text = ?, layout = ?,
                     background_color = ?, primary_color = ?, raw_code = ?,
-                    mockup_image_url = ?, video_url = ?, video_format = ?, updated_at = NOW()
+                    mockup_image_url = ?, video_url = ?, video_format = ?,
+                    optin_display_mode = ?, popup_message = ?, cta_animation = ?,
+                    updated_at = NOW()
                 WHERE id = ?
             ");
             $stmt->execute([
                 $headline, $subheadline, $preheadline,
                 $bullet_points, $cta_text, $layout,
                 $background_color, $primary_color, $combined_code,
-                $mockup_image_url, $video_url, $video_format, $freebie['id']
+                $mockup_image_url, $video_url, $video_format,
+                $optin_display_mode, $popup_message, $cta_animation,
+                $freebie['id']
             ]);
             
             $success_message = "✅ Freebie erfolgreich aktualisiert!";
         } else {
-            // Create new
+            // Create new - MIT POPUP-FELDERN
             $stmt = $pdo->prepare("
                 INSERT INTO customer_freebies (
                     customer_id, headline, subheadline, preheadline,
                     bullet_points, cta_text, layout, background_color, primary_color,
-                    raw_code, mockup_image_url, video_url, video_format, unique_id, url_slug, freebie_type, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'custom', NOW())
+                    raw_code, mockup_image_url, video_url, video_format,
+                    optin_display_mode, popup_message, cta_animation,
+                    unique_id, url_slug, freebie_type, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'custom', NOW())
             ");
             $stmt->execute([
                 $customer_id, $headline, $subheadline, $preheadline,
                 $bullet_points, $cta_text, $layout, $background_color, $primary_color,
-                $combined_code, $mockup_image_url, $video_url, $video_format, $unique_id, $url_slug
+                $combined_code, $mockup_image_url, $video_url, $video_format,
+                $optin_display_mode, $popup_message, $cta_animation,
+                $unique_id, $url_slug
             ]);
             
             $freebie_id = $pdo->lastInsertId();
@@ -140,7 +153,7 @@ if ($freebie && !empty($freebie['raw_code'])) {
     $custom_tracking_code = isset($parts[1]) ? trim($parts[1]) : '';
 }
 
-// Daten für Formular vorbereiten
+// Daten für Formular vorbereiten - MIT POPUP-FELDERN
 $form_data = [
     'headline' => $freebie['headline'] ?? 'Sichere dir jetzt deinen kostenlosen Zugang',
     'subheadline' => $freebie['subheadline'] ?? '',
@@ -154,7 +167,11 @@ $form_data = [
     'custom_code' => $custom_tracking_code,
     'mockup_image_url' => $freebie['mockup_image_url'] ?? '',
     'video_url' => $freebie['video_url'] ?? '',
-    'video_format' => $freebie['video_format'] ?? 'widescreen'
+    'video_format' => $freebie['video_format'] ?? 'widescreen',
+    // 🆕 POPUP-FELDER
+    'optin_display_mode' => $freebie['optin_display_mode'] ?? 'direct',
+    'popup_message' => $freebie['popup_message'] ?? 'Trage dich jetzt unverbindlich ein und erhalte sofortigen Zugang!',
+    'cta_animation' => $freebie['cta_animation'] ?? 'none'
 ];
 ?>
 <!DOCTYPE html>
@@ -700,6 +717,90 @@ $form_data = [
         .format-option input:checked ~ .format-check {
             opacity: 1;
         }
+
+        /* 🆕 POPUP-STYLES */
+        .popup-toggle-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .toggle-option {
+            position: relative;
+            cursor: pointer;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .toggle-option:hover {
+            border-color: #8B5CF6;
+            background: rgba(139, 92, 246, 0.05);
+        }
+
+        .toggle-option input {
+            position: absolute;
+            opacity: 0;
+        }
+
+        .toggle-option.selected {
+            border-color: #8B5CF6;
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .toggle-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .toggle-name {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .conditional-field {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+
+        .conditional-field.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* CTA Button Animationen für Preview */
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 5px currentColor; }
+            50% { box-shadow: 0 0 20px currentColor; }
+        }
+
+        .animate-pulse { animation: pulse 2s ease-in-out infinite; }
+        .animate-shake { animation: shake 0.5s ease-in-out infinite; }
+        .animate-bounce { animation: bounce 1s ease-in-out infinite; }
+        .animate-glow { animation: glow 2s ease-in-out infinite; }
         
         @media (max-width: 1200px) {
             .editor-grid {
@@ -945,6 +1046,75 @@ $form_data = [
                         </div>
                     </div>
                     
+                    <!-- 🆕 E-MAIL OPTIN ANZEIGE-MODUS -->
+                    <div class="form-section">
+                        <div class="section-title">🎯 E-Mail Optin Anzeige</div>
+                        <div class="info-box">
+                            <div class="info-box-title">💡 Wähle, wie dein E-Mail Optin angezeigt wird</div>
+                            <div class="info-box-text">
+                                <strong>Direkt:</strong> Das Formular wird direkt auf der Seite angezeigt<br>
+                                <strong>Popup:</strong> Ein Button öffnet ein stylisches Popup mit dem Formular
+                            </div>
+                        </div>
+                        
+                        <div class="popup-toggle-options">
+                            <label class="toggle-option <?php echo $form_data['optin_display_mode'] === 'direct' ? 'selected' : ''; ?>">
+                                <input type="radio" name="optin_display_mode" value="direct" 
+                                       <?php echo $form_data['optin_display_mode'] === 'direct' ? 'checked' : ''; ?>
+                                       onchange="togglePopupOptions(this); updatePreview()">
+                                <div class="toggle-content">
+                                    <div class="toggle-icon">📄</div>
+                                    <div class="toggle-name">Direkt anzeigen</div>
+                                </div>
+                            </label>
+                            
+                            <label class="toggle-option <?php echo $form_data['optin_display_mode'] === 'popup' ? 'selected' : ''; ?>">
+                                <input type="radio" name="optin_display_mode" value="popup"
+                                       <?php echo $form_data['optin_display_mode'] === 'popup' ? 'checked' : ''; ?>
+                                       onchange="togglePopupOptions(this); updatePreview()">
+                                <div class="toggle-content">
+                                    <div class="toggle-icon">✨</div>
+                                    <div class="toggle-name">Als Popup</div>
+                                </div>
+                            </label>
+                        </div>
+                        
+                        <!-- Popup-spezifische Optionen -->
+                        <div id="popupOptions" class="conditional-field <?php echo $form_data['optin_display_mode'] === 'popup' ? 'active' : ''; ?>">
+                            <div class="form-group">
+                                <label class="form-label">Popup-Nachricht</label>
+                                <input type="text" name="popup_message" class="form-input"
+                                       value="<?php echo htmlspecialchars($form_data['popup_message']); ?>"
+                                       placeholder="Trage dich jetzt unverbindlich ein!"
+                                       oninput="updatePreview()">
+                                <small style="color: #6b7280; font-size: 12px; display: block; margin-top: 4px;">
+                                    Diese Nachricht wird im Popup über dem Formular angezeigt
+                                </small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Button-Animation</label>
+                                <select name="cta_animation" class="form-select" onchange="updatePreview()">
+                                    <option value="none" <?php echo $form_data['cta_animation'] === 'none' ? 'selected' : ''; ?>>
+                                        Keine Animation
+                                    </option>
+                                    <option value="pulse" <?php echo $form_data['cta_animation'] === 'pulse' ? 'selected' : ''; ?>>
+                                        Pulse (sanft pulsierend) ⭐
+                                    </option>
+                                    <option value="shake" <?php echo $form_data['cta_animation'] === 'shake' ? 'selected' : ''; ?>>
+                                        Shake (wackelnd)
+                                    </option>
+                                    <option value="bounce" <?php echo $form_data['cta_animation'] === 'bounce' ? 'selected' : ''; ?>>
+                                        Bounce (hüpfend)
+                                    </option>
+                                    <option value="glow" <?php echo $form_data['cta_animation'] === 'glow' ? 'selected' : ''; ?>>
+                                        Glow (leuchtend)
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <!-- Erweiterte Einstellungen -->
                     <div class="form-section">
                         <div class="section-title">🔧 Erweiterte Einstellungen</div>
@@ -1007,6 +1177,24 @@ $form_data = [
     </div>
     
     <script>
+        // 🆕 POPUP-TOGGLE FUNKTION
+        function togglePopupOptions(radio) {
+            const popupOptions = document.getElementById('popupOptions');
+            const isPopup = radio.value === 'popup';
+            
+            if (isPopup) {
+                popupOptions.classList.add('active');
+            } else {
+                popupOptions.classList.remove('active');
+            }
+            
+            // Toggle-Option visuell markieren
+            document.querySelectorAll('.toggle-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            radio.closest('.toggle-option').classList.add('selected');
+        }
+
         function removeVideo() {
             document.getElementById('videoUrl').value = '';
             const container = document.getElementById('videoPreviewContainer');
@@ -1069,6 +1257,9 @@ $form_data = [
             const mockupImageUrl = document.getElementById('mockupImageUrl').value;
             const videoUrl = document.getElementById('videoUrl').value;
             const videoFormat = document.querySelector('input[name="video_format"]:checked').value;
+            
+            // 🆕 POPUP-WERTE
+            const ctaAnimation = document.querySelector('select[name="cta_animation"]').value;
             
             const previewContent = document.getElementById('previewContent');
             previewContent.style.background = backgroundColor;
@@ -1133,6 +1324,14 @@ $form_data = [
             // Priorität: Video > Mockup > Icon
             const mediaElement = videoHTML || mockupHTML || `<div style="text-align: center; color: ${primaryColor}; font-size: 50px;">🎁</div>`;
             
+            // 🆕 BUTTON MIT ANIMATION
+            const animationClass = ctaAnimation !== 'none' ? `animate-${ctaAnimation}` : '';
+            const ctaButton = `
+                <button class="preview-button ${animationClass}" style="background: ${primaryColor}; color: white;">
+                    ${escapeHtml(ctaText || 'BUTTON TEXT')}
+                </button>
+            `;
+            
             let layoutHTML = '';
             
             if (layout === 'centered') {
@@ -1146,9 +1345,7 @@ $form_data = [
                         ${subheadlineHTML}
                         ${bulletHTML}
                         <div class="preview-cta">
-                            <button class="preview-button" style="background: ${primaryColor}; color: white;">
-                                ${escapeHtml(ctaText || 'BUTTON TEXT')}
-                            </button>
+                            ${ctaButton}
                         </div>
                     </div>
                 `;
@@ -1164,9 +1361,7 @@ $form_data = [
                             ${subheadlineHTML ? `<div class="preview-subheadline" style="text-align: left;">${escapeHtml(subheadline)}</div>` : ''}
                             ${bulletHTML}
                             <div class="preview-cta" style="text-align: left;">
-                                <button class="preview-button" style="background: ${primaryColor}; color: white;">
-                                    ${escapeHtml(ctaText || 'BUTTON TEXT')}
-                                </button>
+                                ${ctaButton}
                             </div>
                         </div>
                     </div>
@@ -1182,9 +1377,7 @@ $form_data = [
                             ${subheadlineHTML ? `<div class="preview-subheadline" style="text-align: left;">${escapeHtml(subheadline)}</div>` : ''}
                             ${bulletHTML}
                             <div class="preview-cta" style="text-align: left;">
-                                <button class="preview-button" style="background: ${primaryColor}; color: white;">
-                                    ${escapeHtml(ctaText || 'BUTTON TEXT')}
-                                </button>
+                                ${ctaButton}
                             </div>
                         </div>
                         <div>${mediaElement}</div>
