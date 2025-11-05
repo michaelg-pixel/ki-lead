@@ -66,11 +66,11 @@ try {
     } else {
         echo "<div class='step'><strong>Schritt 1:</strong> Erstelle Tabelle <code>digistore_products</code>...</div>";
         
-        // Erstelle neue Tabelle
+        // Erstelle neue Tabelle mit NULLABLE product_id
         $pdo->exec("
             CREATE TABLE digistore_products (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                product_id VARCHAR(100) NOT NULL UNIQUE COMMENT 'Digistore24 Produkt-ID',
+                product_id VARCHAR(100) NULL DEFAULT NULL COMMENT 'Digistore24 Produkt-ID',
                 product_name VARCHAR(255) NOT NULL COMMENT 'Name des Produkts',
                 product_type ENUM('launch', 'starter', 'pro', 'business', 'custom') NOT NULL DEFAULT 'custom',
                 price DECIMAL(10,2) NOT NULL COMMENT 'Preis in Euro',
@@ -78,10 +78,10 @@ try {
                 own_freebies_limit INT NOT NULL DEFAULT 0 COMMENT 'Anzahl eigener Freebies',
                 ready_freebies_count INT NOT NULL DEFAULT 0 COMMENT 'Anzahl fertiger Freebies (Launch)',
                 referral_program_slots INT NOT NULL DEFAULT 0 COMMENT 'Empfehlungsprogramm Slots',
-                is_active TINYINT(1) DEFAULT 1 COMMENT 'Produkt aktiv?',
+                is_active TINYINT(1) DEFAULT 0 COMMENT 'Produkt aktiv?',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                INDEX idx_product_id (product_id),
+                UNIQUE KEY unique_product_id (product_id),
                 INDEX idx_active (is_active)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             COMMENT='Digistore24 Produktkonfiguration für Webhook-Steuerung'
@@ -96,10 +96,10 @@ try {
     if ($count == 0) {
         echo "<div class='step'><strong>Schritt 2:</strong> Füge Produkt-Templates hinzu...</div>";
         
-        // Füge die 4 Produktvarianten als Templates ein (ohne Produkt-ID)
+        // Füge die 4 Produktvarianten als Templates ein (mit NULL statt leerem String)
         $products = [
             [
-                'product_id' => '',
+                'product_id' => null,  // NULL statt ''
                 'product_name' => 'Launch Angebot',
                 'product_type' => 'launch',
                 'price' => 497.00,
@@ -110,7 +110,7 @@ try {
                 'is_active' => 0
             ],
             [
-                'product_id' => '',
+                'product_id' => null,  // NULL statt ''
                 'product_name' => 'Starter Abo',
                 'product_type' => 'starter',
                 'price' => 49.00,
@@ -121,7 +121,7 @@ try {
                 'is_active' => 0
             ],
             [
-                'product_id' => '',
+                'product_id' => null,  // NULL statt ''
                 'product_name' => 'Pro Abo',
                 'product_type' => 'pro',
                 'price' => 99.00,
@@ -132,7 +132,7 @@ try {
                 'is_active' => 0
             ],
             [
-                'product_id' => '',
+                'product_id' => null,  // NULL statt ''
                 'product_name' => 'Business Abo',
                 'product_type' => 'business',
                 'price' => 199.00,
