@@ -1,6 +1,6 @@
 <?php
 /**
- * Layout 1 Template mit POPUP & VIDEO Support
+ * Layout 1 Template - FIXED HYBRID LAYOUT + DIRECT OPTIN STYLING
  */
 ?>
 <!DOCTYPE html>
@@ -61,6 +61,7 @@
             height: 0;
             overflow: hidden;
             border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
         
         .video-container.shorts {
@@ -75,6 +76,50 @@
             left: 0;
             width: 100%;
             height: 100%;
+        }
+        
+        /* Direct Optin Form Styling */
+        .direct-optin-form {
+            background: white;
+            border-radius: 20px;
+            padding: 32px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        .direct-optin-form input[type="text"],
+        .direct-optin-form input[type="email"] {
+            width: 100%;
+            padding: 14px 18px;
+            margin-bottom: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+        
+        .direct-optin-form input:focus {
+            outline: none;
+            border-color: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>;
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+        }
+        
+        .direct-optin-form button[type="submit"] {
+            width: 100%;
+            padding: 16px;
+            background: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4);
+        }
+        
+        .direct-optin-form button[type="submit"]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
         }
     </style>
 </head>
@@ -103,32 +148,36 @@
             </p>
         <?php endif; ?>
         
-        <!-- Video (wenn vorhanden) -->
-        <?php if (!empty($videoEmbedUrl)): ?>
-            <div class="mb-12 max-w-4xl mx-auto">
-                <div class="video-container <?= $videoFormat === 'shorts' ? 'shorts' : '' ?>">
-                    <iframe 
-                        src="<?= htmlspecialchars($videoEmbedUrl) ?>" 
-                        frameborder="0" 
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                        allowfullscreen>
-                    </iframe>
-                </div>
-            </div>
-        <?php endif; ?>
-        
+        <!-- HYBRID LAYOUT: Video/Mockup LINKS, Bulletpoints + Optin RECHTS -->
         <div class="grid md:grid-cols-2 gap-12 items-start mb-12">
-            <!-- Mockup -->
-            <div class="flex justify-center">
+            
+            <!-- LINKE SPALTE: Video oder Mockup -->
+            <div class="flex flex-col justify-center items-center">
+                <!-- Video (wenn vorhanden) -->
+                <?php if (!empty($videoEmbedUrl)): ?>
+                    <div class="w-full mb-6">
+                        <div class="video-container <?= $videoFormat === 'shorts' ? 'shorts' : '' ?>">
+                            <iframe 
+                                src="<?= htmlspecialchars($videoEmbedUrl) ?>" 
+                                frameborder="0" 
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                allowfullscreen>
+                            </iframe>
+                        </div>
+                    </div>
+                <?php endif; ?>
+                
+                <!-- Mockup (wenn vorhanden) -->
                 <?php if (!empty($freebie['mockup_image_url'])): ?>
                     <img src="<?= htmlspecialchars($freebie['mockup_image_url']) ?>" 
                          alt="<?= htmlspecialchars($freebie['headline']) ?>" 
-                         class="w-full max-w-sm rounded-2xl shadow-2xl">
+                         class="w-full max-w-md rounded-2xl shadow-2xl">
                 <?php endif; ?>
             </div>
             
-            <!-- Bulletpoints & Optin -->
+            <!-- RECHTE SPALTE: Bulletpoints + Optin -->
             <div>
+                <!-- Bulletpoints -->
                 <?php 
                 $bullets = [];
                 if (!empty($freebie['bullet_points'])) {
@@ -158,37 +207,40 @@
                     </ul>
                 <?php endif; ?>
                 
-                <!-- E-Mail Optin -->
+                <!-- E-Mail Optin - UNTER den Bulletpoints -->
                 <?php if ($optinDisplayMode === 'popup'): ?>
                     <!-- Popup-Button -->
-                    <div class="text-center">
+                    <div class="mt-6">
                         <button 
                             onclick="openOptinPopup()" 
-                            class="px-8 py-4 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-xl <?= $ctaAnimation !== 'none' ? 'animate-' . $ctaAnimation : '' ?>"
+                            class="w-full px-8 py-4 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-xl <?= $ctaAnimation !== 'none' ? 'animate-' . $ctaAnimation : '' ?>"
                             style="background: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>">
                             <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt kostenlos sichern') ?>
                         </button>
                     </div>
                 <?php else: ?>
-                    <!-- Direkte Anzeige -->
-                    <div class="bg-white rounded-2xl shadow-xl p-8">
+                    <!-- Direkte Anzeige - mit verbessertem Styling -->
+                    <div class="direct-optin-form mt-6">
                         <?php if (!empty($freebie['raw_code'])): ?>
-                            <?= $freebie['raw_code'] ?>
+                            <div class="optin-form-wrapper">
+                                <?= $freebie['raw_code'] ?>
+                            </div>
                         <?php else: ?>
                             <form class="space-y-4">
-                                <input type="text" name="first_name" placeholder="Vorname" 
-                                       class="w-full p-3 border-2 border-gray-300 rounded-lg">
-                                <input type="email" name="email" placeholder="E-Mail-Adresse" required
-                                       class="w-full p-3 border-2 border-gray-300 rounded-lg">
-                                <button type="submit" 
-                                        class="w-full p-4 text-white rounded-lg font-bold"
-                                        style="background: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>">
+                                <input type="text" 
+                                       name="first_name" 
+                                       placeholder="Vorname">
+                                <input type="email" 
+                                       name="email" 
+                                       placeholder="E-Mail-Adresse" 
+                                       required>
+                                <button type="submit">
                                     <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt anmelden') ?>
                                 </button>
                             </form>
                             <p class="text-sm text-gray-500 mt-4 text-center">
                                 <i class="fas fa-lock mr-1"></i> 
-                                100% Datenschutz • Kein Spam
+                                100% Datenschutz • Kein Spam • Jederzeit abmelden
                             </p>
                         <?php endif; ?>
                     </div>
@@ -287,49 +339,81 @@
             }
         });
         
-        // Formular-Styling im Popup
+        // Automatisches Formular-Styling für raw_code
         document.addEventListener('DOMContentLoaded', function() {
-            const popupForm = document.querySelector('#optinPopupOverlay .optin-form-wrapper form');
-            if (popupForm) {
-                const inputs = popupForm.querySelectorAll('input[type="email"], input[type="text"]');
-                inputs.forEach(input => {
-                    input.style.cssText = `
-                        width: 100%;
-                        padding: 16px;
-                        border: 2px solid #e5e7eb;
-                        border-radius: 12px;
-                        font-size: 16px;
-                        margin-bottom: 12px;
-                        transition: all 0.2s;
-                    `;
-                    
-                    input.addEventListener('focus', function() {
-                        this.style.borderColor = '<?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>';
-                        this.style.outline = 'none';
-                    });
-                    
-                    input.addEventListener('blur', function() {
-                        this.style.borderColor = '#e5e7eb';
-                    });
-                });
-                
-                const submitBtn = popupForm.querySelector('button[type="submit"], input[type="submit"]');
-                if (submitBtn) {
-                    submitBtn.style.cssText = `
-                        width: 100%;
-                        padding: 16px;
-                        background: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>;
-                        color: white;
-                        border: none;
-                        border-radius: 12px;
-                        font-size: 16px;
-                        font-weight: 700;
-                        cursor: pointer;
-                        transition: all 0.3s;
-                    `;
+            // Popup Formular-Styling
+            const popupFormWrapper = document.querySelector('#optinPopupOverlay .optin-form-wrapper');
+            if (popupFormWrapper) {
+                const popupForm = popupFormWrapper.querySelector('form');
+                if (popupForm) {
+                    styleForm(popupForm, '<?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>');
+                }
+            }
+            
+            // Direct Optin Formular-Styling
+            const directFormWrapper = document.querySelector('.direct-optin-form .optin-form-wrapper');
+            if (directFormWrapper) {
+                const directForm = directFormWrapper.querySelector('form');
+                if (directForm) {
+                    styleForm(directForm, '<?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>');
                 }
             }
         });
+        
+        function styleForm(form, primaryColor) {
+            // Style inputs
+            const inputs = form.querySelectorAll('input[type="email"], input[type="text"]');
+            inputs.forEach(input => {
+                input.style.cssText = `
+                    width: 100%;
+                    padding: 14px 18px;
+                    margin-bottom: 12px;
+                    border: 2px solid #e5e7eb;
+                    border-radius: 12px;
+                    font-size: 16px;
+                    transition: all 0.2s;
+                `;
+                
+                input.addEventListener('focus', function() {
+                    this.style.borderColor = primaryColor;
+                    this.style.outline = 'none';
+                    this.style.boxShadow = '0 0 0 3px rgba(124, 58, 237, 0.1)';
+                });
+                
+                input.addEventListener('blur', function() {
+                    this.style.borderColor = '#e5e7eb';
+                    this.style.boxShadow = 'none';
+                });
+            });
+            
+            // Style submit button
+            const submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
+            if (submitBtn) {
+                submitBtn.style.cssText = `
+                    width: 100%;
+                    padding: 16px;
+                    background: ${primaryColor};
+                    color: white;
+                    border: none;
+                    border-radius: 12px;
+                    font-size: 18px;
+                    font-weight: 700;
+                    cursor: pointer;
+                    transition: all 0.3s;
+                    box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4);
+                `;
+                
+                submitBtn.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-2px)';
+                    this.style.boxShadow = '0 6px 20px rgba(124, 58, 237, 0.5)';
+                });
+                
+                submitBtn.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0)';
+                    this.style.boxShadow = '0 4px 14px rgba(124, 58, 237, 0.4)';
+                });
+            }
+        }
     </script>
     <?php endif; ?>
 
