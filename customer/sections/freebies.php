@@ -233,7 +233,7 @@ try {
 
     .freebies-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        grid-template-columns: repeat(4, 1fr);
         gap: 24px;
     }
     
@@ -472,6 +472,18 @@ try {
         border: 1px solid rgba(251, 191, 36, 0.2);
         border-radius: 6px;
         text-align: center;
+    }
+    
+    @media (max-width: 1400px) {
+        .freebies-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+    
+    @media (max-width: 1024px) {
+        .freebies-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
     }
     
     @media (max-width: 768px) {
