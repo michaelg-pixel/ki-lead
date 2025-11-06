@@ -266,30 +266,203 @@ $niches = [
     <title><?= $is_edit ? 'Kurs bearbeiten' : 'Neuer Kurs' ?> - KI Leadsystem Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Custom Styles mit verbessertem Kontrast */
+        body {
+            background: #0f0f1e;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        
+        /* Verbesserte Input-Felder */
+        .custom-input {
+            background: rgba(26, 26, 46, 0.8);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            color: #e0e0e0;
+            transition: all 0.2s ease;
+        }
+        
+        .custom-input:focus {
+            background: rgba(26, 26, 46, 0.95);
+            border-color: rgba(168, 85, 247, 0.6);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2);
+        }
+        
+        .custom-input::placeholder {
+            color: #a0a0a0;
+        }
+        
+        /* Card Styles */
+        .card {
+            background: rgba(26, 26, 46, 0.7);
+            border: 1px solid rgba(168, 85, 247, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            border-color: rgba(168, 85, 247, 0.4);
+        }
+        
+        .card-nested {
+            background: rgba(22, 33, 62, 0.8);
+            border: 1px solid rgba(168, 85, 247, 0.25);
+        }
+        
+        .card-deep {
+            background: rgba(15, 15, 30, 0.9);
+            border: 1px solid rgba(168, 85, 247, 0.2);
+        }
+        
+        /* Label Styles */
+        .custom-label {
+            color: #c084fc;
+            font-weight: 600;
+            font-size: 0.9rem;
+            letter-spacing: 0.3px;
+        }
+        
+        /* Button Styles */
+        .btn-primary {
+            background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+            border: 1px solid rgba(168, 85, 247, 0.5);
+            box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #9333ea 0%, #db2777 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(168, 85, 247, 0.5);
+        }
+        
+        .btn-secondary {
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.4);
+            color: #60a5fa;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(59, 130, 246, 0.3);
+            border-color: rgba(59, 130, 246, 0.6);
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            color: #86efac;
+        }
+        
+        .btn-success:hover {
+            background: rgba(34, 197, 94, 0.3);
+            border-color: rgba(34, 197, 94, 0.6);
+            transform: translateY(-2px);
+        }
+        
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #f87171;
+        }
+        
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.3);
+            border-color: rgba(239, 68, 68, 0.6);
+            transform: translateY(-2px);
+        }
+        
+        .btn-ghost {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #e0e0e0;
+        }
+        
+        .btn-ghost:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            border-right: 1px solid rgba(168, 85, 247, 0.2);
+        }
+        
+        .sidebar a {
+            transition: all 0.2s ease;
+        }
+        
+        .sidebar a:hover {
+            background: rgba(168, 85, 247, 0.15);
+            transform: translateX(4px);
+        }
+        
+        .sidebar a.active {
+            background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+            box-shadow: 0 4px 12px rgba(168, 85, 247, 0.4);
+        }
+        
+        /* Alert Styles */
+        .alert-success {
+            background: rgba(34, 197, 94, 0.15);
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            color: #86efac;
+        }
+        
+        /* Details/Summary */
+        details summary {
+            color: #c084fc;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        details summary:hover {
+            color: #e9d5ff;
+        }
+        
+        /* Checkbox Styling */
+        input[type="checkbox"] {
+            accent-color: #a855f7;
+            width: 1.25rem;
+            height: 1.25rem;
+            cursor: pointer;
+        }
+    </style>
 </head>
-<body class="bg-gray-900 text-white">
+<body class="text-white">
 
-    <div class="flex">
+    <div class="flex min-h-screen">
         <!-- Sidebar -->
-        <aside class="w-64 bg-gray-800 min-h-screen p-6">
+        <aside class="sidebar w-64 min-h-screen p-6 flex-shrink-0">
             <div class="mb-8">
-                <h1 class="text-2xl font-bold text-purple-500">🚀 KI Leadsystem Admin</h1>
+                <h1 class="text-2xl font-bold text-white flex items-center gap-2">
+                    <span style="font-size: 1.5rem;">⭐</span>
+                    <span class="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                        Admin Panel
+                    </span>
+                </h1>
+                <p class="text-sm" style="color: #a0a0a0; margin-top: 4px;">KI Leadsystem</p>
             </div>
             <nav class="space-y-2">
-                <a href="index.php" class="block px-4 py-2 rounded hover:bg-gray-700">
-                    <i class="fas fa-home mr-2"></i> Dashboard
+                <a href="index.php" class="flex items-center gap-3 px-4 py-2.5 rounded-lg" style="color: #b0b0b0;">
+                    <i class="fas fa-home" style="width: 20px;"></i> 
+                    <span>Dashboard</span>
                 </a>
-                <a href="customers.php" class="block px-4 py-2 rounded hover:bg-gray-700">
-                    <i class="fas fa-users mr-2"></i> Kunden
+                <a href="customers.php" class="flex items-center gap-3 px-4 py-2.5 rounded-lg" style="color: #b0b0b0;">
+                    <i class="fas fa-users" style="width: 20px;"></i> 
+                    <span>Kunden</span>
                 </a>
-                <a href="courses.php" class="block px-4 py-2 rounded bg-purple-600">
-                    <i class="fas fa-graduation-cap mr-2"></i> Kurse
+                <a href="courses.php" class="active flex items-center gap-3 px-4 py-2.5 rounded-lg text-white">
+                    <i class="fas fa-graduation-cap" style="width: 20px;"></i> 
+                    <span>Kurse</span>
                 </a>
-                <a href="tutorials.php" class="block px-4 py-2 rounded hover:bg-gray-700">
-                    <i class="fas fa-video mr-2"></i> Anleitungen
+                <a href="tutorials.php" class="flex items-center gap-3 px-4 py-2.5 rounded-lg" style="color: #b0b0b0;">
+                    <i class="fas fa-video" style="width: 20px;"></i> 
+                    <span>Anleitungen</span>
                 </a>
-                <a href="logout.php" class="block px-4 py-2 rounded hover:bg-red-600 mt-8">
-                    <i class="fas fa-sign-out-alt mr-2"></i> Abmelden
+                <a href="logout.php" class="flex items-center gap-3 px-4 py-2.5 rounded-lg mt-8" style="color: #ff6b6b;">
+                    <i class="fas fa-sign-out-alt" style="width: 20px;"></i> 
+                    <span>Abmelden</span>
                 </a>
             </nav>
         </aside>
@@ -297,73 +470,73 @@ $niches = [
         <!-- Main Content -->
         <main class="flex-1 p-8">
             <?php if (isset($_GET['success'])): ?>
-                <div class="bg-green-600 text-white px-4 py-3 rounded mb-6">
-                    Kurs erfolgreich gespeichert!
+                <div class="alert-success px-6 py-4 rounded-lg mb-6 font-semibold">
+                    <i class="fas fa-check-circle mr-2"></i> Kurs erfolgreich gespeichert!
                 </div>
             <?php endif; ?>
             
             <?php if (isset($_GET['module_added'])): ?>
-                <div class="bg-green-600 text-white px-4 py-3 rounded mb-6">
-                    Modul erfolgreich hinzugefügt!
+                <div class="alert-success px-6 py-4 rounded-lg mb-6 font-semibold">
+                    <i class="fas fa-check-circle mr-2"></i> Modul erfolgreich hinzugefügt!
                 </div>
             <?php endif; ?>
             
             <?php if (isset($_GET['module_updated'])): ?>
-                <div class="bg-green-600 text-white px-4 py-3 rounded mb-6">
-                    Modul erfolgreich aktualisiert!
+                <div class="alert-success px-6 py-4 rounded-lg mb-6 font-semibold">
+                    <i class="fas fa-check-circle mr-2"></i> Modul erfolgreich aktualisiert!
                 </div>
             <?php endif; ?>
             
             <?php if (isset($_GET['lesson_added'])): ?>
-                <div class="bg-green-600 text-white px-4 py-3 rounded mb-6">
-                    Lektion erfolgreich hinzugefügt!
+                <div class="alert-success px-6 py-4 rounded-lg mb-6 font-semibold">
+                    <i class="fas fa-check-circle mr-2"></i> Lektion erfolgreich hinzugefügt!
                 </div>
             <?php endif; ?>
             
             <?php if (isset($_GET['lesson_updated'])): ?>
-                <div class="bg-green-600 text-white px-4 py-3 rounded mb-6">
-                    Lektion erfolgreich aktualisiert!
+                <div class="alert-success px-6 py-4 rounded-lg mb-6 font-semibold">
+                    <i class="fas fa-check-circle mr-2"></i> Lektion erfolgreich aktualisiert!
                 </div>
             <?php endif; ?>
 
             <!-- Header -->
             <div class="flex justify-between items-center mb-8">
                 <div>
-                    <h2 class="text-3xl font-bold">
+                    <h2 class="text-4xl font-bold text-white mb-2">
                         <?= $is_edit ? 'Kurs bearbeiten' : 'Neuen Kurs erstellen' ?>
                     </h2>
-                    <p class="text-gray-400 mt-2">
+                    <p class="text-base" style="color: #a0a0a0;">
                         <?= $is_edit ? 'Bearbeite deinen Videokurs' : 'Erstelle einen neuen Videokurs' ?>
                     </p>
                 </div>
-                <a href="courses.php" class="bg-gray-700 hover:bg-gray-600 px-6 py-3 rounded-lg">
-                    <i class="fas fa-arrow-left mr-2"></i> Zurück
+                <a href="courses.php" class="btn-ghost px-6 py-3 rounded-lg font-semibold inline-flex items-center gap-2">
+                    <i class="fas fa-arrow-left"></i> Zurück
                 </a>
             </div>
 
             <!-- Kurs-Grunddaten -->
-            <div class="bg-gray-800 rounded-lg p-8 mb-8">
-                <h3 class="text-2xl font-bold mb-6">
-                    <i class="fas fa-info-circle mr-2 text-purple-500"></i> Grunddaten
+            <div class="card rounded-xl p-8 mb-8">
+                <h3 class="text-2xl font-bold mb-6 text-white flex items-center gap-3">
+                    <i class="fas fa-info-circle" style="color: #a855f7;"></i> Grunddaten
                 </h3>
                 
                 <form method="POST" enctype="multipart/form-data">
                     <div class="grid grid-cols-2 gap-6">
                         <div class="col-span-2">
-                            <label class="block mb-2 font-semibold">Kurstitel *</label>
+                            <label class="custom-label block mb-2">Kurstitel *</label>
                             <input type="text" name="title" value="<?= htmlspecialchars($course['title'] ?? '') ?>" 
-                                   class="w-full bg-gray-700 px-4 py-3 rounded-lg" required>
+                                   class="custom-input w-full px-4 py-3 rounded-lg" required>
                         </div>
                         
                         <div class="col-span-2">
-                            <label class="block mb-2 font-semibold">Beschreibung *</label>
+                            <label class="custom-label block mb-2">Beschreibung *</label>
                             <textarea name="description" rows="4" 
-                                      class="w-full bg-gray-700 px-4 py-3 rounded-lg" required><?= htmlspecialchars($course['description'] ?? '') ?></textarea>
+                                      class="custom-input w-full px-4 py-3 rounded-lg" required><?= htmlspecialchars($course['description'] ?? '') ?></textarea>
                         </div>
                         
                         <div>
-                            <label class="block mb-2 font-semibold">Nische *</label>
-                            <select name="niche" class="w-full bg-gray-700 px-4 py-3 rounded-lg" required>
+                            <label class="custom-label block mb-2">Nische *</label>
+                            <select name="niche" class="custom-input w-full px-4 py-3 rounded-lg" required>
                                 <option value="">-- Nische wählen --</option>
                                 <?php foreach ($niches as $key => $label): ?>
                                     <option value="<?= $key ?>" <?= ($course['niche'] ?? '') === $key ? 'selected' : '' ?>>
@@ -374,47 +547,49 @@ $niches = [
                         </div>
                         
                         <div>
-                            <label class="block mb-2 font-semibold">Thumbnail (Mockup-Bild) *</label>
+                            <label class="custom-label block mb-2">Thumbnail (Mockup-Bild)</label>
                             <input type="file" name="thumbnail" accept="image/*" 
-                                   class="w-full bg-gray-700 px-4 py-3 rounded-lg">
+                                   class="custom-input w-full px-4 py-3 rounded-lg">
                             <?php if (isset($course['thumbnail']) && $course['thumbnail']): ?>
-                                <div class="mt-2">
+                                <div class="mt-3">
                                     <img src="../uploads/thumbnails/<?= htmlspecialchars($course['thumbnail']) ?>" 
-                                         class="w-48 h-32 object-cover rounded" alt="Current Thumbnail">
+                                         class="w-48 h-32 object-cover rounded-lg border border-purple-500/30" alt="Current Thumbnail">
                                 </div>
                             <?php endif; ?>
                         </div>
                         
                         <div class="col-span-2 flex gap-6">
-                            <label class="flex items-center gap-2 cursor-pointer">
+                            <label class="flex items-center gap-3 cursor-pointer">
                                 <input type="checkbox" name="is_premium" value="1" 
-                                       <?= ($course['is_premium'] ?? 0) ? 'checked' : '' ?>
-                                       class="w-5 h-5">
-                                <span><i class="fas fa-crown text-yellow-500 mr-1"></i> Premium Kurs (Kostenpflichtig)</span>
+                                       <?= ($course['is_premium'] ?? 0) ? 'checked' : '' ?>>
+                                <span style="color: #e0e0e0;">
+                                    <i class="fas fa-crown" style="color: #fbbf24;"></i> Premium Kurs (Kostenpflichtig)
+                                </span>
                             </label>
                             
-                            <label class="flex items-center gap-2 cursor-pointer">
+                            <label class="flex items-center gap-3 cursor-pointer">
                                 <input type="checkbox" name="is_active" value="1" 
-                                       <?= ($course['is_active'] ?? 1) ? 'checked' : '' ?>
-                                       class="w-5 h-5">
-                                <span><i class="fas fa-check-circle text-green-500 mr-1"></i> Kurs aktiv</span>
+                                       <?= ($course['is_active'] ?? 1) ? 'checked' : '' ?>>
+                                <span style="color: #e0e0e0;">
+                                    <i class="fas fa-check-circle" style="color: #22c55e;"></i> Kurs aktiv
+                                </span>
                             </label>
                         </div>
                         
                         <div class="col-span-2" id="digistore-field" style="display: <?= ($course['is_premium'] ?? 0) ? 'block' : 'none' ?>">
-                            <label class="block mb-2 font-semibold">
-                                <i class="fas fa-shopping-cart mr-1"></i> Digistore24 Link
+                            <label class="custom-label block mb-2">
+                                <i class="fas fa-shopping-cart"></i> Digistore24 Link
                             </label>
                             <input type="url" name="digistore_link" value="<?= htmlspecialchars($course['digistore_link'] ?? '') ?>" 
-                                   class="w-full bg-gray-700 px-4 py-3 rounded-lg" 
+                                   class="custom-input w-full px-4 py-3 rounded-lg" 
                                    placeholder="https://www.digistore24.com/...">
                         </div>
                     </div>
                     
-                    <div class="mt-6">
+                    <div class="mt-8">
                         <button type="submit" name="save_course" 
-                                class="bg-purple-600 hover:bg-purple-700 px-8 py-3 rounded-lg font-semibold">
-                            <i class="fas fa-save mr-2"></i> Kurs speichern
+                                class="btn-primary px-8 py-3 rounded-lg font-semibold inline-flex items-center gap-2">
+                            <i class="fas fa-save"></i> Kurs speichern
                         </button>
                     </div>
                 </form>
@@ -422,30 +597,30 @@ $niches = [
 
             <?php if ($is_edit): ?>
                 <!-- Module & Lektionen -->
-                <div class="bg-gray-800 rounded-lg p-8">
-                    <h3 class="text-2xl font-bold mb-6">
-                        <i class="fas fa-list mr-2 text-purple-500"></i> Module & Lektionen
+                <div class="card rounded-xl p-8">
+                    <h3 class="text-2xl font-bold mb-6 text-white flex items-center gap-3">
+                        <i class="fas fa-list" style="color: #a855f7;"></i> Module & Lektionen
                     </h3>
                     
                     <!-- Module anzeigen -->
                     <?php if (!empty($modules)): ?>
                         <div class="space-y-6 mb-8">
                             <?php foreach ($modules as $module): ?>
-                                <div class="bg-gray-700 rounded-lg p-6">
+                                <div class="card-nested rounded-lg p-6">
                                     <div class="flex justify-between items-start mb-4">
                                         <div class="flex-1">
-                                            <h4 class="text-xl font-bold"><?= htmlspecialchars($module['title']) ?></h4>
-                                            <p class="text-gray-400 mt-1"><?= htmlspecialchars($module['description']) ?></p>
+                                            <h4 class="text-xl font-bold text-white"><?= htmlspecialchars($module['title']) ?></h4>
+                                            <p class="mt-1" style="color: #b0b0b0;"><?= htmlspecialchars($module['description']) ?></p>
                                         </div>
-                                        <div class="flex gap-2">
+                                        <div class="flex gap-2 ml-4">
                                             <button onclick="toggleEditModule(<?= $module['id'] ?>)" 
-                                                    class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded text-sm">
+                                                    class="btn-secondary px-4 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-2">
                                                 <i class="fas fa-edit"></i> Bearbeiten
                                             </button>
                                             <form method="POST" onsubmit="return confirm('Modul wirklich löschen?')" class="inline">
                                                 <input type="hidden" name="module_id" value="<?= $module['id'] ?>">
                                                 <button type="submit" name="delete_module" 
-                                                        class="bg-red-600 hover:bg-red-700 px-3 py-2 rounded text-sm">
+                                                        class="btn-danger px-4 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-2">
                                                     <i class="fas fa-trash"></i> Löschen
                                                 </button>
                                             </form>
@@ -453,28 +628,28 @@ $niches = [
                                     </div>
                                     
                                     <!-- Bearbeitungsformular für Modul (versteckt) -->
-                                    <div id="edit-module-<?= $module['id'] ?>" class="hidden bg-gray-600 p-4 rounded mb-4">
+                                    <div id="edit-module-<?= $module['id'] ?>" class="hidden card-deep p-5 rounded-lg mb-4">
                                         <form method="POST">
                                             <input type="hidden" name="module_id" value="<?= $module['id'] ?>">
-                                            <div class="space-y-3">
+                                            <div class="space-y-4">
                                                 <div>
-                                                    <label class="block mb-1 text-sm">Modultitel</label>
+                                                    <label class="custom-label block mb-2">Modultitel</label>
                                                     <input type="text" name="module_title" 
                                                            value="<?= htmlspecialchars($module['title']) ?>" 
-                                                           class="w-full bg-gray-700 px-4 py-2 rounded" required>
+                                                           class="custom-input w-full px-4 py-2.5 rounded-lg" required>
                                                 </div>
                                                 <div>
-                                                    <label class="block mb-1 text-sm">Beschreibung</label>
+                                                    <label class="custom-label block mb-2">Beschreibung</label>
                                                     <textarea name="module_description" rows="2" 
-                                                              class="w-full bg-gray-700 px-4 py-2 rounded"><?= htmlspecialchars($module['description']) ?></textarea>
+                                                              class="custom-input w-full px-4 py-2.5 rounded-lg"><?= htmlspecialchars($module['description']) ?></textarea>
                                                 </div>
-                                                <div class="flex gap-2">
+                                                <div class="flex gap-3">
                                                     <button type="submit" name="edit_module" 
-                                                            class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded">
-                                                        <i class="fas fa-save mr-1"></i> Speichern
+                                                            class="btn-success px-5 py-2.5 rounded-lg font-semibold inline-flex items-center gap-2">
+                                                        <i class="fas fa-save"></i> Speichern
                                                     </button>
                                                     <button type="button" onclick="toggleEditModule(<?= $module['id'] ?>)" 
-                                                            class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded">
+                                                            class="btn-ghost px-5 py-2.5 rounded-lg font-semibold">
                                                         Abbrechen
                                                     </button>
                                                 </div>
@@ -484,33 +659,32 @@ $niches = [
                                     
                                     <!-- Lektionen -->
                                     <?php if (!empty($lessons_by_module[$module['id']])): ?>
-                                        <div class="space-y-3">
+                                        <div class="space-y-3 mt-4">
                                             <?php foreach ($lessons_by_module[$module['id']] as $lesson): ?>
-                                                <div class="bg-gray-800 p-4 rounded">
+                                                <div class="card-deep p-4 rounded-lg">
                                                     <div class="flex justify-between items-start">
                                                         <div class="flex-1">
-                                                            <div class="font-semibold"><?= htmlspecialchars($lesson['title']) ?></div>
-                                                            <div class="text-sm text-gray-400"><?= htmlspecialchars($lesson['description']) ?></div>
-                                                            <div class="text-xs text-purple-400 mt-1">
-                                                                <i class="fas fa-video mr-1"></i> Vimeo: <?= htmlspecialchars($lesson['vimeo_url']) ?>
+                                                            <div class="font-semibold text-white"><?= htmlspecialchars($lesson['title']) ?></div>
+                                                            <div class="text-sm mt-1" style="color: #a0a0a0;"><?= htmlspecialchars($lesson['description']) ?></div>
+                                                            <div class="text-xs mt-2 flex items-center gap-4" style="color: #c084fc;">
+                                                                <span><i class="fas fa-video mr-1"></i> <?= htmlspecialchars($lesson['vimeo_url']) ?></span>
                                                                 <?php if ($lesson['pdf_file']): ?>
-                                                                    <span class="ml-3">
-                                                                        <i class="fas fa-file-pdf mr-1"></i> 
-                                                                        <a href="../uploads/pdfs/<?= htmlspecialchars($lesson['pdf_file']) ?>" 
-                                                                           target="_blank" class="hover:underline">PDF vorhanden</a>
-                                                                    </span>
+                                                                    <a href="../uploads/pdfs/<?= htmlspecialchars($lesson['pdf_file']) ?>" 
+                                                                       target="_blank" class="hover:underline">
+                                                                        <i class="fas fa-file-pdf mr-1"></i> PDF vorhanden
+                                                                    </a>
                                                                 <?php endif; ?>
                                                             </div>
                                                         </div>
                                                         <div class="flex gap-2 ml-4">
                                                             <button onclick="toggleEditLesson(<?= $lesson['id'] ?>)" 
-                                                                    class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded text-sm">
+                                                                    class="btn-secondary px-3 py-2 rounded-lg text-sm">
                                                                 <i class="fas fa-edit"></i>
                                                             </button>
                                                             <form method="POST" onsubmit="return confirm('Lektion löschen?')" class="inline">
                                                                 <input type="hidden" name="lesson_id" value="<?= $lesson['id'] ?>">
                                                                 <button type="submit" name="delete_lesson" 
-                                                                        class="bg-red-600 hover:bg-red-700 px-3 py-2 rounded text-sm">
+                                                                        class="btn-danger px-3 py-2 rounded-lg text-sm">
                                                                     <i class="fas fa-trash"></i>
                                                                 </button>
                                                             </form>
@@ -518,46 +692,47 @@ $niches = [
                                                     </div>
                                                     
                                                     <!-- Bearbeitungsformular für Lektion (versteckt) -->
-                                                    <div id="edit-lesson-<?= $lesson['id'] ?>" class="hidden mt-4 bg-gray-700 p-4 rounded">
+                                                    <div id="edit-lesson-<?= $lesson['id'] ?>" class="hidden mt-4" 
+                                                         style="background: rgba(10, 10, 20, 0.8); border: 1px solid rgba(168, 85, 247, 0.2); padding: 1rem; border-radius: 0.5rem;">
                                                         <form method="POST" enctype="multipart/form-data">
                                                             <input type="hidden" name="lesson_id" value="<?= $lesson['id'] ?>">
                                                             <div class="space-y-3">
                                                                 <div>
-                                                                    <label class="block mb-1 text-sm">Lektionstitel</label>
+                                                                    <label class="custom-label block mb-2">Lektionstitel</label>
                                                                     <input type="text" name="lesson_title" 
                                                                            value="<?= htmlspecialchars($lesson['title']) ?>" 
-                                                                           class="w-full bg-gray-600 px-4 py-2 rounded" required>
+                                                                           class="custom-input w-full px-4 py-2.5 rounded-lg" required>
                                                                 </div>
                                                                 <div>
-                                                                    <label class="block mb-1 text-sm">Beschreibung</label>
+                                                                    <label class="custom-label block mb-2">Beschreibung</label>
                                                                     <textarea name="lesson_description" rows="2" 
-                                                                              class="w-full bg-gray-600 px-4 py-2 rounded"><?= htmlspecialchars($lesson['description']) ?></textarea>
+                                                                              class="custom-input w-full px-4 py-2.5 rounded-lg"><?= htmlspecialchars($lesson['description']) ?></textarea>
                                                                 </div>
                                                                 <div>
-                                                                    <label class="block mb-1 text-sm">Vimeo URL</label>
+                                                                    <label class="custom-label block mb-2">Vimeo URL</label>
                                                                     <input type="url" name="vimeo_url" 
                                                                            value="<?= htmlspecialchars($lesson['vimeo_url']) ?>" 
-                                                                           class="w-full bg-gray-600 px-4 py-2 rounded" required>
+                                                                           class="custom-input w-full px-4 py-2.5 rounded-lg" required>
                                                                 </div>
                                                                 <div>
-                                                                    <label class="block mb-1 text-sm">
+                                                                    <label class="custom-label block mb-2">
                                                                         PDF hochladen (optional - leer lassen um beizubehalten)
                                                                     </label>
                                                                     <input type="file" name="pdf_file" accept=".pdf" 
-                                                                           class="w-full bg-gray-600 px-4 py-2 rounded">
+                                                                           class="custom-input w-full px-4 py-2.5 rounded-lg">
                                                                     <?php if ($lesson['pdf_file']): ?>
-                                                                        <div class="text-xs text-gray-400 mt-1">
+                                                                        <div class="text-xs mt-2" style="color: #a0a0a0;">
                                                                             Aktuell: <?= htmlspecialchars($lesson['pdf_file']) ?>
                                                                         </div>
                                                                     <?php endif; ?>
                                                                 </div>
-                                                                <div class="flex gap-2">
+                                                                <div class="flex gap-3">
                                                                     <button type="submit" name="edit_lesson" 
-                                                                            class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded">
-                                                                        <i class="fas fa-save mr-1"></i> Speichern
+                                                                            class="btn-success px-5 py-2.5 rounded-lg font-semibold inline-flex items-center gap-2">
+                                                                        <i class="fas fa-save"></i> Speichern
                                                                     </button>
                                                                     <button type="button" onclick="toggleEditLesson(<?= $lesson['id'] ?>)" 
-                                                                            class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded">
+                                                                            class="btn-ghost px-5 py-2.5 rounded-lg font-semibold">
                                                                         Abbrechen
                                                                     </button>
                                                                 </div>
@@ -571,26 +746,26 @@ $niches = [
                                     
                                     <!-- Neue Lektion hinzufügen -->
                                     <details class="mt-4">
-                                        <summary class="cursor-pointer text-purple-400 hover:text-purple-300">
+                                        <summary class="cursor-pointer font-semibold">
                                             <i class="fas fa-plus mr-2"></i> Neue Lektion hinzufügen
                                         </summary>
-                                        <form method="POST" enctype="multipart/form-data" class="mt-4 bg-gray-600 p-4 rounded">
+                                        <form method="POST" enctype="multipart/form-data" class="mt-4 card-deep p-4 rounded-lg">
                                             <input type="hidden" name="module_id" value="<?= $module['id'] ?>">
                                             <div class="space-y-3">
                                                 <input type="text" name="lesson_title" placeholder="Lektionstitel" 
-                                                       class="w-full bg-gray-700 px-4 py-2 rounded" required>
+                                                       class="custom-input w-full px-4 py-2.5 rounded-lg" required>
                                                 <textarea name="lesson_description" placeholder="Beschreibung" rows="2" 
-                                                          class="w-full bg-gray-700 px-4 py-2 rounded"></textarea>
+                                                          class="custom-input w-full px-4 py-2.5 rounded-lg"></textarea>
                                                 <input type="url" name="vimeo_url" placeholder="Vimeo URL" 
-                                                       class="w-full bg-gray-700 px-4 py-2 rounded" required>
+                                                       class="custom-input w-full px-4 py-2.5 rounded-lg" required>
                                                 <div>
-                                                    <label class="block mb-1 text-sm">PDF hochladen (optional)</label>
+                                                    <label class="custom-label block mb-2">PDF hochladen (optional)</label>
                                                     <input type="file" name="pdf_file" accept=".pdf" 
-                                                           class="w-full bg-gray-700 px-4 py-2 rounded">
+                                                           class="custom-input w-full px-4 py-2.5 rounded-lg">
                                                 </div>
                                                 <button type="submit" name="add_lesson" 
-                                                        class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded">
-                                                    Lektion hinzufügen
+                                                        class="btn-primary px-5 py-2.5 rounded-lg font-semibold inline-flex items-center gap-2">
+                                                    <i class="fas fa-plus"></i> Lektion hinzufügen
                                                 </button>
                                             </div>
                                         </form>
@@ -601,19 +776,19 @@ $niches = [
                     <?php endif; ?>
                     
                     <!-- Neues Modul hinzufügen -->
-                    <div class="bg-gray-700 rounded-lg p-6">
-                        <h4 class="text-xl font-bold mb-4">
-                            <i class="fas fa-plus-circle mr-2 text-green-500"></i> Neues Modul hinzufügen
+                    <div class="card-nested rounded-lg p-6">
+                        <h4 class="text-xl font-bold mb-5 text-white flex items-center gap-2">
+                            <i class="fas fa-plus-circle" style="color: #22c55e;"></i> Neues Modul hinzufügen
                         </h4>
                         <form method="POST">
                             <div class="space-y-4">
                                 <input type="text" name="module_title" placeholder="Modultitel" 
-                                       class="w-full bg-gray-600 px-4 py-3 rounded-lg" required>
+                                       class="custom-input w-full px-4 py-3 rounded-lg" required>
                                 <textarea name="module_description" placeholder="Beschreibung" rows="3" 
-                                          class="w-full bg-gray-600 px-4 py-3 rounded-lg"></textarea>
+                                          class="custom-input w-full px-4 py-3 rounded-lg"></textarea>
                                 <button type="submit" name="add_module" 
-                                        class="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-semibold">
-                                    <i class="fas fa-plus mr-2"></i> Modul hinzufügen
+                                        class="btn-success px-6 py-3 rounded-lg font-semibold inline-flex items-center gap-2">
+                                    <i class="fas fa-plus"></i> Modul hinzufügen
                                 </button>
                             </div>
                         </form>
