@@ -1,0 +1,12 @@
+RewriteEngine On
+
+# API-Endpoint: Videokurs aktivieren
+RewriteRule ^api/freebies/([0-9]+)/activate-course$ api/activate-course.php [L,QSA]
+
+# API-Endpoint: Course Modules (mit optionaler ID)
+RewriteRule ^api/course-modules/([0-9]+)$ api/course-modules.php [L,QSA]
+RewriteRule ^api/course-modules$ api/course-modules.php [L,QSA]
+
+# API-Endpoint: Course Lessons (mit optionaler ID)
+RewriteRule ^api/course-lessons/([0-9]+)$ api/course-lessons.php [L,QSA]
+RewriteRule ^api/course-lessons$ api/course-lessons.php [L,QSA]
