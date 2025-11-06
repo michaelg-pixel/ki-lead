@@ -44,6 +44,17 @@ if ($course['type'] === 'video') {
         $module['lessons'] = $stmt->fetchAll();
     }
 }
+
+// Debug-Ausgabe (kann später entfernt werden)
+if (isset($_GET['debug'])) {
+    echo '<pre style="background: #1a1a2e; padding: 20px; border-radius: 8px; color: #0e0; margin: 20px 0;">';
+    echo "Kurs-ID: " . $course_id . "\n";
+    echo "Anzahl Module: " . count($modules) . "\n\n";
+    foreach ($modules as $m) {
+        echo "Modul #{$m['id']}: {$m['title']} (Sort Order: {$m['sort_order']})\n";
+    }
+    echo '</pre>';
+}
 ?>
 
 <div class="course-editor">
@@ -211,6 +222,7 @@ if ($course['type'] === 'video') {
     </div>
 </div>
 
+<!-- Modals bleiben gleich -->
 <!-- Add Module Modal -->
 <div id="addModuleModal" class="modal hidden">
     <div class="modal-content">
@@ -341,423 +353,60 @@ if ($course['type'] === 'video') {
 </div>
 
 <style>
-/* Course Editor Layout */
-.course-editor {
-    max-width: 1600px;
-    margin: 0 auto;
-}
-
-.editor-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 32px;
-    flex-wrap: wrap;
-    gap: 20px;
-}
-
-.back-link {
-    display: inline-block;
-    color: #a0a0a0;
-    text-decoration: none;
-    margin-bottom: 12px;
-    transition: color 0.2s;
-}
-
-.back-link:hover {
-    color: #c084fc;
-}
-
-.course-type-badge-inline {
-    display: inline-block;
-    background: rgba(168, 85, 247, 0.2);
-    border: 1px solid rgba(168, 85, 247, 0.4);
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #c084fc;
-}
-
-.editor-content {
-    display: grid;
-    grid-template-columns: 380px 1fr;
-    gap: 24px;
-    align-items: start;
-}
-
-/* Sidebar */
-.editor-sidebar {
-    position: sticky;
-    top: 32px;
-}
-
-.sidebar-section {
-    background: rgba(26, 26, 46, 0.7);
-    border: 1px solid rgba(168, 85, 247, 0.2);
-    border-radius: 12px;
-    padding: 24px;
-}
-
-.sidebar-section h3 {
-    font-size: 18px;
-    color: white;
-    font-weight: 700;
-    margin: 0 0 20px 0;
-}
-
-.form-group {
-    margin-bottom: 20px;
-}
-
-.form-group label {
-    display: block;
-    font-size: 13px;
-    font-weight: 600;
-    color: #c084fc;
-    margin-bottom: 8px;
-    letter-spacing: 0.3px;
-}
-
-.form-group input[type="text"],
-.form-group input[type="url"],
-.form-group input[type="file"],
-.form-group textarea,
-.form-group select {
-    width: 100%;
-    background: rgba(26, 26, 46, 0.8);
-    border: 1px solid rgba(168, 85, 247, 0.3);
-    border-radius: 8px;
-    padding: 10px 12px;
-    color: #e0e0e0;
-    font-size: 14px;
-    font-family: inherit;
-    transition: all 0.2s ease;
-}
-
-.form-group input::placeholder,
-.form-group textarea::placeholder {
-    color: #a0a0a0;
-}
-
-.form-group input:focus,
-.form-group textarea:focus,
-.form-group select:focus {
-    outline: none;
-    background: rgba(26, 26, 46, 0.95);
-    border-color: rgba(168, 85, 247, 0.6);
-    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2);
-}
-
-.form-group small {
-    display: block;
-    font-size: 12px;
-    color: #a0a0a0;
-    margin-top: 4px;
-}
-
-.form-group input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    accent-color: #a855f7;
-    cursor: pointer;
-}
-
-/* Main Content */
-.editor-main {
-    background: rgba(26, 26, 46, 0.7);
-    border: 1px solid rgba(168, 85, 247, 0.2);
-    border-radius: 12px;
-    padding: 24px;
-    min-height: 400px;
-}
-
-/* Modules */
-.modules-section .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-}
-
-.modules-section .section-header h3 {
-    font-size: 18px;
-    color: white;
-    font-weight: 700;
-    margin: 0;
-}
-
-.modules-list {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-/* Module Card - VERBESSERT */
-.module-card {
-    background: rgba(22, 33, 62, 0.8);
-    border: 1px solid rgba(168, 85, 247, 0.25);
-    border-radius: 12px;
-    overflow: hidden;
-    transition: all 0.2s ease;
-}
-
-.module-card:hover {
-    border-color: rgba(168, 85, 247, 0.4);
-}
-
-.module-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 20px;
-    background: rgba(168, 85, 247, 0.08);
-    border-bottom: 1px solid rgba(168, 85, 247, 0.2);
-}
-
-.module-info {
-    flex: 1;
-}
-
-.module-info h4 {
-    font-size: 16px;
-    color: white;
-    font-weight: 700;
-    margin: 0 0 6px 0;
-}
-
-.module-info p {
-    font-size: 13px;
-    color: #b0b0b0;
-    margin: 0;
-}
-
-.module-actions {
-    display: flex;
-    gap: 8px;
-}
-
-/* Lessons - VERBESSERT */
-.lessons-list {
-    padding: 16px;
-}
-
-.lesson-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 14px;
-    background: rgba(15, 15, 30, 0.9);
-    border: 1px solid rgba(168, 85, 247, 0.2);
-    border-radius: 8px;
-    margin-bottom: 8px;
-    transition: all 0.2s ease;
-}
-
-.lesson-item:hover {
-    border-color: rgba(168, 85, 247, 0.4);
-    background: rgba(15, 15, 30, 1);
-}
-
-.lesson-info {
-    flex: 1;
-}
-
-.lesson-info strong {
-    color: #e0e0e0;
-    font-size: 14px;
-    font-weight: 600;
-    display: block;
-    margin-bottom: 6px;
-}
-
-.lesson-meta-row {
-    display: flex;
-    gap: 8px;
-}
-
-.lesson-meta {
-    font-size: 11px;
-    color: #c084fc;
-    background: rgba(168, 85, 247, 0.15);
-    border: 1px solid rgba(168, 85, 247, 0.3);
-    padding: 3px 10px;
-    border-radius: 12px;
-    font-weight: 600;
-}
-
-.lesson-actions {
-    display: flex;
-    gap: 8px;
-}
-
-.btn-icon {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(168, 85, 247, 0.3);
-    font-size: 16px;
-    cursor: pointer;
-    padding: 8px;
-    border-radius: 6px;
-    transition: all 0.2s;
-}
-
-.btn-icon:hover {
-    background: rgba(168, 85, 247, 0.2);
-    border-color: rgba(168, 85, 247, 0.5);
-    transform: translateY(-2px);
-}
-
-.btn-add-lesson {
-    width: 100%;
-    padding: 12px;
-    background: rgba(168, 85, 247, 0.1);
-    border: 2px dashed rgba(168, 85, 247, 0.4);
-    border-radius: 8px;
-    color: #c084fc;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    margin-top: 8px;
-}
-
-.btn-add-lesson:hover {
-    background: rgba(168, 85, 247, 0.2);
-    border-color: rgba(168, 85, 247, 0.6);
-    color: #e9d5ff;
-}
-
-/* Buttons - VERBESSERT */
-.btn-primary {
-    background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
-    color: white;
-    padding: 12px 24px;
-    border: 1px solid rgba(168, 85, 247, 0.5);
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
-}
-
-.btn-primary:hover {
-    background: linear-gradient(135deg, #9333ea 0%, #db2777 100%);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(168, 85, 247, 0.5);
-}
-
-.btn-secondary {
-    background: rgba(59, 130, 246, 0.2);
-    color: #60a5fa;
-    padding: 10px 20px;
-    border: 1px solid rgba(59, 130, 246, 0.4);
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.btn-secondary:hover {
-    background: rgba(59, 130, 246, 0.3);
-    border-color: rgba(59, 130, 246, 0.6);
-    transform: translateY(-2px);
-}
-
-/* Empty State */
-.empty-state-inline {
-    text-align: center;
-    padding: 60px 20px;
-}
-
-/* Modal - VERBESSERT */
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(5px);
-    z-index: 10000;
-    padding: 40px 20px;
-    overflow-y: auto;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-}
-
-.modal.hidden {
-    display: none !important;
-}
-
-.modal-content {
-    background: rgba(26, 26, 46, 0.95);
-    border: 1px solid rgba(168, 85, 247, 0.3);
-    border-radius: 16px;
-    width: 100%;
-    max-width: 600px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-    margin-top: 60px;
-}
-
-.modal-header {
-    padding: 24px;
-    border-bottom: 1px solid rgba(168, 85, 247, 0.2);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.modal-header h3 {
-    font-size: 20px;
-    color: white;
-    font-weight: 700;
-    margin: 0;
-}
-
-.modal-close {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(168, 85, 247, 0.3);
-    font-size: 28px;
-    color: #a0a0a0;
-    cursor: pointer;
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    transition: all 0.2s;
-}
-
-.modal-close:hover {
-    background: rgba(239, 68, 68, 0.2);
-    border-color: rgba(239, 68, 68, 0.4);
-    color: #f87171;
-}
-
-.modal-footer {
-    padding: 24px;
-    border-top: 1px solid rgba(168, 85, 247, 0.2);
-    display: flex;
-    gap: 12px;
-    justify-content: flex-end;
-}
-
-/* Responsive */
-@media (max-width: 1024px) {
-    .editor-content {
-        grid-template-columns: 1fr;
-    }
-    
-    .editor-sidebar {
-        position: static;
-    }
-}
+/* CSS bleibt gleich - gekürzt für bessere Übersicht */
+.course-editor { max-width: 1600px; margin: 0 auto; }
+.editor-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; flex-wrap: wrap; gap: 20px; }
+.back-link { display: inline-block; color: #a0a0a0; text-decoration: none; margin-bottom: 12px; transition: color 0.2s; }
+.back-link:hover { color: #c084fc; }
+.course-type-badge-inline { display: inline-block; background: rgba(168, 85, 247, 0.2); border: 1px solid rgba(168, 85, 247, 0.4); padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; color: #c084fc; }
+.editor-content { display: grid; grid-template-columns: 380px 1fr; gap: 24px; align-items: start; }
+.editor-sidebar { position: sticky; top: 32px; }
+.sidebar-section { background: rgba(26, 26, 46, 0.7); border: 1px solid rgba(168, 85, 247, 0.2); border-radius: 12px; padding: 24px; }
+.sidebar-section h3 { font-size: 18px; color: white; font-weight: 700; margin: 0 0 20px 0; }
+.form-group { margin-bottom: 20px; }
+.form-group label { display: block; font-size: 13px; font-weight: 600; color: #c084fc; margin-bottom: 8px; letter-spacing: 0.3px; }
+.form-group input[type="text"], .form-group input[type="url"], .form-group input[type="file"], .form-group textarea, .form-group select { width: 100%; background: rgba(26, 26, 46, 0.8); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px; padding: 10px 12px; color: #e0e0e0; font-size: 14px; font-family: inherit; transition: all 0.2s ease; }
+.form-group input::placeholder, .form-group textarea::placeholder { color: #a0a0a0; }
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; background: rgba(26, 26, 46, 0.95); border-color: rgba(168, 85, 247, 0.6); box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2); }
+.form-group small { display: block; font-size: 12px; color: #a0a0a0; margin-top: 4px; }
+.form-group input[type="checkbox"] { width: 18px; height: 18px; accent-color: #a855f7; cursor: pointer; }
+.editor-main { background: rgba(26, 26, 46, 0.7); border: 1px solid rgba(168, 85, 247, 0.2); border-radius: 12px; padding: 24px; min-height: 400px; }
+.modules-section .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.modules-section .section-header h3 { font-size: 18px; color: white; font-weight: 700; margin: 0; }
+.modules-list { display: flex; flex-direction: column; gap: 20px; }
+.module-card { background: rgba(22, 33, 62, 0.8); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 12px; overflow: hidden; transition: all 0.2s ease; }
+.module-card:hover { border-color: rgba(168, 85, 247, 0.4); }
+.module-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 20px; background: rgba(168, 85, 247, 0.08); border-bottom: 1px solid rgba(168, 85, 247, 0.2); }
+.module-info { flex: 1; }
+.module-info h4 { font-size: 16px; color: white; font-weight: 700; margin: 0 0 6px 0; }
+.module-info p { font-size: 13px; color: #b0b0b0; margin: 0; }
+.module-actions { display: flex; gap: 8px; }
+.lessons-list { padding: 16px; }
+.lesson-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; background: rgba(15, 15, 30, 0.9); border: 1px solid rgba(168, 85, 247, 0.2); border-radius: 8px; margin-bottom: 8px; transition: all 0.2s ease; }
+.lesson-item:hover { border-color: rgba(168, 85, 247, 0.4); background: rgba(15, 15, 30, 1); }
+.lesson-info { flex: 1; }
+.lesson-info strong { color: #e0e0e0; font-size: 14px; font-weight: 600; display: block; margin-bottom: 6px; }
+.lesson-meta-row { display: flex; gap: 8px; }
+.lesson-meta { font-size: 11px; color: #c084fc; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); padding: 3px 10px; border-radius: 12px; font-weight: 600; }
+.lesson-actions { display: flex; gap: 8px; }
+.btn-icon { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(168, 85, 247, 0.3); font-size: 16px; cursor: pointer; padding: 8px; border-radius: 6px; transition: all 0.2s; }
+.btn-icon:hover { background: rgba(168, 85, 247, 0.2); border-color: rgba(168, 85, 247, 0.5); transform: translateY(-2px); }
+.btn-add-lesson { width: 100%; padding: 12px; background: rgba(168, 85, 247, 0.1); border: 2px dashed rgba(168, 85, 247, 0.4); border-radius: 8px; color: #c084fc; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-top: 8px; }
+.btn-add-lesson:hover { background: rgba(168, 85, 247, 0.2); border-color: rgba(168, 85, 247, 0.6); color: #e9d5ff; }
+.btn-primary { background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%); color: white; padding: 12px 24px; border: 1px solid rgba(168, 85, 247, 0.5); border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3); }
+.btn-primary:hover { background: linear-gradient(135deg, #9333ea 0%, #db2777 100%); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(168, 85, 247, 0.5); }
+.btn-secondary { background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 10px 20px; border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-secondary:hover { background: rgba(59, 130, 246, 0.3); border-color: rgba(59, 130, 246, 0.6); transform: translateY(-2px); }
+.empty-state-inline { text-align: center; padding: 60px 20px; }
+.modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(5px); z-index: 10000; padding: 40px 20px; overflow-y: auto; display: flex; align-items: flex-start; justify-content: center; }
+.modal.hidden { display: none !important; }
+.modal-content { background: rgba(26, 26, 46, 0.95); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 16px; width: 100%; max-width: 600px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); margin-top: 60px; }
+.modal-header { padding: 24px; border-bottom: 1px solid rgba(168, 85, 247, 0.2); display: flex; justify-content: space-between; align-items: center; }
+.modal-header h3 { font-size: 20px; color: white; font-weight: 700; margin: 0; }
+.modal-close { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(168, 85, 247, 0.3); font-size: 28px; color: #a0a0a0; cursor: pointer; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s; }
+.modal-close:hover { background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4); color: #f87171; }
+.modal-footer { padding: 24px; border-top: 1px solid rgba(168, 85, 247, 0.2); display: flex; gap: 12px; justify-content: flex-end; }
+@media (max-width: 1024px) { .editor-content { grid-template-columns: 1fr; } .editor-sidebar { position: static; } }
 </style>
 
 <script>
@@ -775,7 +424,8 @@ async function saveCourseDetails() {
         
         if (data.success) {
             alert('✅ Kurs erfolgreich gespeichert!');
-            location.reload();
+            // Cache-Busting mit Timestamp
+            window.location.href = window.location.pathname + window.location.search + '&t=' + Date.now();
         } else {
             alert('❌ Fehler: ' + data.error);
         }
@@ -818,14 +468,19 @@ async function handleAddModule(event) {
         
         const data = await response.json();
         
+        console.log('API Response:', data); // Debug-Ausgabe
+        
         if (data.success) {
             alert('✅ Modul erfolgreich erstellt!');
-            location.reload();
+            // Cache-Busting mit Timestamp und Hard Reload
+            window.location.href = window.location.pathname + window.location.search + '&t=' + Date.now();
         } else {
             alert('❌ Fehler: ' + data.error);
+            console.error('Error details:', data);
         }
     } catch (error) {
         alert('❌ Fehler: ' + error.message);
+        console.error('Catch error:', error);
     }
 }
 
@@ -843,7 +498,7 @@ async function handleEditModule(event) {
         
         if (data.success) {
             alert('✅ Modul erfolgreich aktualisiert!');
-            location.reload();
+            window.location.href = window.location.pathname + window.location.search + '&t=' + Date.now();
         } else {
             alert('❌ Fehler: ' + data.error);
         }
@@ -868,7 +523,7 @@ async function deleteModule(moduleId) {
         
         if (data.success) {
             alert('✅ Modul gelöscht!');
-            location.reload();
+            window.location.href = window.location.pathname + window.location.search + '&t=' + Date.now();
         } else {
             alert('❌ Fehler: ' + data.error);
         }
@@ -894,7 +549,6 @@ function showEditLessonModal(lesson) {
     document.getElementById('editLessonVideoUrl').value = lesson.video_url || '';
     document.getElementById('editLessonDescription').value = lesson.description || '';
     
-    // PDF Anzeige
     const pdfInfo = document.getElementById('editLessonCurrentPdf');
     const pdfName = document.getElementById('editLessonPdfName');
     if (lesson.pdf_attachment) {
@@ -926,7 +580,7 @@ async function handleAddLesson(event) {
         
         if (data.success) {
             alert('✅ Lektion erfolgreich erstellt!');
-            location.reload();
+            window.location.href = window.location.pathname + window.location.search + '&t=' + Date.now();
         } else {
             alert('❌ Fehler: ' + data.error);
         }
@@ -949,7 +603,7 @@ async function handleEditLesson(event) {
         
         if (data.success) {
             alert('✅ Lektion erfolgreich aktualisiert!');
-            location.reload();
+            window.location.href = window.location.pathname + window.location.search + '&t=' + Date.now();
         } else {
             alert('❌ Fehler: ' + data.error);
         }
@@ -974,7 +628,7 @@ async function deleteLesson(lessonId) {
         
         if (data.success) {
             alert('✅ Lektion gelöscht!');
-            location.reload();
+            window.location.href = window.location.pathname + window.location.search + '&t=' + Date.now();
         } else {
             alert('❌ Fehler: ' + data.error);
         }
