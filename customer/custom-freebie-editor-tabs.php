@@ -246,9 +246,6 @@ if ($course) {
         }
     }
 }
-
-// CSS von custom-freebie-editor.php übernehmen, aber mit Tab-Unterstützung erweitern
-include 'custom-freebie-editor-tabs-style.php';
 ?>
 <!DOCTYPE html>
 <html lang="de">
