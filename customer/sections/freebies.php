@@ -534,7 +534,7 @@ try {
             </div>
         </div>
         <?php if ($customFreebiesCount < $freebieLimit): ?>
-            <a href="/customer/custom-freebie-editor.php" class="btn-create-custom">
+            <a href="/customer/custom-freebie-editor-tabs.php" class="btn-create-custom">
                 ✨ Eigenes Freebie erstellen
             </a>
         <?php else: ?>
@@ -743,7 +743,7 @@ try {
                     Erstelle dein erstes eigenes Freebie mit unserem Editor!
                 </p>
                 <?php if ($customFreebiesCount < $freebieLimit): ?>
-                    <a href="/customer/custom-freebie-editor.php" class="btn-create-custom">
+                    <a href="/customer/custom-freebie-editor-tabs.php" class="btn-create-custom">
                         ✨ Jetzt erstellen
                     </a>
                 <?php endif; ?>
@@ -752,7 +752,7 @@ try {
             <div class="freebies-grid">
                 <?php foreach ($customFreebies as $custom): 
                     $previewUrl = '/customer/freebie-preview.php?id=' . $custom['id'];
-                    $editorUrl = '/customer/custom-freebie-editor.php?id=' . $custom['id'];
+                    $editorUrl = '/customer/custom-freebie-editor-tabs.php?id=' . $custom['id'];
                     
                     $freebieLink = $protocol . '://' . $domain . '/freebie/index.php?id=' . $custom['unique_id'];
                     $thankYouLink = $protocol . '://' . $domain . '/freebie/thankyou.php?id=' . $custom['id'] . '&customer=' . $customer_id;
