@@ -94,7 +94,7 @@ $locked_courses = $stmt->fetchAll();
     
     .courses-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        grid-template-columns: repeat(4, 1fr);
         gap: 24px;
     }
     
@@ -346,9 +346,15 @@ $locked_courses = $stmt->fetchAll();
     }
     
     /* Responsive */
+    @media (max-width: 1400px) {
+        .courses-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+    
     @media (max-width: 1024px) {
         .courses-grid {
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-template-columns: repeat(2, 1fr);
             gap: 20px;
         }
     }
