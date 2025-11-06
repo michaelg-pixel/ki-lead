@@ -37,11 +37,20 @@ try {
     ");
     $freebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+    // Eigene Custom Freebies laden
+    $stmt_custom = $pdo->prepare("
+        SELECT * FROM customer_freebies 
+        WHERE customer_id = ? AND freebie_type = 'custom'
+        ORDER BY updated_at DESC
+    ");
+    $stmt_custom->execute([$customer_id]);
+    $custom_freebies = $stmt_custom->fetchAll(PDO::FETCH_ASSOC);
+    
     // Prüfen, welche Freebies der Kunde bereits bearbeitet hat
     $stmt_customer = $pdo->prepare("
         SELECT template_id, id as customer_freebie_id, url_slug, unique_id
         FROM customer_freebies 
-        WHERE customer_id = ?
+        WHERE customer_id = ? AND freebie_type = 'template'
     ");
     $stmt_customer->execute([$customer_id]);
     $customer_freebies = [];
@@ -51,6 +60,7 @@ try {
     
 } catch (PDOException $e) {
     $freebies = [];
+    $custom_freebies = [];
     $customer_freebies = [];
     $error = $e->getMessage();
 }
@@ -61,6 +71,50 @@ $domain = $_SERVER['HTTP_HOST'];
 ?>
 
 <style>
+    .section-tabs {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 32px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 8px;
+    }
+    
+    .section-tab {
+        flex: 1;
+        padding: 14px 24px;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        color: #888;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+    
+    .section-tab:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: white;
+    }
+    
+    .section-tab.active {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+    }
+    
+    .section-content {
+        display: none;
+    }
+    
+    .section-content.active {
+        display: block;
+    }
+
     .freebies-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -125,6 +179,11 @@ $domain = $_SERVER['HTTP_HOST'];
     
     .badge-used {
         background: rgba(34, 197, 94, 0.95);
+        color: white;
+    }
+    
+    .badge-custom {
+        background: rgba(139, 92, 246, 0.95);
         color: white;
     }
     
@@ -212,6 +271,25 @@ $domain = $_SERVER['HTTP_HOST'];
         box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
     }
     
+    .action-btn-create {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+        font-size: 16px;
+        padding: 16px 32px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        border-radius: 12px;
+        font-weight: 700;
+        transition: all 0.2s;
+    }
+    
+    .action-btn-create:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 24px rgba(16, 185, 129, 0.3);
+    }
+    
     .stats-box {
         background: rgba(102, 126, 234, 0.1);
         border: 1px solid rgba(102, 126, 234, 0.3);
@@ -242,6 +320,10 @@ $domain = $_SERVER['HTTP_HOST'];
         .freebies-grid {
             grid-template-columns: 1fr;
         }
+        
+        .section-tabs {
+            flex-direction: column;
+        }
     }
 </style>
 
@@ -250,10 +332,10 @@ $domain = $_SERVER['HTTP_HOST'];
     <!-- Header -->
     <div style="margin-bottom: 32px;">
         <h1 style="font-size: 36px; font-weight: 700; color: white; margin-bottom: 12px;">
-            🎁 Lead-Magneten
+            🎁 Freebies & Lead-Magneten
         </h1>
         <p style="font-size: 18px; color: #888;">
-            Nutze unsere professionell erstellten Freebie-Templates für dein Marketing
+            Erstelle eigene Freebies oder nutze professionelle Templates
         </p>
     </div>
     
@@ -263,104 +345,84 @@ $domain = $_SERVER['HTTP_HOST'];
         </div>
     <?php endif; ?>
     
-    <?php if (empty($freebies)): ?>
-        <!-- Leerer Zustand -->
-        <div style="text-align: center; padding: 80px 20px; background: rgba(255, 255, 255, 0.05); border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1);">
-            <div style="font-size: 64px; margin-bottom: 20px;">📦</div>
-            <h3 style="font-size: 24px; color: white; margin-bottom: 12px;">Noch keine Freebies verfügbar</h3>
-            <p style="font-size: 16px; color: #888; margin-bottom: 24px;">Schau bald wieder vorbei! Wir erstellen gerade großartige kostenlose Inhalte für dich.</p>
-            <a href="?page=kurse" class="action-btn action-btn-edit">
-                📚 Zu den Kursen
+    <!-- Section Tabs -->
+    <div class="section-tabs">
+        <button class="section-tab active" onclick="switchSection('custom')">
+            ✨ Meine Freebies
+        </button>
+        <button class="section-tab" onclick="switchSection('templates')">
+            📚 Templates
+        </button>
+    </div>
+    
+    <!-- SECTION: CUSTOM FREEBIES -->
+    <div class="section-content active" id="section-custom">
+        <div style="text-align: center; margin-bottom: 32px;">
+            <a href="custom-freebie-editor-tabs.php" class="action-btn-create">
+                + Neues Freebie erstellen
             </a>
         </div>
-    <?php else: ?>
         
-        <!-- Info Box -->
-        <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6; padding: 20px; border-radius: 8px; margin-bottom: 32px;">
-            <h3 style="color: white; font-size: 16px; font-weight: 600; margin-bottom: 12px;">💡 So funktioniert's</h3>
-            <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>1.</strong> Wähle ein Freebie-Template aus unserer Bibliothek</p>
-            <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>2.</strong> Klicke auf "Nutzen" um es zu bearbeiten und anzupassen</p>
-            <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>3.</strong> Füge deinen E-Mail-Optin Code ein und passe die Farben an</p>
-            <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>4.</strong> Speichere und teile den generierten Link!</p>
-            <p style="color: #60a5fa; font-size: 13px; margin-top: 12px;">✨ Du kannst jedes Template individuell anpassen und mehrfach verwenden!</p>
-        </div>
-        
-        <!-- Freebies Grid -->
-        <div class="freebies-grid">
-            <?php foreach ($freebies as $freebie): 
-                $isUsedByCustomer = isset($customer_freebies[$freebie['id']]);
-                $customer_data = $customer_freebies[$freebie['id']] ?? null;
-                
-                // Vorschau URL - wenn Kunde eine Version hat, zeige seine, sonst Template-Vorschau
-                if ($isUsedByCustomer && $customer_data) {
-                    $preview_url = 'freebie-preview.php?id=' . $customer_data['customer_freebie_id'];
-                    $live_url = $protocol . '://' . $domain . '/freebie/' . ($customer_data['url_slug'] ?: $customer_data['unique_id']);
-                } else {
-                    // Template-Vorschau
-                    $identifier = $freebie['url_slug'] ?: $freebie['unique_id'];
-                    $preview_url = 'https://app.mehr-infos-jetzt.de/freebie/' . $identifier;
-                    $live_url = $preview_url;
-                }
-                
-                $bgColor = $freebie['background_color'] ?: '#667eea';
-                $primaryColor = $freebie['primary_color'] ?: '#667eea';
-                
-                $layoutNames = [
-                    'hybrid' => 'Hybrid',
-                    'centered' => 'Zentriert',
-                    'sidebar' => 'Sidebar',
-                    'layout1' => 'Modern',
-                    'layout2' => 'Klassisch',
-                    'layout3' => 'Minimal'
-                ];
-                $layoutName = $layoutNames[$freebie['layout']] ?? 'Standard';
-                
-                $date = new DateTime($freebie['created_at']);
-                $formattedDate = $date->format('d.m.Y');
-            ?>
-                <div class="freebie-card">
-                    <!-- Bild / Vorschau -->
-                    <div class="freebie-preview" style="background: <?php echo htmlspecialchars($bgColor); ?>;">
-                        <div class="freebie-badges">
-                            <?php if ($isUsedByCustomer): ?>
-                                <span class="freebie-badge badge-used">✓ In Verwendung</span>
-                            <?php endif; ?>
-                            <span class="freebie-badge"><?php echo htmlspecialchars($layoutName); ?></span>
-                        </div>
-                        
-                        <?php if (!empty($freebie['mockup_image_url'])): ?>
-                            <img src="<?php echo htmlspecialchars($freebie['mockup_image_url']); ?>" 
-                                 alt="<?php echo htmlspecialchars($freebie['name']); ?>">
-                        <?php elseif (!empty($freebie['course_thumbnail'])): ?>
-                            <img src="../uploads/thumbnails/<?php echo htmlspecialchars($freebie['course_thumbnail']); ?>" 
-                                 alt="<?php echo htmlspecialchars($freebie['name']); ?>">
-                        <?php else: ?>
-                            <div class="freebie-preview-placeholder" style="color: <?php echo htmlspecialchars($primaryColor); ?>;">
-                                🎁
-                            </div>
-                        <?php endif; ?>
-                    </div>
+        <?php if (empty($custom_freebies)): ?>
+            <div style="text-align: center; padding: 80px 20px; background: rgba(255, 255, 255, 0.05); border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1);">
+                <div style="font-size: 64px; margin-bottom: 20px;">✨</div>
+                <h3 style="font-size: 24px; color: white; margin-bottom: 12px;">Noch keine eigenen Freebies</h3>
+                <p style="font-size: 16px; color: #888; margin-bottom: 24px;">
+                    Erstelle dein erstes individuelles Freebie mit unserem Editor!<br>
+                    Inkl. Videokurs-Integration, E-Mail Optin und mehr.
+                </p>
+                <a href="custom-freebie-editor-tabs.php" class="action-btn-create">
+                    🚀 Jetzt erstellen
+                </a>
+            </div>
+        <?php else: ?>
+            <div class="freebies-grid">
+                <?php foreach ($custom_freebies as $freebie): 
+                    $bgColor = $freebie['background_color'] ?: '#667eea';
+                    $primaryColor = $freebie['primary_color'] ?: '#667eea';
                     
-                    <!-- Content -->
-                    <div class="freebie-content">
-                        <h3 class="freebie-title">
-                            <?php echo htmlspecialchars($freebie['headline'] ?: $freebie['name']); ?>
-                        </h3>
-                        
-                        <?php if (!empty($freebie['subheadline'])): ?>
-                            <p class="freebie-subtitle">
-                                <?php echo htmlspecialchars($freebie['subheadline']); ?>
-                            </p>
-                        <?php endif; ?>
-                        
-                        <div class="freebie-meta">
-                            <?php if (!empty($freebie['course_title'])): ?>
-                                <span>📚 <?php echo htmlspecialchars($freebie['course_title']); ?></span>
+                    $preview_url = 'freebie-preview.php?id=' . $freebie['id'];
+                    $identifier = $freebie['url_slug'] ?: $freebie['unique_id'];
+                    $live_url = $protocol . '://' . $domain . '/freebie/' . $identifier;
+                    
+                    $date = new DateTime($freebie['updated_at'] ?: $freebie['created_at']);
+                    $formattedDate = $date->format('d.m.Y');
+                ?>
+                    <div class="freebie-card">
+                        <div class="freebie-preview" style="background: <?php echo htmlspecialchars($bgColor); ?>;">
+                            <div class="freebie-badges">
+                                <span class="freebie-badge badge-custom">Eigenes Freebie</span>
+                                <?php if ($freebie['has_course']): ?>
+                                <span class="freebie-badge">🎓 Mit Videokurs</span>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <?php if (!empty($freebie['mockup_image_url'])): ?>
+                                <img src="<?php echo htmlspecialchars($freebie['mockup_image_url']); ?>" 
+                                     alt="<?php echo htmlspecialchars($freebie['headline']); ?>">
+                            <?php else: ?>
+                                <div class="freebie-preview-placeholder" style="color: <?php echo htmlspecialchars($primaryColor); ?>;">
+                                    🎁
+                                </div>
                             <?php endif; ?>
-                            <span>📅 <?php echo $formattedDate; ?></span>
                         </div>
                         
-                        <?php if ($isUsedByCustomer): ?>
+                        <div class="freebie-content">
+                            <h3 class="freebie-title">
+                                <?php echo htmlspecialchars($freebie['headline']); ?>
+                            </h3>
+                            
+                            <?php if (!empty($freebie['subheadline'])): ?>
+                                <p class="freebie-subtitle">
+                                    <?php echo htmlspecialchars($freebie['subheadline']); ?>
+                                </p>
+                            <?php endif; ?>
+                            
+                            <div class="freebie-meta">
+                                <span>📅 <?php echo $formattedDate; ?></span>
+                                <span>🔗 <?php echo htmlspecialchars($identifier); ?></span>
+                            </div>
+                            
                             <div class="stats-box">
                                 <div class="stat-item">
                                     <div class="stat-value">0</div>
@@ -371,44 +433,162 @@ $domain = $_SERVER['HTTP_HOST'];
                                     <div class="stat-label">Conversions</div>
                                 </div>
                             </div>
-                        <?php endif; ?>
-                        
-                        <div class="freebie-colors">
-                            <div class="color-dot" style="background-color: <?php echo htmlspecialchars($bgColor); ?>;" title="Hintergrundfarbe"></div>
-                            <div class="color-dot" style="background-color: <?php echo htmlspecialchars($primaryColor); ?>;" title="Primärfarbe"></div>
-                        </div>
-                        
-                        <div class="freebie-actions">
-                            <a href="<?php echo htmlspecialchars($preview_url); ?>" 
-                               <?php echo !$isUsedByCustomer ? 'target="_blank"' : ''; ?>
-                               class="action-btn action-btn-preview">
-                                👁️ <?php echo $isUsedByCustomer ? 'Meine Version' : 'Vorschau'; ?>
-                            </a>
-                            <a href="freebie-editor.php?template_id=<?php echo $freebie['id']; ?>" class="action-btn action-btn-edit">
-                                <?php echo $isUsedByCustomer ? '✏️ Bearbeiten' : '✨ Nutzen'; ?>
-                            </a>
+                            
+                            <div class="freebie-colors">
+                                <div class="color-dot" style="background-color: <?php echo htmlspecialchars($bgColor); ?>;"></div>
+                                <div class="color-dot" style="background-color: <?php echo htmlspecialchars($primaryColor); ?>;"></div>
+                            </div>
+                            
+                            <div class="freebie-actions">
+                                <a href="<?php echo htmlspecialchars($preview_url); ?>" class="action-btn action-btn-preview">
+                                    👁️ Vorschau
+                                </a>
+                                <a href="custom-freebie-editor-tabs.php?id=<?php echo $freebie['id']; ?>" class="action-btn action-btn-edit">
+                                    ✏️ Bearbeiten
+                                </a>
+                            </div>
                         </div>
                     </div>
-                </div>
-            <?php endforeach; ?>
-        </div>
-        
-        <!-- CTA Banner -->
-        <div style="margin-top: 48px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; padding: 32px; text-align: center;">
-            <h3 style="font-size: 24px; color: white; margin-bottom: 12px;">💡 Tipp: Kombiniere Freebies mit Videokursen</h3>
-            <p style="font-size: 16px; color: rgba(255, 255, 255, 0.9); margin-bottom: 24px;">
-                Erstelle ein attraktives Freebie und verbinde es mit einem unserer professionellen Videokurse, 
-                um maximale Conversion-Raten zu erzielen!
-            </p>
-            <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
-                <a href="?page=kurse" style="padding: 12px 24px; background: white; color: #667eea; border-radius: 8px; font-size: 15px; font-weight: 600; text-decoration: none;">
-                    📚 Kurse ansehen
-                </a>
-                <a href="?page=fortschritt" style="padding: 12px 24px; background: rgba(255, 255, 255, 0.2); color: white; border-radius: 8px; font-size: 15px; font-weight: 600; text-decoration: none;">
-                    📈 Fortschritt
-                </a>
+                <?php endforeach; ?>
             </div>
-        </div>
-        
-    <?php endif; ?>
+        <?php endif; ?>
+    </div>
+    
+    <!-- SECTION: TEMPLATES -->
+    <div class="section-content" id="section-templates">
+        <?php if (empty($freebies)): ?>
+            <div style="text-align: center; padding: 80px 20px; background: rgba(255, 255, 255, 0.05); border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1);">
+                <div style="font-size: 64px; margin-bottom: 20px;">📦</div>
+                <h3 style="font-size: 24px; color: white; margin-bottom: 12px;">Noch keine Templates verfügbar</h3>
+                <p style="font-size: 16px; color: #888; margin-bottom: 24px;">Schau bald wieder vorbei! Wir erstellen gerade großartige Templates für dich.</p>
+            </div>
+        <?php else: ?>
+            <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6; padding: 20px; border-radius: 8px; margin-bottom: 32px;">
+                <h3 style="color: white; font-size: 16px; font-weight: 600; margin-bottom: 12px;">💡 So funktioniert's</h3>
+                <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>1.</strong> Wähle ein Template aus unserer Bibliothek</p>
+                <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>2.</strong> Klicke auf "Nutzen" um es anzupassen</p>
+                <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>3.</strong> Füge deinen E-Mail-Optin Code ein</p>
+                <p style="color: #bbb; font-size: 14px; line-height: 1.6;"><strong>4.</strong> Teile den generierten Link!</p>
+            </div>
+            
+            <div class="freebies-grid">
+                <?php foreach ($freebies as $freebie): 
+                    $isUsedByCustomer = isset($customer_freebies[$freebie['id']]);
+                    $customer_data = $customer_freebies[$freebie['id']] ?? null;
+                    
+                    if ($isUsedByCustomer && $customer_data) {
+                        $preview_url = 'freebie-preview.php?id=' . $customer_data['customer_freebie_id'];
+                        $live_url = $protocol . '://' . $domain . '/freebie/' . ($customer_data['url_slug'] ?: $customer_data['unique_id']);
+                    } else {
+                        $identifier = $freebie['url_slug'] ?: $freebie['unique_id'];
+                        $preview_url = 'https://app.mehr-infos-jetzt.de/freebie/' . $identifier;
+                        $live_url = $preview_url;
+                    }
+                    
+                    $bgColor = $freebie['background_color'] ?: '#667eea';
+                    $primaryColor = $freebie['primary_color'] ?: '#667eea';
+                    
+                    $layoutNames = [
+                        'hybrid' => 'Hybrid',
+                        'centered' => 'Zentriert',
+                        'sidebar' => 'Sidebar',
+                        'layout1' => 'Modern',
+                        'layout2' => 'Klassisch',
+                        'layout3' => 'Minimal'
+                    ];
+                    $layoutName = $layoutNames[$freebie['layout']] ?? 'Standard';
+                    
+                    $date = new DateTime($freebie['created_at']);
+                    $formattedDate = $date->format('d.m.Y');
+                ?>
+                    <div class="freebie-card">
+                        <div class="freebie-preview" style="background: <?php echo htmlspecialchars($bgColor); ?>;">
+                            <div class="freebie-badges">
+                                <?php if ($isUsedByCustomer): ?>
+                                    <span class="freebie-badge badge-used">✓ In Verwendung</span>
+                                <?php endif; ?>
+                                <span class="freebie-badge"><?php echo htmlspecialchars($layoutName); ?></span>
+                            </div>
+                            
+                            <?php if (!empty($freebie['mockup_image_url'])): ?>
+                                <img src="<?php echo htmlspecialchars($freebie['mockup_image_url']); ?>" 
+                                     alt="<?php echo htmlspecialchars($freebie['name']); ?>">
+                            <?php elseif (!empty($freebie['course_thumbnail'])): ?>
+                                <img src="../uploads/thumbnails/<?php echo htmlspecialchars($freebie['course_thumbnail']); ?>" 
+                                     alt="<?php echo htmlspecialchars($freebie['name']); ?>">
+                            <?php else: ?>
+                                <div class="freebie-preview-placeholder" style="color: <?php echo htmlspecialchars($primaryColor); ?>;">
+                                    🎁
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <div class="freebie-content">
+                            <h3 class="freebie-title">
+                                <?php echo htmlspecialchars($freebie['headline'] ?: $freebie['name']); ?>
+                            </h3>
+                            
+                            <?php if (!empty($freebie['subheadline'])): ?>
+                                <p class="freebie-subtitle">
+                                    <?php echo htmlspecialchars($freebie['subheadline']); ?>
+                                </p>
+                            <?php endif; ?>
+                            
+                            <div class="freebie-meta">
+                                <?php if (!empty($freebie['course_title'])): ?>
+                                    <span>📚 <?php echo htmlspecialchars($freebie['course_title']); ?></span>
+                                <?php endif; ?>
+                                <span>📅 <?php echo $formattedDate; ?></span>
+                            </div>
+                            
+                            <?php if ($isUsedByCustomer): ?>
+                                <div class="stats-box">
+                                    <div class="stat-item">
+                                        <div class="stat-value">0</div>
+                                        <div class="stat-label">Aufrufe</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-value">0</div>
+                                        <div class="stat-label">Conversions</div>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                            
+                            <div class="freebie-colors">
+                                <div class="color-dot" style="background-color: <?php echo htmlspecialchars($bgColor); ?>;" title="Hintergrundfarbe"></div>
+                                <div class="color-dot" style="background-color: <?php echo htmlspecialchars($primaryColor); ?>;" title="Primärfarbe"></div>
+                            </div>
+                            
+                            <div class="freebie-actions">
+                                <a href="<?php echo htmlspecialchars($preview_url); ?>" 
+                                   <?php echo !$isUsedByCustomer ? 'target="_blank"' : ''; ?>
+                                   class="action-btn action-btn-preview">
+                                    👁️ <?php echo $isUsedByCustomer ? 'Meine Version' : 'Vorschau'; ?>
+                                </a>
+                                <a href="freebie-editor.php?template_id=<?php echo $freebie['id']; ?>" class="action-btn action-btn-edit">
+                                    <?php echo $isUsedByCustomer ? '✏️ Bearbeiten' : '✨ Nutzen'; ?>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
 </div>
+
+<script>
+function switchSection(section) {
+    // Update tabs
+    document.querySelectorAll('.section-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    // Update content
+    document.querySelectorAll('.section-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.getElementById('section-' + section).classList.add('active');
+}
+</script>
