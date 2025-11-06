@@ -15,6 +15,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 require_once '../../../config/database.php';
 
 try {
+    $pdo = getDBConnection(); // Korrekte Verwendung der DB-Verbindung
+    
     $course_id = $_POST['course_id'] ?? null;
     
     if (!$course_id) {
@@ -31,6 +33,10 @@ try {
     // File Upload: Mockup
     if (isset($_FILES['mockup_file']) && $_FILES['mockup_file']['error'] === UPLOAD_ERR_OK) {
         $upload_dir = '../../../uploads/courses/mockups/';
+        if (!file_exists($upload_dir)) {
+            mkdir($upload_dir, 0755, true);
+        }
+        
         $file_extension = pathinfo($_FILES['mockup_file']['name'], PATHINFO_EXTENSION);
         $file_name = uniqid('mockup_') . '.' . $file_extension;
         $file_path = $upload_dir . $file_name;
@@ -44,6 +50,10 @@ try {
     $pdf_file = null;
     if (isset($_FILES['pdf_file']) && $_FILES['pdf_file']['error'] === UPLOAD_ERR_OK) {
         $upload_dir = '../../../uploads/courses/pdfs/';
+        if (!file_exists($upload_dir)) {
+            mkdir($upload_dir, 0755, true);
+        }
+        
         $file_extension = pathinfo($_FILES['pdf_file']['name'], PATHINFO_EXTENSION);
         $file_name = uniqid('course_') . '.pdf';
         $file_path = $upload_dir . $file_name;
