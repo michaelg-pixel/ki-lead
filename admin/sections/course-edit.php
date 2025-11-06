@@ -93,7 +93,7 @@ if ($course['type'] === 'video') {
                         <input type="file" name="mockup_file" accept="image/*" style="margin-top: 8px;">
                         <?php if ($course['mockup_url']): ?>
                             <img src="<?php echo htmlspecialchars($course['mockup_url']); ?>" 
-                                 style="width: 100%; max-width: 200px; margin-top: 12px; border-radius: 8px; border: 1px solid rgba(168, 85, 247, 0.2);">
+                                 style="width: 100%; max-width: 200px; margin-top: 12px; border-radius: 8px; border: 1px solid rgba(168, 85, 247, 0.3);">
                         <?php endif; ?>
                     </div>
                     
@@ -104,7 +104,7 @@ if ($course['type'] === 'video') {
                         <?php if ($course['pdf_file']): ?>
                             <a href="<?php echo htmlspecialchars($course['pdf_file']); ?>" 
                                target="_blank" 
-                               style="display: block; margin-top: 8px; color: var(--primary-light); text-decoration: none;">
+                               style="display: block; margin-top: 8px; color: #c084fc; text-decoration: none;">
                                 📄 Aktuelles PDF ansehen
                             </a>
                         <?php endif; ?>
@@ -188,7 +188,7 @@ if ($course['type'] === 'video') {
                             <?php endforeach; ?>
                         <?php else: ?>
                             <div class="empty-state-inline">
-                                <p style="color: var(--text-secondary); margin-bottom: 16px;">Noch keine Module vorhanden</p>
+                                <p style="color: #a0a0a0; margin-bottom: 16px;">Noch keine Module vorhanden</p>
                                 <button onclick="showAddModuleModal()" class="btn-primary">
                                     + Erstes Modul erstellen
                                 </button>
@@ -201,7 +201,7 @@ if ($course['type'] === 'video') {
                     <div style="text-align: center; padding: 60px 20px;">
                         <div style="font-size: 64px; margin-bottom: 20px;">📄</div>
                         <h3 style="color: white; margin-bottom: 12px;">PDF-Kurs</h3>
-                        <p style="color: var(--text-secondary);">
+                        <p style="color: #a0a0a0;">
                             Dieser Kurs enthält ein PDF-Dokument, das automatisch für freigeschaltete Nutzer verfügbar ist.
                         </p>
                     </div>
@@ -358,24 +358,25 @@ if ($course['type'] === 'video') {
 
 .back-link {
     display: inline-block;
-    color: var(--text-secondary);
+    color: #a0a0a0;
     text-decoration: none;
     margin-bottom: 12px;
     transition: color 0.2s;
 }
 
 .back-link:hover {
-    color: var(--primary-light);
+    color: #c084fc;
 }
 
 .course-type-badge-inline {
     display: inline-block;
     background: rgba(168, 85, 247, 0.2);
-    padding: 6px 12px;
+    border: 1px solid rgba(168, 85, 247, 0.4);
+    padding: 6px 14px;
     border-radius: 20px;
     font-size: 13px;
     font-weight: 600;
-    color: var(--primary-light);
+    color: #c084fc;
 }
 
 .editor-content {
@@ -392,8 +393,8 @@ if ($course['type'] === 'video') {
 }
 
 .sidebar-section {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: rgba(26, 26, 46, 0.7);
+    border: 1px solid rgba(168, 85, 247, 0.2);
     border-radius: 12px;
     padding: 24px;
 }
@@ -401,6 +402,7 @@ if ($course['type'] === 'video') {
 .sidebar-section h3 {
     font-size: 18px;
     color: white;
+    font-weight: 700;
     margin: 0 0 20px 0;
 }
 
@@ -412,8 +414,9 @@ if ($course['type'] === 'video') {
     display: block;
     font-size: 13px;
     font-weight: 600;
-    color: var(--text-primary);
+    color: #c084fc;
     margin-bottom: 8px;
+    letter-spacing: 0.3px;
 }
 
 .form-group input[type="text"],
@@ -422,39 +425,48 @@ if ($course['type'] === 'video') {
 .form-group textarea,
 .form-group select {
     width: 100%;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border);
+    background: rgba(26, 26, 46, 0.8);
+    border: 1px solid rgba(168, 85, 247, 0.3);
     border-radius: 8px;
     padding: 10px 12px;
-    color: var(--text-primary);
+    color: #e0e0e0;
     font-size: 14px;
     font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: #a0a0a0;
 }
 
 .form-group input:focus,
 .form-group textarea:focus,
 .form-group select:focus {
     outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
+    background: rgba(26, 26, 46, 0.95);
+    border-color: rgba(168, 85, 247, 0.6);
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2);
 }
 
 .form-group small {
     display: block;
     font-size: 12px;
-    color: var(--text-muted);
+    color: #a0a0a0;
     margin-top: 4px;
 }
 
 .form-group input[type="checkbox"] {
     width: 18px;
     height: 18px;
+    accent-color: #a855f7;
+    cursor: pointer;
 }
 
 /* Main Content */
 .editor-main {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: rgba(26, 26, 46, 0.7);
+    border: 1px solid rgba(168, 85, 247, 0.2);
     border-radius: 12px;
     padding: 24px;
     min-height: 400px;
@@ -471,6 +483,7 @@ if ($course['type'] === 'video') {
 .modules-section .section-header h3 {
     font-size: 18px;
     color: white;
+    font-weight: 700;
     margin: 0;
 }
 
@@ -480,12 +493,17 @@ if ($course['type'] === 'video') {
     gap: 20px;
 }
 
-/* Module Card */
+/* Module Card - VERBESSERT */
 .module-card {
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border);
+    background: rgba(22, 33, 62, 0.8);
+    border: 1px solid rgba(168, 85, 247, 0.25);
     border-radius: 12px;
     overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.module-card:hover {
+    border-color: rgba(168, 85, 247, 0.4);
 }
 
 .module-header {
@@ -494,8 +512,8 @@ if ($course['type'] === 'video') {
     justify-content: space-between;
     gap: 12px;
     padding: 20px;
-    background: rgba(168, 85, 247, 0.05);
-    border-bottom: 1px solid var(--border-light);
+    background: rgba(168, 85, 247, 0.08);
+    border-bottom: 1px solid rgba(168, 85, 247, 0.2);
 }
 
 .module-info {
@@ -505,12 +523,13 @@ if ($course['type'] === 'video') {
 .module-info h4 {
     font-size: 16px;
     color: white;
+    font-weight: 700;
     margin: 0 0 6px 0;
 }
 
 .module-info p {
     font-size: 13px;
-    color: var(--text-secondary);
+    color: #b0b0b0;
     margin: 0;
 }
 
@@ -519,7 +538,7 @@ if ($course['type'] === 'video') {
     gap: 8px;
 }
 
-/* Lessons */
+/* Lessons - VERBESSERT */
 .lessons-list {
     padding: 16px;
 }
@@ -529,11 +548,17 @@ if ($course['type'] === 'video') {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 12px;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-light);
+    padding: 14px;
+    background: rgba(15, 15, 30, 0.9);
+    border: 1px solid rgba(168, 85, 247, 0.2);
     border-radius: 8px;
     margin-bottom: 8px;
+    transition: all 0.2s ease;
+}
+
+.lesson-item:hover {
+    border-color: rgba(168, 85, 247, 0.4);
+    background: rgba(15, 15, 30, 1);
 }
 
 .lesson-info {
@@ -541,8 +566,9 @@ if ($course['type'] === 'video') {
 }
 
 .lesson-info strong {
-    color: white;
+    color: #e0e0e0;
     font-size: 14px;
+    font-weight: 600;
     display: block;
     margin-bottom: 6px;
 }
@@ -554,10 +580,12 @@ if ($course['type'] === 'video') {
 
 .lesson-meta {
     font-size: 11px;
-    color: var(--text-secondary);
-    background: rgba(255, 255, 255, 0.05);
-    padding: 3px 8px;
+    color: #c084fc;
+    background: rgba(168, 85, 247, 0.15);
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    padding: 3px 10px;
     border-radius: 12px;
+    font-weight: 600;
 }
 
 .lesson-actions {
@@ -566,26 +594,28 @@ if ($course['type'] === 'video') {
 }
 
 .btn-icon {
-    background: none;
-    border: none;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(168, 85, 247, 0.3);
     font-size: 16px;
     cursor: pointer;
-    padding: 6px;
+    padding: 8px;
     border-radius: 6px;
     transition: all 0.2s;
 }
 
 .btn-icon:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(168, 85, 247, 0.2);
+    border-color: rgba(168, 85, 247, 0.5);
+    transform: translateY(-2px);
 }
 
 .btn-add-lesson {
     width: 100%;
     padding: 12px;
     background: rgba(168, 85, 247, 0.1);
-    border: 2px dashed var(--border);
+    border: 2px dashed rgba(168, 85, 247, 0.4);
     border-radius: 8px;
-    color: var(--primary-light);
+    color: #c084fc;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
@@ -595,32 +625,35 @@ if ($course['type'] === 'video') {
 
 .btn-add-lesson:hover {
     background: rgba(168, 85, 247, 0.2);
-    border-color: var(--primary);
+    border-color: rgba(168, 85, 247, 0.6);
+    color: #e9d5ff;
 }
 
-/* Buttons */
+/* Buttons - VERBESSERT */
 .btn-primary {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
     color: white;
     padding: 12px 24px;
-    border: none;
+    border: 1px solid rgba(168, 85, 247, 0.5);
     border-radius: 10px;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
 }
 
 .btn-primary:hover {
+    background: linear-gradient(135deg, #9333ea 0%, #db2777 100%);
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(168, 85, 247, 0.4);
+    box-shadow: 0 6px 16px rgba(168, 85, 247, 0.5);
 }
 
 .btn-secondary {
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
     padding: 10px 20px;
-    border: 1px solid var(--border);
+    border: 1px solid rgba(59, 130, 246, 0.4);
     border-radius: 8px;
     font-size: 14px;
     font-weight: 600;
@@ -629,7 +662,9 @@ if ($course['type'] === 'video') {
 }
 
 .btn-secondary:hover {
-    background: rgba(168, 85, 247, 0.1);
+    background: rgba(59, 130, 246, 0.3);
+    border-color: rgba(59, 130, 246, 0.6);
+    transform: translateY(-2px);
 }
 
 /* Empty State */
@@ -638,7 +673,7 @@ if ($course['type'] === 'video') {
     padding: 60px 20px;
 }
 
-/* Modal - WICHTIG: Mit .hidden Klasse */
+/* Modal - VERBESSERT */
 .modal {
     position: fixed;
     top: 0;
@@ -655,14 +690,13 @@ if ($course['type'] === 'video') {
     justify-content: center;
 }
 
-/* Modal verstecken */
 .modal.hidden {
     display: none !important;
 }
 
 .modal-content {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
+    background: rgba(26, 26, 46, 0.95);
+    border: 1px solid rgba(168, 85, 247, 0.3);
     border-radius: 16px;
     width: 100%;
     max-width: 600px;
@@ -672,7 +706,7 @@ if ($course['type'] === 'video') {
 
 .modal-header {
     padding: 24px;
-    border-bottom: 1px solid var(--border-light);
+    border-bottom: 1px solid rgba(168, 85, 247, 0.2);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -681,32 +715,34 @@ if ($course['type'] === 'video') {
 .modal-header h3 {
     font-size: 20px;
     color: white;
+    font-weight: 700;
     margin: 0;
 }
 
 .modal-close {
-    background: none;
-    border: none;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(168, 85, 247, 0.3);
     font-size: 28px;
-    color: var(--text-secondary);
+    color: #a0a0a0;
     cursor: pointer;
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 6px;
+    border-radius: 8px;
     transition: all 0.2s;
 }
 
 .modal-close:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #f87171;
 }
 
 .modal-footer {
     padding: 24px;
-    border-top: 1px solid var(--border-light);
+    border-top: 1px solid rgba(168, 85, 247, 0.2);
     display: flex;
     gap: 12px;
     justify-content: flex-end;
