@@ -15,6 +15,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 require_once '../../../../config/database.php';
 
 try {
+    $pdo = getDBConnection(); // Korrekte Verwendung der DB-Verbindung
+    
     $data = json_decode(file_get_contents('php://input'), true);
     $lesson_id = $data['lesson_id'] ?? null;
     
