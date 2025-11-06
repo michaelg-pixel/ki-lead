@@ -17,6 +17,8 @@ if ($freebie_id <= 0) {
 // Freebie aus Datenbank laden - ERST customer_freebies prüfen, dann templates
 $customer_id = $customer_id_from_url;
 $is_customer_freebie = false;
+$has_freebie_course = false;
+$freebie_course_id = null;
 
 try {
     // Zuerst prüfen, ob es ein Customer-Freebie ist
@@ -27,10 +29,13 @@ try {
             c.id as course_id,
             c.title as course_title,
             c.description as course_description,
-            c.mockup_url as course_mockup
+            c.mockup_url as course_mockup,
+            fc.id as freebie_course_id,
+            fc.title as freebie_course_title
         FROM customer_freebies cf
         LEFT JOIN freebies f ON cf.template_id = f.id
         LEFT JOIN courses c ON f.course_id = c.id
+        LEFT JOIN freebie_courses fc ON cf.id = fc.freebie_id
         WHERE cf.id = ?
     ");
     $stmt->execute([$freebie_id]);
@@ -40,6 +45,16 @@ try {
         // Es ist ein Customer-Freebie
         $customer_id = $freebie['customer_id'];
         $is_customer_freebie = true;
+        
+        // Prüfe ob es einen Freebie Course gibt
+        if (!empty($freebie['freebie_course_id'])) {
+            $has_freebie_course = true;
+            $freebie_course_id = $freebie['freebie_course_id'];
+            // Verwende freebie_course_title falls vorhanden
+            if (!empty($freebie['freebie_course_title'])) {
+                $freebie['course_title'] = $freebie['freebie_course_title'];
+            }
+        }
     } else {
         // Es ist ein Template-Freebie
         $stmt = $pdo->prepare("
@@ -90,11 +105,16 @@ $body_font = $freebie['body_font'] ?? 'Poppins';
 // Kurs-Button Text und URL
 $video_button_text = $freebie['video_button_text'] ?? 'Zum Videokurs';
 
-// Kurs-URL aus verknüpftem Kurs generieren
+// Kurs-URL generieren - NEUE LOGIK für freebie_courses
 $video_course_url = '';
-if (!empty($freebie['course_id'])) {
+if ($has_freebie_course && $freebie_course_id) {
+    // Custom Freebie Course - Link zur neuen Course Player Page
+    $video_course_url = '/customer/freebie-course-player.php?id=' . $freebie_course_id;
+} elseif (!empty($freebie['course_id'])) {
+    // Template Course - alter Link
     $video_course_url = '/customer/course-view.php?id=' . $freebie['course_id'];
 } elseif (!empty($freebie['video_course_url'])) {
+    // Manuell eingetragene URL
     $video_course_url = $freebie['video_course_url'];
 }
 
