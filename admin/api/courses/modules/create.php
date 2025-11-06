@@ -15,6 +15,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 require_once '../../../../config/database.php';
 
 try {
+    $pdo = getDBConnection(); // Korrekte Verwendung der DB-Verbindung
+    
     $course_id = $_POST['course_id'] ?? null;
     $title = $_POST['title'] ?? '';
     $description = $_POST['description'] ?? '';
@@ -41,9 +43,11 @@ try {
         'sort_order' => $sort_order
     ]);
     
+    $module_id = $pdo->lastInsertId();
+    
     echo json_encode([
         'success' => true,
-        'module_id' => $pdo->lastInsertId(),
+        'module_id' => $module_id,
         'message' => 'Modul erfolgreich erstellt'
     ]);
     
