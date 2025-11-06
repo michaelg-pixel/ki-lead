@@ -9,47 +9,48 @@ require_once __DIR__ . '/../config/database.php';
 
 $pdo = getDBConnection();
 
-// Parameter aus URL
-$freebie_id = isset($_GET['freebie_id']) ? (int)$_GET['freebie_id'] : 0;
+// Parameter aus URL - ID ist die Course-ID aus freebie_courses
+$course_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $lead_email = isset($_GET['email']) ? trim($_GET['email']) : '';
 $lesson_id = isset($_GET['lesson']) ? (int)$_GET['lesson'] : 0;
 
-if ($freebie_id <= 0) {
-    die('Ungültige Freebie-ID');
+if ($course_id <= 0) {
+    die('Ungültige Kurs-ID');
 }
 
-if (empty($lead_email) || !filter_var($lead_email, FILTER_VALIDATE_EMAIL)) {
-    die('Ungültige oder fehlende E-Mail-Adresse');
+// E-Mail ist optional - wenn nicht vorhanden, wird kein Fortschritt getrackt
+if (!empty($lead_email) && !filter_var($lead_email, FILTER_VALIDATE_EMAIL)) {
+    $lead_email = ''; // Ungültige E-Mail ignorieren
 }
 
-// Freebie und Kurs laden
+// Kurs und Freebie laden
 try {
     $stmt = $pdo->prepare("
         SELECT 
-            cf.id as freebie_id,
-            cf.headline,
-            cf.primary_color,
             fc.id as course_id,
             fc.title as course_title,
-            fc.description as course_description
-        FROM customer_freebies cf
-        JOIN freebie_courses fc ON cf.id = fc.freebie_id
-        WHERE cf.id = ? AND fc.is_active = TRUE
+            fc.description as course_description,
+            cf.id as freebie_id,
+            cf.headline,
+            cf.primary_color
+        FROM freebie_courses fc
+        JOIN customer_freebies cf ON fc.freebie_id = cf.id
+        WHERE fc.id = ?
     ");
-    $stmt->execute([$freebie_id]);
+    $stmt->execute([$course_id]);
     $data = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$data) {
-        die('Kurs nicht gefunden oder nicht aktiv');
+        die('Kurs nicht gefunden');
     }
     
-    $course_id = $data['course_id'];
+    $freebie_id = $data['freebie_id'];
     $course_title = $data['course_title'];
     $course_description = $data['course_description'];
     $primary_color = $data['primary_color'] ?? '#8B5CF6';
     
 } catch (PDOException $e) {
-    die('Fehler beim Laden des Kurses');
+    die('Fehler beim Laden des Kurses: ' . $e->getMessage());
 }
 
 // Module und Lektionen laden
@@ -98,21 +99,23 @@ try {
     }
     
 } catch (PDOException $e) {
-    die('Fehler beim Laden der Lektionen');
+    die('Fehler beim Laden der Lektionen: ' . $e->getMessage());
 }
 
-// Fortschritt für Lead laden
+// Fortschritt für Lead laden (nur wenn E-Mail vorhanden)
 $completed_lessons = [];
-try {
-    $stmt = $pdo->prepare("
-        SELECT lesson_id 
-        FROM freebie_course_progress 
-        WHERE lead_email = ? AND completed = TRUE
-    ");
-    $stmt->execute([$lead_email]);
-    $completed_lessons = $stmt->fetchAll(PDO::FETCH_COLUMN);
-} catch (PDOException $e) {
-    // Fortschritt-Fehler ignorieren
+if (!empty($lead_email)) {
+    try {
+        $stmt = $pdo->prepare("
+            SELECT lesson_id 
+            FROM freebie_course_progress 
+            WHERE lead_email = ? AND completed = TRUE
+        ");
+        $stmt->execute([$lead_email]);
+        $completed_lessons = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    } catch (PDOException $e) {
+        // Fortschritt-Fehler ignorieren
+    }
 }
 
 // Erste unvollständige Lektion oder übergebene Lektion finden
@@ -130,7 +133,7 @@ if ($lesson_id > 0) {
 }
 
 // Fallback: Erste unvollständige Lektion
-if (!$current_lesson) {
+if (!$current_lesson && !empty($lead_email)) {
     foreach ($modules as $module) {
         foreach ($module['lessons'] as $lesson) {
             if (!in_array($lesson['id'], $completed_lessons)) {
@@ -152,6 +155,26 @@ if (!$current_lesson && !empty($modules)) {
 if (!$current_lesson) {
     die('Keine Lektionen in diesem Kurs verfügbar');
 }
+
+// Video URL für Embedding vorbereiten
+function getEmbedUrl($url) {
+    if (empty($url)) return '';
+    
+    // YouTube
+    if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/', $url, $matches)) {
+        return 'https://www.youtube.com/embed/' . $matches[1];
+    }
+    
+    // Vimeo
+    if (preg_match('/vimeo\.com\/(\d+)/', $url, $matches)) {
+        return 'https://player.vimeo.com/video/' . $matches[1];
+    }
+    
+    // Falls bereits embed URL
+    return $url;
+}
+
+$current_video_embed = getEmbedUrl($current_lesson['video_url']);
 
 // Gesamtfortschritt berechnen
 $total_lessons = 0;
@@ -303,6 +326,7 @@ $progress_percent = $total_lessons > 0 ? round(($completed_count / $total_lesson
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            text-decoration: none;
         }
         
         .btn-primary {
@@ -518,12 +542,14 @@ $progress_percent = $total_lessons > 0 ? round(($completed_count / $total_lesson
     <div class="header">
         <div class="header-content">
             <h1 class="course-title"><?php echo htmlspecialchars($course_title); ?></h1>
+            <?php if (!empty($lead_email)): ?>
             <div class="progress-container">
                 <div class="progress-bar"></div>
             </div>
             <div class="progress-text">
                 <?php echo $completed_count; ?> von <?php echo $total_lessons; ?> Lektionen abgeschlossen (<?php echo $progress_percent; ?>%)
             </div>
+            <?php endif; ?>
         </div>
     </div>
     
@@ -532,15 +558,15 @@ $progress_percent = $total_lessons > 0 ? round(($completed_count / $total_lesson
         <!-- Video Section -->
         <div class="video-section">
             <div class="video-container" id="videoContainer">
-                <?php if (!empty($current_lesson['video_url'])): ?>
+                <?php if (!empty($current_video_embed)): ?>
                     <iframe 
-                        src="<?php echo htmlspecialchars($current_lesson['video_url']); ?>"
+                        src="<?php echo htmlspecialchars($current_video_embed); ?>"
                         frameborder="0"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowfullscreen>
                     </iframe>
                 <?php else: ?>
-                    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-secondary);">
+                    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-secondary); position: absolute; width: 100%; top: 0;">
                         📹 Kein Video verfügbar
                     </div>
                 <?php endif; ?>
@@ -548,13 +574,17 @@ $progress_percent = $total_lessons > 0 ? round(($completed_count / $total_lesson
             
             <div class="lesson-info">
                 <h2 class="lesson-title" id="lessonTitle"><?php echo htmlspecialchars($current_lesson['title']); ?></h2>
-                <p class="lesson-description" id="lessonDescription"><?php echo htmlspecialchars($current_lesson['description'] ?? ''); ?></p>
+                <?php if (!empty($current_lesson['description'])): ?>
+                    <p class="lesson-description" id="lessonDescription"><?php echo htmlspecialchars($current_lesson['description']); ?></p>
+                <?php endif; ?>
                 
                 <div class="lesson-actions">
+                    <?php if (!empty($lead_email)): ?>
                     <button class="btn btn-primary" id="btnComplete" onclick="toggleComplete()">
                         <span id="completeIcon">✓</span>
                         <span id="completeText">Als abgeschlossen markieren</span>
                     </button>
+                    <?php endif; ?>
                     
                     <?php if (!empty($current_lesson['pdf_url'])): ?>
                         <a href="<?php echo htmlspecialchars($current_lesson['pdf_url']); ?>" 
@@ -591,6 +621,10 @@ $progress_percent = $total_lessons > 0 ? round(($completed_count / $total_lesson
                         ?>
                             <div class="lesson-item<?php echo $class; ?>" 
                                  data-lesson-id="<?php echo $lesson['id']; ?>"
+                                 data-video-url="<?php echo htmlspecialchars(getEmbedUrl($lesson['video_url'])); ?>"
+                                 data-title="<?php echo htmlspecialchars($lesson['title']); ?>"
+                                 data-description="<?php echo htmlspecialchars($lesson['description'] ?? ''); ?>"
+                                 data-pdf-url="<?php echo htmlspecialchars($lesson['pdf_url'] ?? ''); ?>"
                                  onclick="loadLesson(<?php echo $lesson['id']; ?>)">
                                 <span class="lesson-icon">
                                     <?php if ($is_completed): ?>
@@ -616,11 +650,10 @@ $progress_percent = $total_lessons > 0 ? round(($completed_count / $total_lesson
     </button>
     
     <script>
-        const freebieId = <?php echo $freebie_id; ?>;
+        const courseId = <?php echo $course_id; ?>;
         const leadEmail = <?php echo json_encode($lead_email); ?>;
         let currentLessonId = <?php echo $current_lesson['id']; ?>;
         let completedLessons = <?php echo json_encode($completed_lessons); ?>;
-        const allLessons = <?php echo json_encode(array_merge(...array_map(function($m) { return $m['lessons']; }, $modules))); ?>;
         
         // Module toggle
         function toggleModule(header) {
@@ -633,33 +666,43 @@ $progress_percent = $total_lessons > 0 ? round(($completed_count / $total_lesson
         }
         
         // Lektion laden
-        async function loadLesson(lessonId) {
-            const lesson = allLessons.find(l => l.id == lessonId);
-            if (!lesson) return;
+        function loadLesson(lessonId) {
+            const lessonItem = document.querySelector(`[data-lesson-id="${lessonId}"]`);
+            if (!lessonItem) return;
             
             currentLessonId = lessonId;
             
+            const videoUrl = lessonItem.dataset.videoUrl;
+            const title = lessonItem.dataset.title;
+            const description = lessonItem.dataset.description;
+            const pdfUrl = lessonItem.dataset.pdfUrl;
+            
             // Video aktualisieren
             const videoContainer = document.getElementById('videoContainer');
-            if (lesson.video_url) {
+            if (videoUrl) {
                 videoContainer.innerHTML = `
                     <iframe 
-                        src="${lesson.video_url}"
+                        src="${videoUrl}"
                         frameborder="0"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowfullscreen>
                     </iframe>
                 `;
             } else {
-                videoContainer.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-secondary);">📹 Kein Video verfügbar</div>';
+                videoContainer.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-secondary); position: absolute; width: 100%; top: 0;">📹 Kein Video verfügbar</div>';
             }
             
             // Lektions-Info aktualisieren
-            document.getElementById('lessonTitle').textContent = lesson.title;
-            document.getElementById('lessonDescription').textContent = lesson.description || '';
+            document.getElementById('lessonTitle').textContent = title;
+            const descEl = document.getElementById('lessonDescription');
+            if (descEl) {
+                descEl.textContent = description;
+            }
             
             // Complete-Button aktualisieren
-            updateCompleteButton();
+            if (leadEmail) {
+                updateCompleteButton();
+            }
             
             // Sidebar aktualisieren
             updateSidebar();
@@ -675,8 +718,10 @@ $progress_percent = $total_lessons > 0 ? round(($completed_count / $total_lesson
             }
         }
         
-        // Complete-Status toggle
+        // Complete-Status toggle (nur wenn Email vorhanden)
         async function toggleComplete() {
+            if (!leadEmail) return;
+            
             const isCompleted = completedLessons.includes(currentLessonId);
             const newStatus = !isCompleted;
             
@@ -704,18 +749,6 @@ $progress_percent = $total_lessons > 0 ? round(($completed_count / $total_lesson
                     updateCompleteButton();
                     updateSidebar();
                     updateProgress();
-                    
-                    // Nächste Lektion automatisch laden (nach 1.5s)
-                    if (newStatus) {
-                        const nextLesson = getNextLesson();
-                        if (nextLesson) {
-                            setTimeout(() => {
-                                if (confirm('Möchtest du zur nächsten Lektion?')) {
-                                    loadLesson(nextLesson.id);
-                                }
-                            }, 1500);
-                        }
-                    }
                 } else {
                     alert('Fehler beim Speichern: ' + result.error);
                 }
@@ -726,8 +759,10 @@ $progress_percent = $total_lessons > 0 ? round(($completed_count / $total_lesson
         }
         
         function updateCompleteButton() {
-            const isCompleted = completedLessons.includes(currentLessonId);
             const btn = document.getElementById('btnComplete');
+            if (!btn) return;
+            
+            const isCompleted = completedLessons.includes(currentLessonId);
             const icon = document.getElementById('completeIcon');
             const text = document.getElementById('completeText');
             
@@ -764,25 +799,24 @@ $progress_percent = $total_lessons > 0 ? round(($completed_count / $total_lesson
         }
         
         function updateProgress() {
+            const allLessons = document.querySelectorAll('.lesson-item');
             const total = allLessons.length;
             const completed = completedLessons.length;
             const percent = Math.round((completed / total) * 100);
             
-            document.querySelector('.progress-bar').style.width = percent + '%';
-            document.querySelector('.progress-text').textContent = 
-                `${completed} von ${total} Lektionen abgeschlossen (${percent}%)`;
-        }
-        
-        function getNextLesson() {
-            const currentIndex = allLessons.findIndex(l => l.id === currentLessonId);
-            if (currentIndex >= 0 && currentIndex < allLessons.length - 1) {
-                return allLessons[currentIndex + 1];
+            const progressBar = document.querySelector('.progress-bar');
+            const progressText = document.querySelector('.progress-text');
+            
+            if (progressBar) progressBar.style.width = percent + '%';
+            if (progressText) {
+                progressText.textContent = `${completed} von ${total} Lektionen abgeschlossen (${percent}%)`;
             }
-            return null;
         }
         
         // Initial setup
-        updateCompleteButton();
+        if (leadEmail) {
+            updateCompleteButton();
+        }
         updateSidebar();
     </script>
 </body>
