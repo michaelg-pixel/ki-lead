@@ -1,402 +1,248 @@
 <?php
 /**
- * API für Customer Freebie Kurse
- * Verwaltet Module, Lektionen und Fortschritt
+ * 🎓 FREEBIE COURSE API
+ * 
+ * API Endpoints für Videokurs-Management
  */
 
 session_start();
-require_once __DIR__ . '/../../config/database.php';
-
-// JSON Response Header
 header('Content-Type: application/json');
 
-// Check if customer is logged in
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
+    http_response_code(401);
     echo json_encode(['success' => false, 'error' => 'Nicht autorisiert']);
     exit;
 }
 
-$pdo = getDBConnection();
-$customer_id = $_SESSION['user_id'];
+require_once __DIR__ . '/../../config/database.php';
 
-// Get JSON input
+try {
+    $pdo = getDBConnection();
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Datenbankverbindung fehlgeschlagen']);
+    exit;
+}
+
+$customer_id = $_SESSION['user_id'];
 $input = json_decode(file_get_contents('php://input'), true);
-$action = $input['action'] ?? $_POST['action'] ?? '';
+$action = $input['action'] ?? '';
 
 try {
     switch ($action) {
         
-        // ==================== KURS ====================
         case 'create_course':
-            $freebie_id = $input['freebie_id'];
-            $title = $input['title'];
-            $description = $input['description'] ?? '';
+            $freebie_id = $input['freebie_id'] ?? 0;
+            $title = trim($input['title'] ?? 'Mein Videokurs');
+            $description = trim($input['description'] ?? '');
             
-            // Prüfen ob Freebie dem Customer gehört
+            if (!$freebie_id) {
+                throw new Exception('Freebie ID fehlt');
+            }
+            
             $stmt = $pdo->prepare("SELECT id FROM customer_freebies WHERE id = ? AND customer_id = ?");
             $stmt->execute([$freebie_id, $customer_id]);
             if (!$stmt->fetch()) {
                 throw new Exception('Freebie nicht gefunden');
             }
             
-            // Kurs erstellen
-            $stmt = $pdo->prepare("
-                INSERT INTO freebie_courses (freebie_id, customer_id, title, description)
-                VALUES (?, ?, ?, ?)
-            ");
+            $stmt = $pdo->prepare("SELECT id FROM freebie_courses WHERE freebie_id = ?");
+            $stmt->execute([$freebie_id]);
+            if ($stmt->fetch()) {
+                throw new Exception('Kurs existiert bereits');
+            }
+            
+            $stmt = $pdo->prepare("INSERT INTO freebie_courses (freebie_id, customer_id, title, description, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())");
             $stmt->execute([$freebie_id, $customer_id, $title, $description]);
             $course_id = $pdo->lastInsertId();
             
-            // has_course Flag setzen
-            $pdo->prepare("UPDATE customer_freebies SET has_course = TRUE WHERE id = ?")
-                ->execute([$freebie_id]);
+            $stmt = $pdo->prepare("UPDATE customer_freebies SET has_course = 1 WHERE id = ?");
+            $stmt->execute([$freebie_id]);
             
-            echo json_encode(['success' => true, 'course_id' => $course_id]);
-            break;
-            
-        case 'update_course':
-            $course_id = $input['course_id'];
-            $title = $input['title'];
-            $description = $input['description'] ?? '';
-            
-            // Prüfen ob Kurs dem Customer gehört
-            $stmt = $pdo->prepare("SELECT id FROM freebie_courses WHERE id = ? AND customer_id = ?");
-            $stmt->execute([$course_id, $customer_id]);
-            if (!$stmt->fetch()) {
-                throw new Exception('Kurs nicht gefunden');
-            }
-            
-            $stmt = $pdo->prepare("
-                UPDATE freebie_courses 
-                SET title = ?, description = ?, updated_at = NOW()
-                WHERE id = ? AND customer_id = ?
-            ");
-            $stmt->execute([$title, $description, $course_id, $customer_id]);
-            
-            echo json_encode(['success' => true]);
+            echo json_encode(['success' => true, 'course_id' => $course_id, 'message' => 'Kurs erstellt']);
             break;
         
-        // ==================== MODULE ====================
         case 'create_module':
-            $course_id = $input['course_id'];
-            $title = $input['title'];
-            $description = $input['description'] ?? '';
+            $course_id = $input['course_id'] ?? 0;
+            $title = trim($input['title'] ?? '');
+            $description = trim($input['description'] ?? '');
             
-            // Prüfen ob Kurs dem Customer gehört
-            $stmt = $pdo->prepare("SELECT id FROM freebie_courses WHERE id = ? AND customer_id = ?");
+            if (!$course_id || empty($title)) {
+                throw new Exception('Kurs ID und Titel erforderlich');
+            }
+            
+            $stmt = $pdo->prepare("SELECT fc.id FROM freebie_courses fc JOIN customer_freebies cf ON fc.freebie_id = cf.id WHERE fc.id = ? AND cf.customer_id = ?");
             $stmt->execute([$course_id, $customer_id]);
             if (!$stmt->fetch()) {
-                throw new Exception('Kurs nicht gefunden');
+                throw new Exception('Keine Berechtigung');
             }
             
-            // Höchste sort_order finden
             $stmt = $pdo->prepare("SELECT MAX(sort_order) as max_order FROM freebie_course_modules WHERE course_id = ?");
             $stmt->execute([$course_id]);
-            $max_order = $stmt->fetchColumn() ?? 0;
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            $next_order = ($result['max_order'] ?? 0) + 1;
             
-            // Modul erstellen
-            $stmt = $pdo->prepare("
-                INSERT INTO freebie_course_modules (course_id, title, description, sort_order)
-                VALUES (?, ?, ?, ?)
-            ");
-            $stmt->execute([$course_id, $title, $description, $max_order + 1]);
-            $module_id = $pdo->lastInsertId();
+            $stmt = $pdo->prepare("INSERT INTO freebie_course_modules (course_id, title, description, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())");
+            $stmt->execute([$course_id, $title, $description, $next_order]);
             
-            echo json_encode(['success' => true, 'module_id' => $module_id]);
+            echo json_encode(['success' => true, 'module_id' => $pdo->lastInsertId(), 'message' => 'Modul erstellt']);
             break;
-            
+        
         case 'update_module':
-            $module_id = $input['module_id'];
-            $title = $input['title'];
-            $description = $input['description'] ?? '';
+            $module_id = $input['module_id'] ?? 0;
+            $title = trim($input['title'] ?? '');
+            $description = trim($input['description'] ?? '');
             
-            // Prüfen ob Modul dem Customer gehört (via course)
-            $stmt = $pdo->prepare("
-                SELECT m.id FROM freebie_course_modules m
-                JOIN freebie_courses c ON m.course_id = c.id
-                WHERE m.id = ? AND c.customer_id = ?
-            ");
-            $stmt->execute([$module_id, $customer_id]);
-            if (!$stmt->fetch()) {
-                throw new Exception('Modul nicht gefunden');
+            if (!$module_id || empty($title)) {
+                throw new Exception('Modul ID und Titel erforderlich');
             }
             
-            $stmt = $pdo->prepare("
-                UPDATE freebie_course_modules 
-                SET title = ?, description = ?, updated_at = NOW()
-                WHERE id = ?
-            ");
+            $stmt = $pdo->prepare("SELECT m.id FROM freebie_course_modules m JOIN freebie_courses fc ON m.course_id = fc.id JOIN customer_freebies cf ON fc.freebie_id = cf.id WHERE m.id = ? AND cf.customer_id = ?");
+            $stmt->execute([$module_id, $customer_id]);
+            if (!$stmt->fetch()) {
+                throw new Exception('Keine Berechtigung');
+            }
+            
+            $stmt = $pdo->prepare("UPDATE freebie_course_modules SET title = ?, description = ?, updated_at = NOW() WHERE id = ?");
             $stmt->execute([$title, $description, $module_id]);
             
-            echo json_encode(['success' => true]);
+            echo json_encode(['success' => true, 'message' => 'Modul aktualisiert']);
             break;
-            
+        
         case 'delete_module':
-            $module_id = $input['module_id'];
+            $module_id = $input['module_id'] ?? 0;
             
-            // Prüfen ob Modul dem Customer gehört
-            $stmt = $pdo->prepare("
-                SELECT m.id FROM freebie_course_modules m
-                JOIN freebie_courses c ON m.course_id = c.id
-                WHERE m.id = ? AND c.customer_id = ?
-            ");
-            $stmt->execute([$module_id, $customer_id]);
-            if (!$stmt->fetch()) {
-                throw new Exception('Modul nicht gefunden');
+            if (!$module_id) {
+                throw new Exception('Modul ID fehlt');
             }
             
-            // Modul löschen (CASCADE löscht auch Lektionen)
+            $stmt = $pdo->prepare("SELECT m.id FROM freebie_course_modules m JOIN freebie_courses fc ON m.course_id = fc.id JOIN customer_freebies cf ON fc.freebie_id = cf.id WHERE m.id = ? AND cf.customer_id = ?");
+            $stmt->execute([$module_id, $customer_id]);
+            if (!$stmt->fetch()) {
+                throw new Exception('Keine Berechtigung');
+            }
+            
+            $stmt = $pdo->prepare("DELETE FROM freebie_course_lessons WHERE module_id = ?");
+            $stmt->execute([$module_id]);
+            
             $stmt = $pdo->prepare("DELETE FROM freebie_course_modules WHERE id = ?");
             $stmt->execute([$module_id]);
             
-            echo json_encode(['success' => true]);
-            break;
-            
-        case 'reorder_modules':
-            $modules = $input['modules']; // Array: [{id: 1, order: 0}, {id: 2, order: 1}, ...]
-            
-            foreach ($modules as $module) {
-                // Prüfen ob Modul dem Customer gehört
-                $stmt = $pdo->prepare("
-                    SELECT m.id FROM freebie_course_modules m
-                    JOIN freebie_courses c ON m.course_id = c.id
-                    WHERE m.id = ? AND c.customer_id = ?
-                ");
-                $stmt->execute([$module['id'], $customer_id]);
-                if (!$stmt->fetch()) {
-                    continue;
-                }
-                
-                $stmt = $pdo->prepare("UPDATE freebie_course_modules SET sort_order = ? WHERE id = ?");
-                $stmt->execute([$module['order'], $module['id']]);
-            }
-            
-            echo json_encode(['success' => true]);
+            echo json_encode(['success' => true, 'message' => 'Modul gelöscht']);
             break;
         
-        // ==================== LEKTIONEN ====================
         case 'create_lesson':
-            $module_id = $input['module_id'];
-            $title = $input['title'];
-            $description = $input['description'] ?? '';
-            $video_url = $input['video_url'] ?? '';
-            $pdf_url = $input['pdf_url'] ?? '';
+            $module_id = $input['module_id'] ?? 0;
+            $title = trim($input['title'] ?? '');
+            $description = trim($input['description'] ?? '');
+            $video_url = trim($input['video_url'] ?? '');
+            $pdf_url = trim($input['pdf_url'] ?? '');
             
-            // Prüfen ob Modul dem Customer gehört
-            $stmt = $pdo->prepare("
-                SELECT m.id FROM freebie_course_modules m
-                JOIN freebie_courses c ON m.course_id = c.id
-                WHERE m.id = ? AND c.customer_id = ?
-            ");
+            if (!$module_id || empty($title)) {
+                throw new Exception('Modul ID und Titel erforderlich');
+            }
+            
+            $stmt = $pdo->prepare("SELECT m.id FROM freebie_course_modules m JOIN freebie_courses fc ON m.course_id = fc.id JOIN customer_freebies cf ON fc.freebie_id = cf.id WHERE m.id = ? AND cf.customer_id = ?");
             $stmt->execute([$module_id, $customer_id]);
             if (!$stmt->fetch()) {
-                throw new Exception('Modul nicht gefunden');
+                throw new Exception('Keine Berechtigung');
             }
             
-            // Video-URL normalisieren
-            $video_url = normalizeVideoUrl($video_url);
-            
-            // Höchste sort_order finden
             $stmt = $pdo->prepare("SELECT MAX(sort_order) as max_order FROM freebie_course_lessons WHERE module_id = ?");
             $stmt->execute([$module_id]);
-            $max_order = $stmt->fetchColumn() ?? 0;
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            $next_order = ($result['max_order'] ?? 0) + 1;
             
-            // Lektion erstellen
-            $stmt = $pdo->prepare("
-                INSERT INTO freebie_course_lessons (module_id, title, description, video_url, pdf_url, sort_order)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ");
-            $stmt->execute([$module_id, $title, $description, $video_url, $pdf_url, $max_order + 1]);
-            $lesson_id = $pdo->lastInsertId();
+            $stmt = $pdo->prepare("INSERT INTO freebie_course_lessons (module_id, title, description, video_url, pdf_url, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())");
+            $stmt->execute([$module_id, $title, $description, $video_url, $pdf_url, $next_order]);
             
-            echo json_encode(['success' => true, 'lesson_id' => $lesson_id]);
+            echo json_encode(['success' => true, 'lesson_id' => $pdo->lastInsertId(), 'message' => 'Lektion erstellt']);
             break;
-            
+        
         case 'update_lesson':
-            $lesson_id = $input['lesson_id'];
-            $title = $input['title'];
-            $description = $input['description'] ?? '';
-            $video_url = $input['video_url'] ?? '';
-            $pdf_url = $input['pdf_url'] ?? '';
+            $lesson_id = $input['lesson_id'] ?? 0;
+            $title = trim($input['title'] ?? '');
+            $description = trim($input['description'] ?? '');
+            $video_url = trim($input['video_url'] ?? '');
+            $pdf_url = trim($input['pdf_url'] ?? '');
             
-            // Prüfen ob Lektion dem Customer gehört
-            $stmt = $pdo->prepare("
-                SELECT l.id FROM freebie_course_lessons l
-                JOIN freebie_course_modules m ON l.module_id = m.id
-                JOIN freebie_courses c ON m.course_id = c.id
-                WHERE l.id = ? AND c.customer_id = ?
-            ");
-            $stmt->execute([$lesson_id, $customer_id]);
-            if (!$stmt->fetch()) {
-                throw new Exception('Lektion nicht gefunden');
+            if (!$lesson_id || empty($title)) {
+                throw new Exception('Lektion ID und Titel erforderlich');
             }
             
-            // Video-URL normalisieren
-            $video_url = normalizeVideoUrl($video_url);
+            $stmt = $pdo->prepare("SELECT l.id FROM freebie_course_lessons l JOIN freebie_course_modules m ON l.module_id = m.id JOIN freebie_courses fc ON m.course_id = fc.id JOIN customer_freebies cf ON fc.freebie_id = cf.id WHERE l.id = ? AND cf.customer_id = ?");
+            $stmt->execute([$lesson_id, $customer_id]);
+            if (!$stmt->fetch()) {
+                throw new Exception('Keine Berechtigung');
+            }
             
-            $stmt = $pdo->prepare("
-                UPDATE freebie_course_lessons 
-                SET title = ?, description = ?, video_url = ?, pdf_url = ?, updated_at = NOW()
-                WHERE id = ?
-            ");
+            $stmt = $pdo->prepare("UPDATE freebie_course_lessons SET title = ?, description = ?, video_url = ?, pdf_url = ?, updated_at = NOW() WHERE id = ?");
             $stmt->execute([$title, $description, $video_url, $pdf_url, $lesson_id]);
             
-            echo json_encode(['success' => true]);
+            echo json_encode(['success' => true, 'message' => 'Lektion aktualisiert']);
             break;
-            
+        
         case 'delete_lesson':
-            $lesson_id = $input['lesson_id'];
+            $lesson_id = $input['lesson_id'] ?? 0;
             
-            // Prüfen ob Lektion dem Customer gehört
-            $stmt = $pdo->prepare("
-                SELECT l.id FROM freebie_course_lessons l
-                JOIN freebie_course_modules m ON l.module_id = m.id
-                JOIN freebie_courses c ON m.course_id = c.id
-                WHERE l.id = ? AND c.customer_id = ?
-            ");
-            $stmt->execute([$lesson_id, $customer_id]);
-            if (!$stmt->fetch()) {
-                throw new Exception('Lektion nicht gefunden');
+            if (!$lesson_id) {
+                throw new Exception('Lektion ID fehlt');
             }
             
-            // Lektion löschen
+            $stmt = $pdo->prepare("SELECT l.id FROM freebie_course_lessons l JOIN freebie_course_modules m ON l.module_id = m.id JOIN freebie_courses fc ON m.course_id = fc.id JOIN customer_freebies cf ON fc.freebie_id = cf.id WHERE l.id = ? AND cf.customer_id = ?");
+            $stmt->execute([$lesson_id, $customer_id]);
+            if (!$stmt->fetch()) {
+                throw new Exception('Keine Berechtigung');
+            }
+            
             $stmt = $pdo->prepare("DELETE FROM freebie_course_lessons WHERE id = ?");
             $stmt->execute([$lesson_id]);
             
-            echo json_encode(['success' => true]);
-            break;
-            
-        case 'reorder_lessons':
-            $lessons = $input['lessons']; // Array: [{id: 1, order: 0}, {id: 2, order: 1}, ...]
-            
-            foreach ($lessons as $lesson) {
-                // Prüfen ob Lektion dem Customer gehört
-                $stmt = $pdo->prepare("
-                    SELECT l.id FROM freebie_course_lessons l
-                    JOIN freebie_course_modules m ON l.module_id = m.id
-                    JOIN freebie_courses c ON m.course_id = c.id
-                    WHERE l.id = ? AND c.customer_id = ?
-                ");
-                $stmt->execute([$lesson['id'], $customer_id]);
-                if (!$stmt->fetch()) {
-                    continue;
-                }
-                
-                $stmt = $pdo->prepare("UPDATE freebie_course_lessons SET sort_order = ? WHERE id = ?");
-                $stmt->execute([$lesson['order'], $lesson['id']]);
-            }
-            
-            echo json_encode(['success' => true]);
+            echo json_encode(['success' => true, 'message' => 'Lektion gelöscht']);
             break;
         
-        // ==================== FORTSCHRITT (für Leads) ====================
-        case 'mark_complete':
-            // Dieser Endpoint kann OHNE Login verwendet werden (nur mit E-Mail)
-            $lesson_id = $input['lesson_id'];
-            $lead_email = $input['email'];
-            $completed = $input['completed'] ?? true;
+        case 'delete_course':
+            $course_id = $input['course_id'] ?? 0;
             
-            if (!filter_var($lead_email, FILTER_VALIDATE_EMAIL)) {
-                throw new Exception('Ungültige E-Mail');
+            if (!$course_id) {
+                throw new Exception('Kurs ID fehlt');
             }
             
-            // Lektion existiert?
-            $stmt = $pdo->prepare("SELECT id FROM freebie_course_lessons WHERE id = ?");
-            $stmt->execute([$lesson_id]);
-            if (!$stmt->fetch()) {
-                throw new Exception('Lektion nicht gefunden');
+            $stmt = $pdo->prepare("SELECT fc.id, fc.freebie_id FROM freebie_courses fc JOIN customer_freebies cf ON fc.freebie_id = cf.id WHERE fc.id = ? AND cf.customer_id = ?");
+            $stmt->execute([$course_id, $customer_id]);
+            $course = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$course) {
+                throw new Exception('Keine Berechtigung');
             }
             
-            // Fortschritt speichern oder aktualisieren
-            $stmt = $pdo->prepare("
-                INSERT INTO freebie_course_progress (lead_email, lesson_id, completed, completed_at)
-                VALUES (?, ?, ?, NOW())
-                ON DUPLICATE KEY UPDATE 
-                    completed = VALUES(completed),
-                    completed_at = IF(VALUES(completed) = TRUE, NOW(), completed_at),
-                    updated_at = NOW()
-            ");
-            $stmt->execute([$lead_email, $lesson_id, $completed]);
+            $stmt = $pdo->prepare("SELECT id FROM freebie_course_modules WHERE course_id = ?");
+            $stmt->execute([$course_id]);
+            $module_ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
             
-            echo json_encode(['success' => true]);
-            break;
-            
-        case 'get_progress':
-            // Fortschritt für einen Lead abrufen
-            $lead_email = $input['email'];
-            $course_id = $input['course_id'];
-            
-            if (!filter_var($lead_email, FILTER_VALIDATE_EMAIL)) {
-                throw new Exception('Ungültige E-Mail');
+            if (!empty($module_ids)) {
+                $placeholders = str_repeat('?,', count($module_ids) - 1) . '?';
+                $stmt = $pdo->prepare("DELETE FROM freebie_course_lessons WHERE module_id IN ($placeholders)");
+                $stmt->execute($module_ids);
             }
             
-            // Alle abgeschlossenen Lektionen für diesen Lead in diesem Kurs
-            $stmt = $pdo->prepare("
-                SELECT 
-                    p.lesson_id,
-                    p.completed,
-                    p.completed_at
-                FROM freebie_course_progress p
-                JOIN freebie_course_lessons l ON p.lesson_id = l.id
-                JOIN freebie_course_modules m ON l.module_id = m.id
-                WHERE p.lead_email = ? AND m.course_id = ?
-            ");
-            $stmt->execute([$lead_email, $course_id]);
-            $progress = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $stmt = $pdo->prepare("DELETE FROM freebie_course_modules WHERE course_id = ?");
+            $stmt->execute([$course_id]);
             
-            echo json_encode(['success' => true, 'progress' => $progress]);
-            break;
+            $stmt = $pdo->prepare("DELETE FROM freebie_courses WHERE id = ?");
+            $stmt->execute([$course_id]);
             
-        // ==================== MOCKUP ====================
-        case 'update_mockup':
-            $freebie_id = $input['freebie_id'];
-            $mockup_url = $input['mockup_url'] ?? '';
+            $stmt = $pdo->prepare("UPDATE customer_freebies SET has_course = 0 WHERE id = ?");
+            $stmt->execute([$course['freebie_id']]);
             
-            // Prüfen ob Freebie dem Customer gehört
-            $stmt = $pdo->prepare("SELECT id FROM customer_freebies WHERE id = ? AND customer_id = ?");
-            $stmt->execute([$freebie_id, $customer_id]);
-            if (!$stmt->fetch()) {
-                throw new Exception('Freebie nicht gefunden');
-            }
-            
-            $stmt = $pdo->prepare("
-                UPDATE customer_freebies 
-                SET course_mockup_url = ?, updated_at = NOW()
-                WHERE id = ? AND customer_id = ?
-            ");
-            $stmt->execute([$mockup_url, $freebie_id, $customer_id]);
-            
-            echo json_encode(['success' => true]);
+            echo json_encode(['success' => true, 'message' => 'Kurs gelöscht']);
             break;
         
         default:
-            throw new Exception('Unbekannte Aktion');
+            throw new Exception('Ungültige Aktion: ' . $action);
     }
     
 } catch (Exception $e) {
+    http_response_code(400);
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-}
-
-/**
- * Normalisiert Video-URLs zu Embed-URLs
- */
-function normalizeVideoUrl($url) {
-    if (empty($url)) return '';
-    
-    // YouTube
-    if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/', $url, $matches)) {
-        return 'https://www.youtube.com/embed/' . $matches[1];
-    }
-    
-    // Vimeo
-    if (preg_match('/vimeo\.com\/(?:video\/)?(\d+)/', $url, $matches)) {
-        return 'https://player.vimeo.com/video/' . $matches[1];
-    }
-    
-    // Bereits Embed-URL? Zurückgeben
-    if (strpos($url, 'youtube.com/embed/') !== false || strpos($url, 'player.vimeo.com/video/') !== false) {
-        return $url;
-    }
-    
-    return $url;
 }
