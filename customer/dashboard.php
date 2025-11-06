@@ -346,11 +346,11 @@ $page = $_GET['page'] ?? 'overview';
             </a>
             <a href="?page=kurse" class="nav-item <?php echo $page === 'kurse' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
                 <span class="nav-icon">🎓</span>
-                <span>Meine Kurse</span>
+                <span>Freebies / Kurse</span>
             </a>
             <a href="?page=freebies" class="nav-item <?php echo $page === 'freebies' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
                 <span class="nav-icon">🎁</span>
-                <span>Freebies</span>
+                <span>Landingpages</span>
             </a>
             <a href="?page=empfehlungsprogramm" class="nav-item <?php echo $page === 'empfehlungsprogramm' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
                 <span class="nav-icon">🚀</span>
