@@ -2,6 +2,7 @@
 /**
  * Layout 1 Template - ALL 3 LAYOUTS (Hybrid, Centered, Sidebar)
  * 🆕 MIT BULLET ICON STYLE SUPPORT & FONT-SYSTEM
+ * ✨ Optimiert: Kleinere Mockups & Optins ohne Schatten
  */
 
 // 🆕 BULLET ICON STYLE LADEN
@@ -103,22 +104,22 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
             height: 100%;
         }
         
-        /* Direct Optin Form Styling */
+        /* ✨ Direct Optin Form Styling - KOMPAKTER & OHNE SCHATTEN */
         .direct-optin-form {
             background: white;
-            border-radius: 20px;
-            padding: 32px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            border-radius: 16px;
+            padding: 20px;
+            border: 2px solid #e5e7eb;
         }
         
         .direct-optin-form input[type="text"],
         .direct-optin-form input[type="email"] {
             width: 100%;
-            padding: 14px 18px;
-            margin-bottom: 12px;
+            padding: 12px 16px;
+            margin-bottom: 10px;
             border: 2px solid #e5e7eb;
-            border-radius: 12px;
-            font-size: 16px;
+            border-radius: 10px;
+            font-size: 15px;
             transition: all 0.2s;
         }
         
@@ -130,21 +131,20 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
         
         .direct-optin-form button[type="submit"] {
             width: 100%;
-            padding: 16px;
+            padding: 14px;
             background: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>;
             color: white;
             border: none;
-            border-radius: 12px;
-            font-size: 18px;
+            border-radius: 10px;
+            font-size: 16px;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.3s;
-            box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4);
         }
         
         .direct-optin-form button[type="submit"]:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
+            opacity: 0.9;
         }
         
         /* 🆕 CUSTOM ICON STYLING */
@@ -337,7 +337,7 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
             
         <?php elseif ($layout === 'sidebar'): ?>
             <!-- SIDEBAR LAYOUT: Bulletpoints LINKS, Video/Mockup RECHTS -->
-            <div class="grid md:grid-cols-2 gap-12 items-start mb-12">
+            <div class="grid md:grid-cols-2 gap-8 items-start mb-12">
                 
                 <!-- LINKE SPALTE: Bulletpoints + Optin -->
                 <div>
@@ -363,31 +363,31 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
                         </ul>
                     <?php endif; ?>
                     
-                    <!-- Optin unter Bulletpoints -->
+                    <!-- ✨ Optin unter Bulletpoints - KOMPAKT -->
                     <?php if ($optinDisplayMode === 'popup'): ?>
                         <div class="mt-6">
                             <button 
                                 onclick="openOptinPopup()" 
-                                class="w-full px-8 py-4 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-xl <?= $ctaAnimation !== 'none' ? 'animate-' . $ctaAnimation : '' ?>"
+                                class="w-full px-6 py-3 text-white rounded-xl font-bold text-base transition-all <?= $ctaAnimation !== 'none' ? 'animate-' . $ctaAnimation : '' ?>"
                                 style="background: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>">
                                 <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt kostenlos sichern') ?>
                             </button>
                         </div>
                     <?php else: ?>
-                        <div class="direct-optin-form mt-6">
+                        <div class="direct-optin-form mt-6 max-w-sm">
                             <?php if (!empty($freebie['raw_code'])): ?>
                                 <div class="optin-form-wrapper">
                                     <?= $freebie['raw_code'] ?>
                                 </div>
                             <?php else: ?>
-                                <form class="space-y-4">
+                                <form class="space-y-3">
                                     <input type="text" name="first_name" placeholder="Vorname">
                                     <input type="email" name="email" placeholder="E-Mail-Adresse" required>
                                     <button type="submit">
                                         <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt anmelden') ?>
                                     </button>
                                 </form>
-                                <p class="text-sm text-gray-500 mt-4 text-center">
+                                <p class="text-xs text-gray-500 mt-3 text-center">
                                     <i class="fas fa-lock mr-1"></i> 
                                     100% Datenschutz • Kein Spam
                                 </p>
@@ -396,7 +396,7 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
                     <?php endif; ?>
                 </div>
                 
-                <!-- RECHTE SPALTE: Video/Mockup -->
+                <!-- ✨ RECHTE SPALTE: Video/Mockup - KLEINER -->
                 <div class="flex flex-col justify-center items-center">
                     <!-- Video (wenn vorhanden) -->
                     <?php if (!empty($videoEmbedUrl)): ?>
@@ -412,20 +412,20 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
                         </div>
                     <?php endif; ?>
                     
-                    <!-- Mockup (wenn vorhanden) -->
+                    <!-- ✨ Mockup - KLEINER & OHNE SCHATTEN -->
                     <?php if (!empty($freebie['mockup_image_url'])): ?>
                         <img src="<?= htmlspecialchars($freebie['mockup_image_url']) ?>" 
                              alt="<?= htmlspecialchars($freebie['headline']) ?>" 
-                             class="w-full max-w-md rounded-2xl shadow-2xl">
+                             class="w-full max-w-xs rounded-xl">
                     <?php endif; ?>
                 </div>
             </div>
             
         <?php else: ?>
-            <!-- HYBRID LAYOUT (Default): Video/Mockup LINKS, Bulletpoints RECHTS -->
-            <div class="grid md:grid-cols-2 gap-12 items-start mb-12">
+            <!-- ✨ HYBRID LAYOUT (Default): Video/Mockup LINKS, Bulletpoints RECHTS - OPTIMIERT -->
+            <div class="grid md:grid-cols-2 gap-8 items-start mb-12">
                 
-                <!-- LINKE SPALTE: Video/Mockup -->
+                <!-- ✨ LINKE SPALTE: Video/Mockup - KLEINER -->
                 <div class="flex flex-col justify-center items-center">
                     <!-- Video (wenn vorhanden) -->
                     <?php if (!empty($videoEmbedUrl)): ?>
@@ -441,11 +441,11 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
                         </div>
                     <?php endif; ?>
                     
-                    <!-- Mockup (wenn vorhanden) -->
+                    <!-- ✨ Mockup - KLEINER & OHNE SCHATTEN -->
                     <?php if (!empty($freebie['mockup_image_url'])): ?>
                         <img src="<?= htmlspecialchars($freebie['mockup_image_url']) ?>" 
                              alt="<?= htmlspecialchars($freebie['headline']) ?>" 
-                             class="w-full max-w-md rounded-2xl shadow-2xl">
+                             class="w-full max-w-xs rounded-xl">
                     <?php endif; ?>
                 </div>
                 
@@ -473,31 +473,31 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
                         </ul>
                     <?php endif; ?>
                     
-                    <!-- Optin unter Bulletpoints -->
+                    <!-- ✨ Optin unter Bulletpoints - KOMPAKT -->
                     <?php if ($optinDisplayMode === 'popup'): ?>
                         <div class="mt-6">
                             <button 
                                 onclick="openOptinPopup()" 
-                                class="w-full px-8 py-4 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-xl <?= $ctaAnimation !== 'none' ? 'animate-' . $ctaAnimation : '' ?>"
+                                class="w-full px-6 py-3 text-white rounded-xl font-bold text-base transition-all <?= $ctaAnimation !== 'none' ? 'animate-' . $ctaAnimation : '' ?>"
                                 style="background: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>">
                                 <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt kostenlos sichern') ?>
                             </button>
                         </div>
                     <?php else: ?>
-                        <div class="direct-optin-form mt-6">
+                        <div class="direct-optin-form mt-6 max-w-sm">
                             <?php if (!empty($freebie['raw_code'])): ?>
                                 <div class="optin-form-wrapper">
                                     <?= $freebie['raw_code'] ?>
                                 </div>
                             <?php else: ?>
-                                <form class="space-y-4">
+                                <form class="space-y-3">
                                     <input type="text" name="first_name" placeholder="Vorname">
                                     <input type="email" name="email" placeholder="E-Mail-Adresse" required>
                                     <button type="submit">
                                         <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt anmelden') ?>
                                     </button>
                                 </form>
-                                <p class="text-sm text-gray-500 mt-4 text-center">
+                                <p class="text-xs text-gray-500 mt-3 text-center">
                                     <i class="fas fa-lock mr-1"></i> 
                                     100% Datenschutz • Kein Spam
                                 </p>
@@ -626,11 +626,11 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
             inputs.forEach(input => {
                 input.style.cssText = `
                     width: 100%;
-                    padding: 14px 18px;
-                    margin-bottom: 12px;
+                    padding: 12px 16px;
+                    margin-bottom: 10px;
                     border: 2px solid #e5e7eb;
-                    border-radius: 12px;
-                    font-size: 16px;
+                    border-radius: 10px;
+                    font-size: 15px;
                     transition: all 0.2s;
                 `;
                 
@@ -651,26 +651,25 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
             if (submitBtn) {
                 submitBtn.style.cssText = `
                     width: 100%;
-                    padding: 16px;
+                    padding: 14px;
                     background: ${primaryColor};
                     color: white;
                     border: none;
-                    border-radius: 12px;
-                    font-size: 18px;
+                    border-radius: 10px;
+                    font-size: 16px;
                     font-weight: 700;
                     cursor: pointer;
                     transition: all 0.3s;
-                    box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4);
                 `;
                 
                 submitBtn.addEventListener('mouseenter', function() {
                     this.style.transform = 'translateY(-2px)';
-                    this.style.boxShadow = '0 6px 20px rgba(124, 58, 237, 0.5)';
+                    this.style.opacity = '0.9';
                 });
                 
                 submitBtn.addEventListener('mouseleave', function() {
                     this.style.transform = 'translateY(0)';
-                    this.style.boxShadow = '0 4px 14px rgba(124, 58, 237, 0.4)';
+                    this.style.opacity = '1';
                 });
             }
         }
