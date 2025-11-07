@@ -20,6 +20,26 @@ if (!isset($customer_id)) {
 $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
 $domain = $_SERVER['HTTP_HOST'];
 
+// Nischen-Kategorien Labels
+$nicheLabels = [
+    'online-business' => '💼 Online Business',
+    'gesundheit-fitness' => '💪 Gesundheit & Fitness',
+    'persoenliche-entwicklung' => '🧠 Persönliche Entwicklung',
+    'finanzen-investment' => '💰 Finanzen & Investment',
+    'immobilien' => '🏠 Immobilien',
+    'e-commerce' => '🛒 E-Commerce',
+    'affiliate-marketing' => '📈 Affiliate Marketing',
+    'social-media' => '📱 Social Media',
+    'ki-automation' => '🤖 KI & Automation',
+    'coaching-consulting' => '👔 Coaching',
+    'spiritualitaet' => '✨ Spiritualität',
+    'beziehungen-dating' => '❤️ Beziehungen',
+    'eltern-familie' => '👨‍👩‍👧 Familie',
+    'karriere-beruf' => '🎯 Karriere',
+    'hobbys-freizeit' => '🎨 Hobbys',
+    'sonstiges' => '📂 Sonstiges'
+];
+
 // FREEBIE-LIMIT FÜR KUNDE HOLEN
 try {
     $stmt = $pdo->prepare("
@@ -65,6 +85,7 @@ try {
             f.layout,
             f.cta_text,
             f.bullet_points,
+            f.niche,
             f.created_at,
             c.title as course_title,
             c.thumbnail as course_thumbnail
@@ -104,6 +125,7 @@ try {
             cf.unique_id,
             cf.layout,
             cf.mockup_image_url,
+            cf.niche,
             cf.created_at
         FROM customer_freebies cf
         WHERE cf.customer_id = ? AND cf.freebie_type = 'custom'
@@ -307,6 +329,12 @@ try {
     .badge-custom {
         background: rgba(251, 191, 36, 0.95);
         color: white;
+    }
+    
+    .badge-niche {
+        background: rgba(102, 126, 234, 0.95);
+        color: white;
+        font-size: 10px;
     }
     
     .freebie-content {
@@ -651,6 +679,8 @@ try {
                     
                     $date = new DateTime($freebie['created_at']);
                     $formattedDate = $date->format('d.m.Y');
+                    
+                    $nicheLabel = $nicheLabels[$freebie['niche'] ?? 'sonstiges'] ?? '📂 Sonstiges';
                 ?>
                     <div class="freebie-card">
                         <div class="freebie-preview" style="background: <?php echo htmlspecialchars($bgColor); ?>;">
@@ -658,6 +688,7 @@ try {
                                 <?php if ($isUsedByCustomer): ?>
                                     <span class="freebie-badge badge-used">✓ In Verwendung</span>
                                 <?php endif; ?>
+                                <span class="freebie-badge badge-niche"><?php echo htmlspecialchars($nicheLabel); ?></span>
                                 <span class="freebie-badge"><?php echo htmlspecialchars($layoutName); ?></span>
                             </div>
                             
@@ -792,11 +823,14 @@ try {
                     
                     $date = new DateTime($custom['created_at']);
                     $formattedDate = $date->format('d.m.Y');
+                    
+                    $nicheLabel = $nicheLabels[$custom['niche'] ?? 'sonstiges'] ?? '📂 Sonstiges';
                 ?>
                     <div class="freebie-card">
                         <div class="freebie-preview" style="background: <?php echo htmlspecialchars($bgColor); ?>;">
                             <div class="freebie-badges">
                                 <span class="freebie-badge badge-custom">✨ Eigenes Freebie</span>
+                                <span class="freebie-badge badge-niche"><?php echo htmlspecialchars($nicheLabel); ?></span>
                             </div>
                             
                             <?php if (!empty($custom['mockup_image_url'])): ?>
