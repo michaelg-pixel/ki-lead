@@ -1,12 +1,12 @@
 <?php
 /**
- * NEUE Admin-Vorschau für Kurse - COMPLETE VERSION
- * Version 2.2 - Mit Video-Switcher und Drip Content
+ * Admin-Vorschau für Kurse - Mit modernem Kursplayer-Design
+ * Version 3.0 - Design von course-player.php übernommen
  */
 session_start();
 require_once '../config/database.php';
 
-// EXTREME Cache-Busting
+// Cache-Busting
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Cache-Control: post-check=0, pre-check=0", false);
 header("Pragma: no-cache");
@@ -38,7 +38,7 @@ $stmt = $pdo->prepare("SELECT * FROM course_modules WHERE course_id = ? ORDER BY
 $stmt->execute([$course_id]);
 $modules = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Lektionen laden - OHNE Referenzen!
+// Lektionen laden
 for ($i = 0; $i < count($modules); $i++) {
     $stmt = $pdo->prepare("SELECT * FROM course_lessons WHERE module_id = ? ORDER BY sort_order ASC");
     $stmt->execute([$modules[$i]['id']]);
@@ -92,33 +92,23 @@ function parseVideoUrl($url) {
     return null;
 }
 
-// Video-Auswahl
-$selected_video_index = isset($_GET['video']) ? (int)$_GET['video'] : 0;
-$current_video_url = null;
-$current_video_title = null;
-
+// Alle Videos für die aktuelle Lektion sammeln
+$current_videos = [];
 if ($current_lesson) {
-    if ($selected_video_index === 0 && $current_lesson['video_url']) {
-        // Hauptvideo
-        $current_video_url = parseVideoUrl($current_lesson['video_url']);
-        $current_video_title = "Hauptvideo";
-    } elseif ($selected_video_index > 0 && !empty($current_lesson['additional_videos'])) {
-        // Zusätzliches Video
-        $video_key = $selected_video_index - 1;
-        if (isset($current_lesson['additional_videos'][$video_key])) {
-            $additional_video = $current_lesson['additional_videos'][$video_key];
-            $current_video_url = parseVideoUrl($additional_video['video_url']);
-            $current_video_title = $additional_video['video_title'] ?: "Video " . $selected_video_index;
-        }
+    // Hauptvideo
+    if (!empty($current_lesson['video_url'])) {
+        $current_videos[] = [
+            'id' => 0,
+            'video_title' => 'Hauptvideo',
+            'video_url' => $current_lesson['video_url'],
+            'sort_order' => 0
+        ];
     }
-    
-    // Fallback
-    if (!$current_video_url && $current_lesson['video_url']) {
-        $current_video_url = parseVideoUrl($current_lesson['video_url']);
-        $current_video_title = "Hauptvideo";
-    } elseif (!$current_video_url && !empty($current_lesson['additional_videos'])) {
-        $current_video_url = parseVideoUrl($current_lesson['additional_videos'][0]['video_url']);
-        $current_video_title = $current_lesson['additional_videos'][0]['video_title'] ?: "Video 1";
+    // Zusätzliche Videos
+    if (!empty($current_lesson['additional_videos'])) {
+        foreach ($current_lesson['additional_videos'] as $video) {
+            $current_videos[] = $video;
+        }
     }
 }
 
@@ -132,396 +122,659 @@ $timestamp = time();
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Vorschau: <?php echo htmlspecialchars($course['title']); ?> [v<?php echo $timestamp; ?>]</title>
-    
+    <title>Admin-Vorschau: <?php echo htmlspecialchars($course['title']); ?></title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
         :root {
-            --primary: #a855f7;
-            --primary-dark: #8b40d1;
             --bg-primary: #0a0a16;
             --bg-secondary: #1a1532;
-            --bg-tertiary: #252041;
-            --text-primary: #e5e7eb;
-            --text-secondary: #9ca3af;
+            --bg-tertiary: #2a2550;
             --border: rgba(168, 85, 247, 0.2);
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0c0;
+            --accent: #a855f7;
+            --accent-hover: #9333ea;
+            --success: #22c55e;
             --warning: #f59e0b;
+            --admin-green: #10b981;
         }
-        
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
             overflow: hidden;
         }
-        
+
+        /* Admin Banner */
         .admin-banner {
-            background: linear-gradient(135deg, #10b981, #059669);
+            background: linear-gradient(135deg, var(--admin-green), #059669);
             color: white;
-            padding: 14px 24px;
+            padding: 12px 32px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             font-weight: 600;
+            font-size: 14px;
+            box-shadow: 0 2px 10px rgba(16, 185, 129, 0.3);
+            z-index: 1000;
         }
-        
+
         .admin-banner a {
             color: white;
             text-decoration: none;
             background: rgba(255, 255, 255, 0.2);
             padding: 8px 16px;
-            border-radius: 6px;
-        }
-        
-        .course-view {
-            display: flex;
-            height: calc(100vh - 60px);
-        }
-        
-        .sidebar {
-            width: 380px;
-            background: var(--bg-secondary);
-            border-right: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .sidebar-header {
-            padding: 24px;
-            border-bottom: 1px solid var(--border);
-        }
-        
-        .sidebar-header h2 {
-            font-size: 18px;
-            color: white;
-            margin-bottom: 8px;
-        }
-        
-        .timestamp {
-            font-size: 11px;
-            color: var(--text-secondary);
-            font-family: monospace;
-        }
-        
-        .modules-container {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px;
-        }
-        
-        .module {
-            margin-bottom: 20px;
-        }
-        
-        .module-header {
-            padding: 16px;
-            background: rgba(168, 85, 247, 0.05);
-            border: 1px solid rgba(168, 85, 247, 0.15);
-            border-radius: 10px;
-            margin-bottom: 8px;
-        }
-        
-        .module-header h3 {
-            font-size: 16px;
-            color: white;
-            font-weight: 700;
-        }
-        
-        .module-empty {
-            padding: 16px;
-            text-align: center;
-            color: var(--text-secondary);
-            font-size: 13px;
-            font-style: italic;
-        }
-        
-        .lessons {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        
-        .lesson-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 16px;
-            background: var(--bg-tertiary);
-            border: 1px solid transparent;
             border-radius: 8px;
-            text-decoration: none;
-            transition: all 0.2s;
+            font-size: 13px;
+            transition: all 0.3s;
         }
-        
-        .lesson-item:hover {
-            background: rgba(168, 85, 247, 0.1);
-            border-color: var(--border);
+
+        .admin-banner a:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
         }
-        
-        .lesson-item.active {
-            background: rgba(168, 85, 247, 0.15);
-            border-color: var(--primary);
+
+        .player-container {
+            display: flex;
+            height: calc(100vh - 48px);
+            width: 100vw;
         }
-        
-        .lesson-icon { font-size: 18px; }
-        .lesson-info { flex: 1; }
-        .lesson-title { font-size: 14px; color: white; font-weight: 500; }
-        .lesson-meta { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
-        
-        .drip-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 2px 8px;
-            background: rgba(245, 158, 11, 0.15);
-            border: 1px solid rgba(245, 158, 11, 0.3);
-            color: var(--warning);
-            border-radius: 12px;
-            font-size: 10px;
-            font-weight: 600;
-            margin-left: 8px;
-        }
-        
-        .main-content {
+
+        .video-area {
             flex: 1;
             display: flex;
             flex-direction: column;
-            overflow-y: auto;
+            background: var(--bg-primary);
         }
-        
+
+        /* Header */
+        .player-header {
+            background: linear-gradient(180deg, #0a0a16, #1a1532);
+            border-bottom: 2px solid var(--border);
+            padding: 20px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .course-info h1 {
+            font-size: 24px;
+            font-weight: 800;
+            margin-bottom: 4px;
+            background: linear-gradient(135deg, #a855f7, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .course-info p {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .preview-badge {
+            padding: 10px 20px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 2px solid rgba(16, 185, 129, 0.3);
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--admin-green);
+        }
+
+        /* Video Container */
         .video-container {
-            width: 100%;
+            flex: 1;
             background: #000;
+            display: flex;
+            flex-direction: column;
             position: relative;
-            padding-top: 56.25%;
         }
-        
-        .video-container iframe {
-            position: absolute;
-            top: 0;
-            left: 0;
+
+        /* VIDEO TABS */
+        .video-tabs {
+            background: linear-gradient(180deg, #0a0a16, #1a1532);
+            border-top: 2px solid var(--border);
+            padding: 20px;
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            flex-wrap: nowrap;
+        }
+
+        .video-tab {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 24px;
+            background: rgba(168, 85, 247, 0.08);
+            border: 2px solid rgba(168, 85, 247, 0.2);
+            border-radius: 12px;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .video-tab:hover {
+            background: rgba(168, 85, 247, 0.15);
+            border-color: rgba(168, 85, 247, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .video-tab.active {
+            background: linear-gradient(135deg, #a855f7, #9333ea);
+            border-color: #a855f7;
+            box-shadow: 0 4px 16px rgba(168, 85, 247, 0.4);
+        }
+
+        .video-tab-icon {
+            font-size: 18px;
+        }
+
+        .video-player {
+            flex: 1;
+            display: none;
+        }
+
+        .video-player.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .video-player iframe {
             width: 100%;
             height: 100%;
             border: none;
         }
-        
-        .no-video {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+
+        .video-placeholder {
+            text-align: center;
             color: var(--text-secondary);
         }
-        
-        /* Video-Switcher */
-        .video-switcher {
-            background: rgba(26, 26, 46, 0.95);
-            border-top: 1px solid var(--border);
-            padding: 16px 24px;
-            display: flex;
-            gap: 12px;
-            overflow-x: auto;
+
+        .video-placeholder-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            opacity: 0.5;
         }
-        
-        .video-switch-btn {
-            padding: 10px 20px;
+
+        /* Lesson Info */
+        .lesson-info {
+            background: var(--bg-secondary);
+            border-top: 2px solid var(--border);
+            padding: 24px 32px;
+        }
+
+        .drip-notice {
+            background: rgba(245, 158, 11, 0.1);
+            border: 2px solid rgba(245, 158, 11, 0.3);
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            color: var(--warning);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .drip-notice strong {
+            font-weight: 700;
+        }
+
+        .lesson-info h2 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .lesson-meta {
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .lesson-meta span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .lesson-description {
+            font-size: 15px;
+            line-height: 1.7;
+            color: var(--text-secondary);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 380px;
+            background: var(--bg-secondary);
+            border-left: 2px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .sidebar-header h3 {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .sidebar-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 8px;
+        }
+
+        .modules-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .module {
+            margin-bottom: 16px;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .module-header {
+            padding: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s;
+        }
+
+        .module-header:hover {
             background: rgba(168, 85, 247, 0.1);
-            border: 1px solid var(--border);
-            color: var(--text-primary);
+        }
+
+        .module-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .module-icon {
+            font-size: 20px;
+            transition: transform 0.3s;
+        }
+
+        .module.open .module-icon {
+            transform: rotate(180deg);
+        }
+
+        .lessons-list {
+            display: none;
+            padding: 8px;
+            border-top: 1px solid var(--border);
+        }
+
+        .module.open .lessons-list {
+            display: block;
+        }
+
+        .lesson-item {
+            padding: 12px 16px;
+            margin-bottom: 4px;
+            background: rgba(168, 85, 247, 0.05);
+            border: 2px solid transparent;
             border-radius: 8px;
             cursor: pointer;
-            white-space: nowrap;
-            transition: all 0.2s;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
             text-decoration: none;
+            color: var(--text-primary);
+        }
+
+        .lesson-item:hover {
+            background: rgba(168, 85, 247, 0.15);
+            border-color: var(--border);
+        }
+
+        .lesson-item.active {
+            background: rgba(168, 85, 247, 0.2);
+            border-color: var(--accent);
+        }
+
+        .lesson-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .lesson-title {
+            flex: 1;
             font-size: 14px;
             font-weight: 500;
         }
-        
-        .video-switch-btn:hover {
-            background: rgba(168, 85, 247, 0.2);
-            transform: translateY(-2px);
-        }
-        
-        .video-switch-btn.active {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            border-color: var(--primary);
-            color: white;
-        }
-        
-        .lesson-content { padding: 40px; }
-        
-        .lesson-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 24px;
-        }
-        
-        .lesson-header h1 {
-            font-size: 32px;
-            color: white;
-        }
-        
-        .preview-badge {
-            background: rgba(16, 185, 129, 0.15);
-            color: #6ee7b7;
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 600;
-            border: 1px solid rgba(16, 185, 129, 0.3);
-        }
-        
-        .drip-notice {
-            background: rgba(245, 158, 11, 0.1);
+
+        .drip-badge {
+            padding: 4px 8px;
+            background: rgba(245, 158, 11, 0.15);
             border: 1px solid rgba(245, 158, 11, 0.3);
-            padding: 16px;
-            border-radius: 8px;
-            margin-bottom: 24px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
             color: var(--warning);
+        }
+
+        .video-count {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* Mobile */
+        @media (max-width: 1024px) {
+            .sidebar {
+                position: fixed;
+                right: -380px;
+                top: 48px;
+                height: calc(100vh - 48px);
+                z-index: 1000;
+                transition: right 0.3s;
+            }
+
+            .sidebar.open {
+                right: 0;
+            }
+
+            .mobile-toggle {
+                display: block;
+                position: fixed;
+                bottom: 24px;
+                right: 24px;
+                width: 56px;
+                height: 56px;
+                background: var(--accent);
+                border: none;
+                border-radius: 50%;
+                color: white;
+                font-size: 24px;
+                cursor: pointer;
+                box-shadow: 0 8px 24px rgba(168, 85, 247, 0.4);
+                z-index: 999;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .player-header {
+                padding: 16px;
+            }
+
+            .course-info h1 {
+                font-size: 18px;
+            }
+
+            .lesson-info {
+                padding: 20px 16px;
+            }
+
+            .sidebar {
+                width: 100%;
+                right: -100%;
+            }
+
+            .video-tabs {
+                padding: 16px;
+                gap: 8px;
+            }
+
+            .video-tab {
+                padding: 12px 20px;
+                font-size: 14px;
+            }
+        }
+
+        /* Scrollbar */
+        .modules-list::-webkit-scrollbar,
+        .video-tabs::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .modules-list::-webkit-scrollbar-track,
+        .video-tabs::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        .modules-list::-webkit-scrollbar-thumb,
+        .video-tabs::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        .modules-list::-webkit-scrollbar-thumb:hover,
+        .video-tabs::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
         }
     </style>
 </head>
 <body>
     <div class="admin-banner">
         <span>✅ ADMIN-VORSCHAU (alle Lektionen sichtbar) - <?php echo date('H:i:s', $timestamp); ?></span>
-        <a href="dashboard.php?page=templates">← Zurück</a>
+        <a href="dashboard.php?page=templates">← Zurück zum Dashboard</a>
     </div>
 
-    <div class="course-view">
-        <div class="sidebar">
-            <div class="sidebar-header">
-                <h2><?php echo htmlspecialchars($course['title']); ?></h2>
-                <div class="timestamp">Module: <?php echo count($modules); ?></div>
+    <div class="player-container">
+        <!-- Video Area -->
+        <div class="video-area">
+            <!-- Header -->
+            <div class="player-header">
+                <div class="header-left">
+                    <div class="course-info">
+                        <h1><?php echo htmlspecialchars($course['title']); ?></h1>
+                        <p><?php echo $current_lesson ? htmlspecialchars($current_lesson['title']) : 'Wähle eine Lektion'; ?></p>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <div class="preview-badge">
+                        👁️ Admin-Vorschau
+                    </div>
+                </div>
             </div>
-            
-            <div class="modules-container">
+
+            <!-- Video Container -->
+            <div class="video-container">
+                <?php if ($current_lesson): ?>
+                    <!-- Video Tabs -->
+                    <?php if (count($current_videos) > 1): ?>
+                        <div class="video-tabs">
+                            <?php foreach ($current_videos as $index => $video): ?>
+                                <div class="video-tab <?php echo $index === 0 ? 'active' : ''; ?>" 
+                                     onclick="switchVideo(<?php echo $index; ?>)">
+                                    <span class="video-tab-icon">🎥</span>
+                                    <span><?php echo htmlspecialchars($video['video_title']); ?></span>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <!-- Video Players -->
+                    <?php foreach ($current_videos as $index => $video): 
+                        $video_url = parseVideoUrl($video['video_url']);
+                    ?>
+                        <div class="video-player <?php echo $index === 0 ? 'active' : ''; ?>" id="video-<?php echo $index; ?>">
+                            <?php if ($video_url): ?>
+                                <iframe src="<?php echo htmlspecialchars($video_url); ?>" 
+                                        allow="autoplay; fullscreen; picture-in-picture" 
+                                        allowfullscreen></iframe>
+                            <?php else: ?>
+                                <div class="video-placeholder">
+                                    <div class="video-placeholder-icon">🎥</div>
+                                    <p>Ungültige Video-URL</p>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+                    
+                <?php else: ?>
+                    <div style="display: flex; align-items: center; justify-content: center; height: 100%;">
+                        <div class="video-placeholder">
+                            <div class="video-placeholder-icon">🎥</div>
+                            <p>Wähle eine Lektion aus der Seitenleiste</p>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- Lesson Info -->
+            <?php if ($current_lesson): ?>
+            <div class="lesson-info">
+                <?php if (isset($current_lesson['unlock_after_days']) && $current_lesson['unlock_after_days'] > 0): ?>
+                    <div class="drip-notice">
+                        <span style="font-size: 20px;">⚠️</span>
+                        <span>
+                            <strong>Drip-Content:</strong> Diese Lektion wird für Kunden erst nach <?php echo $current_lesson['unlock_after_days']; ?> Tag<?php echo $current_lesson['unlock_after_days'] > 1 ? 'en' : ''; ?> freigeschaltet.
+                        </span>
+                    </div>
+                <?php endif; ?>
+
+                <h2><?php echo htmlspecialchars($current_lesson['title']); ?></h2>
+                <div class="lesson-meta">
+                    <?php if ($current_lesson['duration']): ?>
+                        <span>⏱️ <?php echo htmlspecialchars($current_lesson['duration']); ?></span>
+                    <?php endif; ?>
+                    <?php if (count($current_videos) > 1): ?>
+                        <span>🎥 <?php echo count($current_videos); ?> Videos</span>
+                    <?php endif; ?>
+                    <?php if (isset($current_lesson['unlock_after_days']) && $current_lesson['unlock_after_days'] > 0): ?>
+                        <span style="color: var(--warning);">🔒 Drip: Tag <?php echo $current_lesson['unlock_after_days']; ?></span>
+                    <?php endif; ?>
+                </div>
+                <?php if ($current_lesson['description']): ?>
+                    <p class="lesson-description"><?php echo nl2br(htmlspecialchars($current_lesson['description'])); ?></p>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h3>📚 Kursinhalt</h3>
+                <div class="sidebar-meta">
+                    <?php echo count($modules); ?> Module
+                </div>
+            </div>
+            <div class="modules-list">
                 <?php if (count($modules) > 0): ?>
-                    <?php foreach ($modules as $idx => $module): ?>
-                        <div class="module">
-                            <div class="module-header">
-                                <h3>#<?php echo ($idx + 1); ?> <?php echo htmlspecialchars($module['title']); ?></h3>
-                                <?php if ($module['description']): ?>
-                                    <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
-                                        <?php echo htmlspecialchars($module['description']); ?>
-                                    </p>
-                                <?php endif; ?>
+                    <?php foreach ($modules as $module): ?>
+                        <div class="module open">
+                            <div class="module-header" onclick="toggleModule(this)">
+                                <span class="module-title"><?php echo htmlspecialchars($module['title']); ?></span>
+                                <span class="module-icon">▼</span>
                             </div>
-                            
-                            <?php if (count($module['lessons']) > 0): ?>
-                                <div class="lessons">
-                                    <?php foreach ($module['lessons'] as $lesson): ?>
+                            <div class="lessons-list">
+                                <?php if (!empty($module['lessons'])): ?>
+                                    <?php foreach ($module['lessons'] as $lesson): 
+                                        $video_count = (!empty($lesson['video_url']) ? 1 : 0) + (!empty($lesson['additional_videos']) ? count($lesson['additional_videos']) : 0);
+                                    ?>
                                         <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $lesson['id']; ?>&t=<?php echo $timestamp; ?>" 
                                            class="lesson-item <?php echo $current_lesson && $current_lesson['id'] == $lesson['id'] ? 'active' : ''; ?>">
-                                            <div class="lesson-icon">
-                                                <?php echo $current_lesson && $current_lesson['id'] == $lesson['id'] ? '▶️' : '⚪'; ?>
-                                            </div>
-                                            <div class="lesson-info">
+                                            <span class="lesson-icon">🎥</span>
+                                            <div style="flex: 1;">
                                                 <div class="lesson-title">
                                                     <?php echo htmlspecialchars($lesson['title']); ?>
                                                     <?php if (isset($lesson['unlock_after_days']) && $lesson['unlock_after_days'] > 0): ?>
                                                         <span class="drip-badge">🕐 Tag <?php echo $lesson['unlock_after_days']; ?></span>
                                                     <?php endif; ?>
                                                 </div>
-                                                <?php
-                                                $video_count = ($lesson['video_url'] ? 1 : 0) + count($lesson['additional_videos']);
-                                                if ($video_count > 0):
-                                                ?>
-                                                    <div class="lesson-meta">🎥 <?php echo $video_count; ?> Video<?php echo $video_count > 1 ? 's' : ''; ?></div>
+                                                <?php if ($video_count > 0): ?>
+                                                    <div class="video-count">
+                                                        🎥 <?php echo $video_count; ?> Video<?php echo $video_count > 1 ? 's' : ''; ?>
+                                                    </div>
                                                 <?php endif; ?>
                                             </div>
                                         </a>
                                     <?php endforeach; ?>
-                                </div>
-                            <?php else: ?>
-                                <div class="module-empty">📝 Keine Lektionen</div>
-                            <?php endif; ?>
+                                <?php else: ?>
+                                    <div style="padding: 12px; text-align: center; color: var(--text-secondary); font-size: 14px;">
+                                        Keine Lektionen verfügbar
+                                    </div>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     <?php endforeach; ?>
                 <?php else: ?>
                     <div style="padding: 40px 20px; text-align: center;">
                         <span style="font-size: 48px;">📚</span>
-                        <p>Keine Module</p>
+                        <p style="margin-top: 16px; color: var(--text-secondary);">Keine Module vorhanden</p>
                     </div>
                 <?php endif; ?>
             </div>
         </div>
-        
-        <div class="main-content">
-            <?php if ($current_lesson): ?>
-                <div class="video-container">
-                    <?php if ($current_video_url): ?>
-                        <iframe src="<?php echo $current_video_url; ?>" 
-                                frameborder="0" 
-                                allow="autoplay; fullscreen; picture-in-picture" 
-                                allowfullscreen>
-                        </iframe>
-                    <?php else: ?>
-                        <div class="no-video">
-                            <span style="font-size: 64px;">🎥</span>
-                            <p>Kein Video verfügbar</p>
-                        </div>
-                    <?php endif; ?>
-                </div>
-                
-                <?php
-                // Video-Switcher anzeigen wenn mehrere Videos
-                $has_main_video = !empty($current_lesson['video_url']);
-                $has_additional_videos = !empty($current_lesson['additional_videos']);
-                $total_videos = ($has_main_video ? 1 : 0) + ($has_additional_videos ? count($current_lesson['additional_videos']) : 0);
-                ?>
-                
-                <?php if ($total_videos > 1): ?>
-                <div class="video-switcher">
-                    <?php if ($has_main_video): ?>
-                        <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $current_lesson['id']; ?>&video=0&t=<?php echo $timestamp; ?>" 
-                           class="video-switch-btn <?php echo $selected_video_index === 0 ? 'active' : ''; ?>">
-                            🎬 Hauptvideo
-                        </a>
-                    <?php endif; ?>
-                    
-                    <?php if ($has_additional_videos): ?>
-                        <?php foreach ($current_lesson['additional_videos'] as $index => $video): ?>
-                            <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $current_lesson['id']; ?>&video=<?php echo $index + 1; ?>&t=<?php echo $timestamp; ?>" 
-                               class="video-switch-btn <?php echo $selected_video_index === ($index + 1) ? 'active' : ''; ?>">
-                                📹 <?php echo htmlspecialchars($video['video_title'] ?: 'Video ' . ($index + 1)); ?>
-                            </a>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </div>
-                <?php endif; ?>
-                
-                <div class="lesson-content">
-                    <?php if (isset($current_lesson['unlock_after_days']) && $current_lesson['unlock_after_days'] > 0): ?>
-                        <div class="drip-notice">
-                            ⚠️ <strong>Hinweis:</strong> Diese Lektion wird für Kunden erst nach <?php echo $current_lesson['unlock_after_days']; ?> Tag<?php echo $current_lesson['unlock_after_days'] > 1 ? 'en' : ''; ?> freigeschaltet. Als Admin sehen Sie sie bereits jetzt.
-                        </div>
-                    <?php endif; ?>
-                    
-                    <div class="lesson-header">
-                        <h1><?php echo htmlspecialchars($current_lesson['title']); ?></h1>
-                        <div class="preview-badge">👁️ Admin</div>
-                    </div>
-                    
-                    <?php if ($current_lesson['description']): ?>
-                        <div style="color: var(--text-secondary); line-height: 1.8;">
-                            <?php echo nl2br(htmlspecialchars($current_lesson['description'])); ?>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            <?php else: ?>
-                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 40px; text-align: center;">
-                    <span style="font-size: 80px;">📚</span>
-                    <h2 style="font-size: 28px; margin: 20px 0;">Keine Lektionen</h2>
-                </div>
-            <?php endif; ?>
-        </div>
     </div>
+
+    <button class="mobile-toggle" onclick="toggleSidebar()" style="display: none;">
+        📚
+    </button>
+
+    <script>
+        // Video Tab Switching
+        function switchVideo(index) {
+            // Alle Tabs & Videos deaktivieren
+            document.querySelectorAll('.video-tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.video-player').forEach(player => player.classList.remove('active'));
+            
+            // Gewählten Tab & Video aktivieren
+            document.querySelectorAll('.video-tab')[index].classList.add('active');
+            document.getElementById('video-' + index).classList.add('active');
+        }
+
+        function toggleModule(element) {
+            element.parentElement.classList.toggle('open');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        function checkMobile() {
+            const mobileToggle = document.querySelector('.mobile-toggle');
+            if (window.innerWidth <= 1024) {
+                mobileToggle.style.display = 'block';
+            } else {
+                mobileToggle.style.display = 'none';
+                document.getElementById('sidebar').classList.remove('open');
+            }
+        }
+
+        window.addEventListener('resize', checkMobile);
+        checkMobile();
+    </script>
 </body>
 </html>
