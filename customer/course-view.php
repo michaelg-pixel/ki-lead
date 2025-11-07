@@ -1,9 +1,10 @@
 <?php
 /**
- * Kursansicht für Kunden UND Leads - CACHE-BUSTING VERSION
+ * Kursansicht für Kunden UND Leads - BUGFIX VERSION
  * Video-Player + Lektionen + Fortschritt
  * Leads (nicht eingeloggt) können Freebie-Kurse sehen
  * ERWEITERT: Multi-Video Support
+ * Version 2.1 - Fixed PHP Reference Bug
  */
 
 session_start();
@@ -146,8 +147,8 @@ $stmt = $pdo->prepare("
 $stmt->execute([$course_id]);
 $modules = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Lektionen für jedes Modul laden mit Fortschritt (nur wenn eingeloggt)
-foreach ($modules as &$module) {
+// BUGFIX: Lektionen für jedes Modul laden - OHNE & Referenzen!
+for ($i = 0; $i < count($modules); $i++) {
     if ($is_logged_in) {
         $stmt = $pdo->prepare("
             SELECT cl.*, 
@@ -158,7 +159,7 @@ foreach ($modules as &$module) {
             WHERE cl.module_id = ?
             ORDER BY cl.sort_order ASC
         ");
-        $stmt->execute([$user_id, $module['id']]);
+        $stmt->execute([$user_id, $modules[$i]['id']]);
     } else {
         // Leads: Ohne Fortschritt
         $stmt = $pdo->prepare("
@@ -166,19 +167,19 @@ foreach ($modules as &$module) {
             WHERE module_id = ?
             ORDER BY sort_order ASC
         ");
-        $stmt->execute([$module['id']]);
+        $stmt->execute([$modules[$i]['id']]);
     }
-    $module['lessons'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $modules[$i]['lessons'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Zusätzliche Videos für jede Lektion laden
-    foreach ($module['lessons'] as &$lesson) {
+    // Zusätzliche Videos für jede Lektion laden - OHNE & Referenzen!
+    for ($j = 0; $j < count($modules[$i]['lessons']); $j++) {
         $stmt = $pdo->prepare("
             SELECT * FROM lesson_videos 
             WHERE lesson_id = ? 
             ORDER BY sort_order ASC
         ");
-        $stmt->execute([$lesson['id']]);
-        $lesson['additional_videos'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $stmt->execute([$modules[$i]['lessons'][$j]['id']]);
+        $modules[$i]['lessons'][$j]['additional_videos'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }
 
@@ -288,10 +289,7 @@ $cache_bust = time();
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title><?php echo htmlspecialchars($course['title']); ?> - Kurs [v<?php echo $cache_bust; ?>]</title>
-    
-    <!-- DEBUG INFO -->
-    <!-- Module Count: <?php echo count($modules); ?> -->
+    <title><?php echo htmlspecialchars($course['title']); ?> - Kurs [FIXED v<?php echo $cache_bust; ?>]</title>
     
     <style>
         * {
@@ -353,6 +351,18 @@ $cache_bust = time();
             color: white;
             line-height: 1.4;
             flex: 1;
+        }
+        
+        .version-badge {
+            background: rgba(74, 222, 128, 0.15);
+            color: #6ee7b7;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            margin-top: 8px;
+            display: inline-block;
         }
         
         .sidebar-toggle {
@@ -690,7 +700,10 @@ $cache_bust = time();
     <div class="course-view">
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <h2><?php echo htmlspecialchars($course['title']); ?></h2>
+                <div>
+                    <h2><?php echo htmlspecialchars($course['title']); ?></h2>
+                    <span class="version-badge">✅ BUGFIX</span>
+                </div>
                 <button class="sidebar-toggle" onclick="toggleSidebar()">
                     <span id="toggleIcon">←</span>
                 </button>
