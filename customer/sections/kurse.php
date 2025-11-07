@@ -123,19 +123,24 @@ $locked_courses = $stmt->fetchAll();
         transform: translateY(-2px);
     }
     
-    /* Thumbnail */
+    /* VERBESSERTE THUMBNAIL DARSTELLUNG */
     .course-thumbnail {
         position: relative;
         width: 100%;
         height: 200px;
         background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(139, 64, 209, 0.05));
         overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
     }
     
     .course-thumbnail img {
         width: 100%;
         height: 100%;
-        object-fit: cover;
+        object-fit: contain; /* GEÄNDERT von cover zu contain */
+        object-position: center;
     }
     
     .course-placeholder {
@@ -383,6 +388,7 @@ $locked_courses = $stmt->fetchAll();
         
         .course-thumbnail {
             height: 180px;
+            padding: 12px;
         }
         
         .course-content {
@@ -421,6 +427,7 @@ $locked_courses = $stmt->fetchAll();
         
         .course-thumbnail {
             height: 160px;
+            padding: 10px;
         }
         
         .course-content {
