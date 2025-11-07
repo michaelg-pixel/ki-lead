@@ -65,7 +65,8 @@ $defaults = array_merge([
     'custom_raw_code' => '',
     'custom_css' => '',
     'show_mockup' => 1,
-    'is_master_template' => 1
+    'is_master_template' => 1,
+    'niche' => 'sonstiges'
 ], $fontConfig['defaults']);
 
 $template = array_merge($defaults, $template);
@@ -416,6 +417,30 @@ $template['bulletpoints'] = $template['bullet_points'] ?? '';
                                placeholder="ki-kurs-lead-magnet"
                                value="<?php echo htmlspecialchars($template['url_slug'] ?? ''); ?>">
                         <p class="help-text">Optional: Wird automatisch aus dem Namen generiert wenn leer</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label required">Nische / Kategorie</label>
+                        <select name="niche" id="niche" class="form-select" required>
+                            <option value="">-- Bitte wählen --</option>
+                            <option value="online-business" <?php echo ($template['niche'] ?? '') === 'online-business' ? 'selected' : ''; ?>>💼 Online Business & Marketing</option>
+                            <option value="gesundheit-fitness" <?php echo ($template['niche'] ?? '') === 'gesundheit-fitness' ? 'selected' : ''; ?>>💪 Gesundheit & Fitness</option>
+                            <option value="persoenliche-entwicklung" <?php echo ($template['niche'] ?? '') === 'persoenliche-entwicklung' ? 'selected' : ''; ?>>🧠 Persönliche Entwicklung</option>
+                            <option value="finanzen-investment" <?php echo ($template['niche'] ?? '') === 'finanzen-investment' ? 'selected' : ''; ?>>💰 Finanzen & Investment</option>
+                            <option value="immobilien" <?php echo ($template['niche'] ?? '') === 'immobilien' ? 'selected' : ''; ?>>🏠 Immobilien</option>
+                            <option value="ecommerce-dropshipping" <?php echo ($template['niche'] ?? '') === 'ecommerce-dropshipping' ? 'selected' : ''; ?>>🛒 E-Commerce & Dropshipping</option>
+                            <option value="affiliate-marketing" <?php echo ($template['niche'] ?? '') === 'affiliate-marketing' ? 'selected' : ''; ?>>📈 Affiliate Marketing</option>
+                            <option value="social-media-marketing" <?php echo ($template['niche'] ?? '') === 'social-media-marketing' ? 'selected' : ''; ?>>📱 Social Media Marketing</option>
+                            <option value="ki-automation" <?php echo ($template['niche'] ?? '') === 'ki-automation' ? 'selected' : ''; ?>>🤖 KI & Automation</option>
+                            <option value="coaching-consulting" <?php echo ($template['niche'] ?? '') === 'coaching-consulting' ? 'selected' : ''; ?>>👔 Coaching & Consulting</option>
+                            <option value="spiritualitaet-mindfulness" <?php echo ($template['niche'] ?? '') === 'spiritualitaet-mindfulness' ? 'selected' : ''; ?>>✨ Spiritualität & Mindfulness</option>
+                            <option value="beziehungen-dating" <?php echo ($template['niche'] ?? '') === 'beziehungen-dating' ? 'selected' : ''; ?>>❤️ Beziehungen & Dating</option>
+                            <option value="eltern-familie" <?php echo ($template['niche'] ?? '') === 'eltern-familie' ? 'selected' : ''; ?>>👨‍👩‍👧 Eltern & Familie</option>
+                            <option value="karriere-beruf" <?php echo ($template['niche'] ?? '') === 'karriere-beruf' ? 'selected' : ''; ?>>🎯 Karriere & Beruf</option>
+                            <option value="hobbys-freizeit" <?php echo ($template['niche'] ?? '') === 'hobbys-freizeit' ? 'selected' : ''; ?>>🎨 Hobbys & Freizeit</option>
+                            <option value="sonstiges" <?php echo ($template['niche'] ?? '') === 'sonstiges' ? 'selected' : ''; ?>>📂 Sonstiges</option>
+                        </select>
+                        <p class="help-text">Ordne dein Freebie einer Nische zu für bessere Kategorisierung</p>
                     </div>
                 </div>
                 
@@ -981,6 +1006,7 @@ async function saveFreebie() {
             template_id: getInputValue('template_id', ''),
             name: getInputValue('template_name', ''),
             url_slug: getInputValue('url_slug', ''),
+            niche: getInputValue('niche', 'sonstiges'),
             headline: getInputValue('headline', ''),
             subheadline: getInputValue('subheadline', ''),
             preheadline: getInputValue('preheadline', ''),
@@ -1020,6 +1046,10 @@ async function saveFreebie() {
         
         if (!data.headline || data.headline.trim() === '') {
             throw new Error('Headline ist erforderlich');
+        }
+        
+        if (!data.niche || data.niche.trim() === '') {
+            throw new Error('Nische ist erforderlich');
         }
         
         const response = await fetch('/api/save-freebie.php', {
