@@ -206,24 +206,31 @@ if ($selected_lesson_id) {
     }
     $current_lesson = $stmt->fetch();
     
-    // Videos für diese Lektion laden
+    // Videos für diese Lektion laden - KOMBINIERE Hauptvideo und zusätzliche Videos
     if ($current_lesson) {
+        // 1. Hauptvideo aus course_lessons.video_url hinzufügen
+        if (!empty($current_lesson['video_url'])) {
+            $current_videos[] = [
+                'id' => 0,
+                'video_title' => 'Hauptvideo',
+                'video_url' => $current_lesson['video_url'],
+                'sort_order' => 0
+            ];
+        }
+        
+        // 2. Zusätzliche Videos aus lesson_videos Tabelle hinzufügen
         $stmt = $pdo->prepare("
             SELECT * FROM lesson_videos 
             WHERE lesson_id = ? 
             ORDER BY sort_order ASC
         ");
         $stmt->execute([$selected_lesson_id]);
-        $current_videos = $stmt->fetchAll();
+        $additional_videos = $stmt->fetchAll();
         
-        // Fallback: Wenn keine Videos in lesson_videos, aber video_url vorhanden
-        if (empty($current_videos) && !empty($current_lesson['video_url'])) {
-            $current_videos = [[
-                'id' => 0,
-                'video_title' => 'Hauptvideo',
-                'video_url' => $current_lesson['video_url'],
-                'sort_order' => 1
-            ]];
+        if (!empty($additional_videos)) {
+            foreach ($additional_videos as $video) {
+                $current_videos[] = $video;
+            }
         }
     }
 }
