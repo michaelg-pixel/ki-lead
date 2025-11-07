@@ -80,24 +80,35 @@ echo '<div class="info p-4 rounded-lg mb-6">
 
 // 1. unlock_after_days zu lessons hinzufügen
 try {
-    $sql = "ALTER TABLE lessons 
-            ADD COLUMN IF NOT EXISTS unlock_after_days INT NULL DEFAULT NULL 
-            COMMENT 'Tage bis zur Freischaltung (NULL = sofort verfügbar)' 
-            AFTER vimeo_url";
-    $conn->exec($sql);
-    $success[] = "✅ Spalte 'unlock_after_days' zur lessons-Tabelle hinzugefügt";
+    // Prüfen ob Spalte bereits existiert
+    $stmt = $conn->query("SHOW COLUMNS FROM lessons LIKE 'unlock_after_days'");
+    $column_exists = $stmt->rowCount() > 0;
     
-    // Index hinzufügen
-    $sql = "ALTER TABLE lessons ADD INDEX IF NOT EXISTS idx_unlock_after_days (unlock_after_days)";
-    $conn->exec($sql);
-    $success[] = "✅ Index für 'unlock_after_days' erstellt";
-} catch (PDOException $e) {
-    if (strpos($e->getMessage(), 'Duplicate column') !== false || 
-        strpos($e->getMessage(), 'already exists') !== false) {
-        $success[] = "ℹ️ Spalte 'unlock_after_days' existiert bereits";
+    if (!$column_exists) {
+        $sql = "ALTER TABLE lessons 
+                ADD COLUMN unlock_after_days INT NULL DEFAULT NULL 
+                COMMENT 'Tage bis zur Freischaltung (NULL = sofort verfügbar)' 
+                AFTER vimeo_url";
+        $conn->exec($sql);
+        $success[] = "✅ Spalte 'unlock_after_days' zur lessons-Tabelle hinzugefügt";
+        
+        // Index hinzufügen
+        try {
+            $sql = "ALTER TABLE lessons ADD INDEX idx_unlock_after_days (unlock_after_days)";
+            $conn->exec($sql);
+            $success[] = "✅ Index für 'unlock_after_days' erstellt";
+        } catch (PDOException $e) {
+            if (strpos($e->getMessage(), 'Duplicate key') !== false) {
+                $success[] = "ℹ️ Index für 'unlock_after_days' existiert bereits";
+            } else {
+                $success[] = "⚠️ Index konnte nicht erstellt werden (nicht kritisch): " . $e->getMessage();
+            }
+        }
     } else {
-        $errors[] = "❌ Fehler beim Hinzufügen von unlock_after_days: " . $e->getMessage();
+        $success[] = "ℹ️ Spalte 'unlock_after_days' existiert bereits";
     }
+} catch (PDOException $e) {
+    $errors[] = "❌ Fehler beim Hinzufügen von unlock_after_days: " . $e->getMessage();
 }
 
 // 2. lesson_videos Tabelle erstellen
@@ -168,11 +179,15 @@ try {
         $result = $conn->exec($sql);
         if ($result > 0) {
             $success[] = "✅ $result existierende Einschreibungen migriert";
+        } else {
+            $success[] = "ℹ️ Keine existierenden Einschreibungen zum Migrieren gefunden";
         }
+    } else {
+        $success[] = "ℹ️ Keine user_id Spalte in courses Tabelle gefunden (optional)";
     }
 } catch (PDOException $e) {
     // Keine Migration nötig oder Fehler - nicht kritisch
-    $success[] = "ℹ️ Keine existierenden Einschreibungen zum Migrieren gefunden";
+    $success[] = "ℹ️ Keine existierenden Einschreibungen migriert: " . $e->getMessage();
 }
 
 // Ergebnisse anzeigen
@@ -193,7 +208,12 @@ if (!empty($errors)) {
     foreach ($errors as $msg) {
         echo "<li>$msg</li>";
     }
-    echo '</ul></div>';
+    echo '</ul>
+          <p class="mt-4 text-yellow-300">
+            <strong>Hinweis:</strong> Wenn Fehler aufgetreten sind, prüfe bitte die Fehlermeldungen oben. 
+            Manche Fehler sind unkritisch (z.B. wenn Tabellen bereits existieren).
+          </p>
+        </div>';
 }
 
 echo '<div class="info p-6 rounded-lg">
@@ -205,6 +225,12 @@ echo '<div class="info p-6 rounded-lg">
                 <ul class="list-disc list-inside ml-6 mt-2">
                     <li>Mehrere Videos hinzufügen</li>
                     <li>Freischaltungstage festlegen (z.B. "7" für 7 Tage nach Kursstart)</li>
+                </ul>
+            </li>
+            <li>Lies die Dokumentation: 
+                <ul class="list-disc list-inside ml-6 mt-2">
+                    <li><a href="../QUICKSTART_DRIP_MULTI_VIDEO.md" class="underline">Quickstart Guide</a></li>
+                    <li><a href="../DRIP_CONTENT_MULTI_VIDEO_INTEGRATION.md" class="underline">Vollständige Integration</a></li>
                 </ul>
             </li>
         </ol>
