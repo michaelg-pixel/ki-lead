@@ -151,20 +151,23 @@ $domain = $_SERVER['HTTP_HOST'];
         box-shadow: 0 12px 24px rgba(168, 85, 247, 0.3);
     }
     
+    /* VERBESSERTE MOCKUP-DARSTELLUNG */
     .freebie-mockup {
         width: 100%;
         height: 200px;
-        background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+        background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%);
         display: flex;
         align-items: center;
         justify-content: center;
         overflow: hidden;
+        padding: 16px;
     }
     
     .freebie-mockup img {
         width: 100%;
         height: 100%;
-        object-fit: cover;
+        object-fit: contain; /* GEÄNDERT von cover zu contain */
+        object-position: center;
     }
     
     .no-mockup {
@@ -403,6 +406,7 @@ $domain = $_SERVER['HTTP_HOST'];
         
         .freebie-mockup {
             height: 180px;
+            padding: 12px;
         }
         
         .freebie-content {
@@ -492,6 +496,7 @@ $domain = $_SERVER['HTTP_HOST'];
     @media (max-width: 480px) {
         .freebie-mockup {
             height: 160px;
+            padding: 10px;
         }
         
         .freebie-content {
