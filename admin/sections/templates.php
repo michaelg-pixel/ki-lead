@@ -230,19 +230,24 @@ $courses = $pdo->query("
     box-shadow: 0 20px 40px rgba(168, 85, 247, 0.3);
 }
 
-/* Course Thumbnail */
+/* VERBESSERTE COURSE THUMBNAIL DARSTELLUNG */
 .course-thumbnail {
     position: relative;
     width: 100%;
     height: 200px;
     background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(139, 64, 209, 0.05));
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
 }
 
 .course-thumbnail img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain; /* GEÄNDERT von cover zu contain */
+    object-position: center;
 }
 
 .course-placeholder {
@@ -533,6 +538,7 @@ $courses = $pdo->query("
     
     .course-thumbnail {
         height: 180px;
+        padding: 12px;
     }
     
     .course-type-badge,
@@ -627,6 +633,7 @@ $courses = $pdo->query("
     
     .course-thumbnail {
         height: 160px;
+        padding: 10px;
     }
     
     .course-placeholder span {
