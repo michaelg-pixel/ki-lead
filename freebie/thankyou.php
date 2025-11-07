@@ -106,14 +106,17 @@ $body_font = $freebie['body_font'] ?? 'Poppins';
 // Kurs-Button Text und URL
 $video_button_text = $freebie['video_button_text'] ?? 'Zum Videokurs';
 
-// Kurs-URL generieren - NEUE LOGIK für freebie_courses
+// Öffentlichen Zugangs-Token generieren für sichere Freebie-Kurse
+$access_token = md5($freebie_id . '_' . ($freebie['course_id'] ?? $freebie_course_id) . '_freebie_access');
+
+// Kurs-URL generieren mit öffentlichem Zugangs-Token
 $video_course_url = '';
 if ($has_freebie_course && $freebie_course_id) {
-    // Custom Freebie Course - Link zur neuen Course Player Page
+    // Custom Freebie Course - Link zur neuen Course Player Page (öffentlich zugänglich)
     $video_course_url = '/customer/freebie-course-player.php?id=' . $freebie_course_id;
 } elseif (!empty($freebie['course_id'])) {
-    // Template Course - NEUER Link zu course-player.php
-    $video_course_url = '/customer/course-player.php?id=' . $freebie['course_id'];
+    // Template Course - Link zu course-player.php MIT öffentlichem Zugangs-Token
+    $video_course_url = '/customer/course-player.php?id=' . $freebie['course_id'] . '&access_token=' . $access_token . '&freebie_id=' . $freebie_id;
 } elseif (!empty($freebie['video_course_url'])) {
     // Manuell eingetragene URL
     $video_course_url = $freebie['video_course_url'];
