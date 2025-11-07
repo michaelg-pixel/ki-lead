@@ -2,7 +2,7 @@
 /**
  * Layout 1 Template - ALL 3 LAYOUTS (Hybrid, Centered, Sidebar)
  * 🆕 MIT BULLET ICON STYLE SUPPORT & FONT-SYSTEM
- * ✨ Optimiert: Kleinere Mockups & Optins ohne Schatten
+ * ✨ Optimiert: Kleinere Mockups & Optins ohne Schatten - ALLE LAYOUTS
  */
 
 // 🆕 BULLET ICON STYLE LADEN
@@ -253,7 +253,7 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
         ?>
         
         <?php if ($layout === 'centered'): ?>
-            <!-- CENTERED LAYOUT: Alles vertikal zentriert -->
+            <!-- ✨ CENTERED LAYOUT: Alles vertikal zentriert - OPTIMIERT -->
             <div class="max-w-4xl mx-auto">
                 <!-- Video (wenn vorhanden) -->
                 <?php if (!empty($videoEmbedUrl)): ?>
@@ -269,12 +269,12 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
                     </div>
                 <?php endif; ?>
                 
-                <!-- Mockup (wenn vorhanden) -->
+                <!-- ✨ Mockup - KLEINER & OHNE SCHATTEN -->
                 <?php if (!empty($freebie['mockup_image_url'])): ?>
                     <div class="flex justify-center mb-12">
                         <img src="<?= htmlspecialchars($freebie['mockup_image_url']) ?>" 
                              alt="<?= htmlspecialchars($freebie['headline']) ?>" 
-                             class="w-full max-w-md rounded-2xl shadow-2xl">
+                             class="w-full max-w-xs rounded-xl">
                     </div>
                 <?php endif; ?>
                 
@@ -300,13 +300,13 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
                     </ul>
                 <?php endif; ?>
                 
-                <!-- Optin - zentriert -->
-                <div class="max-w-xl mx-auto">
+                <!-- ✨ Optin - zentriert & KLEINER -->
+                <div class="max-w-sm mx-auto">
                     <?php if ($optinDisplayMode === 'popup'): ?>
                         <div class="text-center">
                             <button 
                                 onclick="openOptinPopup()" 
-                                class="px-8 py-4 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-xl <?= $ctaAnimation !== 'none' ? 'animate-' . $ctaAnimation : '' ?>"
+                                class="px-6 py-3 text-white rounded-xl font-bold text-base transition-all <?= $ctaAnimation !== 'none' ? 'animate-' . $ctaAnimation : '' ?>"
                                 style="background: <?= htmlspecialchars($freebie['primary_color'] ?? '#7C3AED') ?>">
                                 <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt kostenlos sichern') ?>
                             </button>
@@ -318,14 +318,14 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
                                     <?= $freebie['raw_code'] ?>
                                 </div>
                             <?php else: ?>
-                                <form class="space-y-4">
+                                <form class="space-y-3">
                                     <input type="text" name="first_name" placeholder="Vorname">
                                     <input type="email" name="email" placeholder="E-Mail-Adresse" required>
                                     <button type="submit">
                                         <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt anmelden') ?>
                                     </button>
                                 </form>
-                                <p class="text-sm text-gray-500 mt-4 text-center">
+                                <p class="text-xs text-gray-500 mt-3 text-center">
                                     <i class="fas fa-lock mr-1"></i> 
                                     100% Datenschutz • Kein Spam
                                 </p>
