@@ -1,10 +1,15 @@
 <?php
 /**
- * Admin-Vorschau für Kurse - MIT MULTI-VIDEO SUPPORT
+ * Admin-Vorschau für Kurse - MIT MULTI-VIDEO SUPPORT & CACHE-BUSTING
  * Zeigt, wie der Kurs im Customer-Dashboard aussehen wird
  */
 session_start();
 require_once '../config/database.php';
+
+// Cache-Control Headers
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header('Location: ../public/login.php');
@@ -105,9 +110,12 @@ $stmt = $pdo->prepare("
     ORDER BY sort_order ASC
 ");
 $stmt->execute([$course_id]);
-$modules = $stmt->fetchAll();
+$modules = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Lektionen für jedes Modul laden (ohne Fortschritt in Vorschau)
+// DEBUG: Module speichern für HTML-Kommentar
+$debug_modules = json_encode($modules, JSON_PRETTY_PRINT);
+
+// Lektionen für jedes Modul laden (ALLE in Admin-Vorschau, auch zeitverzögerte!)
 foreach ($modules as &$module) {
     $stmt = $pdo->prepare("
         SELECT * FROM course_lessons 
@@ -115,9 +123,9 @@ foreach ($modules as &$module) {
         ORDER BY sort_order ASC
     ");
     $stmt->execute([$module['id']]);
-    $module['lessons'] = $stmt->fetchAll();
+    $module['lessons'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // NEU: Zusätzliche Videos für jede Lektion laden
+    // Zusätzliche Videos für jede Lektion laden
     foreach ($module['lessons'] as &$lesson) {
         $stmt = $pdo->prepare("
             SELECT * FROM lesson_videos 
@@ -125,7 +133,7 @@ foreach ($modules as &$module) {
             ORDER BY sort_order ASC
         ");
         $stmt->execute([$lesson['id']]);
-        $lesson['additional_videos'] = $stmt->fetchAll();
+        $lesson['additional_videos'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }
 
@@ -174,7 +182,7 @@ function parseVideoUrl($url) {
     return null;
 }
 
-// NEU: Aktuelles Video auswählen (Hauptvideo oder zusätzliches Video)
+// Aktuelles Video auswählen (Hauptvideo oder zusätzliches Video)
 $selected_video_index = isset($_GET['video']) ? (int)$_GET['video'] : 0;
 $current_video_url = null;
 $current_video_title = null;
@@ -213,13 +221,30 @@ foreach ($modules as $module) {
     $total_lessons += count($module['lessons']);
 }
 $progress_percentage = $total_lessons > 0 ? round(($completed_lessons / $total_lessons) * 100) : 0;
+
+$cache_bust = time();
 ?>
 <!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vorschau: <?php echo htmlspecialchars($course['title']); ?></title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Vorschau: <?php echo htmlspecialchars($course['title']); ?> [v<?php echo $cache_bust; ?>]</title>
+    
+    <!-- DEBUG INFO (in HTML-Kommentar für Admin) -->
+    <!--
+    CACHE BUST: <?php echo $cache_bust; ?>
+    
+    GELADENE MODULE:
+    <?php echo $debug_modules; ?>
+    
+    ANZAHL MODULE: <?php echo count($modules); ?>
+    ANZAHL LEKTIONEN GESAMT: <?php echo $total_lessons; ?>
+    -->
+    
     <style>
         * {
             margin: 0;
@@ -242,6 +267,7 @@ $progress_percentage = $total_lessons > 0 ? round(($completed_lessons / $total_l
             --border-light: rgba(168, 85, 247, 0.1);
             --success: #4ade80;
             --admin-blue: #3b82f6;
+            --warning: #f59e0b;
         }
         
         body {
@@ -374,17 +400,34 @@ $progress_percentage = $total_lessons > 0 ? round(($completed_lessons / $total_l
             background: rgba(168, 85, 247, 0.05);
             border-radius: 10px;
             margin-bottom: 8px;
+            border: 1px solid rgba(168, 85, 247, 0.15);
         }
         
         .module-header h3 {
             font-size: 16px;
             color: white;
             margin-bottom: 6px;
+            font-weight: 700;
         }
         
         .module-header p {
             font-size: 13px;
             color: var(--text-secondary);
+        }
+        
+        /* NEU: Drip Content Badge */
+        .drip-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: var(--warning);
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-left: 8px;
         }
         
         /* Lessons */
@@ -479,7 +522,7 @@ $progress_percentage = $total_lessons > 0 ? round(($completed_lessons / $total_l
             font-size: 14px;
         }
         
-        /* NEU: Video-Switcher */
+        /* Video-Switcher */
         .video-switcher {
             background: rgba(26, 26, 46, 0.95);
             border-top: 1px solid var(--border);
@@ -648,7 +691,7 @@ $progress_percentage = $total_lessons > 0 ? round(($completed_lessons / $total_l
     <div class="admin-banner">
         <div class="admin-banner-text">
             <span class="admin-badge">Vorschau</span>
-            <span>🔍 So sehen Kunden diesen Kurs</span>
+            <span>🔍 Admin-Vorschau (alle Lektionen sichtbar, inkl. zeitverzögerte)</span>
         </div>
         <a href="dashboard.php?page=templates">← Zurück zur Verwaltung</a>
     </div>
@@ -674,38 +717,54 @@ $progress_percentage = $total_lessons > 0 ? round(($completed_lessons / $total_l
             
             <div class="modules-container">
                 <?php if (count($modules) > 0): ?>
-                    <?php foreach ($modules as $module): ?>
-                        <div class="module">
+                    <?php foreach ($modules as $module_index => $module): ?>
+                        <div class="module" data-module-id="<?php echo $module['id']; ?>">
                             <div class="module-header">
-                                <h3><?php echo htmlspecialchars($module['title']); ?></h3>
+                                <h3>
+                                    #<?php echo ($module_index + 1); ?> <?php echo htmlspecialchars($module['title']); ?>
+                                </h3>
                                 <?php if ($module['description']): ?>
                                     <p><?php echo htmlspecialchars($module['description']); ?></p>
                                 <?php endif; ?>
                             </div>
                             
                             <div class="lessons">
-                                <?php foreach ($module['lessons'] as $lesson): ?>
-                                    <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $lesson['id']; ?>" 
-                                       class="lesson-item <?php echo $current_lesson && $current_lesson['id'] == $lesson['id'] ? 'active' : ''; ?>">
-                                        <div class="lesson-icon">
-                                            <?php echo $current_lesson && $current_lesson['id'] == $lesson['id'] ? '▶️' : '⚪'; ?>
-                                        </div>
-                                        <div class="lesson-info">
-                                            <div class="lesson-title"><?php echo htmlspecialchars($lesson['title']); ?></div>
-                                            <?php
-                                            $video_count = 0;
-                                            if ($lesson['video_url']) $video_count++;
-                                            if (!empty($lesson['additional_videos'])) $video_count += count($lesson['additional_videos']);
-                                            ?>
-                                            <?php if ($video_count > 0): ?>
-                                                <div class="lesson-meta">🎥 <?php echo $video_count; ?> Video<?php echo $video_count > 1 ? 's' : ''; ?></div>
-                                            <?php endif; ?>
-                                            <?php if ($lesson['pdf_attachment']): ?>
-                                                <div class="lesson-meta">📄 PDF verfügbar</div>
-                                            <?php endif; ?>
-                                        </div>
-                                    </a>
-                                <?php endforeach; ?>
+                                <?php if (!empty($module['lessons'])): ?>
+                                    <?php foreach ($module['lessons'] as $lesson): ?>
+                                        <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $lesson['id']; ?>&_t=<?php echo $cache_bust; ?>" 
+                                           class="lesson-item <?php echo $current_lesson && $current_lesson['id'] == $lesson['id'] ? 'active' : ''; ?>">
+                                            <div class="lesson-icon">
+                                                <?php echo $current_lesson && $current_lesson['id'] == $lesson['id'] ? '▶️' : '⚪'; ?>
+                                            </div>
+                                            <div class="lesson-info">
+                                                <div class="lesson-title">
+                                                    <?php echo htmlspecialchars($lesson['title']); ?>
+                                                    <?php if ($lesson['unlock_after_days'] !== null && $lesson['unlock_after_days'] > 0): ?>
+                                                        <span class="drip-badge">
+                                                            <i class="fas fa-clock"></i>
+                                                            Tag <?php echo $lesson['unlock_after_days']; ?>
+                                                        </span>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <?php
+                                                $video_count = 0;
+                                                if ($lesson['video_url']) $video_count++;
+                                                if (!empty($lesson['additional_videos'])) $video_count += count($lesson['additional_videos']);
+                                                ?>
+                                                <?php if ($video_count > 0): ?>
+                                                    <div class="lesson-meta">🎥 <?php echo $video_count; ?> Video<?php echo $video_count > 1 ? 's' : ''; ?></div>
+                                                <?php endif; ?>
+                                                <?php if ($lesson['pdf_attachment']): ?>
+                                                    <div class="lesson-meta">📄 PDF verfügbar</div>
+                                                <?php endif; ?>
+                                            </div>
+                                        </a>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <div style="padding: 16px; text-align: center; color: var(--text-muted); font-size: 13px;">
+                                        Keine Lektionen in diesem Modul
+                                    </div>
+                                <?php endif; ?>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -747,7 +806,7 @@ $progress_percentage = $total_lessons > 0 ? round(($completed_lessons / $total_l
                 <?php if ($total_videos > 1): ?>
                 <div class="video-switcher">
                     <?php if ($has_main_video): ?>
-                        <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $current_lesson['id']; ?>&video=0" 
+                        <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $current_lesson['id']; ?>&video=0&_t=<?php echo $cache_bust; ?>" 
                            class="video-switch-btn <?php echo $selected_video_index === 0 ? 'active' : ''; ?>">
                             🎬 Hauptvideo
                         </a>
@@ -755,7 +814,7 @@ $progress_percentage = $total_lessons > 0 ? round(($completed_lessons / $total_l
                     
                     <?php if ($has_additional_videos): ?>
                         <?php foreach ($current_lesson['additional_videos'] as $index => $video): ?>
-                            <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $current_lesson['id']; ?>&video=<?php echo $index + 1; ?>" 
+                            <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $current_lesson['id']; ?>&video=<?php echo $index + 1; ?>&_t=<?php echo $cache_bust; ?>" 
                                class="video-switch-btn <?php echo $selected_video_index === ($index + 1) ? 'active' : ''; ?>">
                                 📹 <?php echo htmlspecialchars($video['video_title'] ?: 'Video ' . ($index + 1)); ?>
                             </a>
@@ -767,9 +826,16 @@ $progress_percentage = $total_lessons > 0 ? round(($completed_lessons / $total_l
                 <!-- Lesson Info -->
                 <div class="lesson-content">
                     <div class="lesson-header">
-                        <h1><?php echo htmlspecialchars($current_lesson['title']); ?></h1>
+                        <h1>
+                            <?php echo htmlspecialchars($current_lesson['title']); ?>
+                            <?php if ($current_lesson['unlock_after_days'] !== null && $current_lesson['unlock_after_days'] > 0): ?>
+                                <span class="drip-badge" style="font-size: 14px; padding: 4px 12px;">
+                                    🕐 Wird nach <?php echo $current_lesson['unlock_after_days']; ?> Tag<?php echo $current_lesson['unlock_after_days'] > 1 ? 'en' : ''; ?> freigeschaltet
+                                </span>
+                            <?php endif; ?>
+                        </h1>
                         <div class="preview-badge">
-                            👁️ Vorschau-Modus
+                            👁️ Admin-Vorschau
                         </div>
                     </div>
                     
@@ -798,5 +864,12 @@ $progress_percentage = $total_lessons > 0 ? round(($completed_lessons / $total_l
             <?php endif; ?>
         </div>
     </div>
+    
+    <script>
+    // Cache-Busting: Stelle sicher, dass die Seite immer neu geladen wird
+    if (performance.navigation.type === 2) {
+        location.reload(true);
+    }
+    </script>
 </body>
 </html>
