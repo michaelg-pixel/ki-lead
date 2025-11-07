@@ -101,6 +101,7 @@ try {
     
     // Basis-Werte extrahieren
     $name = trim($data['name']);
+    $niche = trim($data['niche'] ?? 'sonstiges');
     $headline = trim($data['headline']);
     $subheadline = trim($data['subheadline'] ?? '');
     $preheadline = trim($data['preheadline'] ?? '');
@@ -198,6 +199,7 @@ try {
         
         $sql = "UPDATE freebies SET
             name = ?,
+            niche = ?,
             headline = ?,
             subheadline = ?,
             preheadline = ?,
@@ -244,6 +246,7 @@ try {
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             $name,
+            $niche,
             $headline,
             $subheadline,
             $preheadline,
@@ -309,6 +312,7 @@ try {
             course_id,
             unique_id,
             name,
+            niche,
             headline,
             subheadline,
             preheadline,
@@ -349,7 +353,7 @@ try {
             usage_count,
             created_at,
             updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW(), NOW())";
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW(), NOW())";
         
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
@@ -357,6 +361,7 @@ try {
             $course_id,
             $unique_id,
             $name,
+            $niche,
             $headline,
             $subheadline,
             $preheadline,
