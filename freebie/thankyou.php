@@ -106,21 +106,25 @@ $body_font = $freebie['body_font'] ?? 'Poppins';
 // Kurs-Button Text und URL
 $video_button_text = $freebie['video_button_text'] ?? 'Zum Videokurs';
 
-// Öffentlichen Zugangs-Token generieren für sichere Freebie-Kurse
-$access_token = md5($freebie_id . '_' . ($freebie['course_id'] ?? $freebie_course_id) . '_freebie_access');
-
 // Kurs-URL generieren mit öffentlichem Zugangs-Token
 $video_course_url = '';
+
+// PRIORITÄT 1: Freebie Course (custom course für dieses Freebie)
 if ($has_freebie_course && $freebie_course_id) {
-    // Custom Freebie Course - Link zur neuen Course Player Page (öffentlich zugänglich)
     $video_course_url = '/customer/freebie-course-player.php?id=' . $freebie_course_id;
-} elseif (!empty($freebie['course_id'])) {
-    // Template Course - Link zu course-player.php MIT öffentlichem Zugangs-Token
+}
+// PRIORITÄT 2: Template Course ID (Kurs aus dem Template)
+elseif (!empty($freebie['course_id'])) {
+    $access_token = md5($freebie_id . '_' . $freebie['course_id'] . '_freebie_access');
     $video_course_url = '/customer/course-player.php?id=' . $freebie['course_id'] . '&access_token=' . $access_token . '&freebie_id=' . $freebie_id;
-} elseif (!empty($freebie['video_course_url'])) {
-    // Manuell eingetragene URL
+}
+// PRIORITÄT 3: Manuelle URL (video_course_url Feld)
+elseif (!empty($freebie['video_course_url'])) {
     $video_course_url = $freebie['video_course_url'];
 }
+
+// DEBUG: Logging für Entwicklung (kann später entfernt werden)
+error_log("Freebie ID: $freebie_id, Has Freebie Course: " . ($has_freebie_course ? 'yes' : 'no') . ", Freebie Course ID: $freebie_course_id, Template Course ID: " . ($freebie['course_id'] ?? 'none') . ", Video URL: $video_course_url");
 
 // Empfehlungsprogramm-Status prüfen
 $referral_enabled = 0;
@@ -870,13 +874,20 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             </div>
         </div>
         
-        <!-- Button Container - JETZT nach Video -->
+        <!-- Button Container - Zeige Button auch wenn video_course_url leer ist -->
         <div class="button-container">
             <?php if (!empty($video_course_url)): ?>
                 <a href="<?php echo htmlspecialchars($video_course_url); ?>" class="cta-button">
                     <span class="cta-icon">🚀</span>
                     <span><?php echo htmlspecialchars($video_button_text); ?></span>
                 </a>
+            <?php else: ?>
+                <!-- DEBUG: Button anzeigen auch wenn URL fehlt -->
+                <div style="padding: 20px; background: #fef3c7; border: 2px solid #f59e0b; border-radius: 12px; text-align: center;">
+                    <p style="color: #92400e; font-weight: 600; margin-bottom: 8px;">⚠️ Kein Videokurs konfiguriert</p>
+                    <p style="color: #78350f; font-size: 14px;">Bitte fügen Sie einen Kurs im Dashboard hinzu.</p>
+                    <p style="color: #78350f; font-size: 12px; margin-top: 8px;">Debug: Freebie ID = <?php echo $freebie_id; ?>, Course ID = <?php echo $freebie['course_id'] ?? 'none'; ?>, Freebie Course ID = <?php echo $freebie_course_id ?? 'none'; ?></p>
+                </div>
             <?php endif; ?>
             
             <?php if (!empty($referral_url)): ?>
