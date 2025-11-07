@@ -720,9 +720,9 @@ function toggleCourseTypeFields() {
     }
 }
 
-// Preview Course - NEU!
+// Preview Course - AKTUALISIERT auf preview_modern.php
 function previewCourse(courseId) {
-    window.open('/admin/preview_course.php?id=' + courseId, '_blank');
+    window.open('/admin/preview_modern.php?id=' + courseId, '_blank');
 }
 
 // Create Course
