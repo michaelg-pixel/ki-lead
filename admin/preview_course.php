@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin-Vorschau für Kurse - VOLLSTÄNDIGES MODERNES LAYOUT
+ * Admin-Vorschau für Kurse - MIT MULTI-VIDEO SUPPORT
  * Zeigt, wie der Kurs im Customer-Dashboard aussehen wird
  */
 session_start();
@@ -116,6 +116,17 @@ foreach ($modules as &$module) {
     ");
     $stmt->execute([$module['id']]);
     $module['lessons'] = $stmt->fetchAll();
+    
+    // NEU: Zusätzliche Videos für jede Lektion laden
+    foreach ($module['lessons'] as &$lesson) {
+        $stmt = $pdo->prepare("
+            SELECT * FROM lesson_videos 
+            WHERE lesson_id = ? 
+            ORDER BY sort_order ASC
+        ");
+        $stmt->execute([$lesson['id']]);
+        $lesson['additional_videos'] = $stmt->fetchAll();
+    }
 }
 
 // Erste Lektion oder ausgewählte Lektion
@@ -137,26 +148,25 @@ if (!$current_lesson && count($modules) > 0 && count($modules[0]['lessons']) > 0
     $current_lesson = $modules[0]['lessons'][0];
 }
 
-// Video URL parsen - VERBESSERTE VERSION
+// Video URL parsen
 function parseVideoUrl($url) {
     if (empty($url)) {
         return null;
     }
     
-    // Vimeo Patterns
-    // https://vimeo.com/123456789
-    // https://vimeo.com/123456789?h=abc123
-    // https://player.vimeo.com/video/123456789
+    // Bereits geparste Player-URLs durchlassen
+    if (strpos($url, 'player.vimeo.com') !== false || strpos($url, 'youtube.com/embed') !== false) {
+        return $url;
+    }
+    
+    // Vimeo
     if (preg_match('/vimeo\.com\/(?:video\/)?(\d+)(?:\?h=([a-zA-Z0-9]+))?/', $url, $matches)) {
         $video_id = $matches[1];
         $hash = isset($matches[2]) ? '?h=' . $matches[2] : '';
         return "https://player.vimeo.com/video/{$video_id}{$hash}";
     }
     
-    // YouTube Patterns
-    // https://www.youtube.com/watch?v=VIDEO_ID
-    // https://youtu.be/VIDEO_ID
-    // https://www.youtube.com/embed/VIDEO_ID
+    // YouTube
     if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/', $url, $matches)) {
         return "https://www.youtube.com/embed/" . $matches[1];
     }
@@ -164,7 +174,37 @@ function parseVideoUrl($url) {
     return null;
 }
 
-$video_embed = $current_lesson ? parseVideoUrl($current_lesson['video_url']) : null;
+// NEU: Aktuelles Video auswählen (Hauptvideo oder zusätzliches Video)
+$selected_video_index = isset($_GET['video']) ? (int)$_GET['video'] : 0;
+$current_video_url = null;
+$current_video_title = null;
+
+if ($current_lesson) {
+    if ($selected_video_index === 0 && $current_lesson['video_url']) {
+        // Hauptvideo
+        $current_video_url = parseVideoUrl($current_lesson['video_url']);
+        $current_video_title = "Hauptvideo";
+    } elseif ($selected_video_index > 0 && !empty($current_lesson['additional_videos'])) {
+        // Zusätzliches Video
+        $video_key = $selected_video_index - 1;
+        if (isset($current_lesson['additional_videos'][$video_key])) {
+            $additional_video = $current_lesson['additional_videos'][$video_key];
+            $current_video_url = parseVideoUrl($additional_video['video_url']);
+            $current_video_title = $additional_video['video_title'] ?: "Video " . $selected_video_index;
+        }
+    }
+}
+
+// Fallback auf erstes verfügbares Video
+if (!$current_video_url && $current_lesson) {
+    if ($current_lesson['video_url']) {
+        $current_video_url = parseVideoUrl($current_lesson['video_url']);
+        $current_video_title = "Hauptvideo";
+    } elseif (!empty($current_lesson['additional_videos'])) {
+        $current_video_url = parseVideoUrl($current_lesson['additional_videos'][0]['video_url']);
+        $current_video_title = $current_lesson['additional_videos'][0]['video_title'] ?: "Video 1";
+    }
+}
 
 // Fortschritt simulieren (für Demo-Zwecke)
 $total_lessons = 0;
@@ -439,15 +479,39 @@ $progress_percentage = $total_lessons > 0 ? round(($completed_lessons / $total_l
             font-size: 14px;
         }
         
-        .video-url-debug {
-            font-size: 12px;
-            color: var(--text-muted);
-            background: rgba(255, 255, 255, 0.05);
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-family: monospace;
-            max-width: 80%;
-            word-break: break-all;
+        /* NEU: Video-Switcher */
+        .video-switcher {
+            background: rgba(26, 26, 46, 0.95);
+            border-top: 1px solid var(--border);
+            padding: 16px 24px;
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+        }
+        
+        .video-switch-btn {
+            padding: 10px 20px;
+            background: rgba(168, 85, 247, 0.1);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            border-radius: 8px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .video-switch-btn:hover {
+            background: rgba(168, 85, 247, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .video-switch-btn.active {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-color: var(--primary);
+            color: white;
         }
         
         /* Lesson Content */
@@ -628,6 +692,14 @@ $progress_percentage = $total_lessons > 0 ? round(($completed_lessons / $total_l
                                         </div>
                                         <div class="lesson-info">
                                             <div class="lesson-title"><?php echo htmlspecialchars($lesson['title']); ?></div>
+                                            <?php
+                                            $video_count = 0;
+                                            if ($lesson['video_url']) $video_count++;
+                                            if (!empty($lesson['additional_videos'])) $video_count += count($lesson['additional_videos']);
+                                            ?>
+                                            <?php if ($video_count > 0): ?>
+                                                <div class="lesson-meta">🎥 <?php echo $video_count; ?> Video<?php echo $video_count > 1 ? 's' : ''; ?></div>
+                                            <?php endif; ?>
                                             <?php if ($lesson['pdf_attachment']): ?>
                                                 <div class="lesson-meta">📄 PDF verfügbar</div>
                                             <?php endif; ?>
@@ -651,8 +723,8 @@ $progress_percentage = $total_lessons > 0 ? round(($completed_lessons / $total_l
             <?php if ($current_lesson): ?>
                 <!-- Video Player -->
                 <div class="video-container">
-                    <?php if ($video_embed): ?>
-                        <iframe src="<?php echo $video_embed; ?>" 
+                    <?php if ($current_video_url): ?>
+                        <iframe src="<?php echo $current_video_url; ?>" 
                                 frameborder="0" 
                                 allow="autoplay; fullscreen; picture-in-picture" 
                                 allowfullscreen>
@@ -660,15 +732,37 @@ $progress_percentage = $total_lessons > 0 ? round(($completed_lessons / $total_l
                     <?php else: ?>
                         <div class="no-video">
                             <span style="font-size: 64px;">🎥</span>
-                            <p>Kein Video verknüpft oder URL-Format nicht erkannt</p>
-                            <?php if ($current_lesson['video_url']): ?>
-                                <div class="video-url-debug">
-                                    URL: <?php echo htmlspecialchars($current_lesson['video_url']); ?>
-                                </div>
-                            <?php endif; ?>
+                            <p>Kein Video verfügbar</p>
                         </div>
                     <?php endif; ?>
                 </div>
+                
+                <?php
+                // Video-Switcher anzeigen wenn mehrere Videos vorhanden
+                $has_main_video = !empty($current_lesson['video_url']);
+                $has_additional_videos = !empty($current_lesson['additional_videos']);
+                $total_videos = ($has_main_video ? 1 : 0) + ($has_additional_videos ? count($current_lesson['additional_videos']) : 0);
+                ?>
+                
+                <?php if ($total_videos > 1): ?>
+                <div class="video-switcher">
+                    <?php if ($has_main_video): ?>
+                        <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $current_lesson['id']; ?>&video=0" 
+                           class="video-switch-btn <?php echo $selected_video_index === 0 ? 'active' : ''; ?>">
+                            🎬 Hauptvideo
+                        </a>
+                    <?php endif; ?>
+                    
+                    <?php if ($has_additional_videos): ?>
+                        <?php foreach ($current_lesson['additional_videos'] as $index => $video): ?>
+                            <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $current_lesson['id']; ?>&video=<?php echo $index + 1; ?>" 
+                               class="video-switch-btn <?php echo $selected_video_index === ($index + 1) ? 'active' : ''; ?>">
+                                📹 <?php echo htmlspecialchars($video['video_title'] ?: 'Video ' . ($index + 1)); ?>
+                            </a>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
                 
                 <!-- Lesson Info -->
                 <div class="lesson-content">
