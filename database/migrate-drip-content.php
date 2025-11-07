@@ -1,16 +1,19 @@
 <?php
 /**
- * DRIP-CONTENT MIGRATION
+ * DRIP-CONTENT MIGRATION - FIXED VERSION
  * Fügt granted_at Spalte zu course_access hinzu
  * Aufruf: https://app.mehr-infos-jetzt.de/database/migrate-drip-content.php
  */
 
 require_once '../config/database.php';
 
-// Sicherheits-Check (nur einmal ausführbar)
+// Sicherheits-Check (nur einmal ausführbar) - mit force parameter überbrückbar
 $lockfile = __DIR__ . '/drip-content-migration.lock';
-if (file_exists($lockfile)) {
-    die("⚠️ Migration wurde bereits ausgeführt! Lockfile gefunden: " . $lockfile);
+$force = isset($_GET['force']) && $_GET['force'] === 'yes';
+
+if (file_exists($lockfile) && !$force) {
+    die("⚠️ Migration wurde bereits ausgeführt! Lockfile gefunden.<br><br>
+         <a href='?force=yes' style='color: red; font-weight: bold;'>→ Migration trotzdem erneut ausführen (FORCE)</a>");
 }
 
 echo "<!DOCTYPE html>
@@ -109,6 +112,16 @@ echo "<!DOCTYPE html>
             color: #999;
             font-size: 13px;
         }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin: 10px 0;
+        }
     </style>
 </head>
 <body>
@@ -140,7 +153,7 @@ try {
     $column_exists = $stmt->rowCount() > 0;
     
     if ($column_exists) {
-        echo "<p class='warning'>⚠️ Spalte 'granted_at' existiert bereits</p>";
+        echo "<p>✓ Spalte 'granted_at' existiert bereits</p>";
     } else {
         echo "<p>→ Spalte 'granted_at' wird hinzugefügt...</p>";
     }
@@ -153,12 +166,12 @@ try {
         
         $pdo->exec("
             ALTER TABLE course_access 
-            ADD COLUMN granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+            ADD COLUMN granted_at TIMESTAMP NULL DEFAULT NULL 
             COMMENT 'Zeitpunkt der Zugangserteilung für Drip-Content'
         ");
         
-        echo "<p>✓ Spalte erfolgreich hinzugefügt</p>
-            <div class='code'>ALTER TABLE course_access ADD COLUMN granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP</div>
+        echo "<p>✓ Spalte erfolgreich hinzugefügt (NULL erlaubt für Migration)</p>
+            <div class='code'>ALTER TABLE course_access ADD COLUMN granted_at TIMESTAMP NULL DEFAULT NULL</div>
         </div>";
     } else {
         echo "<div class='step success'>
@@ -167,26 +180,39 @@ try {
         </div>";
     }
     
-    // Step 3: Bestehende Einträge aktualisieren
+    // Step 3: Bestehende Einträge aktualisieren (FIXED)
     echo "<div class='step'>
         <h3>🔄 Step 3: Bestehende Einträge aktualisieren</h3>";
     
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM course_access WHERE granted_at IS NULL OR granted_at = '0000-00-00 00:00:00'");
+    // Zuerst zählen wir NULL Einträge
+    $stmt = $pdo->query("SELECT COUNT(*) as count FROM course_access WHERE granted_at IS NULL");
     $result = $stmt->fetch();
     $null_count = $result['count'];
     
     if ($null_count > 0) {
-        // Setze granted_at auf jetzt für alle NULL-Einträge
+        // Setze granted_at auf jetzt für alle NULL-Einträge (FIXED: Kein Vergleich mit 0000-00-00)
         $pdo->exec("
             UPDATE course_access 
             SET granted_at = NOW() 
-            WHERE granted_at IS NULL OR granted_at = '0000-00-00 00:00:00'
+            WHERE granted_at IS NULL
         ");
         echo "<p>✓ {$null_count} Einträge aktualisiert (granted_at = NOW())</p>";
         echo "<p class='warning'>⚠️ Für bestehende Nutzer werden alle Lektionen sofort freigeschaltet</p>";
     } else {
         echo "<p>✓ Alle Einträge haben bereits ein granted_at Datum</p>";
     }
+    
+    // Setze granted_at als NOT NULL mit DEFAULT CURRENT_TIMESTAMP
+    if (!$column_exists || $null_count > 0) {
+        echo "<p>→ Spalte wird auf NOT NULL mit DEFAULT gesetzt...</p>";
+        $pdo->exec("
+            ALTER TABLE course_access 
+            MODIFY COLUMN granted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP 
+            COMMENT 'Zeitpunkt der Zugangserteilung für Drip-Content'
+        ");
+        echo "<p>✓ Spalte granted_at ist jetzt NOT NULL mit DEFAULT CURRENT_TIMESTAMP</p>";
+    }
+    
     echo "</div>";
     
     // Step 4: Statistiken
@@ -197,7 +223,9 @@ try {
         SELECT 
             COUNT(*) as total_access,
             COUNT(DISTINCT user_id) as unique_users,
-            COUNT(DISTINCT course_id) as unique_courses
+            COUNT(DISTINCT course_id) as unique_courses,
+            MIN(granted_at) as earliest_access,
+            MAX(granted_at) as latest_access
         FROM course_access
     ");
     $stats = $stmt->fetch();
@@ -205,6 +233,8 @@ try {
     echo "<p>→ Total Zugangsberechtigungen: <strong>{$stats['total_access']}</strong></p>";
     echo "<p>→ Unique Nutzer: <strong>{$stats['unique_users']}</strong></p>";
     echo "<p>→ Unique Kurse: <strong>{$stats['unique_courses']}</strong></p>";
+    echo "<p>→ Frühester Zugang: <strong>{$stats['earliest_access']}</strong></p>";
+    echo "<p>→ Letzter Zugang: <strong>{$stats['latest_access']}</strong></p>";
     
     // Prüfe Lektionen mit Drip-Content
     $stmt = $pdo->query("
@@ -220,7 +250,7 @@ try {
     echo "<div class='step success'>
         <h3>🎉 Step 5: Drip-Content aktiviert!</h3>
         <p>✓ Datenbank-Migration erfolgreich abgeschlossen</p>
-        <p>✓ Zeitgesteuertes Freischalten ist jetzt aktiv</p>
+        <p>✓ Zeitgesteuertes Freischalten ist jetzt bereit</p>
         <p>✓ Neue Nutzer sehen gesperrte Lektionen basierend auf granted_at</p>
     </div>";
     
@@ -249,11 +279,20 @@ WHERE id = 789;
         <p>→ Tag 7 Lektion: Freigeschaltet ab <code>granted_at + 7 Tage</code></p>
     </div>";
     
-    // Lockfile erstellen
-    file_put_contents($lockfile, date('Y-m-d H:i:s') . "\nMigration erfolgreich abgeschlossen");
+    // Nächster Schritt
+    echo "<div class='step success'>
+        <h3>🚀 Nächster Schritt</h3>
+        <p>Migration erfolgreich! Jetzt Drip-Content aktivieren:</p>
+        <a href='activate-drip-content.php' class='btn'>→ Drip-Content aktivieren</a>
+    </div>";
+    
+    // Lockfile erstellen (nur wenn nicht FORCE)
+    if (!$force) {
+        file_put_contents($lockfile, date('Y-m-d H:i:s') . "\nMigration erfolgreich abgeschlossen");
+    }
     
     echo "<div class='footer'>
-        <p>🔒 Migration wurde gesperrt (Lockfile erstellt)</p>
+        <p>🔒 Migration abgeschlossen" . ($force ? " (FORCE Modus)" : " (Lockfile erstellt)") . "</p>
         <p>Zeitpunkt: " . date('d.m.Y H:i:s') . "</p>
     </div>";
     
@@ -263,6 +302,12 @@ WHERE id = 789;
         <p><strong>Fehler:</strong> " . htmlspecialchars($e->getMessage()) . "</p>
         <p><strong>Datei:</strong> " . htmlspecialchars($e->getFile()) . "</p>
         <p><strong>Zeile:</strong> " . $e->getLine() . "</p>
+        <p style='margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;'>
+            <strong>Mögliche Lösungen:</strong><br>
+            • Stelle sicher, dass die Datenbank-Verbindung funktioniert<br>
+            • Prüfe die Berechtigungen für ALTER TABLE<br>
+            • Kontaktiere den Support mit dieser Fehlermeldung
+        </p>
     </div>";
 }
 
