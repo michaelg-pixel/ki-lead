@@ -1,7 +1,7 @@
 <?php
 /**
- * Course Player - Videokurs Ansicht für Kunden
- * Komplett NEU erstellt - ohne Probleme der alten Datei
+ * Course Player - Videokurs Ansicht mit Multi-Video & Drip-Content Support
+ * Features: Tabs für mehrere Videos, zeitbasierte Freischaltung, Fortschritt-Tracking
  */
 
 session_start();
@@ -36,6 +36,30 @@ if (!$course) {
     die('Kurs nicht gefunden oder kein Zugriff');
 }
 
+// Enrollment-Datum für Drip-Content prüfen/erstellen
+$stmt = $pdo->prepare("
+    SELECT enrolled_at FROM course_enrollments 
+    WHERE user_id = ? AND course_id = ?
+");
+$stmt->execute([$customer_id, $course_id]);
+$enrollment = $stmt->fetch();
+
+if (!$enrollment) {
+    // Erste Einschreibung - Datum setzen
+    $stmt = $pdo->prepare("
+        INSERT INTO course_enrollments (user_id, course_id, enrolled_at) 
+        VALUES (?, ?, NOW())
+    ");
+    $stmt->execute([$customer_id, $course_id]);
+    $enrolled_at = new DateTime();
+} else {
+    $enrolled_at = new DateTime($enrollment['enrolled_at']);
+}
+
+// Tage seit Einschreibung
+$now = new DateTime();
+$days_enrolled = $now->diff($enrolled_at)->days;
+
 // Module mit Lektionen laden
 $stmt = $pdo->prepare("
     SELECT 
@@ -48,49 +72,95 @@ $stmt = $pdo->prepare("
 $stmt->execute([$course_id]);
 $modules = $stmt->fetchAll();
 
-// Alle Lektionen mit Fortschritt laden
+// Alle Lektionen mit Fortschritt, Drip-Status und Videos laden
 $lessons = [];
 foreach ($modules as $module) {
     $stmt = $pdo->prepare("
         SELECT 
             cl.*,
             cp.completed,
-            cp.completed_at
+            cp.completed_at,
+            CASE 
+                WHEN cl.unlock_after_days IS NULL THEN 1
+                WHEN cl.unlock_after_days <= ? THEN 1
+                ELSE 0
+            END as is_unlocked,
+            CASE 
+                WHEN cl.unlock_after_days IS NOT NULL AND cl.unlock_after_days > ?
+                THEN (cl.unlock_after_days - ?)
+                ELSE 0
+            END as days_until_unlock
         FROM course_lessons cl
         LEFT JOIN course_progress cp ON cl.id = cp.lesson_id AND cp.user_id = ?
         WHERE cl.module_id = ?
         ORDER BY cl.sort_order ASC
     ");
-    $stmt->execute([$customer_id, $module['id']]);
+    $stmt->execute([$days_enrolled, $days_enrolled, $days_enrolled, $customer_id, $module['id']]);
     $lessons[$module['id']] = $stmt->fetchAll();
 }
 
-// Erste Video-Lektion finden (falls keine spezifische gewählt)
+// Erste verfügbare Lektion finden
 $selected_lesson_id = isset($_GET['lesson']) ? (int)$_GET['lesson'] : null;
 if (!$selected_lesson_id) {
     foreach ($modules as $module) {
         if (!empty($lessons[$module['id']])) {
-            $selected_lesson_id = $lessons[$module['id']][0]['id'];
-            break;
+            foreach ($lessons[$module['id']] as $lesson) {
+                if ($lesson['is_unlocked']) {
+                    $selected_lesson_id = $lesson['id'];
+                    break 2;
+                }
+            }
         }
     }
 }
 
 // Aktuelle Lektion laden
 $current_lesson = null;
+$current_videos = [];
 if ($selected_lesson_id) {
     $stmt = $pdo->prepare("
         SELECT 
             cl.*,
             cm.title as module_title,
-            cp.completed
+            cp.completed,
+            CASE 
+                WHEN cl.unlock_after_days IS NULL THEN 1
+                WHEN cl.unlock_after_days <= ? THEN 1
+                ELSE 0
+            END as is_unlocked,
+            CASE 
+                WHEN cl.unlock_after_days IS NOT NULL AND cl.unlock_after_days > ?
+                THEN (cl.unlock_after_days - ?)
+                ELSE 0
+            END as days_until_unlock
         FROM course_lessons cl
         JOIN course_modules cm ON cl.module_id = cm.id
         LEFT JOIN course_progress cp ON cl.id = cp.lesson_id AND cp.user_id = ?
         WHERE cl.id = ?
     ");
-    $stmt->execute([$customer_id, $selected_lesson_id]);
+    $stmt->execute([$days_enrolled, $days_enrolled, $days_enrolled, $customer_id, $selected_lesson_id]);
     $current_lesson = $stmt->fetch();
+    
+    // Videos für diese Lektion laden
+    if ($current_lesson) {
+        $stmt = $pdo->prepare("
+            SELECT * FROM lesson_videos 
+            WHERE lesson_id = ? 
+            ORDER BY sort_order ASC
+        ");
+        $stmt->execute([$selected_lesson_id]);
+        $current_videos = $stmt->fetchAll();
+        
+        // Fallback: Wenn keine Videos in lesson_videos, aber video_url vorhanden
+        if (empty($current_videos) && !empty($current_lesson['video_url'])) {
+            $current_videos = [[
+                'id' => 0,
+                'video_title' => 'Hauptvideo',
+                'video_url' => $current_lesson['video_url'],
+                'sort_order' => 1
+            ]];
+        }
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -111,6 +181,7 @@ if ($selected_lesson_id) {
             --accent: #a855f7;
             --accent-hover: #9333ea;
             --success: #22c55e;
+            --locked: #ef4444;
         }
 
         * {
@@ -126,14 +197,12 @@ if ($selected_lesson_id) {
             overflow: hidden;
         }
 
-        /* Layout Container */
         .player-container {
             display: flex;
             height: 100vh;
             width: 100vw;
         }
 
-        /* Video Area */
         .video-area {
             flex: 1;
             display: flex;
@@ -192,11 +261,6 @@ if ($selected_lesson_id) {
             color: var(--text-secondary);
         }
 
-        .header-right {
-            display: flex;
-            gap: 12px;
-        }
-
         .progress-badge {
             padding: 10px 20px;
             background: rgba(34, 197, 94, 0.1);
@@ -212,12 +276,68 @@ if ($selected_lesson_id) {
             flex: 1;
             background: #000;
             display: flex;
-            align-items: center;
-            justify-content: center;
+            flex-direction: column;
             position: relative;
         }
 
-        .video-container iframe {
+        /* VIDEO TABS */
+        .video-tabs {
+            background: linear-gradient(180deg, #0a0a16, #1a1532);
+            border-top: 2px solid var(--border);
+            padding: 20px;
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            flex-wrap: nowrap;
+        }
+
+        .video-tab {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 24px;
+            background: rgba(168, 85, 247, 0.08);
+            border: 2px solid rgba(168, 85, 247, 0.2);
+            border-radius: 12px;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .video-tab:hover {
+            background: rgba(168, 85, 247, 0.15);
+            border-color: rgba(168, 85, 247, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .video-tab.active {
+            background: linear-gradient(135deg, #a855f7, #9333ea);
+            border-color: #a855f7;
+            box-shadow: 0 4px 16px rgba(168, 85, 247, 0.4);
+        }
+
+        .video-tab-icon {
+            font-size: 18px;
+        }
+
+        .video-player {
+            flex: 1;
+            display: none;
+        }
+
+        .video-player.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .video-player iframe {
             width: 100%;
             height: 100%;
             border: none;
@@ -234,6 +354,59 @@ if ($selected_lesson_id) {
             opacity: 0.5;
         }
 
+        /* Locked Overlay */
+        .locked-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .locked-icon {
+            font-size: 120px;
+            margin-bottom: 32px;
+            animation: shake 2s infinite;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-10deg); }
+            75% { transform: rotate(10deg); }
+        }
+
+        .locked-title {
+            font-size: 32px;
+            font-weight: 800;
+            color: white;
+            margin-bottom: 16px;
+        }
+
+        .locked-text {
+            font-size: 18px;
+            color: var(--text-secondary);
+            text-align: center;
+            max-width: 500px;
+            line-height: 1.6;
+        }
+
+        .unlock-countdown {
+            margin-top: 24px;
+            padding: 16px 32px;
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid rgba(239, 68, 68, 0.4);
+            border-radius: 12px;
+            font-size: 20px;
+            font-weight: 700;
+            color: #ef4444;
+        }
+
         /* Lesson Info */
         .lesson-info {
             background: var(--bg-secondary);
@@ -245,7 +418,6 @@ if ($selected_lesson_id) {
             font-size: 22px;
             font-weight: 700;
             margin-bottom: 8px;
-            color: var(--text-primary);
         }
 
         .lesson-meta {
@@ -254,6 +426,7 @@ if ($selected_lesson_id) {
             font-size: 14px;
             color: var(--text-secondary);
             margin-bottom: 16px;
+            flex-wrap: wrap;
         }
 
         .lesson-meta span {
@@ -292,11 +465,6 @@ if ($selected_lesson_id) {
             cursor: default;
         }
 
-        .complete-button.completed:hover {
-            transform: none;
-            box-shadow: none;
-        }
-
         /* Sidebar */
         .sidebar {
             width: 380px;
@@ -315,10 +483,8 @@ if ($selected_lesson_id) {
         .sidebar-header h3 {
             font-size: 18px;
             font-weight: 700;
-            color: var(--text-primary);
         }
 
-        /* Module List */
         .modules-list {
             flex: 1;
             overflow-y: auto;
@@ -349,7 +515,6 @@ if ($selected_lesson_id) {
         .module-title {
             font-size: 16px;
             font-weight: 600;
-            color: var(--text-primary);
         }
 
         .module-icon {
@@ -396,6 +561,11 @@ if ($selected_lesson_id) {
             border-color: var(--accent);
         }
 
+        .lesson-item.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .lesson-item.completed {
             opacity: 0.7;
         }
@@ -415,7 +585,7 @@ if ($selected_lesson_id) {
             font-size: 18px;
         }
 
-        /* Mobile Responsive */
+        /* Mobile */
         @media (max-width: 1024px) {
             .sidebar {
                 position: fixed;
@@ -465,23 +635,38 @@ if ($selected_lesson_id) {
                 width: 100%;
                 right: -100%;
             }
+
+            .video-tabs {
+                padding: 16px;
+                gap: 8px;
+            }
+
+            .video-tab {
+                padding: 12px 20px;
+                font-size: 14px;
+            }
         }
 
-        /* Scrollbar Styling */
-        .modules-list::-webkit-scrollbar {
+        /* Scrollbar */
+        .modules-list::-webkit-scrollbar,
+        .video-tabs::-webkit-scrollbar {
             width: 8px;
+            height: 8px;
         }
 
-        .modules-list::-webkit-scrollbar-track {
+        .modules-list::-webkit-scrollbar-track,
+        .video-tabs::-webkit-scrollbar-track {
             background: var(--bg-secondary);
         }
 
-        .modules-list::-webkit-scrollbar-thumb {
+        .modules-list::-webkit-scrollbar-thumb,
+        .video-tabs::-webkit-scrollbar-thumb {
             background: var(--border);
             border-radius: 4px;
         }
 
-        .modules-list::-webkit-scrollbar-thumb:hover {
+        .modules-list::-webkit-scrollbar-thumb:hover,
+        .video-tabs::-webkit-scrollbar-thumb:hover {
             background: var(--accent);
         }
     </style>
@@ -494,7 +679,7 @@ if ($selected_lesson_id) {
             <div class="player-header">
                 <div class="header-left">
                     <a href="/customer/dashboard.php?page=kurse" class="back-button">
-                        ← Zurück zu Kursen
+                        ← Zurück
                     </a>
                     <div class="course-info">
                         <h1><?php echo htmlspecialchars($course['title']); ?></h1>
@@ -503,7 +688,6 @@ if ($selected_lesson_id) {
                 </div>
                 <div class="header-right">
                     <?php
-                    // Fortschritt berechnen
                     $total_lessons = 0;
                     $completed_lessons = 0;
                     foreach ($lessons as $module_lessons) {
@@ -515,51 +699,86 @@ if ($selected_lesson_id) {
                     $progress_percent = $total_lessons > 0 ? round(($completed_lessons / $total_lessons) * 100) : 0;
                     ?>
                     <div class="progress-badge">
-                        <?php echo $completed_lessons; ?> / <?php echo $total_lessons; ?> Lektionen (<?php echo $progress_percent; ?>%)
+                        <?php echo $completed_lessons; ?> / <?php echo $total_lessons; ?> (<?php echo $progress_percent; ?>%)
                     </div>
                 </div>
             </div>
 
             <!-- Video Container -->
             <div class="video-container">
-                <?php if ($current_lesson && !empty($current_lesson['video_url'])): ?>
-                    <?php
-                    $video_url = $current_lesson['video_url'];
+                <?php if ($current_lesson && $current_lesson['is_unlocked']): ?>
+                    <!-- Video Tabs -->
+                    <?php if (count($current_videos) > 1): ?>
+                        <div class="video-tabs">
+                            <?php foreach ($current_videos as $index => $video): ?>
+                                <div class="video-tab <?php echo $index === 0 ? 'active' : ''; ?>" 
+                                     onclick="switchVideo(<?php echo $index; ?>)">
+                                    <span class="video-tab-icon">🎥</span>
+                                    <span><?php echo htmlspecialchars($video['video_title']); ?></span>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
                     
-                    // YouTube Embed URL erstellen
-                    if (strpos($video_url, 'youtube.com') !== false || strpos($video_url, 'youtu.be') !== false) {
-                        preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/', $video_url, $matches);
-                        if (!empty($matches[1])) {
-                            $video_url = 'https://www.youtube.com/embed/' . $matches[1] . '?autoplay=0&rel=0';
+                    <!-- Video Players -->
+                    <?php foreach ($current_videos as $index => $video): 
+                        $video_url = $video['video_url'];
+                        
+                        // YouTube Embed
+                        if (strpos($video_url, 'youtube.com') !== false || strpos($video_url, 'youtu.be') !== false) {
+                            preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/', $video_url, $matches);
+                            if (!empty($matches[1])) {
+                                $video_url = 'https://www.youtube.com/embed/' . $matches[1] . '?autoplay=0&rel=0';
+                            }
                         }
-                    }
-                    // Vimeo Embed URL erstellen
-                    elseif (strpos($video_url, 'vimeo.com') !== false) {
-                        preg_match('/vimeo\.com\/(\d+)/', $video_url, $matches);
-                        if (!empty($matches[1])) {
-                            $video_url = 'https://player.vimeo.com/video/' . $matches[1];
+                        // Vimeo Embed
+                        elseif (strpos($video_url, 'vimeo.com') !== false) {
+                            preg_match('/vimeo\.com\/(\d+)/', $video_url, $matches);
+                            if (!empty($matches[1])) {
+                                $video_url = 'https://player.vimeo.com/video/' . $matches[1];
+                            }
                         }
-                    }
                     ?>
-                    <iframe src="<?php echo htmlspecialchars($video_url); ?>" 
-                            allow="autoplay; fullscreen; picture-in-picture" 
-                            allowfullscreen></iframe>
+                        <div class="video-player <?php echo $index === 0 ? 'active' : ''; ?>" id="video-<?php echo $index; ?>">
+                            <iframe src="<?php echo htmlspecialchars($video_url); ?>" 
+                                    allow="autoplay; fullscreen; picture-in-picture" 
+                                    allowfullscreen></iframe>
+                        </div>
+                    <?php endforeach; ?>
+                    
+                <?php elseif ($current_lesson && !$current_lesson['is_unlocked']): ?>
+                    <!-- Locked Overlay -->
+                    <div class="locked-overlay">
+                        <div class="locked-icon">🔒</div>
+                        <h2 class="locked-title">Diese Lektion ist noch gesperrt</h2>
+                        <p class="locked-text">
+                            Diese Lektion wird automatisch freigeschaltet, sobald du lange genug im Kurs bist.
+                        </p>
+                        <div class="unlock-countdown">
+                            Freischaltung in <?php echo $current_lesson['days_until_unlock']; ?> Tag<?php echo $current_lesson['days_until_unlock'] != 1 ? 'en' : ''; ?>
+                        </div>
+                    </div>
                 <?php else: ?>
-                    <div class="video-placeholder">
-                        <div class="video-placeholder-icon">🎥</div>
-                        <p>Wähle eine Lektion aus der Seitenleiste</p>
+                    <div style="display: flex; align-items: center; justify-content: center; height: 100%;">
+                        <div class="video-placeholder">
+                            <div class="video-placeholder-icon">🎥</div>
+                            <p>Wähle eine Lektion aus der Seitenleiste</p>
+                        </div>
                     </div>
                 <?php endif; ?>
             </div>
 
             <!-- Lesson Info -->
-            <?php if ($current_lesson): ?>
+            <?php if ($current_lesson && $current_lesson['is_unlocked']): ?>
             <div class="lesson-info">
                 <h2><?php echo htmlspecialchars($current_lesson['title']); ?></h2>
                 <div class="lesson-meta">
                     <span>📂 <?php echo htmlspecialchars($current_lesson['module_title']); ?></span>
                     <?php if ($current_lesson['duration']): ?>
                         <span>⏱️ <?php echo htmlspecialchars($current_lesson['duration']); ?></span>
+                    <?php endif; ?>
+                    <?php if (count($current_videos) > 1): ?>
+                        <span>🎥 <?php echo count($current_videos); ?> Videos</span>
                     <?php endif; ?>
                     <?php if ($current_lesson['completed']): ?>
                         <span style="color: var(--success);">✅ Abgeschlossen</span>
@@ -593,14 +812,24 @@ if ($selected_lesson_id) {
                         <div class="lessons-list">
                             <?php if (!empty($lessons[$module['id']])): ?>
                                 <?php foreach ($lessons[$module['id']] as $lesson): ?>
-                                    <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $lesson['id']; ?>" 
-                                       class="lesson-item <?php echo $lesson['id'] == $selected_lesson_id ? 'active' : ''; ?> <?php echo $lesson['completed'] ? 'completed' : ''; ?>">
-                                        <span class="lesson-icon">🎥</span>
-                                        <span class="lesson-title"><?php echo htmlspecialchars($lesson['title']); ?></span>
-                                        <?php if ($lesson['completed']): ?>
-                                            <span class="lesson-status">✅</span>
-                                        <?php endif; ?>
-                                    </a>
+                                    <?php if ($lesson['is_unlocked']): ?>
+                                        <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $lesson['id']; ?>" 
+                                           class="lesson-item <?php echo $lesson['id'] == $selected_lesson_id ? 'active' : ''; ?> <?php echo $lesson['completed'] ? 'completed' : ''; ?>">
+                                            <span class="lesson-icon">🎥</span>
+                                            <span class="lesson-title"><?php echo htmlspecialchars($lesson['title']); ?></span>
+                                            <?php if ($lesson['completed']): ?>
+                                                <span class="lesson-status">✅</span>
+                                            <?php endif; ?>
+                                        </a>
+                                    <?php else: ?>
+                                        <div class="lesson-item locked">
+                                            <span class="lesson-icon">🔒</span>
+                                            <span class="lesson-title"><?php echo htmlspecialchars($lesson['title']); ?></span>
+                                            <span class="lesson-status" title="Noch <?php echo $lesson['days_until_unlock']; ?> Tag(e)">
+                                                <?php echo $lesson['days_until_unlock']; ?>d
+                                            </span>
+                                        </div>
+                                    <?php endif; ?>
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <div style="padding: 12px; text-align: center; color: var(--text-secondary); font-size: 14px;">
@@ -614,23 +843,30 @@ if ($selected_lesson_id) {
         </div>
     </div>
 
-    <!-- Mobile Toggle Button -->
     <button class="mobile-toggle" onclick="toggleSidebar()" style="display: none;">
         📚
     </button>
 
     <script>
-        // Toggle Modul auf/zu
+        // Video Tab Switching
+        function switchVideo(index) {
+            // Alle Tabs & Videos deaktivieren
+            document.querySelectorAll('.video-tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.video-player').forEach(player => player.classList.remove('active'));
+            
+            // Gewählten Tab & Video aktivieren
+            document.querySelectorAll('.video-tab')[index].classList.add('active');
+            document.getElementById('video-' + index).classList.add('active');
+        }
+
         function toggleModule(element) {
             element.parentElement.classList.toggle('open');
         }
 
-        // Mobile Sidebar Toggle
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('open');
         }
 
-        // Lektion als abgeschlossen markieren
         function markAsComplete(lessonId) {
             fetch('/api/mark-lesson-complete.php', {
                 method: 'POST',
@@ -648,7 +884,6 @@ if ($selected_lesson_id) {
             .catch(error => console.error('Error:', error));
         }
 
-        // Responsive: Mobile Toggle Button anzeigen
         function checkMobile() {
             const mobileToggle = document.querySelector('.mobile-toggle');
             if (window.innerWidth <= 1024) {
