@@ -1,34 +1,44 @@
 <?php
-// PHP Backend für die Migration - MUSS ganz oben stehen!
+// Fehlerbehandlung und JSON-Output sicherstellen
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+
+// PHP Backend für die Migration
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'migrate') {
-    
-    // Alle Ausgaben puffern
-    ob_start();
-    
-    header('Content-Type: application/json');
+    header('Content-Type: application/json; charset=utf-8');
     
     try {
-        // Prüfe ob config/database.php existiert
-        $config_path = __DIR__ . '/config/database.php';
-        if (!file_exists($config_path)) {
-            // Versuche alternative Pfade
-            $config_path = __DIR__ . '/../config/database.php';
-            if (!file_exists($config_path)) {
-                throw new Exception('Datenbank-Konfiguration nicht gefunden. Pfad: ' . __DIR__ . '/config/database.php');
+        // Verschiedene mögliche Pfade zur database.php testen
+        $possible_paths = [
+            __DIR__ . '/config/database.php',
+            __DIR__ . '/../config/database.php',
+            dirname(__DIR__) . '/config/database.php',
+            $_SERVER['DOCUMENT_ROOT'] . '/config/database.php'
+        ];
+        
+        $config_found = false;
+        foreach ($possible_paths as $path) {
+            if (file_exists($path)) {
+                require_once $path;
+                $config_found = true;
+                break;
             }
         }
         
-        require_once $config_path;
+        if (!$config_found) {
+            throw new Exception('Datenbank-Konfiguration nicht gefunden. Gesuchte Pfade: ' . implode(', ', $possible_paths));
+        }
         
-        // Prüfe ob Funktion existiert
+        // Verbindung herstellen
         if (!function_exists('getDBConnection')) {
-            throw new Exception('Funktion getDBConnection() nicht gefunden in database.php');
+            throw new Exception('getDBConnection() Funktion nicht gefunden in database.php');
         }
         
         $pdo = getDBConnection();
         
         if (!$pdo) {
-            throw new Exception('Datenbankverbindung fehlgeschlagen - getDBConnection() gab null zurück');
+            throw new Exception('Datenbankverbindung konnte nicht hergestellt werden');
         }
         
         $messages = [];
@@ -77,29 +87,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $errors[] = "Fehler beim Setzen der Standard-Werte: " . $e->getMessage();
         }
         
-        // Puffer leeren
-        ob_end_clean();
-        
         if (!empty($errors)) {
             echo json_encode([
                 'success' => false,
                 'error' => implode("\n", $errors),
                 'messages' => $messages
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
         } else {
             echo json_encode([
                 'success' => true,
                 'messages' => $messages
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
         }
         
     } catch (Exception $e) {
-        ob_end_clean();
         echo json_encode([
             'success' => false,
             'error' => 'Kritischer Fehler: ' . $e->getMessage(),
             'trace' => $e->getTraceAsString()
-        ]);
+        ], JSON_UNESCAPED_UNICODE);
     }
     
     exit;
@@ -250,7 +256,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             border-radius: 6px;
             overflow-x: auto;
             margin-top: 12px;
-            font-size: 12px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
         
         .steps {
@@ -368,11 +375,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     body: 'action=migrate'
                 });
                 
-                // Prüfe Content-Type
                 const contentType = response.headers.get('content-type');
                 if (!contentType || !contentType.includes('application/json')) {
                     const text = await response.text();
-                    throw new Error('Server gab kein JSON zurück. Response:\n' + text.substring(0, 500));
+                    throw new Error('Server hat keine JSON-Antwort zurückgegeben. Antwort: ' + text.substring(0, 500));
                 }
                 
                 const data = await response.json();
@@ -390,6 +396,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         <br>
                         <em>Du kannst dieses Migrations-Script jetzt löschen.</em>
                     `;
+                    btn.textContent = '✅ Migration abgeschlossen';
                 } else {
                     throw new Error(data.error || 'Unbekannter Fehler');
                 }
@@ -402,11 +409,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     <strong>Mögliche Lösungen:</strong><br>
                     1. Prüfe die Datenbankverbindung in config/database.php<br>
                     2. Stelle sicher, dass die Datenbank erreichbar ist<br>
-                    3. Überprüfe die PHP-Fehlerprotokolle<br>
+                    3. Prüfe ob die Tabellen 'freebies' und 'customer_freebies' existieren<br>
                     4. Kontaktiere den Support, falls das Problem weiterhin besteht
                     <pre>${error.stack || ''}</pre>
                 `;
-            } finally {
                 btn.disabled = false;
                 btn.textContent = '🔄 Erneut versuchen';
             }
