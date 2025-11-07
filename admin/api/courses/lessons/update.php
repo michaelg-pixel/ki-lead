@@ -2,6 +2,7 @@
 /**
  * API: Lektion aktualisieren
  * POST /admin/api/courses/lessons/update.php
+ * ERWEITERT: Drip Content & Multi-Video Support
  */
 
 session_start();
@@ -15,12 +16,13 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 require_once '../../../../config/database.php';
 
 try {
-    $pdo = getDBConnection(); // Korrekte Verwendung der DB-Verbindung
+    $pdo = getDBConnection();
     
     $lesson_id = $_POST['lesson_id'] ?? null;
     $title = $_POST['title'] ?? '';
     $video_url = $_POST['video_url'] ?? '';
     $description = $_POST['description'] ?? '';
+    $unlock_after_days = !empty($_POST['unlock_after_days']) ? (int)$_POST['unlock_after_days'] : null; // NEU
     
     if (!$lesson_id || !$title) {
         throw new Exception('Lektions-ID und Titel sind erforderlich');
@@ -56,13 +58,14 @@ try {
         }
     }
     
-    // Update Lesson
+    // Update Lesson - NEU: unlock_after_days hinzugefügt
     $stmt = $pdo->prepare("
         UPDATE course_lessons 
         SET title = :title, 
             video_url = :video_url, 
             description = :description,
-            pdf_attachment = :pdf_attachment
+            pdf_attachment = :pdf_attachment,
+            unlock_after_days = :unlock_after_days
         WHERE id = :lesson_id
     ");
     
@@ -71,8 +74,28 @@ try {
         'title' => $title,
         'video_url' => $video_url,
         'description' => $description,
-        'pdf_attachment' => $pdf_attachment
+        'pdf_attachment' => $pdf_attachment,
+        'unlock_after_days' => $unlock_after_days
     ]);
+    
+    // NEU: Alte zusätzliche Videos löschen
+    $stmt = $pdo->prepare("DELETE FROM lesson_videos WHERE lesson_id = ?");
+    $stmt->execute([$lesson_id]);
+    
+    // NEU: Neue Videos speichern
+    if (!empty($_POST['video_urls']) && is_array($_POST['video_urls'])) {
+        $video_titles = $_POST['video_titles'] ?? [];
+        foreach ($_POST['video_urls'] as $index => $video_url_item) {
+            if (!empty($video_url_item)) {
+                $video_title = $video_titles[$index] ?? "Video " . ($index + 1);
+                $stmt = $pdo->prepare("
+                    INSERT INTO lesson_videos (lesson_id, video_title, video_url, sort_order) 
+                    VALUES (?, ?, ?, ?)
+                ");
+                $stmt->execute([$lesson_id, $video_title, $video_url_item, $index + 1]);
+            }
+        }
+    }
     
     echo json_encode([
         'success' => true,
