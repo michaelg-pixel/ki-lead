@@ -278,22 +278,27 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             line-height: 1.5;
         }
         
-        /* Video Container */
+        /* Video Container - OPTIMIERT für Hochformat */
         .video-container {
             background: white;
             border-radius: 20px;
-            padding: 24px;
+            padding: 32px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             animation: slideUp 0.6s ease-out;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         
         .video-wrapper {
             position: relative;
-            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
-            height: 0;
-            overflow: hidden;
+            width: 100%;
+            max-width: 500px; /* Maximale Breite für Hochformat-Video */
+            aspect-ratio: 9/16; /* Hochformat-Verhältnis */
             border-radius: 16px;
             background: #000;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
         }
         
         .video-wrapper iframe {
@@ -302,6 +307,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             left: 0;
             width: 100%;
             height: 100%;
+            border: none;
         }
         
         /* Success Card */
@@ -769,6 +775,14 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
                 font-size: 16px;
             }
             
+            .video-container {
+                padding: 20px;
+            }
+            
+            .video-wrapper {
+                max-width: 100%;
+            }
+            
             .success-card {
                 padding: 40px 24px;
             }
@@ -841,7 +855,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         </div>
         <?php endif; ?>
         
-        <!-- Video Container -->
+        <!-- Video Container - OPTIMIERT für Hochformat -->
         <div class="video-container">
             <div class="video-wrapper">
                 <iframe src="<?php echo htmlspecialchars($video_embed_url); ?>?autoplay=1&loop=0&autopause=0" 
