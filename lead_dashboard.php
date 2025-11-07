@@ -811,13 +811,13 @@ if ($lead['user_id']) {
                     <i class="fas fa-home"></i>
                     <span>Übersicht</span>
                 </a>
-                <a href="#" class="menu-item" onclick="showSection('templates', event)">
-                    <i class="fas fa-file-alt"></i>
-                    <span>Vorlagen & Templates</span>
-                </a>
                 <a href="#" class="menu-item" onclick="showSection('howto', event)">
                     <i class="fas fa-question-circle"></i>
                     <span>So funktioniert's</span>
+                </a>
+                <a href="#" class="menu-item" onclick="showSection('templates', event)">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Vorlagen & Templates</span>
                 </a>
                 <a href="#" class="menu-item" onclick="showSection('social', event)">
                     <i class="fas fa-share-alt"></i>
@@ -1067,6 +1067,77 @@ if ($lead['user_id']) {
                         </tbody>
                     </table>
                 <?php endif; ?>
+            </div>
+        </div>
+        
+        <!-- So funktioniert's Section -->
+        <div id="howto-section" class="content-section">
+            <div class="header">
+                <h1>❓ So funktioniert's</h1>
+                <p>Alles was du wissen musst</p>
+            </div>
+            
+            <div class="freebie-selection-section">
+                <h2><i class="fas fa-rocket"></i> In 3 einfachen Schritten zum Erfolg</h2>
+                
+                <div style="margin-top: 30px;">
+                    <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #667eea;">
+                        <h3 style="color: #667eea; margin-bottom: 10px;">
+                            <i class="fas fa-1" style="background: #667eea; color: white; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; margin-right: 10px; font-size: 16px;"></i>
+                            Wähle dein Freebie
+                        </h3>
+                        <p style="color: #666; line-height: 1.6;">
+                            Suche dir aus der Übersicht ein Freebie aus, das du mit deinem Netzwerk teilen möchtest. 
+                            Jedes Freebie bietet wertvollen Content für deine Kontakte.
+                        </p>
+                    </div>
+                    
+                    <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #28a745;">
+                        <h3 style="color: #28a745; margin-bottom: 10px;">
+                            <i class="fas fa-2" style="background: #28a745; color: white; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; margin-right: 10px; font-size: 16px;"></i>
+                            Teile deinen Link
+                        </h3>
+                        <p style="color: #666; line-height: 1.6;">
+                            Kopiere deinen persönlichen Empfehlungslink und teile ihn mit Freunden, Familie oder in sozialen Medien. 
+                            Jeder Klick wird automatisch deinem Account zugeordnet.
+                        </p>
+                    </div>
+                    
+                    <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+                        <h3 style="color: #ffc107; margin-bottom: 10px;">
+                            <i class="fas fa-3" style="background: #ffc107; color: white; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; margin-right: 10px; font-size: 16px;"></i>
+                            Erhalte Belohnungen
+                        </h3>
+                        <p style="color: #666; line-height: 1.6;">
+                            Für jede erfolgreiche Empfehlung erhältst du Punkte und schaltest exklusive Belohnungen frei. 
+                            Je mehr du empfiehlst, desto besser werden die Prämien!
+                        </p>
+                    </div>
+                </div>
+                
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 10px; margin-top: 30px; color: white;">
+                    <h3 style="margin-bottom: 15px;">
+                        <i class="fas fa-lightbulb"></i> Wichtig zu wissen
+                    </h3>
+                    <ul style="list-style: none; padding: 0;">
+                        <li style="margin-bottom: 10px; padding-left: 25px; position: relative;">
+                            <i class="fas fa-check-circle" style="position: absolute; left: 0; top: 3px;"></i>
+                            Dein Link ist einzigartig und wird automatisch getrackt
+                        </li>
+                        <li style="margin-bottom: 10px; padding-left: 25px; position: relative;">
+                            <i class="fas fa-check-circle" style="position: absolute; left: 0; top: 3px;"></i>
+                            Du kannst so viele Freebies teilen wie du möchtest
+                        </li>
+                        <li style="margin-bottom: 10px; padding-left: 25px; position: relative;">
+                            <i class="fas fa-check-circle" style="position: absolute; left: 0; top: 3px;"></i>
+                            Belohnungen werden automatisch freigeschaltet
+                        </li>
+                        <li style="padding-left: 25px; position: relative;">
+                            <i class="fas fa-check-circle" style="position: absolute; left: 0; top: 3px;"></i>
+                            Du kannst deinen Fortschritt jederzeit im Dashboard verfolgen
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
         
@@ -1448,77 +1519,6 @@ Schnell zugreifen: Kostenloses [Freebie-Name]
                         <li>✅ Verwende [Dein Link] mit deinem persönlichen Empfehlungslink</li>
                         <li>✅ Passe [Thema] an das spezifische Interessengebiet an</li>
                         <li>✅ Ergänze eigene persönliche Erfahrungen für mehr Authentizität</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-        
-        <!-- So funktioniert's Section -->
-        <div id="howto-section" class="content-section">
-            <div class="header">
-                <h1>❓ So funktioniert's</h1>
-                <p>Alles was du wissen musst</p>
-            </div>
-            
-            <div class="freebie-selection-section">
-                <h2><i class="fas fa-rocket"></i> In 3 einfachen Schritten zum Erfolg</h2>
-                
-                <div style="margin-top: 30px;">
-                    <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #667eea;">
-                        <h3 style="color: #667eea; margin-bottom: 10px;">
-                            <i class="fas fa-1" style="background: #667eea; color: white; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; margin-right: 10px; font-size: 16px;"></i>
-                            Wähle dein Freebie
-                        </h3>
-                        <p style="color: #666; line-height: 1.6;">
-                            Suche dir aus der Übersicht ein Freebie aus, das du mit deinem Netzwerk teilen möchtest. 
-                            Jedes Freebie bietet wertvollen Content für deine Kontakte.
-                        </p>
-                    </div>
-                    
-                    <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #28a745;">
-                        <h3 style="color: #28a745; margin-bottom: 10px;">
-                            <i class="fas fa-2" style="background: #28a745; color: white; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; margin-right: 10px; font-size: 16px;"></i>
-                            Teile deinen Link
-                        </h3>
-                        <p style="color: #666; line-height: 1.6;">
-                            Kopiere deinen persönlichen Empfehlungslink und teile ihn mit Freunden, Familie oder in sozialen Medien. 
-                            Jeder Klick wird automatisch deinem Account zugeordnet.
-                        </p>
-                    </div>
-                    
-                    <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
-                        <h3 style="color: #ffc107; margin-bottom: 10px;">
-                            <i class="fas fa-3" style="background: #ffc107; color: white; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; margin-right: 10px; font-size: 16px;"></i>
-                            Erhalte Belohnungen
-                        </h3>
-                        <p style="color: #666; line-height: 1.6;">
-                            Für jede erfolgreiche Empfehlung erhältst du Punkte und schaltest exklusive Belohnungen frei. 
-                            Je mehr du empfiehlst, desto besser werden die Prämien!
-                        </p>
-                    </div>
-                </div>
-                
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 10px; margin-top: 30px; color: white;">
-                    <h3 style="margin-bottom: 15px;">
-                        <i class="fas fa-lightbulb"></i> Wichtig zu wissen
-                    </h3>
-                    <ul style="list-style: none; padding: 0;">
-                        <li style="margin-bottom: 10px; padding-left: 25px; position: relative;">
-                            <i class="fas fa-check-circle" style="position: absolute; left: 0; top: 3px;"></i>
-                            Dein Link ist einzigartig und wird automatisch getrackt
-                        </li>
-                        <li style="margin-bottom: 10px; padding-left: 25px; position: relative;">
-                            <i class="fas fa-check-circle" style="position: absolute; left: 0; top: 3px;"></i>
-                            Du kannst so viele Freebies teilen wie du möchtest
-                        </li>
-                        <li style="margin-bottom: 10px; padding-left: 25px; position: relative;">
-                            <i class="fas fa-check-circle" style="position: absolute; left: 0; top: 3px;"></i>
-                            Belohnungen werden automatisch freigeschaltet
-                        </li>
-                        <li style="padding-left: 25px; position: relative;">
-                            <i class="fas fa-check-circle" style="position: absolute; left: 0; top: 3px;"></i>
-                            Du kannst deinen Fortschritt jederzeit im Dashboard verfolgen
-                        </li>
                     </ul>
                 </div>
             </div>
