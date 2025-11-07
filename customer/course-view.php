@@ -1,8 +1,8 @@
 <?php
 /**
  * Kursansicht für Kunden UND Leads - MODERNE VERSION
- * Video-Player + Lektionen + Fortschritt + Drip Content
- * Version 3.0 - Modern UI + Functional Drip Locking
+ * Video-Player + Lektionen + Fortschritt
+ * Version 3.1 - Modern UI (Drip-Content temporarily disabled pending DB schema)
  */
 
 session_start();
@@ -33,21 +33,17 @@ if (!$course_id) {
     exit;
 }
 
-// Kurs laden + Zugangs-Check + Created Date für Drip Content
-$access_date = null;
+// Kurs laden + Zugangs-Check
 if ($is_logged_in) {
-    // Eingeloggte User: Mit Zugangs-Check und created_at als Access Date
+    // Eingeloggte User: Mit Zugangs-Check
     $stmt = $pdo->prepare("
-        SELECT c.*, ca.access_source, ca.created_at as access_date
+        SELECT c.*, ca.access_source
         FROM courses c
         LEFT JOIN course_access ca ON c.id = ca.course_id AND ca.user_id = ?
         WHERE c.id = ? AND (c.is_freebie = TRUE OR ca.id IS NOT NULL)
     ");
     $stmt->execute([$user_id, $course_id]);
     $course = $stmt->fetch();
-    if ($course && isset($course['access_date'])) {
-        $access_date = new DateTime($course['access_date']);
-    }
 } else {
     // Leads (nicht eingeloggt): Nur Freebie-Kurse
     $stmt = $pdo->prepare("
@@ -139,7 +135,6 @@ $stmt->execute([$course_id]);
 $modules = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Lektionen für jedes Modul laden - OHNE & Referenzen!
-$now = new DateTime();
 for ($i = 0; $i < count($modules); $i++) {
     if ($is_logged_in) {
         $stmt = $pdo->prepare("
@@ -162,28 +157,11 @@ for ($i = 0; $i < count($modules); $i++) {
     }
     $modules[$i]['lessons'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Drip-Content Check & zusätzliche Videos für jede Lektion
+    // Zusätzliche Videos für jede Lektion laden
     for ($j = 0; $j < count($modules[$i]['lessons']); $j++) {
-        // Drip-Content: Ist die Lektion schon freigeschaltet?
-        $lesson_unlocked = true;
-        $unlock_in_days = 0;
-        
-        if ($is_logged_in && $access_date && isset($modules[$i]['lessons'][$j]['unlock_after_days'])) {
-            $unlock_after_days = (int)$modules[$i]['lessons'][$j]['unlock_after_days'];
-            if ($unlock_after_days > 0) {
-                $unlock_date = clone $access_date;
-                $unlock_date->modify("+{$unlock_after_days} days");
-                
-                if ($now < $unlock_date) {
-                    $lesson_unlocked = false;
-                    $interval = $now->diff($unlock_date);
-                    $unlock_in_days = $interval->days + 1;
-                }
-            }
-        }
-        
-        $modules[$i]['lessons'][$j]['is_locked'] = !$lesson_unlocked;
-        $modules[$i]['lessons'][$j]['unlock_in_days'] = $unlock_in_days;
+        // Drip-Content Marker speichern (aber NICHT sperren - Funktion kommt später)
+        $modules[$i]['lessons'][$j]['is_locked'] = false; // Temporarily disabled
+        $modules[$i]['lessons'][$j]['unlock_after_days'] = isset($modules[$i]['lessons'][$j]['unlock_after_days']) ? $modules[$i]['lessons'][$j]['unlock_after_days'] : 0;
         
         // Zusätzliche Videos laden
         $stmt = $pdo->prepare("
@@ -212,10 +190,10 @@ if ($selected_lesson_id) {
 }
 
 if (!$current_lesson && $is_logged_in) {
-    // Erste nicht-abgeschlossene UND freigeschaltete Lektion
+    // Erste nicht-abgeschlossene Lektion
     foreach ($modules as $module) {
         foreach ($module['lessons'] as $lesson) {
-            if (!$lesson['completed'] && !$lesson['is_locked']) {
+            if (!$lesson['completed']) {
                 $current_lesson = $lesson;
                 break 2;
             }
@@ -255,10 +233,7 @@ $selected_video_index = isset($_GET['video']) ? (int)$_GET['video'] : 0;
 $current_video_url = null;
 $current_video_title = null;
 
-// Wenn Lektion gesperrt ist, Video blockieren
-$video_blocked = $current_lesson && isset($current_lesson['is_locked']) && $current_lesson['is_locked'];
-
-if ($current_lesson && !$video_blocked) {
+if ($current_lesson) {
     if ($selected_video_index === 0 && $current_lesson['video_url']) {
         $current_video_url = parseVideoUrl($current_lesson['video_url']);
         $current_video_title = "Hauptvideo";
@@ -308,7 +283,6 @@ $cache_bust = time();
             --border: rgba(168, 85, 247, 0.2);
             --success: #4ade80;
             --warning: #fbbf24;
-            --danger: #f87171;
         }
         
         body {
@@ -350,50 +324,6 @@ $cache_bust = time();
             width: 100%;
             height: 100%;
             border: none;
-        }
-        
-        .video-locked {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, rgba(10, 10, 22, 0.95), rgba(26, 21, 50, 0.95));
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(10px);
-        }
-        
-        .video-locked .lock-icon {
-            font-size: 80px;
-            margin-bottom: 24px;
-        }
-        
-        .video-locked h2 {
-            font-size: 28px;
-            margin-bottom: 12px;
-            color: white;
-        }
-        
-        .video-locked p {
-            color: var(--text-secondary);
-            font-size: 16px;
-        }
-        
-        .unlock-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 24px;
-            background: rgba(251, 191, 36, 0.15);
-            border: 2px solid rgba(251, 191, 36, 0.3);
-            border-radius: 12px;
-            color: var(--warning);
-            font-weight: 700;
-            font-size: 18px;
-            margin-top: 24px;
         }
         
         .no-video {
@@ -623,16 +553,6 @@ $cache_bust = time();
             border-color: var(--primary);
         }
         
-        .lesson-item.locked {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .lesson-item.locked:hover {
-            transform: none;
-            border-color: transparent;
-        }
-        
         .lesson-item.completed {
             opacity: 0.7;
         }
@@ -696,16 +616,7 @@ $cache_bust = time();
             <?php if ($current_lesson): ?>
                 <div class="video-section">
                     <div class="video-container">
-                        <?php if ($video_blocked): ?>
-                            <div class="video-locked">
-                                <div class="lock-icon">🔒</div>
-                                <h2>Diese Lektion ist noch gesperrt</h2>
-                                <p>Diese Lektion wird in <?php echo $current_lesson['unlock_in_days']; ?> Tag<?php echo $current_lesson['unlock_in_days'] > 1 ? 'en' : ''; ?> freigeschaltet</p>
-                                <span class="unlock-badge">
-                                    🕐 Freischaltung: Tag <?php echo $current_lesson['unlock_after_days']; ?>
-                                </span>
-                            </div>
-                        <?php elseif ($current_video_url): ?>
+                        <?php if ($current_video_url): ?>
                             <iframe src="<?php echo $current_video_url; ?>" 
                                     frameborder="0" 
                                     allow="autoplay; fullscreen; picture-in-picture" 
@@ -720,41 +631,39 @@ $cache_bust = time();
                     </div>
                 </div>
                 
-                <?php if (!$video_blocked): ?>
-                    <?php
-                    $has_main_video = !empty($current_lesson['video_url']);
-                    $has_additional_videos = !empty($current_lesson['additional_videos']);
-                    $total_videos = ($has_main_video ? 1 : 0) + ($has_additional_videos ? count($current_lesson['additional_videos']) : 0);
-                    ?>
-                    
-                    <?php if ($total_videos > 1): ?>
-                    <div class="video-tabs">
-                        <?php if ($has_main_video): ?>
-                            <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $current_lesson['id']; ?>&video=0&_t=<?php echo $cache_bust; ?>" 
-                               class="video-tab <?php echo $selected_video_index === 0 ? 'active' : ''; ?>">
-                                <span class="video-tab-icon">🎬</span>
-                                <span>Hauptvideo</span>
-                            </a>
-                        <?php endif; ?>
-                        
-                        <?php if ($has_additional_videos): ?>
-                            <?php foreach ($current_lesson['additional_videos'] as $index => $video): ?>
-                                <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $current_lesson['id']; ?>&video=<?php echo $index + 1; ?>&_t=<?php echo $cache_bust; ?>" 
-                                   class="video-tab <?php echo $selected_video_index === ($index + 1) ? 'active' : ''; ?>">
-                                    <span class="video-tab-icon">📹</span>
-                                    <span><?php echo htmlspecialchars($video['video_title'] ?: 'Video ' . ($index + 1)); ?></span>
-                                </a>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
+                <?php
+                $has_main_video = !empty($current_lesson['video_url']);
+                $has_additional_videos = !empty($current_lesson['additional_videos']);
+                $total_videos = ($has_main_video ? 1 : 0) + ($has_additional_videos ? count($current_lesson['additional_videos']) : 0);
+                ?>
+                
+                <?php if ($total_videos > 1): ?>
+                <div class="video-tabs">
+                    <?php if ($has_main_video): ?>
+                        <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $current_lesson['id']; ?>&video=0&_t=<?php echo $cache_bust; ?>" 
+                           class="video-tab <?php echo $selected_video_index === 0 ? 'active' : ''; ?>">
+                            <span class="video-tab-icon">🎬</span>
+                            <span>Hauptvideo</span>
+                        </a>
                     <?php endif; ?>
+                    
+                    <?php if ($has_additional_videos): ?>
+                        <?php foreach ($current_lesson['additional_videos'] as $index => $video): ?>
+                            <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $current_lesson['id']; ?>&video=<?php echo $index + 1; ?>&_t=<?php echo $cache_bust; ?>" 
+                               class="video-tab <?php echo $selected_video_index === ($index + 1) ? 'active' : ''; ?>">
+                                <span class="video-tab-icon">📹</span>
+                                <span><?php echo htmlspecialchars($video['video_title'] ?: 'Video ' . ($index + 1)); ?></span>
+                            </a>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
                 <?php endif; ?>
                 
                 <div class="lesson-detail">
                     <div class="lesson-header">
                         <h1><?php echo htmlspecialchars($current_lesson['title']); ?></h1>
                         
-                        <?php if ($is_logged_in && !$video_blocked): ?>
+                        <?php if ($is_logged_in): ?>
                             <?php if (!$current_lesson['completed']): ?>
                                 <button onclick="markAsComplete(<?php echo $current_lesson['id']; ?>)" class="btn-complete">
                                     ✓ Als abgeschlossen markieren
@@ -817,18 +726,12 @@ $cache_bust = time();
                                         <?php
                                         $is_current = $current_lesson && $current_lesson['id'] == $lesson['id'];
                                         $is_completed = $is_logged_in && isset($lesson['completed']) && $lesson['completed'];
-                                        $is_locked = isset($lesson['is_locked']) && $lesson['is_locked'];
                                         ?>
                                         
-                                        <a href="<?php echo !$is_locked ? "?id={$course_id}&lesson={$lesson['id']}&_t={$cache_bust}" : 'javascript:void(0)'; ?>" 
-                                           class="lesson-item <?php echo $is_current ? 'active' : ''; ?> <?php echo $is_completed ? 'completed' : ''; ?> <?php echo $is_locked ? 'locked' : ''; ?>"
-                                           <?php if ($is_locked): ?>
-                                               onclick="alert('Diese Lektion ist noch gesperrt. Freischaltung in <?php echo $lesson['unlock_in_days']; ?> Tag<?php echo $lesson['unlock_in_days'] > 1 ? 'en' : ''; ?>!'); return false;"
-                                           <?php endif; ?>>
+                                        <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $lesson['id']; ?>&_t=<?php echo $cache_bust; ?>" 
+                                           class="lesson-item <?php echo $is_current ? 'active' : ''; ?> <?php echo $is_completed ? 'completed' : ''; ?>">
                                             <div class="lesson-icon">
-                                                <?php if ($is_locked): ?>
-                                                    🔒
-                                                <?php elseif ($is_completed): ?>
+                                                <?php if ($is_completed): ?>
                                                     ✅
                                                 <?php elseif ($is_current): ?>
                                                     ▶️
@@ -851,7 +754,7 @@ $cache_bust = time();
                                                         <span>📄 PDF</span>
                                                     <?php endif; ?>
                                                     
-                                                    <?php if ($is_locked): ?>
+                                                    <?php if ($lesson['unlock_after_days'] > 0): ?>
                                                         <span class="drip-badge">
                                                             🕐 Tag <?php echo $lesson['unlock_after_days']; ?>
                                                         </span>
