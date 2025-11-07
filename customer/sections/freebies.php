@@ -143,6 +143,102 @@ try {
 ?>
 
 <style>
+    .filter-section {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 32px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+    
+    .filter-label {
+        color: white;
+        font-size: 16px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .filter-select {
+        flex: 1;
+        min-width: 250px;
+        padding: 12px 16px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        color: white;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .filter-select:hover {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: rgba(102, 126, 234, 0.5);
+    }
+    
+    .filter-select:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    }
+    
+    .filter-select option {
+        background: #1a1a2e;
+        color: white;
+        padding: 10px;
+    }
+    
+    .filter-stats {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 16px;
+        background: rgba(102, 126, 234, 0.2);
+        border: 1px solid rgba(102, 126, 234, 0.3);
+        border-radius: 8px;
+    }
+    
+    .filter-stats-text {
+        color: white;
+        font-size: 14px;
+        font-weight: 500;
+    }
+    
+    .filter-stats-number {
+        color: #667eea;
+        font-weight: 700;
+        font-size: 16px;
+    }
+    
+    .filter-reset {
+        padding: 10px 20px;
+        background: rgba(239, 68, 68, 0.2);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 8px;
+        color: #f87171;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: none;
+    }
+    
+    .filter-reset:hover {
+        background: rgba(239, 68, 68, 0.3);
+    }
+    
+    .filter-reset.active {
+        display: block;
+    }
+
     .limit-banner {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         border-radius: 16px;
@@ -251,63 +347,6 @@ try {
     
     .tab-content.active {
         display: block;
-    }
-    
-    .filter-bar {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        padding: 20px 24px;
-        margin-bottom: 32px;
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        flex-wrap: wrap;
-    }
-    
-    .filter-label {
-        color: white;
-        font-weight: 600;
-        font-size: 15px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .filter-select {
-        flex: 1;
-        min-width: 250px;
-        padding: 12px 16px;
-        background: rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 8px;
-        color: white;
-        font-size: 14px;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-    
-    .filter-select:hover {
-        border-color: #667eea;
-        background: rgba(0, 0, 0, 0.4);
-    }
-    
-    .filter-select:focus {
-        outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-    
-    .filter-select option {
-        background: #1a1a2e;
-        color: white;
-        padding: 10px;
-    }
-    
-    .filter-stats {
-        color: #888;
-        font-size: 14px;
-        margin-left: auto;
     }
 
     .freebies-grid {
@@ -569,31 +608,6 @@ try {
         text-align: center;
     }
     
-    .no-results {
-        text-align: center;
-        padding: 60px 20px;
-        background: rgba(255, 255, 255, 0.03);
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    
-    .no-results-icon {
-        font-size: 64px;
-        margin-bottom: 16px;
-        opacity: 0.5;
-    }
-    
-    .no-results-text {
-        color: #888;
-        font-size: 16px;
-        margin-bottom: 8px;
-    }
-    
-    .no-results-hint {
-        color: #666;
-        font-size: 14px;
-    }
-    
     @media (max-width: 1400px) {
         .freebies-grid {
             grid-template-columns: repeat(3, 1fr);
@@ -605,18 +619,14 @@ try {
             grid-template-columns: repeat(2, 1fr);
         }
         
-        .filter-bar {
+        .filter-section {
             flex-direction: column;
             align-items: stretch;
         }
         
-        .filter-select {
-            min-width: 100%;
-        }
-        
         .filter-stats {
             margin-left: 0;
-            text-align: center;
+            justify-content: center;
         }
     }
     
@@ -652,6 +662,10 @@ try {
         .btn-copy {
             padding: 6px 10px;
             font-size: 11px;
+        }
+        
+        .filter-select {
+            min-width: 100%;
         }
     }
     
@@ -708,13 +722,37 @@ try {
         </div>
     <?php endif; ?>
     
+    <!-- Nischen Filter -->
+    <div class="filter-section">
+        <div class="filter-label">
+            🔍 Nach Nische filtern:
+        </div>
+        <select id="nicheFilter" class="filter-select" onchange="filterByNiche()">
+            <option value="">Alle Nischen anzeigen</option>
+            <?php foreach ($nicheLabels as $value => $label): ?>
+                <option value="<?php echo htmlspecialchars($value); ?>">
+                    <?php echo htmlspecialchars($label); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+        <button id="resetFilter" class="filter-reset" onclick="resetFilter()">
+            ✕ Filter zurücksetzen
+        </button>
+        <div class="filter-stats">
+            <span class="filter-stats-text">Angezeigt:</span>
+            <span class="filter-stats-number" id="visibleCount">0</span>
+            <span class="filter-stats-text">von</span>
+            <span class="filter-stats-number" id="totalCount">0</span>
+        </div>
+    </div>
+    
     <!-- Tab Navigation -->
     <div class="tab-navigation">
         <button class="tab-btn active" onclick="switchTab('templates')">
-            📚 Templates (<?php echo count($freebies); ?>)
+            📚 Templates (<span id="templatesCount"><?php echo count($freebies); ?></span>)
         </button>
         <button class="tab-btn" onclick="switchTab('custom')">
-            ✨ Meine Freebies (<?php echo count($customFreebies); ?>)
+            ✨ Meine Freebies (<span id="customCount"><?php echo count($customFreebies); ?></span>)
         </button>
     </div>
     
@@ -728,36 +766,11 @@ try {
             </div>
         <?php else: ?>
             <!-- Info Box -->
-            <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
+            <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6; padding: 20px; border-radius: 8px; margin-bottom: 32px;">
                 <h3 style="color: white; font-size: 16px; font-weight: 600; margin-bottom: 12px;">💡 So funktioniert's</h3>
-                <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>1.</strong> Wähle ein Freebie-Template aus</p>
+                <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>1.</strong> Wähle ein Freebie-Template aus (optional: Filter nach Nische)</p>
                 <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>2.</strong> Klicke auf "Nutzen" und passe es an</p>
                 <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>3.</strong> Kopiere die Links und nutze sie in deinem Marketing</p>
-            </div>
-            
-            <!-- Filter Bar -->
-            <div class="filter-bar">
-                <label class="filter-label">
-                    🏷️ Nach Nische filtern:
-                </label>
-                <select id="nicheFilter" class="filter-select" onchange="filterTemplatesByNiche()">
-                    <option value="all">🌐 Alle Nischen anzeigen</option>
-                    <?php foreach ($nicheLabels as $nicheValue => $nicheLabel): ?>
-                        <option value="<?php echo htmlspecialchars($nicheValue); ?>">
-                            <?php echo htmlspecialchars($nicheLabel); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <span class="filter-stats" id="filterStats">
-                    <?php echo count($freebies); ?> Templates
-                </span>
-            </div>
-            
-            <!-- No Results Message (hidden by default) -->
-            <div id="noResults" class="no-results" style="display: none;">
-                <div class="no-results-icon">🔍</div>
-                <div class="no-results-text">Keine Templates in dieser Nische gefunden</div>
-                <div class="no-results-hint">Versuche einen anderen Filter oder wähle "Alle Nischen"</div>
             </div>
             
             <div class="freebies-grid" id="templatesGrid">
@@ -808,7 +821,7 @@ try {
                     $nicheValue = $freebie['niche'] ?? 'sonstiges';
                     $nicheLabel = $nicheLabels[$nicheValue] ?? '📂 Sonstiges';
                 ?>
-                    <div class="freebie-card" data-niche="<?php echo htmlspecialchars($nicheValue); ?>">
+                    <div class="freebie-card" data-niche="<?php echo htmlspecialchars($nicheValue); ?>" data-type="template">
                         <div class="freebie-preview" style="background: <?php echo htmlspecialchars($bgColor); ?>;">
                             <div class="freebie-badges">
                                 <?php if ($isUsedByCustomer): ?>
@@ -936,7 +949,7 @@ try {
                 <?php endif; ?>
             </div>
         <?php else: ?>
-            <div class="freebies-grid">
+            <div class="freebies-grid" id="customGrid">
                 <?php foreach ($customFreebies as $custom): 
                     $previewUrl = '/customer/freebie-preview.php?id=' . $custom['id'];
                     $editorUrl = '/customer/custom-freebie-editor-tabs.php?id=' . $custom['id'];
@@ -950,9 +963,10 @@ try {
                     $date = new DateTime($custom['created_at']);
                     $formattedDate = $date->format('d.m.Y');
                     
-                    $nicheLabel = $nicheLabels[$custom['niche'] ?? 'sonstiges'] ?? '📂 Sonstiges';
+                    $nicheValue = $custom['niche'] ?? 'sonstiges';
+                    $nicheLabel = $nicheLabels[$nicheValue] ?? '📂 Sonstiges';
                 ?>
-                    <div class="freebie-card">
+                    <div class="freebie-card" data-niche="<?php echo htmlspecialchars($nicheValue); ?>" data-type="custom">
                         <div class="freebie-preview" style="background: <?php echo htmlspecialchars($bgColor); ?>;">
                             <div class="freebie-badges">
                                 <span class="freebie-badge badge-custom">✨ Eigenes Freebie</span>
@@ -1071,7 +1085,12 @@ try {
 </div>
 
 <script>
+// Aktiver Tab
+let activeTab = 'templates';
+
 function switchTab(tabName) {
+    activeTab = tabName;
+    
     // Hide all tabs
     document.querySelectorAll('.tab-content').forEach(tab => {
         tab.classList.remove('active');
@@ -1083,41 +1102,69 @@ function switchTab(tabName) {
     // Show selected tab
     document.getElementById('tab-' + tabName).classList.add('active');
     event.target.classList.add('active');
+    
+    // Update counts
+    updateFilterCounts();
 }
 
-function filterTemplatesByNiche() {
+function filterByNiche() {
     const selectedNiche = document.getElementById('nicheFilter').value;
-    const cards = document.querySelectorAll('#templatesGrid .freebie-card');
-    const noResults = document.getElementById('noResults');
-    const grid = document.getElementById('templatesGrid');
-    let visibleCount = 0;
+    const resetBtn = document.getElementById('resetFilter');
+    
+    if (selectedNiche) {
+        resetBtn.classList.add('active');
+    } else {
+        resetBtn.classList.remove('active');
+    }
+    
+    // Filter basierend auf aktivem Tab
+    const gridId = activeTab === 'templates' ? 'templatesGrid' : 'customGrid';
+    const cards = document.querySelectorAll(`#${gridId} .freebie-card`);
     
     cards.forEach(card => {
         const cardNiche = card.getAttribute('data-niche');
         
-        if (selectedNiche === 'all' || cardNiche === selectedNiche) {
+        if (!selectedNiche || cardNiche === selectedNiche) {
             card.classList.remove('hidden');
-            visibleCount++;
         } else {
             card.classList.add('hidden');
         }
     });
     
-    // Update stats
-    const filterStats = document.getElementById('filterStats');
-    if (selectedNiche === 'all') {
-        filterStats.textContent = cards.length + ' Templates';
-    } else {
-        filterStats.textContent = visibleCount + ' von ' + cards.length + ' Templates';
+    updateFilterCounts();
+}
+
+function resetFilter() {
+    document.getElementById('nicheFilter').value = '';
+    document.getElementById('resetFilter').classList.remove('active');
+    filterByNiche();
+}
+
+function updateFilterCounts() {
+    const gridId = activeTab === 'templates' ? 'templatesGrid' : 'customGrid';
+    const grid = document.getElementById(gridId);
+    
+    if (!grid) return;
+    
+    const allCards = grid.querySelectorAll('.freebie-card');
+    const visibleCards = grid.querySelectorAll('.freebie-card:not(.hidden)');
+    
+    document.getElementById('totalCount').textContent = allCards.length;
+    document.getElementById('visibleCount').textContent = visibleCards.length;
+    
+    // Update tab counts
+    const templatesCards = document.querySelectorAll('#templatesGrid .freebie-card:not(.hidden)');
+    const customCards = document.querySelectorAll('#customGrid .freebie-card:not(.hidden)');
+    
+    const templatesCountElem = document.getElementById('templatesCount');
+    const customCountElem = document.getElementById('customCount');
+    
+    if (templatesCountElem) {
+        templatesCountElem.textContent = templatesCards.length;
     }
     
-    // Show/hide no results message
-    if (visibleCount === 0) {
-        noResults.style.display = 'block';
-        grid.style.display = 'none';
-    } else {
-        noResults.style.display = 'none';
-        grid.style.display = 'grid';
+    if (customCountElem) {
+        customCountElem.textContent = customCards.length;
     }
 }
 
@@ -1179,4 +1226,9 @@ function deleteCustomFreebie(id) {
         alert('Fehler beim Löschen');
     });
 }
+
+// Initial counts setzen
+document.addEventListener('DOMContentLoaded', function() {
+    updateFilterCounts();
+});
 </script>
