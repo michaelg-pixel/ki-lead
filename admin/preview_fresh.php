@@ -1,7 +1,7 @@
 <?php
 /**
- * NEUE Admin-Vorschau für Kurse - BUGFIX VERSION
- * Version 2.1 - Fixed PHP Reference Bug
+ * NEUE Admin-Vorschau für Kurse - COMPLETE VERSION
+ * Version 2.2 - Mit Video-Switcher und Drip Content
  */
 session_start();
 require_once '../config/database.php';
@@ -24,7 +24,7 @@ if (!$course_id) {
     die("Keine Kurs-ID angegeben");
 }
 
-// Kurs laden - DIREKT aus DB
+// Kurs laden
 $stmt = $pdo->prepare("SELECT * FROM courses WHERE id = ?");
 $stmt->execute([$course_id]);
 $course = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -33,18 +33,18 @@ if (!$course) {
     die("Kurs nicht gefunden!");
 }
 
-// Module laden - DIREKT aus DB
+// Module laden
 $stmt = $pdo->prepare("SELECT * FROM course_modules WHERE course_id = ? ORDER BY sort_order ASC");
 $stmt->execute([$course_id]);
 $modules = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Lektionen für jedes Modul laden - WICHTIG: KEIN & bei foreach!
+// Lektionen laden - OHNE Referenzen!
 for ($i = 0; $i < count($modules); $i++) {
     $stmt = $pdo->prepare("SELECT * FROM course_lessons WHERE module_id = ? ORDER BY sort_order ASC");
     $stmt->execute([$modules[$i]['id']]);
     $modules[$i]['lessons'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Zusätzliche Videos - WICHTIG: KEIN & bei foreach!
+    // Zusätzliche Videos laden
     for ($j = 0; $j < count($modules[$i]['lessons']); $j++) {
         $stmt = $pdo->prepare("SELECT * FROM lesson_videos WHERE lesson_id = ? ORDER BY sort_order ASC");
         $stmt->execute([$modules[$i]['lessons'][$j]['id']]);
@@ -92,23 +92,33 @@ function parseVideoUrl($url) {
     return null;
 }
 
+// Video-Auswahl
 $selected_video_index = isset($_GET['video']) ? (int)$_GET['video'] : 0;
 $current_video_url = null;
+$current_video_title = null;
 
 if ($current_lesson) {
     if ($selected_video_index === 0 && $current_lesson['video_url']) {
+        // Hauptvideo
         $current_video_url = parseVideoUrl($current_lesson['video_url']);
+        $current_video_title = "Hauptvideo";
     } elseif ($selected_video_index > 0 && !empty($current_lesson['additional_videos'])) {
+        // Zusätzliches Video
         $video_key = $selected_video_index - 1;
         if (isset($current_lesson['additional_videos'][$video_key])) {
-            $current_video_url = parseVideoUrl($current_lesson['additional_videos'][$video_key]['video_url']);
+            $additional_video = $current_lesson['additional_videos'][$video_key];
+            $current_video_url = parseVideoUrl($additional_video['video_url']);
+            $current_video_title = $additional_video['video_title'] ?: "Video " . $selected_video_index;
         }
     }
     
+    // Fallback
     if (!$current_video_url && $current_lesson['video_url']) {
         $current_video_url = parseVideoUrl($current_lesson['video_url']);
+        $current_video_title = "Hauptvideo";
     } elseif (!$current_video_url && !empty($current_lesson['additional_videos'])) {
         $current_video_url = parseVideoUrl($current_lesson['additional_videos'][0]['video_url']);
+        $current_video_title = $current_lesson['additional_videos'][0]['video_title'] ?: "Video 1";
     }
 }
 
@@ -122,19 +132,21 @@ $timestamp = time();
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Vorschau: <?php echo htmlspecialchars($course['title']); ?> [FIXED <?php echo $timestamp; ?>]</title>
+    <title>Vorschau: <?php echo htmlspecialchars($course['title']); ?> [v<?php echo $timestamp; ?>]</title>
     
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         :root {
             --primary: #a855f7;
+            --primary-dark: #8b40d1;
             --bg-primary: #0a0a16;
             --bg-secondary: #1a1532;
             --bg-tertiary: #252041;
             --text-primary: #e5e7eb;
             --text-secondary: #9ca3af;
             --border: rgba(168, 85, 247, 0.2);
+            --warning: #f59e0b;
         }
         
         body {
@@ -264,7 +276,7 @@ $timestamp = time();
             padding: 2px 8px;
             background: rgba(245, 158, 11, 0.15);
             border: 1px solid rgba(245, 158, 11, 0.3);
-            color: #fbbf24;
+            color: var(--warning);
             border-radius: 12px;
             font-size: 10px;
             font-weight: 600;
@@ -307,6 +319,41 @@ $timestamp = time();
             color: var(--text-secondary);
         }
         
+        /* Video-Switcher */
+        .video-switcher {
+            background: rgba(26, 26, 46, 0.95);
+            border-top: 1px solid var(--border);
+            padding: 16px 24px;
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+        }
+        
+        .video-switch-btn {
+            padding: 10px 20px;
+            background: rgba(168, 85, 247, 0.1);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            border-radius: 8px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .video-switch-btn:hover {
+            background: rgba(168, 85, 247, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .video-switch-btn.active {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-color: var(--primary);
+            color: white;
+        }
+        
         .lesson-content { padding: 40px; }
         
         .lesson-header {
@@ -330,11 +377,20 @@ $timestamp = time();
             font-weight: 600;
             border: 1px solid rgba(16, 185, 129, 0.3);
         }
+        
+        .drip-notice {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            color: var(--warning);
+        }
     </style>
 </head>
 <body>
     <div class="admin-banner">
-        <span>✅ BUGFIX VERSION - Geladen: <?php echo date('H:i:s', $timestamp); ?></span>
+        <span>✅ ADMIN-VORSCHAU (alle Lektionen sichtbar) - <?php echo date('H:i:s', $timestamp); ?></span>
         <a href="dashboard.php?page=templates">← Zurück</a>
     </div>
 
@@ -342,7 +398,6 @@ $timestamp = time();
         <div class="sidebar">
             <div class="sidebar-header">
                 <h2><?php echo htmlspecialchars($course['title']); ?></h2>
-                <div class="timestamp">Version: FIXED</div>
                 <div class="timestamp">Module: <?php echo count($modules); ?></div>
             </div>
             
@@ -351,9 +406,7 @@ $timestamp = time();
                     <?php foreach ($modules as $idx => $module): ?>
                         <div class="module">
                             <div class="module-header">
-                                <h3>
-                                    #<?php echo ($idx + 1); ?> <?php echo htmlspecialchars($module['title']); ?>
-                                </h3>
+                                <h3>#<?php echo ($idx + 1); ?> <?php echo htmlspecialchars($module['title']); ?></h3>
                                 <?php if ($module['description']): ?>
                                     <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
                                         <?php echo htmlspecialchars($module['description']); ?>
@@ -417,10 +470,43 @@ $timestamp = time();
                     <?php endif; ?>
                 </div>
                 
+                <?php
+                // Video-Switcher anzeigen wenn mehrere Videos
+                $has_main_video = !empty($current_lesson['video_url']);
+                $has_additional_videos = !empty($current_lesson['additional_videos']);
+                $total_videos = ($has_main_video ? 1 : 0) + ($has_additional_videos ? count($current_lesson['additional_videos']) : 0);
+                ?>
+                
+                <?php if ($total_videos > 1): ?>
+                <div class="video-switcher">
+                    <?php if ($has_main_video): ?>
+                        <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $current_lesson['id']; ?>&video=0&t=<?php echo $timestamp; ?>" 
+                           class="video-switch-btn <?php echo $selected_video_index === 0 ? 'active' : ''; ?>">
+                            🎬 Hauptvideo
+                        </a>
+                    <?php endif; ?>
+                    
+                    <?php if ($has_additional_videos): ?>
+                        <?php foreach ($current_lesson['additional_videos'] as $index => $video): ?>
+                            <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $current_lesson['id']; ?>&video=<?php echo $index + 1; ?>&t=<?php echo $timestamp; ?>" 
+                               class="video-switch-btn <?php echo $selected_video_index === ($index + 1) ? 'active' : ''; ?>">
+                                📹 <?php echo htmlspecialchars($video['video_title'] ?: 'Video ' . ($index + 1)); ?>
+                            </a>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+                
                 <div class="lesson-content">
+                    <?php if (isset($current_lesson['unlock_after_days']) && $current_lesson['unlock_after_days'] > 0): ?>
+                        <div class="drip-notice">
+                            ⚠️ <strong>Hinweis:</strong> Diese Lektion wird für Kunden erst nach <?php echo $current_lesson['unlock_after_days']; ?> Tag<?php echo $current_lesson['unlock_after_days'] > 1 ? 'en' : ''; ?> freigeschaltet. Als Admin sehen Sie sie bereits jetzt.
+                        </div>
+                    <?php endif; ?>
+                    
                     <div class="lesson-header">
                         <h1><?php echo htmlspecialchars($current_lesson['title']); ?></h1>
-                        <div class="preview-badge">✅ Bugfix</div>
+                        <div class="preview-badge">👁️ Admin</div>
                     </div>
                     
                     <?php if ($current_lesson['description']): ?>
