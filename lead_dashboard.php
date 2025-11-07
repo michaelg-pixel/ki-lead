@@ -114,22 +114,18 @@ if ($lead['user_id']) {
             min-height: 100vh;
         }
         
-        /* Sidebar Navigation */
+        /* Sidebar Styles */
         .sidebar {
             width: 280px;
             background: white;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            box-shadow: 2px 0 15px rgba(0,0,0,0.1);
             position: fixed;
             left: 0;
             top: 0;
-            bottom: 0;
-            z-index: 1000;
-            transition: transform 0.3s ease;
+            height: 100vh;
             overflow-y: auto;
-        }
-        
-        .sidebar.closed {
-            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
         }
         
         .sidebar-header {
@@ -153,20 +149,23 @@ if ($lead['user_id']) {
             padding: 20px 0;
         }
         
+        .menu-section {
+            margin-bottom: 10px;
+        }
+        
         .menu-item {
+            display: flex;
+            align-items: center;
             padding: 15px 25px;
             color: #333;
             text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 15px;
             transition: all 0.3s;
             cursor: pointer;
             border-left: 4px solid transparent;
         }
         
         .menu-item:hover {
-            background: #f8f9fa;
+            background: #f5f7fa;
             border-left-color: #667eea;
         }
         
@@ -178,47 +177,99 @@ if ($lead['user_id']) {
         }
         
         .menu-item i {
-            font-size: 20px;
-            width: 24px;
+            font-size: 18px;
+            width: 30px;
+            margin-right: 12px;
+        }
+        
+        .menu-item span {
+            font-size: 15px;
+        }
+        
+        .sidebar-footer {
+            padding: 20px;
+            border-top: 1px solid #e0e0e0;
+            margin-top: auto;
+        }
+        
+        .sidebar-footer .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .sidebar-footer .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .sidebar-footer .user-details {
+            flex: 1;
+        }
+        
+        .sidebar-footer .user-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .sidebar-footer .user-email {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .sidebar-logout {
+            width: 100%;
+            padding: 10px;
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            color: #666;
             text-align: center;
+            text-decoration: none;
+            display: block;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        
+        .sidebar-logout:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
         }
         
         /* Mobile Toggle Button */
-        .menu-toggle {
+        .mobile-toggle {
             display: none;
             position: fixed;
             top: 20px;
             left: 20px;
             z-index: 1001;
-            background: #667eea;
-            color: white;
+            background: white;
             border: none;
-            padding: 12px 16px;
-            border-radius: 8px;
+            padding: 12px 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
             transition: all 0.3s;
         }
         
-        .menu-toggle:hover {
-            background: #5568d3;
-            transform: translateY(-2px);
+        .mobile-toggle:hover {
+            background: #667eea;
+            color: white;
         }
         
-        .menu-toggle i {
+        .mobile-toggle i {
             font-size: 20px;
-        }
-        
-        /* Main Content Area */
-        .main-content {
-            flex: 1;
-            margin-left: 280px;
-            padding: 20px;
-            transition: margin-left 0.3s ease;
-        }
-        
-        .main-content.expanded {
-            margin-left: 0;
         }
         
         /* Overlay für Mobile */
@@ -233,8 +284,12 @@ if ($lead['user_id']) {
             z-index: 999;
         }
         
-        .sidebar-overlay.show {
-            display: block;
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 20px;
+            transition: margin-left 0.3s ease;
         }
         
         .header {
@@ -253,37 +308,6 @@ if ($lead['user_id']) {
             opacity: 0.9;
             font-size: 16px;
         }
-        .logout-btn {
-            float: right;
-            background: rgba(255,255,255,0.2);
-            color: white;
-            padding: 8px 20px;
-            border: 2px solid white;
-            border-radius: 8px;
-            text-decoration: none;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-        .logout-btn:hover {
-            background: white;
-            color: #667eea;
-        }
-        
-        /* Content Sections */
-        .content-section {
-            display: none;
-        }
-        
-        .content-section.active {
-            display: block;
-            animation: fadeIn 0.3s ease;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -601,73 +625,13 @@ if ($lead['user_id']) {
             line-height: 1.5;
         }
         
-        /* Info Box für Anleitungen */
-        .info-box {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        /* Content Sections */
+        .content-section {
+            display: none;
         }
         
-        .info-box h3 {
-            color: #667eea;
-            font-size: 20px;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .info-box p, .info-box ul, .info-box ol {
-            color: #666;
-            font-size: 15px;
-            line-height: 1.8;
-            margin-bottom: 15px;
-        }
-        
-        .info-box ul, .info-box ol {
-            padding-left: 25px;
-        }
-        
-        .info-box li {
-            margin-bottom: 10px;
-        }
-        
-        .info-box strong {
-            color: #333;
-        }
-        
-        .social-button {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            padding: 12px 24px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-weight: 600;
-            transition: all 0.3s;
-            margin: 5px;
-        }
-        
-        .social-button.facebook {
-            background: #1877f2;
-            color: white;
-        }
-        
-        .social-button.instagram {
-            background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
-            color: white;
-        }
-        
-        .social-button.whatsapp {
-            background: #25D366;
-            color: white;
-        }
-        
-        .social-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        .content-section.active {
+            display: block;
         }
         
         /* Footer Styles */
@@ -709,7 +673,7 @@ if ($lead['user_id']) {
         }
         
         /* Responsive Design */
-        @media (max-width: 768px) {
+        @media (max-width: 992px) {
             .sidebar {
                 transform: translateX(-100%);
             }
@@ -718,7 +682,11 @@ if ($lead['user_id']) {
                 transform: translateX(0);
             }
             
-            .menu-toggle {
+            .sidebar-overlay.show {
+                display: block;
+            }
+            
+            .mobile-toggle {
                 display: block;
             }
             
@@ -730,12 +698,15 @@ if ($lead['user_id']) {
                 flex-direction: column;
                 text-align: center;
             }
+            
             .link-input-group {
                 flex-direction: column;
             }
+            
             .freebie-grid {
                 grid-template-columns: 1fr;
             }
+            
             .footer-links {
                 flex-direction: column;
                 gap: 10px;
@@ -744,47 +715,63 @@ if ($lead['user_id']) {
     </style>
 </head>
 <body>
-    <!-- Mobile Menu Toggle -->
-    <button class="menu-toggle" onclick="toggleSidebar()">
+    <!-- Mobile Toggle Button -->
+    <button class="mobile-toggle" onclick="toggleSidebar()">
         <i class="fas fa-bars"></i>
     </button>
     
-    <!-- Sidebar Overlay für Mobile -->
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
     
-    <!-- Sidebar Navigation -->
+    <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <h3>📚 Hilfe & Infos</h3>
-            <p>Alles was du wissen musst</p>
+            <h3>🚀 Dashboard</h3>
+            <p>Empfehlungsprogramm</p>
         </div>
+        
         <nav class="sidebar-menu">
-            <a class="menu-item active" onclick="showSection('dashboard')" data-section="dashboard">
-                <i class="fas fa-home"></i>
-                <span>Dashboard</span>
-            </a>
-            <a class="menu-item" onclick="showSection('how-it-works')" data-section="how-it-works">
-                <i class="fas fa-question-circle"></i>
-                <span>So funktioniert's</span>
-            </a>
-            <a class="menu-item" onclick="showSection('social-media')" data-section="social-media">
-                <i class="fas fa-share-alt"></i>
-                <span>Social Media</span>
-            </a>
-            <a class="menu-item" onclick="showSection('tips-tricks')" data-section="tips-tricks">
-                <i class="fas fa-lightbulb"></i>
-                <span>Tipps & Tricks</span>
-            </a>
+            <div class="menu-section">
+                <a href="#" class="menu-item active" onclick="showSection('dashboard', event)">
+                    <i class="fas fa-home"></i>
+                    <span>Übersicht</span>
+                </a>
+                <a href="#" class="menu-item" onclick="showSection('howto', event)">
+                    <i class="fas fa-question-circle"></i>
+                    <span>So funktioniert's</span>
+                </a>
+                <a href="#" class="menu-item" onclick="showSection('social', event)">
+                    <i class="fas fa-share-alt"></i>
+                    <span>Social Media</span>
+                </a>
+                <a href="#" class="menu-item" onclick="showSection('tips', event)">
+                    <i class="fas fa-lightbulb"></i>
+                    <span>Tipps & Tricks</span>
+                </a>
+            </div>
         </nav>
+        
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar">
+                    <?php echo strtoupper(substr($lead['name'], 0, 1)); ?>
+                </div>
+                <div class="user-details">
+                    <div class="user-name"><?php echo htmlspecialchars($lead['name']); ?></div>
+                    <div class="user-email"><?php echo htmlspecialchars($lead['email']); ?></div>
+                </div>
+            </div>
+            <a href="lead_logout.php" class="sidebar-logout">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </div>
     </aside>
     
     <!-- Main Content -->
-    <main class="main-content" id="mainContent">
-        
-        <!-- Dashboard Section -->
-        <div class="content-section active" id="dashboard-section">
+    <main class="main-content">
+        <!-- Dashboard Section (Default) -->
+        <div id="dashboard-section" class="content-section active">
             <div class="header">
-                <a href="lead_logout.php" class="logout-btn">Logout</a>
                 <h1>👋 Willkommen, <?php echo htmlspecialchars($lead['name']); ?>!</h1>
                 <p>Dein Empfehlungs-Dashboard</p>
             </div>
@@ -1005,260 +992,275 @@ if ($lead['user_id']) {
         </div>
         
         <!-- So funktioniert's Section -->
-        <div class="content-section" id="how-it-works-section">
+        <div id="howto-section" class="content-section">
             <div class="header">
-                <a href="lead_logout.php" class="logout-btn">Logout</a>
-                <h1>📚 So funktioniert's</h1>
-                <p>Deine Schritt-für-Schritt Anleitung</p>
+                <h1>❓ So funktioniert's</h1>
+                <p>Alles was du wissen musst</p>
             </div>
             
-            <div class="info-box">
-                <h3><i class="fas fa-rocket"></i> In 3 einfachen Schritten zum Erfolg</h3>
+            <div class="freebie-selection-section">
+                <h2><i class="fas fa-rocket"></i> In 3 einfachen Schritten zum Erfolg</h2>
                 
-                <p><strong>Schritt 1: Freebie auswählen</strong></p>
-                <p>Gehe zum Dashboard und wähle eines der verfügbaren Freebies aus, das du teilen möchtest. Klicke einfach auf die Karte des gewünschten Freebies.</p>
+                <div style="margin-top: 30px;">
+                    <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #667eea;">
+                        <h3 style="color: #667eea; margin-bottom: 10px;">
+                            <i class="fas fa-1" style="background: #667eea; color: white; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; margin-right: 10px; font-size: 16px;"></i>
+                            Wähle dein Freebie
+                        </h3>
+                        <p style="color: #666; line-height: 1.6;">
+                            Suche dir aus der Übersicht ein Freebie aus, das du mit deinem Netzwerk teilen möchtest. 
+                            Jedes Freebie bietet wertvollen Content für deine Kontakte.
+                        </p>
+                    </div>
+                    
+                    <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #28a745;">
+                        <h3 style="color: #28a745; margin-bottom: 10px;">
+                            <i class="fas fa-2" style="background: #28a745; color: white; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; margin-right: 10px; font-size: 16px;"></i>
+                            Teile deinen Link
+                        </h3>
+                        <p style="color: #666; line-height: 1.6;">
+                            Kopiere deinen persönlichen Empfehlungslink und teile ihn mit Freunden, Familie oder in sozialen Medien. 
+                            Jeder Klick wird automatisch deinem Account zugeordnet.
+                        </p>
+                    </div>
+                    
+                    <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+                        <h3 style="color: #ffc107; margin-bottom: 10px;">
+                            <i class="fas fa-3" style="background: #ffc107; color: white; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; margin-right: 10px; font-size: 16px;"></i>
+                            Erhalte Belohnungen
+                        </h3>
+                        <p style="color: #666; line-height: 1.6;">
+                            Für jede erfolgreiche Empfehlung erhältst du Punkte und schaltest exklusive Belohnungen frei. 
+                            Je mehr du empfiehlst, desto besser werden die Prämien!
+                        </p>
+                    </div>
+                </div>
                 
-                <p><strong>Schritt 2: Link teilen</strong></p>
-                <p>Nach der Auswahl erhältst du automatisch deinen persönlichen Empfehlungslink. Dieser Link enthält deinen einzigartigen Referral-Code. Kopiere den Link mit dem Button und teile ihn über:</p>
-                <ul>
-                    <li>Social Media (Facebook, Instagram, WhatsApp)</li>
-                    <li>E-Mail an Freunde und Bekannte</li>
-                    <li>In relevanten Online-Communities</li>
-                    <li>Persönliche Gespräche</li>
-                </ul>
-                
-                <p><strong>Schritt 3: Belohnungen verdienen</strong></p>
-                <p>Wenn sich jemand über deinen Link anmeldet und zum Kunden wird, zählt das als erfolgreiche Empfehlung. Je mehr erfolgreiche Empfehlungen du sammelst, desto mehr Belohnungen schaltest du frei!</p>
-            </div>
-            
-            <div class="info-box">
-                <h3><i class="fas fa-gift"></i> Das Belohnungssystem</h3>
-                <p>Unser Empfehlungsprogramm funktioniert nach einem Stufensystem:</p>
-                <ol>
-                    <li>Jede erfolgreiche Empfehlung zählt zu deinem Fortschritt</li>
-                    <li>Mit jeder Stufe schaltest du neue Belohnungen frei</li>
-                    <li>Du kannst alle deine Belohnungen im Dashboard einsehen</li>
-                    <li>Freigeschaltete Belohnungen werden automatisch aktiviert</li>
-                </ol>
-                <p>Tipp: Schau regelmäßig in dein Dashboard, um deinen Fortschritt zu verfolgen!</p>
-            </div>
-            
-            <div class="info-box">
-                <h3><i class="fas fa-chart-line"></i> Deine Statistiken</h3>
-                <p>In deinem Dashboard siehst du immer:</p>
-                <ul>
-                    <li><strong>Gesamt Empfehlungen:</strong> Alle Personen, die über deinen Link gekommen sind</li>
-                    <li><strong>Erfolgreiche Empfehlungen:</strong> Personen, die zu Kunden geworden sind</li>
-                    <li><strong>Eingelöste Belohnungen:</strong> Anzahl der bereits erhaltenen Belohnungen</li>
-                </ul>
-            </div>
-            
-            <div class="info-box">
-                <h3><i class="fas fa-question-circle"></i> Häufige Fragen</h3>
-                <p><strong>Wann zählt eine Empfehlung als erfolgreich?</strong></p>
-                <p>Eine Empfehlung gilt als erfolgreich, wenn die empfohlene Person sich nicht nur registriert, sondern auch zum zahlenden Kunden wird.</p>
-                
-                <p><strong>Wie lange ist mein Empfehlungslink gültig?</strong></p>
-                <p>Dein Empfehlungslink ist dauerhaft gültig. Du kannst ihn jederzeit teilen und nutzen.</p>
-                
-                <p><strong>Kann ich mehrere Freebies gleichzeitig teilen?</strong></p>
-                <p>Ja! Du kannst für jedes Freebie einen eigenen Link generieren und verschiedene Zielgruppen ansprechen.</p>
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 10px; margin-top: 30px; color: white;">
+                    <h3 style="margin-bottom: 15px;">
+                        <i class="fas fa-lightbulb"></i> Wichtig zu wissen
+                    </h3>
+                    <ul style="list-style: none; padding: 0;">
+                        <li style="margin-bottom: 10px; padding-left: 25px; position: relative;">
+                            <i class="fas fa-check-circle" style="position: absolute; left: 0; top: 3px;"></i>
+                            Dein Link ist einzigartig und wird automatisch getrackt
+                        </li>
+                        <li style="margin-bottom: 10px; padding-left: 25px; position: relative;">
+                            <i class="fas fa-check-circle" style="position: absolute; left: 0; top: 3px;"></i>
+                            Du kannst so viele Freebies teilen wie du möchtest
+                        </li>
+                        <li style="margin-bottom: 10px; padding-left: 25px; position: relative;">
+                            <i class="fas fa-check-circle" style="position: absolute; left: 0; top: 3px;"></i>
+                            Belohnungen werden automatisch freigeschaltet
+                        </li>
+                        <li style="padding-left: 25px; position: relative;">
+                            <i class="fas fa-check-circle" style="position: absolute; left: 0; top: 3px;"></i>
+                            Du kannst deinen Fortschritt jederzeit im Dashboard verfolgen
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
         
         <!-- Social Media Section -->
-        <div class="content-section" id="social-media-section">
+        <div id="social-section" class="content-section">
             <div class="header">
-                <a href="lead_logout.php" class="logout-btn">Logout</a>
                 <h1>📱 Social Media</h1>
-                <p>Teile deine Links erfolgreich auf Social Media</p>
+                <p>Teile deine Links optimal</p>
             </div>
             
-            <div class="info-box">
-                <h3><i class="fab fa-facebook"></i> Facebook Tipps</h3>
-                <p><strong>Wo teilen?</strong></p>
-                <ul>
-                    <li>In relevanten Facebook-Gruppen (beachte die Gruppenregeln!)</li>
-                    <li>Auf deiner persönlichen Timeline</li>
-                    <li>Als Story für 24-Stunden-Sichtbarkeit</li>
-                    <li>In Messenger-Chats mit interessierten Freunden</li>
-                </ul>
+            <div class="freebie-selection-section">
+                <h2><i class="fas fa-share-alt"></i> Social Media Tipps</h2>
                 
-                <p><strong>Best Practices:</strong></p>
-                <ul>
-                    <li>Füge einen persönlichen Text hinzu, warum das Freebie wertvoll ist</li>
-                    <li>Nutze ein ansprechendes Vorschaubild</li>
-                    <li>Poste zu aktiven Zeiten (abends zwischen 18-21 Uhr)</li>
-                    <li>Reagiere auf Kommentare und Fragen</li>
-                </ul>
+                <div class="stats-grid" style="margin-top: 30px;">
+                    <div class="stat-card" style="text-align: center;">
+                        <div style="font-size: 50px; color: #1877f2; margin-bottom: 15px;">
+                            <i class="fab fa-facebook"></i>
+                        </div>
+                        <h3 style="color: #333; margin-bottom: 10px;">Facebook</h3>
+                        <p style="color: #666; font-size: 14px; line-height: 1.6;">
+                            Poste in relevanten Gruppen und auf deiner Timeline. 
+                            Füge einen persönlichen Kommentar hinzu, warum dir das Freebie gefällt.
+                        </p>
+                    </div>
+                    
+                    <div class="stat-card" style="text-align: center;">
+                        <div style="font-size: 50px; color: #E4405F; margin-bottom: 15px;">
+                            <i class="fab fa-instagram"></i>
+                        </div>
+                        <h3 style="color: #333; margin-bottom: 10px;">Instagram</h3>
+                        <p style="color: #666; font-size: 14px; line-height: 1.6;">
+                            Teile deinen Link in der Story oder Bio. 
+                            Nutze passende Hashtags und erstelle ansprechende Stories.
+                        </p>
+                    </div>
+                    
+                    <div class="stat-card" style="text-align: center;">
+                        <div style="font-size: 50px; color: #1DA1F2; margin-bottom: 15px;">
+                            <i class="fab fa-twitter"></i>
+                        </div>
+                        <h3 style="color: #333; margin-bottom: 10px;">Twitter / X</h3>
+                        <p style="color: #666; font-size: 14px; line-height: 1.6;">
+                            Teile kurze, prägnante Tweets mit deinem Link. 
+                            Nutze relevante Hashtags für mehr Reichweite.
+                        </p>
+                    </div>
+                    
+                    <div class="stat-card" style="text-align: center;">
+                        <div style="font-size: 50px; color: #0A66C2; margin-bottom: 15px;">
+                            <i class="fab fa-linkedin"></i>
+                        </div>
+                        <h3 style="color: #333; margin-bottom: 10px;">LinkedIn</h3>
+                        <p style="color: #666; font-size: 14px; line-height: 1.6;">
+                            Perfekt für professionelle Inhalte. 
+                            Schreibe einen wertvollen Beitrag und füge deinen Link hinzu.
+                        </p>
+                    </div>
+                    
+                    <div class="stat-card" style="text-align: center;">
+                        <div style="font-size: 50px; color: #25D366; margin-bottom: 15px;">
+                            <i class="fab fa-whatsapp"></i>
+                        </div>
+                        <h3 style="color: #333; margin-bottom: 10px;">WhatsApp</h3>
+                        <p style="color: #666; font-size: 14px; line-height: 1.6;">
+                            Teile deinen Link direkt mit Freunden und in relevanten Gruppen. 
+                            Persönliche Nachrichten haben oft die beste Conversion.
+                        </p>
+                    </div>
+                    
+                    <div class="stat-card" style="text-align: center;">
+                        <div style="font-size: 50px; color: #0088cc; margin-bottom: 15px;">
+                            <i class="fab fa-telegram"></i>
+                        </div>
+                        <h3 style="color: #333; margin-bottom: 10px;">Telegram</h3>
+                        <p style="color: #666; font-size: 14px; line-height: 1.6;">
+                            Nutze Kanäle und Gruppen für maximale Reichweite. 
+                            Telegram-Nutzer sind oft sehr engagiert.
+                        </p>
+                    </div>
+                </div>
                 
-                <p><strong>Beispiel-Post:</strong></p>
-                <p style="background: #f8f9fa; padding: 15px; border-radius: 8px; font-style: italic;">
-                    "🎁 Hey Leute! Ich habe gerade dieses mega hilfreiche [Freebie-Name] entdeckt und dachte, das könnte für euch auch interessant sein. 
-                    Kostenlos und wirklich wertvoll! 💪 Schaut mal rein: [Dein Link]"
-                </p>
-            </div>
-            
-            <div class="info-box">
-                <h3><i class="fab fa-instagram"></i> Instagram Tipps</h3>
-                <p><strong>Wo teilen?</strong></p>
-                <ul>
-                    <li>In deiner Instagram Story mit Link-Sticker</li>
-                    <li>Als Post mit Link in der Bio</li>
-                    <li>In Instagram Reels für größere Reichweite</li>
-                    <li>Per Direct Message an interessierte Follower</li>
-                </ul>
-                
-                <p><strong>Best Practices:</strong></p>
-                <ul>
-                    <li>Erstelle eine ansprechende Grafik oder nutze das Freebie-Mockup</li>
-                    <li>Verwende relevante Hashtags (#freebie #kostenlos #tipps)</li>
-                    <li>Nutze den Link-in-Bio Bereich effektiv</li>
-                    <li>Erstelle ein Highlight für dauerhafte Sichtbarkeit</li>
-                </ul>
-                
-                <p><strong>Story-Idee:</strong></p>
-                <ul>
-                    <li>Bild/Video des Freebies</li>
-                    <li>Text: "Swipe up für gratis [Freebie] 🎁"</li>
-                    <li>Link-Sticker mit deinem Empfehlungslink</li>
-                    <li>Call-to-Action: "Jetzt sichern! 👆"</li>
-                </ul>
-            </div>
-            
-            <div class="info-box">
-                <h3><i class="fab fa-whatsapp"></i> WhatsApp Tipps</h3>
-                <p><strong>Wo teilen?</strong></p>
-                <ul>
-                    <li>In WhatsApp Status für alle Kontakte</li>
-                    <li>In relevanten WhatsApp-Gruppen</li>
-                    <li>Persönlich an interessierte Kontakte</li>
-                    <li>In WhatsApp Broadcast-Listen</li>
-                </ul>
-                
-                <p><strong>Best Practices:</strong></p>
-                <ul>
-                    <li>Mache es persönlich - schreibe, warum DU das Freebie empfiehlst</li>
-                    <li>Halte die Nachricht kurz und prägnant</li>
-                    <li>Füge eine Frage hinzu, um Konversation zu starten</li>
-                    <li>Respektiere, wenn jemand nicht interessiert ist</li>
-                </ul>
-                
-                <p><strong>Beispiel-Nachricht:</strong></p>
-                <p style="background: #f8f9fa; padding: 15px; border-radius: 8px; font-style: italic;">
-                    "Hi [Name]! 👋 Ich habe gerade ein super Freebie gefunden, das perfekt für dich sein könnte, da du dich ja für [Thema] interessierst. 
-                    Komplett kostenlos und mega wertvoll! Magst du mal reinschauen? [Dein Link] 🎁"
-                </p>
-            </div>
-            
-            <div class="info-box">
-                <h3><i class="fas fa-bullhorn"></i> Allgemeine Social Media Tipps</h3>
-                <ul>
-                    <li><strong>Authentizität:</strong> Sei ehrlich und teile nur, was du selbst wertvoll findest</li>
-                    <li><strong>Mehrwert:</strong> Erkläre, welchen Nutzen das Freebie bietet</li>
-                    <li><strong>Timing:</strong> Poste zu Zeiten, wenn deine Zielgruppe online ist</li>
-                    <li><strong>Konsistenz:</strong> Teile regelmäßig, aber nerve nicht</li>
-                    <li><strong>Engagement:</strong> Interagiere mit Kommentaren und Fragen</li>
-                    <li><strong>Variation:</strong> Probiere verschiedene Formate aus (Text, Bild, Video)</li>
-                </ul>
+                <div style="background: #e7f3ff; padding: 25px; border-radius: 10px; margin-top: 30px; border-left: 4px solid #667eea;">
+                    <h3 style="color: #667eea; margin-bottom: 15px;">
+                        <i class="fas fa-magic"></i> Posting-Vorlagen
+                    </h3>
+                    <p style="color: #666; margin-bottom: 15px;">
+                        Nutze diese Vorlagen für deine Posts:
+                    </p>
+                    <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                        <strong>📢 Hey! Ich habe gerade [Freebie-Name] entdeckt und es ist richtig gut!</strong><br>
+                        <span style="color: #666; font-size: 14px;">Schau es dir kostenlos an: [Dein Link]</span>
+                    </div>
+                    <div style="background: white; padding: 15px; border-radius: 8px;">
+                        <strong>🎁 Kostenlos für dich:</strong><br>
+                        <span style="color: #666; font-size: 14px;">[Freebie-Name] - Klick hier: [Dein Link]</span>
+                    </div>
+                </div>
             </div>
         </div>
         
         <!-- Tipps & Tricks Section -->
-        <div class="content-section" id="tips-tricks-section">
+        <div id="tips-section" class="content-section">
             <div class="header">
-                <a href="lead_logout.php" class="logout-btn">Logout</a>
                 <h1>💡 Tipps & Tricks</h1>
-                <p>So wirst du zum Empfehlungs-Profi</p>
+                <p>So holst du das Maximum raus</p>
             </div>
             
-            <div class="info-box">
-                <h3><i class="fas fa-star"></i> Die besten Empfehlungsstrategien</h3>
+            <div class="freebie-selection-section">
+                <h2><i class="fas fa-star"></i> Profi-Tipps für mehr Erfolg</h2>
                 
-                <p><strong>1. Zielgruppengerechtes Teilen</strong></p>
-                <p>Überlege dir genau, wer von dem Freebie profitieren würde. Teile es gezielt in Communities und mit Personen, die echtes Interesse haben könnten.</p>
+                <div style="margin-top: 30px;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 10px; margin-bottom: 20px; color: white;">
+                        <h3 style="margin-bottom: 15px;">
+                            <i class="fas fa-bullseye"></i> Tipp #1: Zielgruppe kennen
+                        </h3>
+                        <p style="line-height: 1.6; opacity: 0.95;">
+                            Teile nur Freebies, die wirklich zu deiner Zielgruppe passen. 
+                            Je relevanter der Content, desto höher die Conversion-Rate. 
+                            Überlege dir, welche Probleme deine Kontakte haben und wähle entsprechende Freebies aus.
+                        </p>
+                    </div>
+                    
+                    <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 25px; border-radius: 10px; margin-bottom: 20px; color: white;">
+                        <h3 style="margin-bottom: 15px;">
+                            <i class="fas fa-clock"></i> Tipp #2: Timing ist alles
+                        </h3>
+                        <p style="line-height: 1.6; opacity: 0.95;">
+                            Poste zu Zeiten, wenn deine Zielgruppe online ist. 
+                            Für Facebook und Instagram sind das oft Abends zwischen 19-21 Uhr. 
+                            LinkedIn funktioniert besser während der Arbeitszeit (9-17 Uhr).
+                        </p>
+                    </div>
+                    
+                    <div style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); padding: 25px; border-radius: 10px; margin-bottom: 20px; color: white;">
+                        <h3 style="margin-bottom: 15px;">
+                            <i class="fas fa-heart"></i> Tipp #3: Authentisch bleiben
+                        </h3>
+                        <p style="line-height: 1.6; opacity: 0.95;">
+                            Teile nur Freebies, die du selbst gut findest. 
+                            Deine persönliche Empfehlung ist viel mehr wert als ein nackter Link. 
+                            Erzähle, warum DU das Freebie empfiehlst.
+                        </p>
+                    </div>
+                    
+                    <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); padding: 25px; border-radius: 10px; margin-bottom: 20px; color: white;">
+                        <h3 style="margin-bottom: 15px;">
+                            <i class="fas fa-chart-line"></i> Tipp #4: Mehrwert kommunizieren
+                        </h3>
+                        <p style="line-height: 1.6; opacity: 0.95;">
+                            Erkläre in deinem Post, welchen konkreten Nutzen das Freebie bietet. 
+                            Nicht nur "Hol dir das Freebie", sondern "Lerne in 10 Minuten, wie du XYZ machst". 
+                            Menschen wollen wissen, was sie davon haben.
+                        </p>
+                    </div>
+                </div>
                 
-                <p><strong>2. Persönliche Empfehlung</strong></p>
-                <p>Eine persönliche Empfehlung ist viel wertvoller als nur ein geteilter Link. Erkläre, warum DU das Freebie empfiehlst und welchen Nutzen du darin siehst.</p>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 30px;">
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; text-align: center;">
+                        <div style="font-size: 40px; margin-bottom: 10px;">🔄</div>
+                        <h4 style="color: #333; margin-bottom: 10px;">Regelmäßig posten</h4>
+                        <p style="color: #666; font-size: 14px;">
+                            Konstanz schlägt Quantität. Lieber einmal pro Woche qualitativ hochwertig posten.
+                        </p>
+                    </div>
+                    
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; text-align: center;">
+                        <div style="font-size: 40px; margin-bottom: 10px;">💬</div>
+                        <h4 style="color: #333; margin-bottom: 10px;">Auf Kommentare antworten</h4>
+                        <p style="color: #666; font-size: 14px;">
+                            Engagement ist der Schlüssel. Beantworte Fragen und bleibe mit deiner Community im Austausch.
+                        </p>
+                    </div>
+                    
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; text-align: center;">
+                        <div style="font-size: 40px; margin-bottom: 10px;">📊</div>
+                        <h4 style="color: #333; margin-bottom: 10px;">Performance tracken</h4>
+                        <p style="color: #666; font-size: 14px;">
+                            Schau regelmäßig ins Dashboard und analysiere, welche Freebies am besten funktionieren.
+                        </p>
+                    </div>
+                    
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; text-align: center;">
+                        <div style="font-size: 40px; margin-bottom: 10px;">🎯</div>
+                        <h4 style="color: #333; margin-bottom: 10px;">Call-to-Action nutzen</h4>
+                        <p style="color: #666; font-size: 14px;">
+                            Fordere aktiv zum Klicken auf: "Hol dir jetzt", "Klick hier", "Jetzt kostenlos sichern".
+                        </p>
+                    </div>
+                </div>
                 
-                <p><strong>3. Mehrfach-Kanäle nutzen</strong></p>
-                <p>Beschränke dich nicht auf einen Kanal. Nutze E-Mail, Social Media, persönliche Gespräche und Online-Communities parallel.</p>
-                
-                <p><strong>4. Timing ist alles</strong></p>
-                <p>Teile deine Links zu Zeiten, wenn deine Zielgruppe am aktivsten ist. Für Social Media sind das meist abends und am Wochenende.</p>
-            </div>
-            
-            <div class="info-box">
-                <h3><i class="fas fa-comments"></i> Erfolgreiche Kommunikation</h3>
-                
-                <p><strong>Was funktioniert gut:</strong></p>
-                <ul>
-                    <li>✅ Ehrliche, persönliche Empfehlungen</li>
-                    <li>✅ Klare Beschreibung des Nutzens</li>
-                    <li>✅ Ansprechende visuelle Darstellung</li>
-                    <li>✅ Call-to-Action ("Jetzt sichern!", "Gratis Download")</li>
-                    <li>✅ Zeitlich begrenzte Angebote erwähnen (falls zutreffend)</li>
-                </ul>
-                
-                <p><strong>Was du vermeiden solltest:</strong></p>
-                <ul>
-                    <li>❌ Spam-artiges Teilen ohne Kontext</li>
-                    <li>❌ Übertriebene Versprechungen</li>
-                    <li>❌ Zu häufiges Posten desselben Links</li>
-                    <li>❌ Ignorieren von Gruppenregeln</li>
-                    <li>❌ Unaufgefordertes Zusenden an viele Personen</li>
-                </ul>
-            </div>
-            
-            <div class="info-box">
-                <h3><i class="fas fa-chart-line"></i> Optimierung deiner Empfehlungen</h3>
-                
-                <p><strong>A/B Testing:</strong></p>
-                <p>Probiere verschiedene Ansätze aus und beobachte, was am besten funktioniert:</p>
-                <ul>
-                    <li>Verschiedene Texte und Formulierungen</li>
-                    <li>Unterschiedliche Zeiten zum Posten</li>
-                    <li>Verschiedene Plattformen</li>
-                    <li>Mit und ohne Bilder</li>
-                </ul>
-                
-                <p><strong>Tracking & Analyse:</strong></p>
-                <ul>
-                    <li>Beobachte deine Statistiken im Dashboard</li>
-                    <li>Identifiziere, welche Kanäle am erfolgreichsten sind</li>
-                    <li>Fokussiere dich auf das, was funktioniert</li>
-                    <li>Lerne aus weniger erfolgreichen Versuchen</li>
-                </ul>
-            </div>
-            
-            <div class="info-box">
-                <h3><i class="fas fa-users"></i> Community aufbauen</h3>
-                
-                <p><strong>Langfristiger Erfolg durch Beziehungen:</strong></p>
-                <ul>
-                    <li>Baue echte Beziehungen zu deiner Community auf</li>
-                    <li>Biete Mehrwert, nicht nur Links</li>
-                    <li>Sei hilfsbereit und beantworte Fragen</li>
-                    <li>Teile auch anderen wertvollen Content</li>
-                    <li>Sei konsistent und zuverlässig</li>
-                </ul>
-                
-                <p>Eine starke Community wird deine Empfehlungen organisch weiterverbreiten und dir langfristig mehr erfolgreiche Empfehlungen bringen.</p>
-            </div>
-            
-            <div class="info-box">
-                <h3><i class="fas fa-trophy"></i> Motivation & Mindset</h3>
-                
-                <p><strong>Bleib dran:</strong></p>
-                <ul>
-                    <li>🎯 Setze dir realistische Ziele</li>
-                    <li>📊 Feiere kleine Erfolge</li>
-                    <li>⏱️ Gib dir Zeit - Erfolg kommt nicht über Nacht</li>
-                    <li>💪 Lerne aus Rückschlägen</li>
-                    <li>🚀 Optimiere kontinuierlich deine Strategie</li>
-                </ul>
-                
-                <p>Denk daran: Jede erfolgreiche Empfehlung bringt dich näher zu deiner nächsten Belohnung. Bleib konsistent und authentisch!</p>
+                <div style="background: #fff3cd; border: 2px solid #ffc107; padding: 25px; border-radius: 10px; margin-top: 30px;">
+                    <h3 style="color: #856404; margin-bottom: 15px;">
+                        <i class="fas fa-exclamation-triangle"></i> Was du vermeiden solltest
+                    </h3>
+                    <ul style="color: #856404; line-height: 2;">
+                        <li>❌ Spam in fremden Gruppen ohne Erlaubnis</li>
+                        <li>❌ Nur Links posten ohne Kontext</li>
+                        <li>❌ Zu häufig den gleichen Link teilen</li>
+                        <li>❌ Irrelevante Freebies für deine Zielgruppe</li>
+                        <li>❌ Aggressive Verkaufssprache verwenden</li>
+                    </ul>
+                </div>
             </div>
         </div>
         
@@ -1282,29 +1284,29 @@ if ($lead['user_id']) {
         const leadReferralCode = '<?php echo $lead['referral_code']; ?>';
         const baseUrl = 'https://app.mehr-infos-jetzt.de';
         
-        // Sidebar Toggle Functions
+        // Sidebar Toggle
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
+            const overlay = document.querySelector('.sidebar-overlay');
             
             sidebar.classList.toggle('open');
             overlay.classList.toggle('show');
         }
         
-        function closeSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-            
-            sidebar.classList.remove('open');
-            overlay.classList.remove('show');
-        }
-        
         // Section Navigation
-        function showSection(sectionName) {
-            // Alle Sections verstecken
-            const sections = document.querySelectorAll('.content-section');
-            sections.forEach(section => {
+        function showSection(sectionName, event) {
+            if (event) {
+                event.preventDefault();
+            }
+            
+            // Alle Sections ausblenden
+            document.querySelectorAll('.content-section').forEach(section => {
                 section.classList.remove('active');
+            });
+            
+            // Alle Menu Items deaktivieren
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('active');
             });
             
             // Gewählte Section anzeigen
@@ -1313,21 +1315,17 @@ if ($lead['user_id']) {
                 targetSection.classList.add('active');
             }
             
-            // Menu Items aktualisieren
-            const menuItems = document.querySelectorAll('.menu-item');
-            menuItems.forEach(item => {
-                item.classList.remove('active');
-                if (item.getAttribute('data-section') === sectionName) {
-                    item.classList.add('active');
-                }
-            });
-            
-            // Auf Mobile: Sidebar schließen nach Auswahl
-            if (window.innerWidth <= 768) {
-                closeSidebar();
+            // Aktives Menu Item markieren
+            if (event) {
+                event.target.closest('.menu-item').classList.add('active');
             }
             
-            // Zum Anfang scrollen
+            // Auf Mobile: Sidebar schließen
+            if (window.innerWidth <= 992) {
+                toggleSidebar();
+            }
+            
+            // Nach oben scrollen
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
         
@@ -1386,11 +1384,10 @@ if ($lead['user_id']) {
             }
         }
         
-        // Responsive: Sidebar bei Resize anpassen
-        window.addEventListener('resize', function() {
-            if (window.innerWidth > 768) {
-                document.getElementById('sidebar').classList.remove('open');
-                document.getElementById('sidebarOverlay').classList.remove('show');
+        // Overlay click schließt Sidebar auf Mobile
+        document.querySelector('.sidebar-overlay').addEventListener('click', function() {
+            if (window.innerWidth <= 992) {
+                toggleSidebar();
             }
         });
     </script>
