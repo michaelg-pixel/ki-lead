@@ -6,6 +6,26 @@ $fontConfig = require __DIR__ . '/../../config/fonts.php';
 $courses_stmt = $pdo->query("SELECT id, title FROM courses WHERE is_active = 1 ORDER BY title");
 $courses = $courses_stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// Nischen-Kategorien definieren (15 + Sonstiges)
+$niches = [
+    'online-business' => '💼 Online Business & Marketing',
+    'gesundheit-fitness' => '💪 Gesundheit & Fitness',
+    'persoenliche-entwicklung' => '🧠 Persönliche Entwicklung',
+    'finanzen-investment' => '💰 Finanzen & Investment',
+    'immobilien' => '🏠 Immobilien',
+    'e-commerce' => '🛒 E-Commerce & Dropshipping',
+    'affiliate-marketing' => '📈 Affiliate Marketing',
+    'social-media' => '📱 Social Media Marketing',
+    'ki-automation' => '🤖 KI & Automation',
+    'coaching-consulting' => '👔 Coaching & Consulting',
+    'spiritualitaet' => '✨ Spiritualität & Mindfulness',
+    'beziehungen-dating' => '❤️ Beziehungen & Dating',
+    'eltern-familie' => '👨‍👩‍👧 Eltern & Familie',
+    'karriere-beruf' => '🎯 Karriere & Beruf',
+    'hobbys-freizeit' => '🎨 Hobbys & Freizeit',
+    'sonstiges' => '📂 Sonstiges'
+];
+
 // Wenn Template bearbeitet wird
 $editing = false;
 $template = [];
@@ -37,7 +57,8 @@ $defaults = array_merge([
     'email_optin_code' => '',
     'custom_raw_code' => '',
     'show_mockup' => 1,
-    'is_master_template' => 1
+    'is_master_template' => 1,
+    'niche' => 'sonstiges'
 ], $fontConfig['defaults']);
 
 $template = array_merge($defaults, $template);
@@ -382,6 +403,19 @@ $template = array_merge($defaults, $template);
                         <input type="text" name="name" id="template_name" class="form-input" 
                                placeholder="z.B. KI-Kurs Lead-Magnet"
                                value="<?php echo htmlspecialchars($template['name']); ?>" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label required">Nische / Kategorie</label>
+                        <select name="niche" id="niche" class="form-select" required>
+                            <?php foreach ($niches as $value => $label): ?>
+                            <option value="<?php echo htmlspecialchars($value); ?>" 
+                                    <?php echo ($template['niche'] ?? 'sonstiges') === $value ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($label); ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <p class="help-text">Wähle die passende Nische für dieses Freebie aus</p>
                     </div>
                     
                     <div class="form-group">
@@ -971,6 +1005,7 @@ async function saveFreebie() {
         const data = {
             template_id: getInputValue('template_id', ''),
             name: getInputValue('template_name', ''),
+            niche: getInputValue('niche', 'sonstiges'),
             url_slug: getInputValue('url_slug', ''),
             headline: getInputValue('headline', ''),
             subheadline: getInputValue('subheadline', ''),
@@ -1012,6 +1047,10 @@ async function saveFreebie() {
         
         if (!data.headline || data.headline.trim() === '') {
             throw new Error('Headline ist erforderlich');
+        }
+        
+        if (!data.niche || data.niche.trim() === '') {
+            throw new Error('Nische ist erforderlich');
         }
         
         const response = await fetch('/api/save-freebie.php', {
