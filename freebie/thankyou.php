@@ -111,8 +111,8 @@ if ($has_freebie_course && $freebie_course_id) {
     // Custom Freebie Course - Link zur neuen Course Player Page
     $video_course_url = '/customer/freebie-course-player.php?id=' . $freebie_course_id;
 } elseif (!empty($freebie['course_id'])) {
-    // Template Course - alter Link
-    $video_course_url = '/customer/course-view.php?id=' . $freebie['course_id'];
+    // Template Course - NEUER Link zu course-player.php
+    $video_course_url = '/customer/course-player.php?id=' . $freebie['course_id'];
 } elseif (!empty($freebie['video_course_url'])) {
     // Manuell eingetragene URL
     $video_course_url = $freebie['video_course_url'];
