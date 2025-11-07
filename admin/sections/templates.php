@@ -206,10 +206,10 @@ $courses = $pdo->query("
     gap: 16px;
 }
 
-/* Courses Grid */
+/* Courses Grid - ANGEPASST FÜR 4 SPALTEN */
 .courses-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 24px;
 }
 
