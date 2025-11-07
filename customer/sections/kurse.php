@@ -530,7 +530,7 @@ $locked_courses = $stmt->fetchAll();
                         <?php endif; ?>
                         
                         <!-- Action Button -->
-                        <a href="/customer/course-view.php?id=<?php echo $course['id']; ?>" 
+                        <a href="/customer/course-player.php?id=<?php echo $course['id']; ?>" 
                            class="course-action <?php echo $progress > 0 ? 'btn-continue' : 'btn-start'; ?>">
                             <?php if ($progress > 0): ?>
                                 ▶️ Weiter lernen (<?php echo $progress; ?>%)
