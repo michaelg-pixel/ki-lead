@@ -2,6 +2,7 @@
 /**
  * Danke-Seite nach Freebie-Anforderung
  * Direkter Zugang zum Freebie-Videokurs
+ * Mit dynamischem Video-Content basierend auf Empfehlungsprogramm-Status
  */
 
 require_once __DIR__ . '/../config/database.php';
@@ -118,11 +119,12 @@ if ($has_freebie_course && $freebie_course_id) {
     $video_course_url = $freebie['video_course_url'];
 }
 
-// Empfehlungsprogramm URL - Lead-Registrierung
-// WICHTIG: Nur anzeigen wenn Customer das Empfehlungsprogramm aktiviert hat (referral_enabled = 1)
+// Empfehlungsprogramm-Status prüfen
+$referral_enabled = 0;
+$ref_code = '';
 $referral_url = '';
+
 if ($customer_id) {
-    // Referral Code UND referral_enabled Status des Customers holen
     try {
         $stmt = $pdo->prepare("SELECT ref_code, referral_enabled FROM users WHERE id = ?");
         $stmt->execute([$customer_id]);
@@ -139,14 +141,20 @@ if ($customer_id) {
     }
 }
 
+// Video-URL basierend auf Empfehlungsprogramm-Status
+$video_embed_url = '';
+if ($referral_enabled == 1) {
+    // Empfehlungsprogramm aktiv - Video 1134525205
+    $video_embed_url = 'https://player.vimeo.com/video/1134525205';
+} else {
+    // Empfehlungsprogramm nicht aktiv - Video 1134525175
+    $video_embed_url = 'https://player.vimeo.com/video/1134525175';
+}
+
 // KORREKTUR: Mockup-Bild Logik - Customer-Freebie Mockup hat Vorrang!
-// Bei Customer-Freebies: Erst mockup_image_url aus customer_freebies, dann course_mockup
-// Bei Template-Freebies: Erst course_mockup, dann mockup_image_url vom Template
 if ($is_customer_freebie) {
-    // Customer-Freebie: Eigenes Mockup hat Vorrang
     $mockup_image = $freebie['mockup_image_url'] ?? $freebie['course_mockup'] ?? '';
 } else {
-    // Template-Freebie: Kurs-Mockup hat Vorrang
     $mockup_image = $freebie['course_mockup'] ?? $freebie['mockup_image_url'] ?? '';
 }
 
@@ -198,6 +206,102 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             display: flex;
             flex-direction: column;
             gap: 24px;
+        }
+        
+        /* NEUE Rote Warning Box */
+        .warning-box {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            border: 4px solid #7f1d1d;
+            border-radius: 20px;
+            padding: 24px 32px;
+            color: white;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(220, 38, 38, 0.4);
+            animation: pulse-warning 2s ease-in-out infinite;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        @keyframes pulse-warning {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 10px 30px rgba(220, 38, 38, 0.4);
+            }
+            50% {
+                transform: scale(1.02);
+                box-shadow: 0 15px 40px rgba(220, 38, 38, 0.6);
+            }
+        }
+        
+        .warning-box::before {
+            content: '⚠️';
+            position: absolute;
+            top: -30px;
+            left: -30px;
+            font-size: 120px;
+            opacity: 0.1;
+        }
+        
+        .warning-box::after {
+            content: '⚠️';
+            position: absolute;
+            bottom: -30px;
+            right: -30px;
+            font-size: 120px;
+            opacity: 0.1;
+        }
+        
+        .warning-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+            display: block;
+            animation: shake 0.8s ease-in-out infinite;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        .warning-title {
+            font-size: 28px;
+            font-weight: 900;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .warning-text {
+            font-size: 18px;
+            font-weight: 600;
+            line-height: 1.5;
+        }
+        
+        /* Video Container */
+        .video-container {
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.6s ease-out;
+        }
+        
+        .video-wrapper {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+            height: 0;
+            overflow: hidden;
+            border-radius: 16px;
+            background: #000;
+        }
+        
+        .video-wrapper iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
         }
         
         /* Success Card */
@@ -653,6 +757,18 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
                 gap: 16px;
             }
             
+            .warning-box {
+                padding: 20px 16px;
+            }
+            
+            .warning-title {
+                font-size: 22px;
+            }
+            
+            .warning-text {
+                font-size: 16px;
+            }
+            
             .success-card {
                 padding: 40px 24px;
             }
@@ -715,6 +831,44 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
 </head>
 <body>
     <div class="container">
+        
+        <?php if ($referral_enabled == 1): ?>
+        <!-- NEUE Rote Warning Box - nur wenn Empfehlungsprogramm aktiv -->
+        <div class="warning-box">
+            <span class="warning-icon">🛑</span>
+            <div class="warning-title">STOP - Nicht schließen!</div>
+            <div class="warning-text">Wichtig: Bitte schließe diese Seite nicht, bevor du das komplette Video gesehen hast!</div>
+        </div>
+        <?php endif; ?>
+        
+        <!-- Video Container -->
+        <div class="video-container">
+            <div class="video-wrapper">
+                <iframe src="<?php echo htmlspecialchars($video_embed_url); ?>?autoplay=1&loop=0&autopause=0" 
+                        frameborder="0" 
+                        allow="autoplay; fullscreen; picture-in-picture" 
+                        allowfullscreen>
+                </iframe>
+            </div>
+        </div>
+        
+        <!-- Button Container - JETZT nach Video -->
+        <div class="button-container">
+            <?php if (!empty($video_course_url)): ?>
+                <a href="<?php echo htmlspecialchars($video_course_url); ?>" class="cta-button">
+                    <span class="cta-icon">🚀</span>
+                    <span><?php echo htmlspecialchars($video_button_text); ?></span>
+                </a>
+            <?php endif; ?>
+            
+            <?php if (!empty($referral_url)): ?>
+                <a href="<?php echo htmlspecialchars($referral_url); ?>" class="referral-button">
+                    <span class="cta-icon">🎁</span>
+                    <span>Zum Geschenk</span>
+                </a>
+            <?php endif; ?>
+        </div>
+        
         <!-- Success Card mit Kurs -->
         <div class="success-card">
             <h1 class="headline">Vielen Dank!</h1>
@@ -737,23 +891,6 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
                     </div>
                 </div>
             <?php endif; ?>
-            
-            <!-- Button Container mit beiden Buttons -->
-            <div class="button-container">
-                <?php if (!empty($video_course_url)): ?>
-                    <a href="<?php echo htmlspecialchars($video_course_url); ?>" class="cta-button">
-                        <span class="cta-icon">🚀</span>
-                        <span><?php echo htmlspecialchars($video_button_text); ?></span>
-                    </a>
-                <?php endif; ?>
-                
-                <?php if (!empty($referral_url)): ?>
-                    <a href="<?php echo htmlspecialchars($referral_url); ?>" class="referral-button">
-                        <span class="cta-icon">💰</span>
-                        <span>Jetzt Belohnungen verdienen!</span>
-                    </a>
-                <?php endif; ?>
-            </div>
             
             <p class="access-info">
                 ⚡ Sofortiger Zugang • Keine Wartezeit • Direkt loslegen
