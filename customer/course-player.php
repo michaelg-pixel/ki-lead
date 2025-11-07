@@ -2,63 +2,96 @@
 /**
  * Course Player - Videokurs Ansicht mit Multi-Video & Drip-Content Support
  * Features: Tabs für mehrere Videos, zeitbasierte Freischaltung, Fortschritt-Tracking
+ * ÖFFENTLICHER ZUGANG: Wenn via Freebie-Link mit access_token zugegriffen wird
  */
 
 session_start();
 
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
-    header('Location: /public/login.php');
-    exit;
-}
-
 require_once __DIR__ . '/../config/database.php';
 $pdo = getDBConnection();
 
-$customer_id = $_SESSION['user_id'];
 $course_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$access_token = isset($_GET['access_token']) ? trim($_GET['access_token']) : '';
+$freebie_id = isset($_GET['freebie_id']) ? (int)$_GET['freebie_id'] : 0;
 
 if ($course_id <= 0) {
     die('Ungültige Kurs-ID');
 }
 
-// Kurs laden mit Zugriffsprüfung
-$stmt = $pdo->prepare("
-    SELECT c.*, ca.id as has_access
-    FROM courses c
-    LEFT JOIN course_access ca ON c.id = ca.course_id AND ca.user_id = ?
-    WHERE c.id = ?
-    AND (c.is_freebie = 1 OR ca.id IS NOT NULL)
-");
-$stmt->execute([$customer_id, $course_id]);
-$course = $stmt->fetch();
+// ÖFFENTLICHER ZUGANG: Token validieren
+$is_public_access = false;
+$customer_id = null;
+
+if (!empty($access_token) && $freebie_id > 0) {
+    // Token validieren: MD5(freebie_id_course_id_freebie_access)
+    $expected_token = md5($freebie_id . '_' . $course_id . '_freebie_access');
+    
+    if ($access_token === $expected_token) {
+        $is_public_access = true;
+        // Für öffentlichen Zugang keine user_id erforderlich
+        $customer_id = 0;
+    }
+}
+
+// REGULÄRER ZUGANG: Login-Check (nur wenn nicht öffentlicher Zugang)
+if (!$is_public_access) {
+    if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
+        header('Location: /public/login.php');
+        exit;
+    }
+    $customer_id = $_SESSION['user_id'];
+}
+
+// Kurs laden mit Zugriffsprüfung (nur für eingeloggte Benutzer)
+if (!$is_public_access) {
+    $stmt = $pdo->prepare("
+        SELECT c.*, ca.id as has_access
+        FROM courses c
+        LEFT JOIN course_access ca ON c.id = ca.course_id AND ca.user_id = ?
+        WHERE c.id = ?
+        AND (c.is_freebie = 1 OR ca.id IS NOT NULL)
+    ");
+    $stmt->execute([$customer_id, $course_id]);
+    $course = $stmt->fetch();
+} else {
+    // Öffentlicher Zugang: Kurs direkt laden
+    $stmt = $pdo->prepare("SELECT * FROM courses WHERE id = ?");
+    $stmt->execute([$course_id]);
+    $course = $stmt->fetch();
+}
 
 if (!$course) {
     die('Kurs nicht gefunden oder kein Zugriff');
 }
 
-// Enrollment-Datum für Drip-Content prüfen/erstellen
-$stmt = $pdo->prepare("
-    SELECT enrolled_at FROM course_enrollments 
-    WHERE user_id = ? AND course_id = ?
-");
-$stmt->execute([$customer_id, $course_id]);
-$enrollment = $stmt->fetch();
+// Enrollment-Datum für Drip-Content prüfen/erstellen (nur für eingeloggte Benutzer)
+$enrolled_at = new DateTime();
+$days_enrolled = 9999; // Öffentlicher Zugang: Alle Lektionen freischalten
 
-if (!$enrollment) {
-    // Erste Einschreibung - Datum setzen
+if (!$is_public_access) {
     $stmt = $pdo->prepare("
-        INSERT INTO course_enrollments (user_id, course_id, enrolled_at) 
-        VALUES (?, ?, NOW())
+        SELECT enrolled_at FROM course_enrollments 
+        WHERE user_id = ? AND course_id = ?
     ");
     $stmt->execute([$customer_id, $course_id]);
-    $enrolled_at = new DateTime();
-} else {
-    $enrolled_at = new DateTime($enrollment['enrolled_at']);
-}
+    $enrollment = $stmt->fetch();
 
-// Tage seit Einschreibung
-$now = new DateTime();
-$days_enrolled = $now->diff($enrolled_at)->days;
+    if (!$enrollment) {
+        // Erste Einschreibung - Datum setzen
+        $stmt = $pdo->prepare("
+            INSERT INTO course_enrollments (user_id, course_id, enrolled_at) 
+            VALUES (?, ?, NOW())
+        ");
+        $stmt->execute([$customer_id, $course_id]);
+        $enrolled_at = new DateTime();
+    } else {
+        $enrolled_at = new DateTime($enrollment['enrolled_at']);
+    }
+
+    // Tage seit Einschreibung
+    $now = new DateTime();
+    $days_enrolled = $now->diff($enrolled_at)->days;
+}
 
 // Module mit Lektionen laden
 $stmt = $pdo->prepare("
@@ -75,27 +108,43 @@ $modules = $stmt->fetchAll();
 // Alle Lektionen mit Fortschritt, Drip-Status und Videos laden
 $lessons = [];
 foreach ($modules as $module) {
-    $stmt = $pdo->prepare("
-        SELECT 
-            cl.*,
-            cp.completed,
-            cp.completed_at,
-            CASE 
-                WHEN cl.unlock_after_days IS NULL THEN 1
-                WHEN cl.unlock_after_days <= ? THEN 1
-                ELSE 0
-            END as is_unlocked,
-            CASE 
-                WHEN cl.unlock_after_days IS NOT NULL AND cl.unlock_after_days > ?
-                THEN (cl.unlock_after_days - ?)
-                ELSE 0
-            END as days_until_unlock
-        FROM course_lessons cl
-        LEFT JOIN course_progress cp ON cl.id = cp.lesson_id AND cp.user_id = ?
-        WHERE cl.module_id = ?
-        ORDER BY cl.sort_order ASC
-    ");
-    $stmt->execute([$days_enrolled, $days_enrolled, $days_enrolled, $customer_id, $module['id']]);
+    if (!$is_public_access) {
+        $stmt = $pdo->prepare("
+            SELECT 
+                cl.*,
+                cp.completed,
+                cp.completed_at,
+                CASE 
+                    WHEN cl.unlock_after_days IS NULL THEN 1
+                    WHEN cl.unlock_after_days <= ? THEN 1
+                    ELSE 0
+                END as is_unlocked,
+                CASE 
+                    WHEN cl.unlock_after_days IS NOT NULL AND cl.unlock_after_days > ?
+                    THEN (cl.unlock_after_days - ?)
+                    ELSE 0
+                END as days_until_unlock
+            FROM course_lessons cl
+            LEFT JOIN course_progress cp ON cl.id = cp.lesson_id AND cp.user_id = ?
+            WHERE cl.module_id = ?
+            ORDER BY cl.sort_order ASC
+        ");
+        $stmt->execute([$days_enrolled, $days_enrolled, $days_enrolled, $customer_id, $module['id']]);
+    } else {
+        // Öffentlicher Zugang: Alle Lektionen freischalten, kein Fortschritt
+        $stmt = $pdo->prepare("
+            SELECT 
+                cl.*,
+                0 as completed,
+                NULL as completed_at,
+                1 as is_unlocked,
+                0 as days_until_unlock
+            FROM course_lessons cl
+            WHERE cl.module_id = ?
+            ORDER BY cl.sort_order ASC
+        ");
+        $stmt->execute([$module['id']]);
+    }
     $lessons[$module['id']] = $stmt->fetchAll();
 }
 
@@ -118,27 +167,43 @@ if (!$selected_lesson_id) {
 $current_lesson = null;
 $current_videos = [];
 if ($selected_lesson_id) {
-    $stmt = $pdo->prepare("
-        SELECT 
-            cl.*,
-            cm.title as module_title,
-            cp.completed,
-            CASE 
-                WHEN cl.unlock_after_days IS NULL THEN 1
-                WHEN cl.unlock_after_days <= ? THEN 1
-                ELSE 0
-            END as is_unlocked,
-            CASE 
-                WHEN cl.unlock_after_days IS NOT NULL AND cl.unlock_after_days > ?
-                THEN (cl.unlock_after_days - ?)
-                ELSE 0
-            END as days_until_unlock
-        FROM course_lessons cl
-        JOIN course_modules cm ON cl.module_id = cm.id
-        LEFT JOIN course_progress cp ON cl.id = cp.lesson_id AND cp.user_id = ?
-        WHERE cl.id = ?
-    ");
-    $stmt->execute([$days_enrolled, $days_enrolled, $days_enrolled, $customer_id, $selected_lesson_id]);
+    if (!$is_public_access) {
+        $stmt = $pdo->prepare("
+            SELECT 
+                cl.*,
+                cm.title as module_title,
+                cp.completed,
+                CASE 
+                    WHEN cl.unlock_after_days IS NULL THEN 1
+                    WHEN cl.unlock_after_days <= ? THEN 1
+                    ELSE 0
+                END as is_unlocked,
+                CASE 
+                    WHEN cl.unlock_after_days IS NOT NULL AND cl.unlock_after_days > ?
+                    THEN (cl.unlock_after_days - ?)
+                    ELSE 0
+                END as days_until_unlock
+            FROM course_lessons cl
+            JOIN course_modules cm ON cl.module_id = cm.id
+            LEFT JOIN course_progress cp ON cl.id = cp.lesson_id AND cp.user_id = ?
+            WHERE cl.id = ?
+        ");
+        $stmt->execute([$days_enrolled, $days_enrolled, $days_enrolled, $customer_id, $selected_lesson_id]);
+    } else {
+        // Öffentlicher Zugang
+        $stmt = $pdo->prepare("
+            SELECT 
+                cl.*,
+                cm.title as module_title,
+                0 as completed,
+                1 as is_unlocked,
+                0 as days_until_unlock
+            FROM course_lessons cl
+            JOIN course_modules cm ON cl.module_id = cm.id
+            WHERE cl.id = ?
+        ");
+        $stmt->execute([$selected_lesson_id]);
+    }
     $current_lesson = $stmt->fetch();
     
     // Videos für diese Lektion laden
@@ -161,6 +226,12 @@ if ($selected_lesson_id) {
             ]];
         }
     }
+}
+
+// URL für Lesson-Links generieren (Token mitgeben wenn öffentlicher Zugang)
+$lesson_url_params = '';
+if ($is_public_access) {
+    $lesson_url_params = '&access_token=' . urlencode($access_token) . '&freebie_id=' . $freebie_id;
 }
 ?>
 <!DOCTYPE html>
@@ -678,14 +749,17 @@ if ($selected_lesson_id) {
             <!-- Header -->
             <div class="player-header">
                 <div class="header-left">
+                    <?php if (!$is_public_access): ?>
                     <a href="/customer/dashboard.php?page=kurse" class="back-button">
                         ← Zurück
                     </a>
+                    <?php endif; ?>
                     <div class="course-info">
                         <h1><?php echo htmlspecialchars($course['title']); ?></h1>
                         <p><?php echo htmlspecialchars($current_lesson['module_title'] ?? 'Wähle eine Lektion'); ?></p>
                     </div>
                 </div>
+                <?php if (!$is_public_access): ?>
                 <div class="header-right">
                     <?php
                     $total_lessons = 0;
@@ -702,6 +776,7 @@ if ($selected_lesson_id) {
                         <?php echo $completed_lessons; ?> / <?php echo $total_lessons; ?> (<?php echo $progress_percent; ?>%)
                     </div>
                 </div>
+                <?php endif; ?>
             </div>
 
             <!-- Video Container -->
@@ -780,7 +855,7 @@ if ($selected_lesson_id) {
                     <?php if (count($current_videos) > 1): ?>
                         <span>🎥 <?php echo count($current_videos); ?> Videos</span>
                     <?php endif; ?>
-                    <?php if ($current_lesson['completed']): ?>
+                    <?php if (!$is_public_access && $current_lesson['completed']): ?>
                         <span style="color: var(--success);">✅ Abgeschlossen</span>
                     <?php endif; ?>
                 </div>
@@ -788,11 +863,13 @@ if ($selected_lesson_id) {
                     <p class="lesson-description"><?php echo nl2br(htmlspecialchars($current_lesson['description'])); ?></p>
                 <?php endif; ?>
                 
+                <?php if (!$is_public_access): ?>
                 <button class="complete-button <?php echo $current_lesson['completed'] ? 'completed' : ''; ?>"
                         onclick="markAsComplete(<?php echo $current_lesson['id']; ?>)"
                         <?php echo $current_lesson['completed'] ? 'disabled' : ''; ?>>
                     <?php echo $current_lesson['completed'] ? '✅ Lektion abgeschlossen' : '✓ Als abgeschlossen markieren'; ?>
                 </button>
+                <?php endif; ?>
             </div>
             <?php endif; ?>
         </div>
@@ -813,11 +890,11 @@ if ($selected_lesson_id) {
                             <?php if (!empty($lessons[$module['id']])): ?>
                                 <?php foreach ($lessons[$module['id']] as $lesson): ?>
                                     <?php if ($lesson['is_unlocked']): ?>
-                                        <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $lesson['id']; ?>" 
-                                           class="lesson-item <?php echo $lesson['id'] == $selected_lesson_id ? 'active' : ''; ?> <?php echo $lesson['completed'] ? 'completed' : ''; ?>">
+                                        <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $lesson['id'] . $lesson_url_params; ?>" 
+                                           class="lesson-item <?php echo $lesson['id'] == $selected_lesson_id ? 'active' : ''; ?> <?php echo !$is_public_access && $lesson['completed'] ? 'completed' : ''; ?>">
                                             <span class="lesson-icon">🎥</span>
                                             <span class="lesson-title"><?php echo htmlspecialchars($lesson['title']); ?></span>
-                                            <?php if ($lesson['completed']): ?>
+                                            <?php if (!$is_public_access && $lesson['completed']): ?>
                                                 <span class="lesson-status">✅</span>
                                             <?php endif; ?>
                                         </a>
@@ -867,6 +944,7 @@ if ($selected_lesson_id) {
             document.getElementById('sidebar').classList.toggle('open');
         }
 
+        <?php if (!$is_public_access): ?>
         function markAsComplete(lessonId) {
             fetch('/api/mark-lesson-complete.php', {
                 method: 'POST',
@@ -883,6 +961,7 @@ if ($selected_lesson_id) {
             })
             .catch(error => console.error('Error:', error));
         }
+        <?php endif; ?>
 
         function checkMobile() {
             const mobileToggle = document.querySelector('.mobile-toggle');
