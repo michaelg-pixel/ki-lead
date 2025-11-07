@@ -129,10 +129,10 @@ $domain = $_SERVER['HTTP_HOST'];
 <style>
     /* VERBESSERTE FARBEN - Violett-Pink Theme */
     
-    /* Grid für Freebie Cards */
+    /* Grid für Freebie Cards - ANGEPASST FÜR 4 SPALTEN */
     .freebies-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
         gap: 24px;
         margin-top: 24px;
     }
@@ -385,7 +385,7 @@ $domain = $_SERVER['HTTP_HOST'];
     /* Tablets */
     @media (max-width: 1024px) {
         .freebies-grid {
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 20px;
         }
     }
