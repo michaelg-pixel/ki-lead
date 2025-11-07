@@ -45,15 +45,32 @@ if ($course['type'] === 'video') {
     }
 }
 
-// Debug-Ausgabe (kann später entfernt werden)
+// ERWEITERTE Debug-Ausgabe
 if (isset($_GET['debug'])) {
-    echo '<pre style="background: #1a1a2e; padding: 20px; border-radius: 8px; color: #0e0; margin: 20px 0;">';
-    echo "Kurs-ID: " . $course_id . "\n";
-    echo "Anzahl Module: " . count($modules) . "\n\n";
-    foreach ($modules as $m) {
-        echo "Modul #{$m['id']}: {$m['title']} (Sort Order: {$m['sort_order']})\n";
+    echo '<div style="background: #1a1a2e; padding: 20px; border-radius: 8px; margin: 20px 0; font-family: monospace; color: #0f0; border: 2px solid #a855f7;">';
+    echo '<h3 style="color: #a855f7; margin: 0 0 15px 0;">🔍 DEBUG INFO</h3>';
+    echo '<strong>Kurs-ID:</strong> ' . $course_id . '<br>';
+    echo '<strong>Kurs-Typ:</strong> ' . $course['type'] . '<br>';
+    echo '<strong>Anzahl geladene Module:</strong> ' . count($modules) . '<br><br>';
+    
+    // Direkte Datenbankabfrage ohne JOIN
+    $directStmt = $pdo->prepare("SELECT id, title, description, sort_order, created_at FROM course_modules WHERE course_id = ? ORDER BY sort_order ASC");
+    $directStmt->execute([$course_id]);
+    $directModules = $directStmt->fetchAll();
+    
+    echo '<strong>Module in Datenbank (direkte Abfrage):</strong><br>';
+    echo '<table style="width: 100%; color: #0f0; margin-top: 10px; border-collapse: collapse;">';
+    echo '<tr style="background: rgba(168, 85, 247, 0.2);"><th style="padding: 8px; text-align: left;">ID</th><th style="padding: 8px; text-align: left;">Titel</th><th style="padding: 8px; text-align: left;">Sort Order</th><th style="padding: 8px; text-align: left;">Erstellt am</th></tr>';
+    foreach ($directModules as $dm) {
+        echo '<tr><td style="padding: 8px;">' . $dm['id'] . '</td><td style="padding: 8px;">' . htmlspecialchars($dm['title']) . '</td><td style="padding: 8px;">' . $dm['sort_order'] . '</td><td style="padding: 8px;">' . $dm['created_at'] . '</td></tr>';
     }
+    echo '</table><br>';
+    
+    echo '<strong>Module im PHP-Array ($modules):</strong><br>';
+    echo '<pre style="background: #0a0a0a; padding: 10px; border-radius: 4px; overflow: auto; max-height: 300px;">';
+    print_r($modules);
     echo '</pre>';
+    echo '</div>';
 }
 ?>
 
@@ -66,6 +83,12 @@ if (isset($_GET['debug'])) {
             <span class="course-type-badge-inline">
                 <?php echo $course['type'] === 'pdf' ? '📄 PDF-Kurs' : '🎥 Video-Kurs'; ?>
             </span>
+            <?php if (!isset($_GET['debug'])): ?>
+                <a href="<?php echo $_SERVER['REQUEST_URI'] . (strpos($_SERVER['REQUEST_URI'], '?') !== false ? '&' : '?') . 'debug=1'; ?>" 
+                   style="display: inline-block; margin-left: 10px; padding: 6px 12px; background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 6px; text-decoration: none; font-size: 13px;">
+                    🔍 Debug-Modus
+                </a>
+            <?php endif; ?>
         </div>
         <button onclick="saveCourseDetails()" class="btn-primary">
             💾 Änderungen speichern
@@ -145,7 +168,7 @@ if (isset($_GET['debug'])) {
             <?php if ($course['type'] === 'video'): ?>
                 <div class="modules-section">
                     <div class="section-header">
-                        <h3>📚 Module & Lektionen</h3>
+                        <h3>📚 Module & Lektionen (<?php echo count($modules); ?>)</h3>
                         <button onclick="showAddModuleModal()" class="btn-secondary">
                             + Modul hinzufügen
                         </button>
@@ -153,11 +176,15 @@ if (isset($_GET['debug'])) {
                     
                     <div id="modulesList" class="modules-list">
                         <?php if (count($modules) > 0): ?>
-                            <?php foreach ($modules as $module): ?>
-                                <div class="module-card" data-module-id="<?php echo $module['id']; ?>">
+                            <?php foreach ($modules as $index => $module): ?>
+                                <div class="module-card" data-module-id="<?php echo $module['id']; ?>" data-index="<?php echo $index; ?>">
                                     <div class="module-header">
                                         <div class="module-info">
-                                            <h4><?php echo htmlspecialchars($module['title']); ?></h4>
+                                            <h4>
+                                                <span style="color: #c084fc; margin-right: 8px;">#<?php echo ($index + 1); ?></span>
+                                                <?php echo htmlspecialchars($module['title']); ?>
+                                                <span style="font-size: 11px; color: #a0a0a0; margin-left: 8px;">(ID: <?php echo $module['id']; ?>)</span>
+                                            </h4>
                                             <?php if ($module['description']): ?>
                                                 <p><?php echo htmlspecialchars($module['description']); ?></p>
                                             <?php endif; ?>
@@ -222,7 +249,7 @@ if (isset($_GET['debug'])) {
     </div>
 </div>
 
-<!-- Modals bleiben gleich -->
+<!-- Modals und Styles bleiben gleich wie vorher -->
 <!-- Add Module Modal -->
 <div id="addModuleModal" class="modal hidden">
     <div class="modal-content">
@@ -353,7 +380,7 @@ if (isset($_GET['debug'])) {
 </div>
 
 <style>
-/* CSS bleibt gleich - gekürzt für bessere Übersicht */
+/* CSS bleibt gleich */
 .course-editor { max-width: 1600px; margin: 0 auto; }
 .editor-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; flex-wrap: wrap; gap: 20px; }
 .back-link { display: inline-block; color: #a0a0a0; text-decoration: none; margin-bottom: 12px; transition: color 0.2s; }
@@ -410,6 +437,16 @@ if (isset($_GET['debug'])) {
 </style>
 
 <script>
+// Funktion um URL-Parameter zu bereinigen und neu zu setzen
+function reloadWithCacheBust() {
+    const url = new URL(window.location.href);
+    // Entferne alle t= Parameter
+    url.searchParams.delete('t');
+    // Füge neuen Timestamp hinzu
+    url.searchParams.set('t', Date.now().toString());
+    window.location.href = url.toString();
+}
+
 // Save Course Details
 async function saveCourseDetails() {
     const formData = new FormData(document.getElementById('courseDetailsForm'));
@@ -424,8 +461,7 @@ async function saveCourseDetails() {
         
         if (data.success) {
             alert('✅ Kurs erfolgreich gespeichert!');
-            // Cache-Busting mit Timestamp
-            window.location.href = window.location.pathname + window.location.search + '&t=' + Date.now();
+            reloadWithCacheBust();
         } else {
             alert('❌ Fehler: ' + data.error);
         }
@@ -460,27 +496,37 @@ async function handleAddModule(event) {
     event.preventDefault();
     const formData = new FormData(event.target);
     
+    console.log('📝 Modul wird erstellt...');
+    console.log('   Course ID:', formData.get('course_id'));
+    console.log('   Title:', formData.get('title'));
+    console.log('   Description:', formData.get('description'));
+    
     try {
         const response = await fetch('/admin/api/courses/modules/create.php', {
             method: 'POST',
             body: formData
         });
         
-        const data = await response.json();
+        console.log('📡 API Response Status:', response.status);
         
-        console.log('API Response:', data); // Debug-Ausgabe
+        const data = await response.json();
+        console.log('📦 API Response Data:', data);
         
         if (data.success) {
-            alert('✅ Modul erfolgreich erstellt!');
-            // Cache-Busting mit Timestamp und Hard Reload
-            window.location.href = window.location.pathname + window.location.search + '&t=' + Date.now();
+            console.log('✅ Modul erstellt!');
+            console.log('   Module ID:', data.module_id);
+            console.log('   Sort Order:', data.sort_order);
+            console.log('   Total Modules:', data.total_modules);
+            
+            alert('✅ Modul erfolgreich erstellt!\n\nModule ID: ' + data.module_id + '\nSort Order: ' + data.sort_order + '\nTotal: ' + data.total_modules);
+            reloadWithCacheBust();
         } else {
+            console.error('❌ Fehler:', data.error);
             alert('❌ Fehler: ' + data.error);
-            console.error('Error details:', data);
         }
     } catch (error) {
+        console.error('💥 Exception:', error);
         alert('❌ Fehler: ' + error.message);
-        console.error('Catch error:', error);
     }
 }
 
@@ -498,7 +544,7 @@ async function handleEditModule(event) {
         
         if (data.success) {
             alert('✅ Modul erfolgreich aktualisiert!');
-            window.location.href = window.location.pathname + window.location.search + '&t=' + Date.now();
+            reloadWithCacheBust();
         } else {
             alert('❌ Fehler: ' + data.error);
         }
@@ -523,7 +569,7 @@ async function deleteModule(moduleId) {
         
         if (data.success) {
             alert('✅ Modul gelöscht!');
-            window.location.href = window.location.pathname + window.location.search + '&t=' + Date.now();
+            reloadWithCacheBust();
         } else {
             alert('❌ Fehler: ' + data.error);
         }
@@ -580,7 +626,7 @@ async function handleAddLesson(event) {
         
         if (data.success) {
             alert('✅ Lektion erfolgreich erstellt!');
-            window.location.href = window.location.pathname + window.location.search + '&t=' + Date.now();
+            reloadWithCacheBust();
         } else {
             alert('❌ Fehler: ' + data.error);
         }
@@ -603,7 +649,7 @@ async function handleEditLesson(event) {
         
         if (data.success) {
             alert('✅ Lektion erfolgreich aktualisiert!');
-            window.location.href = window.location.pathname + window.location.search + '&t=' + Date.now();
+            reloadWithCacheBust();
         } else {
             alert('❌ Fehler: ' + data.error);
         }
@@ -628,7 +674,7 @@ async function deleteLesson(lessonId) {
         
         if (data.success) {
             alert('✅ Lektion gelöscht!');
-            window.location.href = window.location.pathname + window.location.search + '&t=' + Date.now();
+            reloadWithCacheBust();
         } else {
             alert('❌ Fehler: ' + data.error);
         }
