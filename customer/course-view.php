@@ -33,12 +33,12 @@ if (!$course_id) {
     exit;
 }
 
-// Kurs laden + Zugangs-Check + Access Date für Drip Content
+// Kurs laden + Zugangs-Check + Created Date für Drip Content
 $access_date = null;
 if ($is_logged_in) {
-    // Eingeloggte User: Mit Zugangs-Check und Access Date
+    // Eingeloggte User: Mit Zugangs-Check und created_at als Access Date
     $stmt = $pdo->prepare("
-        SELECT c.*, ca.access_source, ca.access_date
+        SELECT c.*, ca.access_source, ca.created_at as access_date
         FROM courses c
         LEFT JOIN course_access ca ON c.id = ca.course_id AND ca.user_id = ?
         WHERE c.id = ? AND (c.is_freebie = TRUE OR ca.id IS NOT NULL)
