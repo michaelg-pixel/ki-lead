@@ -33,19 +33,19 @@ if ($course['type'] === 'video') {
     $stmt->execute([$course_id]);
     $modules = $stmt->fetchAll();
     
-    // Lektionen für jedes Modul laden
-    foreach ($modules as &$module) {
+    // Lektionen für jedes Modul laden - OHNE Referenz!
+    foreach ($modules as $key => $module) {
         $stmt = $pdo->prepare("
             SELECT * FROM course_lessons 
             WHERE module_id = ? 
             ORDER BY sort_order ASC
         ");
         $stmt->execute([$module['id']]);
-        $module['lessons'] = $stmt->fetchAll();
+        $modules[$key]['lessons'] = $stmt->fetchAll();
     }
 }
 
-// ERWEITERTE Debug-Ausgabe
+// Debug-Ausgabe (optional)
 if (isset($_GET['debug'])) {
     echo '<div style="background: #1a1a2e; padding: 20px; border-radius: 8px; margin: 20px 0; font-family: monospace; color: #0f0; border: 2px solid #a855f7;">';
     echo '<h3 style="color: #a855f7; margin: 0 0 15px 0;">🔍 DEBUG INFO</h3>';
@@ -249,7 +249,7 @@ if (isset($_GET['debug'])) {
     </div>
 </div>
 
-<!-- Modals und Styles bleiben gleich wie vorher -->
+<!-- Modals bleiben gleich wie vorher - gekürzt für Übersicht -->
 <!-- Add Module Modal -->
 <div id="addModuleModal" class="modal hidden">
     <div class="modal-content">
@@ -380,9 +380,8 @@ if (isset($_GET['debug'])) {
 </div>
 
 <style>
-/* CSS bleibt gleich */
 .course-editor { max-width: 1600px; margin: 0 auto; }
-.editor-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; flex-wrap: wrap; gap: 20px; }
+.editor-header { display: flex; justify-between: space-between; align-items: flex-start; margin-bottom: 32px; flex-wrap: wrap; gap: 20px; }
 .back-link { display: inline-block; color: #a0a0a0; text-decoration: none; margin-bottom: 12px; transition: color 0.2s; }
 .back-link:hover { color: #c084fc; }
 .course-type-badge-inline { display: inline-block; background: rgba(168, 85, 247, 0.2); border: 1px solid rgba(168, 85, 247, 0.4); padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; color: #c084fc; }
@@ -437,28 +436,18 @@ if (isset($_GET['debug'])) {
 </style>
 
 <script>
-// Funktion um URL-Parameter zu bereinigen und neu zu setzen
 function reloadWithCacheBust() {
     const url = new URL(window.location.href);
-    // Entferne alle t= Parameter
     url.searchParams.delete('t');
-    // Füge neuen Timestamp hinzu
     url.searchParams.set('t', Date.now().toString());
     window.location.href = url.toString();
 }
 
-// Save Course Details
 async function saveCourseDetails() {
     const formData = new FormData(document.getElementById('courseDetailsForm'));
-    
     try {
-        const response = await fetch('/admin/api/courses/update.php', {
-            method: 'POST',
-            body: formData
-        });
-        
+        const response = await fetch('/admin/api/courses/update.php', { method: 'POST', body: formData });
         const data = await response.json();
-        
         if (data.success) {
             alert('✅ Kurs erfolgreich gespeichert!');
             reloadWithCacheBust();
@@ -470,62 +459,27 @@ async function saveCourseDetails() {
     }
 }
 
-// Module Functions
-function showAddModuleModal() {
-    document.getElementById('addModuleModal').classList.remove('hidden');
-}
-
-function closeAddModuleModal() {
-    document.getElementById('addModuleModal').classList.add('hidden');
-    document.getElementById('addModuleForm').reset();
-}
-
-function showEditModuleModal(module) {
-    document.getElementById('editModuleId').value = module.id;
-    document.getElementById('editModuleTitle').value = module.title;
-    document.getElementById('editModuleDescription').value = module.description || '';
-    document.getElementById('editModuleModal').classList.remove('hidden');
-}
-
-function closeEditModuleModal() {
-    document.getElementById('editModuleModal').classList.add('hidden');
-    document.getElementById('editModuleForm').reset();
-}
+function showAddModuleModal() { document.getElementById('addModuleModal').classList.remove('hidden'); }
+function closeAddModuleModal() { document.getElementById('addModuleModal').classList.add('hidden'); document.getElementById('addModuleForm').reset(); }
+function showEditModuleModal(module) { document.getElementById('editModuleId').value = module.id; document.getElementById('editModuleTitle').value = module.title; document.getElementById('editModuleDescription').value = module.description || ''; document.getElementById('editModuleModal').classList.remove('hidden'); }
+function closeEditModuleModal() { document.getElementById('editModuleModal').classList.add('hidden'); document.getElementById('editModuleForm').reset(); }
 
 async function handleAddModule(event) {
     event.preventDefault();
     const formData = new FormData(event.target);
-    
-    console.log('📝 Modul wird erstellt...');
-    console.log('   Course ID:', formData.get('course_id'));
-    console.log('   Title:', formData.get('title'));
-    console.log('   Description:', formData.get('description'));
-    
+    console.log('📝 Modul wird erstellt...', 'Course ID:', formData.get('course_id'), 'Title:', formData.get('title'));
     try {
-        const response = await fetch('/admin/api/courses/modules/create.php', {
-            method: 'POST',
-            body: formData
-        });
-        
-        console.log('📡 API Response Status:', response.status);
-        
+        const response = await fetch('/admin/api/courses/modules/create.php', { method: 'POST', body: formData });
         const data = await response.json();
-        console.log('📦 API Response Data:', data);
-        
+        console.log('📦 API Response:', data);
         if (data.success) {
-            console.log('✅ Modul erstellt!');
-            console.log('   Module ID:', data.module_id);
-            console.log('   Sort Order:', data.sort_order);
-            console.log('   Total Modules:', data.total_modules);
-            
+            console.log('✅ Modul erstellt! ID:', data.module_id, 'Sort:', data.sort_order, 'Total:', data.total_modules);
             alert('✅ Modul erfolgreich erstellt!\n\nModule ID: ' + data.module_id + '\nSort Order: ' + data.sort_order + '\nTotal: ' + data.total_modules);
             reloadWithCacheBust();
         } else {
-            console.error('❌ Fehler:', data.error);
             alert('❌ Fehler: ' + data.error);
         }
     } catch (error) {
-        console.error('💥 Exception:', error);
         alert('❌ Fehler: ' + error.message);
     }
 }
@@ -533,15 +487,9 @@ async function handleAddModule(event) {
 async function handleEditModule(event) {
     event.preventDefault();
     const formData = new FormData(event.target);
-    
     try {
-        const response = await fetch('/admin/api/courses/modules/update.php', {
-            method: 'POST',
-            body: formData
-        });
-        
+        const response = await fetch('/admin/api/courses/modules/update.php', { method: 'POST', body: formData });
         const data = await response.json();
-        
         if (data.success) {
             alert('✅ Modul erfolgreich aktualisiert!');
             reloadWithCacheBust();
@@ -554,19 +502,10 @@ async function handleEditModule(event) {
 }
 
 async function deleteModule(moduleId) {
-    if (!confirm('Möchtest du dieses Modul wirklich löschen? Alle Lektionen werden ebenfalls gelöscht.')) {
-        return;
-    }
-    
+    if (!confirm('Möchtest du dieses Modul wirklich löschen? Alle Lektionen werden ebenfalls gelöscht.')) return;
     try {
-        const response = await fetch('/admin/api/courses/modules/delete.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ module_id: moduleId })
-        });
-        
+        const response = await fetch('/admin/api/courses/modules/delete.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ module_id: moduleId }) });
         const data = await response.json();
-        
         if (data.success) {
             alert('✅ Modul gelöscht!');
             reloadWithCacheBust();
@@ -578,52 +517,17 @@ async function deleteModule(moduleId) {
     }
 }
 
-// Lesson Functions
-function showAddLessonModal(moduleId) {
-    document.getElementById('lessonModuleId').value = moduleId;
-    document.getElementById('addLessonModal').classList.remove('hidden');
-}
-
-function closeAddLessonModal() {
-    document.getElementById('addLessonModal').classList.add('hidden');
-    document.getElementById('addLessonForm').reset();
-}
-
-function showEditLessonModal(lesson) {
-    document.getElementById('editLessonId').value = lesson.id;
-    document.getElementById('editLessonTitle').value = lesson.title;
-    document.getElementById('editLessonVideoUrl').value = lesson.video_url || '';
-    document.getElementById('editLessonDescription').value = lesson.description || '';
-    
-    const pdfInfo = document.getElementById('editLessonCurrentPdf');
-    const pdfName = document.getElementById('editLessonPdfName');
-    if (lesson.pdf_attachment) {
-        pdfName.textContent = lesson.pdf_attachment;
-        pdfInfo.style.display = 'block';
-    } else {
-        pdfInfo.style.display = 'none';
-    }
-    
-    document.getElementById('editLessonModal').classList.remove('hidden');
-}
-
-function closeEditLessonModal() {
-    document.getElementById('editLessonModal').classList.add('hidden');
-    document.getElementById('editLessonForm').reset();
-}
+function showAddLessonModal(moduleId) { document.getElementById('lessonModuleId').value = moduleId; document.getElementById('addLessonModal').classList.remove('hidden'); }
+function closeAddLessonModal() { document.getElementById('addLessonModal').classList.add('hidden'); document.getElementById('addLessonForm').reset(); }
+function showEditLessonModal(lesson) { document.getElementById('editLessonId').value = lesson.id; document.getElementById('editLessonTitle').value = lesson.title; document.getElementById('editLessonVideoUrl').value = lesson.video_url || ''; document.getElementById('editLessonDescription').value = lesson.description || ''; const pdfInfo = document.getElementById('editLessonCurrentPdf'); const pdfName = document.getElementById('editLessonPdfName'); if (lesson.pdf_attachment) { pdfName.textContent = lesson.pdf_attachment; pdfInfo.style.display = 'block'; } else { pdfInfo.style.display = 'none'; } document.getElementById('editLessonModal').classList.remove('hidden'); }
+function closeEditLessonModal() { document.getElementById('editLessonModal').classList.add('hidden'); document.getElementById('editLessonForm').reset(); }
 
 async function handleAddLesson(event) {
     event.preventDefault();
     const formData = new FormData(event.target);
-    
     try {
-        const response = await fetch('/admin/api/courses/lessons/create.php', {
-            method: 'POST',
-            body: formData
-        });
-        
+        const response = await fetch('/admin/api/courses/lessons/create.php', { method: 'POST', body: formData });
         const data = await response.json();
-        
         if (data.success) {
             alert('✅ Lektion erfolgreich erstellt!');
             reloadWithCacheBust();
@@ -638,15 +542,9 @@ async function handleAddLesson(event) {
 async function handleEditLesson(event) {
     event.preventDefault();
     const formData = new FormData(event.target);
-    
     try {
-        const response = await fetch('/admin/api/courses/lessons/update.php', {
-            method: 'POST',
-            body: formData
-        });
-        
+        const response = await fetch('/admin/api/courses/lessons/update.php', { method: 'POST', body: formData });
         const data = await response.json();
-        
         if (data.success) {
             alert('✅ Lektion erfolgreich aktualisiert!');
             reloadWithCacheBust();
@@ -659,19 +557,10 @@ async function handleEditLesson(event) {
 }
 
 async function deleteLesson(lessonId) {
-    if (!confirm('Möchtest du diese Lektion wirklich löschen?')) {
-        return;
-    }
-    
+    if (!confirm('Möchtest du diese Lektion wirklich löschen?')) return;
     try {
-        const response = await fetch('/admin/api/courses/lessons/delete.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ lesson_id: lessonId })
-        });
-        
+        const response = await fetch('/admin/api/courses/lessons/delete.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lesson_id: lessonId }) });
         const data = await response.json();
-        
         if (data.success) {
             alert('✅ Lektion gelöscht!');
             reloadWithCacheBust();
@@ -683,21 +572,6 @@ async function deleteLesson(lessonId) {
     }
 }
 
-// Close modals on outside click
-document.querySelectorAll('.modal').forEach(modal => {
-    modal.addEventListener('click', function(e) {
-        if (e.target === this) {
-            this.classList.add('hidden');
-        }
-    });
-});
-
-// Close modals on ESC
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        document.querySelectorAll('.modal').forEach(modal => {
-            modal.classList.add('hidden');
-        });
-    }
-});
+document.querySelectorAll('.modal').forEach(modal => { modal.addEventListener('click', function(e) { if (e.target === this) this.classList.add('hidden'); }); });
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') document.querySelectorAll('.modal').forEach(modal => modal.classList.add('hidden')); });
 </script>
