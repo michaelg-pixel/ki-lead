@@ -190,7 +190,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         
         body {
             font-family: '<?php echo $body_font; ?>', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #FFFFFF;
             color: #1F2937;
             line-height: 1.6;
             min-height: 100vh;
@@ -283,7 +283,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             background: white;
             border-radius: 20px;
             padding: 32px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
             animation: slideUp 0.6s ease-out;
             display: flex;
             justify-content: center;
@@ -316,7 +316,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             border-radius: 24px;
             padding: 50px 40px;
             text-align: center;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             animation: slideUp 0.6s ease-out;
         }
         
@@ -725,6 +725,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             padding: 24px;
             max-width: 900px;
             margin: 0 auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         }
         
         .footer-text {
