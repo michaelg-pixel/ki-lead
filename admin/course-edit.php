@@ -24,19 +24,19 @@ if ($is_edit) {
         exit;
     }
     
-    // Module laden
-    $stmt = $conn->prepare("SELECT * FROM modules WHERE course_id = ? ORDER BY sort_order");
+    // Module laden - GEÄNDERT: course_modules statt modules
+    $stmt = $conn->prepare("SELECT * FROM course_modules WHERE course_id = ? ORDER BY sort_order");
     $stmt->execute([$course_id]);
     $modules = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Lektionen laden
+    // Lektionen laden - GEÄNDERT: course_lessons statt lessons
     $lessons_by_module = [];
     foreach ($modules as $module) {
-        $stmt = $conn->prepare("SELECT * FROM lessons WHERE module_id = ? ORDER BY sort_order");
+        $stmt = $conn->prepare("SELECT * FROM course_lessons WHERE module_id = ? ORDER BY sort_order");
         $stmt->execute([$module['id']]);
         $lessons_by_module[$module['id']] = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // NEU: Zusätzliche Videos pro Lektion laden
+        // Zusätzliche Videos pro Lektion laden
         foreach ($lessons_by_module[$module['id']] as $key => $lesson) {
             $stmt = $conn->prepare("SELECT * FROM lesson_videos WHERE lesson_id = ? ORDER BY sort_order");
             $stmt->execute([$lesson['id']]);
@@ -97,45 +97,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_course'])) {
     exit;
 }
 
-// Modul hinzufügen
+// Modul hinzufügen - GEÄNDERT: course_modules statt modules
 if (isset($_POST['add_module'])) {
     $module_title = $_POST['module_title'];
     $module_description = $_POST['module_description'];
     
-    $stmt = $conn->prepare("SELECT COALESCE(MAX(sort_order), 0) + 1 as next_order FROM modules WHERE course_id = ?");
+    $stmt = $conn->prepare("SELECT COALESCE(MAX(sort_order), 0) + 1 as next_order FROM course_modules WHERE course_id = ?");
     $stmt->execute([$course_id]);
     $next_order = $stmt->fetch(PDO::FETCH_ASSOC)['next_order'];
     
-    $stmt = $conn->prepare("INSERT INTO modules (course_id, title, description, sort_order) VALUES (?, ?, ?, ?)");
+    $stmt = $conn->prepare("INSERT INTO course_modules (course_id, title, description, sort_order) VALUES (?, ?, ?, ?)");
     $stmt->execute([$course_id, $module_title, $module_description, $next_order]);
     
     header('Location: course-edit.php?id=' . $course_id . '&module_added=1');
     exit;
 }
 
-// Modul bearbeiten
+// Modul bearbeiten - GEÄNDERT: course_modules statt modules
 if (isset($_POST['edit_module'])) {
     $module_id = (int)$_POST['module_id'];
     $module_title = $_POST['module_title'];
     $module_description = $_POST['module_description'];
     
-    $stmt = $conn->prepare("UPDATE modules SET title = ?, description = ? WHERE id = ?");
+    $stmt = $conn->prepare("UPDATE course_modules SET title = ?, description = ? WHERE id = ?");
     $stmt->execute([$module_title, $module_description, $module_id]);
     
     header('Location: course-edit.php?id=' . $course_id . '&module_updated=1');
     exit;
 }
 
-// Lektion hinzufügen - ERWEITERT
+// Lektion hinzufügen - GEÄNDERT: course_lessons statt lessons + Spaltennamen angepasst
 if (isset($_POST['add_lesson'])) {
     $module_id = (int)$_POST['module_id'];
     $lesson_title = $_POST['lesson_title'];
     $lesson_description = $_POST['lesson_description'];
-    $vimeo_url = $_POST['vimeo_url'] ?? '';
+    $video_url = $_POST['vimeo_url'] ?? ''; // GEÄNDERT: vimeo_url → video_url
     $unlock_after_days = !empty($_POST['unlock_after_days']) ? (int)$_POST['unlock_after_days'] : null;
     
-    // PDF hochladen
-    $pdf_file = '';
+    // PDF hochladen - GEÄNDERT: pdf_file → pdf_attachment
+    $pdf_attachment = '';
     if (isset($_FILES['pdf_file']) && $_FILES['pdf_file']['error'] === 0) {
         $upload_dir = '../uploads/pdfs/';
         if (!file_exists($upload_dir)) {
@@ -148,34 +148,34 @@ if (isset($_POST['add_lesson'])) {
             $upload_path = $upload_dir . $new_filename;
             
             if (move_uploaded_file($_FILES['pdf_file']['tmp_name'], $upload_path)) {
-                $pdf_file = $new_filename;
+                $pdf_attachment = '/uploads/pdfs/' . $new_filename; // Vollständiger Pfad
             }
         }
     }
     
-    $stmt = $conn->prepare("SELECT COALESCE(MAX(sort_order), 0) + 1 as next_order FROM lessons WHERE module_id = ?");
+    $stmt = $conn->prepare("SELECT COALESCE(MAX(sort_order), 0) + 1 as next_order FROM course_lessons WHERE module_id = ?");
     $stmt->execute([$module_id]);
     $next_order = $stmt->fetch(PDO::FETCH_ASSOC)['next_order'];
     
-    // NEU: unlock_after_days hinzugefügt
+    // GEÄNDERT: course_lessons + video_url + pdf_attachment
     $stmt = $conn->prepare("
-        INSERT INTO lessons (module_id, title, description, vimeo_url, pdf_file, unlock_after_days, sort_order) 
+        INSERT INTO course_lessons (module_id, title, description, video_url, pdf_attachment, unlock_after_days, sort_order) 
         VALUES (?, ?, ?, ?, ?, ?, ?)
     ");
-    $stmt->execute([$module_id, $lesson_title, $lesson_description, $vimeo_url, $pdf_file, $unlock_after_days, $next_order]);
+    $stmt->execute([$module_id, $lesson_title, $lesson_description, $video_url, $pdf_attachment, $unlock_after_days, $next_order]);
     $lesson_id = $conn->lastInsertId();
     
-    // NEU: Mehrere Videos hinzufügen
+    // Mehrere Videos hinzufügen
     if (!empty($_POST['video_urls']) && is_array($_POST['video_urls'])) {
         $video_titles = $_POST['video_titles'] ?? [];
-        foreach ($_POST['video_urls'] as $index => $video_url) {
-            if (!empty($video_url)) {
+        foreach ($_POST['video_urls'] as $index => $video_url_item) {
+            if (!empty($video_url_item)) {
                 $video_title = $video_titles[$index] ?? "Video " . ($index + 1);
                 $stmt = $conn->prepare("
                     INSERT INTO lesson_videos (lesson_id, video_title, video_url, sort_order) 
                     VALUES (?, ?, ?, ?)
                 ");
-                $stmt->execute([$lesson_id, $video_title, $video_url, $index + 1]);
+                $stmt->execute([$lesson_id, $video_title, $video_url_item, $index + 1]);
             }
         }
     }
@@ -184,19 +184,19 @@ if (isset($_POST['add_lesson'])) {
     exit;
 }
 
-// Lektion bearbeiten - ERWEITERT
+// Lektion bearbeiten - GEÄNDERT: course_lessons + Spaltennamen
 if (isset($_POST['edit_lesson'])) {
     $lesson_id = (int)$_POST['lesson_id'];
     $lesson_title = $_POST['lesson_title'];
     $lesson_description = $_POST['lesson_description'];
-    $vimeo_url = $_POST['vimeo_url'] ?? '';
+    $video_url = $_POST['vimeo_url'] ?? '';
     $unlock_after_days = !empty($_POST['unlock_after_days']) ? (int)$_POST['unlock_after_days'] : null;
     
-    // Aktuelle PDF-Datei laden
-    $stmt = $conn->prepare("SELECT pdf_file FROM lessons WHERE id = ?");
+    // Aktuelle PDF-Datei laden - GEÄNDERT: pdf_attachment
+    $stmt = $conn->prepare("SELECT pdf_attachment FROM course_lessons WHERE id = ?");
     $stmt->execute([$lesson_id]);
     $current_lesson = $stmt->fetch(PDO::FETCH_ASSOC);
-    $pdf_file = $current_lesson['pdf_file'];
+    $pdf_attachment = $current_lesson['pdf_attachment'];
     
     // Neue PDF hochladen (falls vorhanden)
     if (isset($_FILES['pdf_file']) && $_FILES['pdf_file']['error'] === 0) {
@@ -211,36 +211,37 @@ if (isset($_POST['edit_lesson'])) {
             $upload_path = $upload_dir . $new_filename;
             
             if (move_uploaded_file($_FILES['pdf_file']['tmp_name'], $upload_path)) {
-                if ($pdf_file && file_exists($upload_dir . $pdf_file)) {
-                    unlink($upload_dir . $pdf_file);
+                // Alte Datei löschen
+                if ($pdf_attachment && file_exists('..' . $pdf_attachment)) {
+                    unlink('..' . $pdf_attachment);
                 }
-                $pdf_file = $new_filename;
+                $pdf_attachment = '/uploads/pdfs/' . $new_filename;
             }
         }
     }
     
-    // NEU: unlock_after_days hinzugefügt
+    // GEÄNDERT: course_lessons + video_url + pdf_attachment
     $stmt = $conn->prepare("
-        UPDATE lessons 
-        SET title = ?, description = ?, vimeo_url = ?, pdf_file = ?, unlock_after_days = ? 
+        UPDATE course_lessons 
+        SET title = ?, description = ?, video_url = ?, pdf_attachment = ?, unlock_after_days = ? 
         WHERE id = ?
     ");
-    $stmt->execute([$lesson_title, $lesson_description, $vimeo_url, $pdf_file, $unlock_after_days, $lesson_id]);
+    $stmt->execute([$lesson_title, $lesson_description, $video_url, $pdf_attachment, $unlock_after_days, $lesson_id]);
     
-    // NEU: Zusätzliche Videos aktualisieren
+    // Zusätzliche Videos aktualisieren
     $stmt = $conn->prepare("DELETE FROM lesson_videos WHERE lesson_id = ?");
     $stmt->execute([$lesson_id]);
     
     if (!empty($_POST['video_urls']) && is_array($_POST['video_urls'])) {
         $video_titles = $_POST['video_titles'] ?? [];
-        foreach ($_POST['video_urls'] as $index => $video_url) {
-            if (!empty($video_url)) {
+        foreach ($_POST['video_urls'] as $index => $video_url_item) {
+            if (!empty($video_url_item)) {
                 $video_title = $video_titles[$index] ?? "Video " . ($index + 1);
                 $stmt = $conn->prepare("
                     INSERT INTO lesson_videos (lesson_id, video_title, video_url, sort_order) 
                     VALUES (?, ?, ?, ?)
                 ");
-                $stmt->execute([$lesson_id, $video_title, $video_url, $index + 1]);
+                $stmt->execute([$lesson_id, $video_title, $video_url_item, $index + 1]);
             }
         }
     }
@@ -249,34 +250,34 @@ if (isset($_POST['edit_lesson'])) {
     exit;
 }
 
-// Modul löschen
+// Modul löschen - GEÄNDERT: course_modules + course_lessons
 if (isset($_POST['delete_module'])) {
     $module_id = (int)$_POST['module_id'];
-    $stmt = $conn->prepare("DELETE FROM lessons WHERE module_id = ?");
+    $stmt = $conn->prepare("DELETE FROM course_lessons WHERE module_id = ?");
     $stmt->execute([$module_id]);
-    $stmt = $conn->prepare("DELETE FROM modules WHERE id = ?");
+    $stmt = $conn->prepare("DELETE FROM course_modules WHERE id = ?");
     $stmt->execute([$module_id]);
     
     header('Location: course-edit.php?id=' . $course_id);
     exit;
 }
 
-// Lektion löschen
+// Lektion löschen - GEÄNDERT: course_lessons + pdf_attachment
 if (isset($_POST['delete_lesson'])) {
     $lesson_id = (int)$_POST['lesson_id'];
     
     // PDF-Datei löschen falls vorhanden
-    $stmt = $conn->prepare("SELECT pdf_file FROM lessons WHERE id = ?");
+    $stmt = $conn->prepare("SELECT pdf_attachment FROM course_lessons WHERE id = ?");
     $stmt->execute([$lesson_id]);
     $lesson = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($lesson && $lesson['pdf_file']) {
-        $pdf_path = '../uploads/pdfs/' . $lesson['pdf_file'];
+    if ($lesson && $lesson['pdf_attachment']) {
+        $pdf_path = '..' . $lesson['pdf_attachment'];
         if (file_exists($pdf_path)) {
             unlink($pdf_path);
         }
     }
     
-    $stmt = $conn->prepare("DELETE FROM lessons WHERE id = ?");
+    $stmt = $conn->prepare("DELETE FROM course_lessons WHERE id = ?");
     $stmt->execute([$lesson_id]);
     
     header('Location: course-edit.php?id=' . $course_id);
@@ -723,7 +724,7 @@ $niches = [
                                                         <div class="flex-1">
                                                             <div class="font-semibold text-white flex items-center gap-2">
                                                                 <?= htmlspecialchars($lesson['title']) ?>
-                                                                <!-- NEU: Drip Content Badge -->
+                                                                <!-- Drip Content Badge -->
                                                                 <?php if ($lesson['unlock_after_days'] !== null && $lesson['unlock_after_days'] > 0): ?>
                                                                     <span class="drip-badge">
                                                                         <i class="fas fa-clock"></i>
@@ -733,11 +734,11 @@ $niches = [
                                                             </div>
                                                             <div class="text-sm mt-1" style="color: #a0a0a0;"><?= htmlspecialchars($lesson['description']) ?></div>
                                                             <div class="text-xs mt-2 flex items-center gap-4 flex-wrap" style="color: #c084fc;">
-                                                                <?php if ($lesson['vimeo_url']): ?>
+                                                                <?php if ($lesson['video_url']): ?>
                                                                     <span><i class="fas fa-video mr-1"></i> Hauptvideo</span>
                                                                 <?php endif; ?>
                                                                 
-                                                                <!-- NEU: Zusätzliche Videos anzeigen -->
+                                                                <!-- Zusätzliche Videos anzeigen -->
                                                                 <?php if (!empty($lesson['additional_videos'])): ?>
                                                                     <span>
                                                                         <i class="fas fa-film mr-1"></i> 
@@ -745,8 +746,8 @@ $niches = [
                                                                     </span>
                                                                 <?php endif; ?>
                                                                 
-                                                                <?php if ($lesson['pdf_file']): ?>
-                                                                    <a href="../uploads/pdfs/<?= htmlspecialchars($lesson['pdf_file']) ?>" 
+                                                                <?php if ($lesson['pdf_attachment']): ?>
+                                                                    <a href="<?= htmlspecialchars($lesson['pdf_attachment']) ?>" 
                                                                        target="_blank" class="hover:underline">
                                                                         <i class="fas fa-file-pdf mr-1"></i> PDF vorhanden
                                                                     </a>
@@ -786,7 +787,7 @@ $niches = [
                                                                               class="custom-input w-full px-4 py-2.5 rounded-lg"><?= htmlspecialchars($lesson['description']) ?></textarea>
                                                                 </div>
                                                                 
-                                                                <!-- NEU: Drip Content Feld -->
+                                                                <!-- Drip Content Feld -->
                                                                 <div>
                                                                     <label class="custom-label block mb-2">
                                                                         <i class="fas fa-clock"></i> Freischaltung nach X Tagen (optional)
@@ -804,12 +805,12 @@ $niches = [
                                                                 <div>
                                                                     <label class="custom-label block mb-2">Hauptvideo URL (Vimeo/YouTube)</label>
                                                                     <input type="url" name="vimeo_url" 
-                                                                           value="<?= htmlspecialchars($lesson['vimeo_url']) ?>" 
+                                                                           value="<?= htmlspecialchars($lesson['video_url']) ?>" 
                                                                            class="custom-input w-full px-4 py-2.5 rounded-lg"
                                                                            placeholder="https://vimeo.com/123456789">
                                                                 </div>
                                                                 
-                                                                <!-- NEU: Zusätzliche Videos -->
+                                                                <!-- Zusätzliche Videos -->
                                                                 <div>
                                                                     <label class="custom-label block mb-2">
                                                                         <i class="fas fa-film"></i> Zusätzliche Videos (optional)
@@ -850,9 +851,9 @@ $niches = [
                                                                     </label>
                                                                     <input type="file" name="pdf_file" accept=".pdf" 
                                                                            class="custom-input w-full px-4 py-2.5 rounded-lg">
-                                                                    <?php if ($lesson['pdf_file']): ?>
+                                                                    <?php if ($lesson['pdf_attachment']): ?>
                                                                         <div class="text-xs mt-2" style="color: #a0a0a0;">
-                                                                            Aktuell: <?= htmlspecialchars($lesson['pdf_file']) ?>
+                                                                            Aktuell: <?= htmlspecialchars(basename($lesson['pdf_attachment'])) ?>
                                                                         </div>
                                                                     <?php endif; ?>
                                                                 </div>
@@ -888,7 +889,7 @@ $niches = [
                                                 <textarea name="lesson_description" placeholder="Beschreibung" rows="2" 
                                                           class="custom-input w-full px-4 py-2.5 rounded-lg"></textarea>
                                                 
-                                                <!-- NEU: Drip Content -->
+                                                <!-- Drip Content -->
                                                 <div>
                                                     <input type="number" name="unlock_after_days" 
                                                            placeholder="Freischaltung nach X Tagen (leer = sofort)" 
@@ -903,7 +904,7 @@ $niches = [
                                                 <input type="url" name="vimeo_url" placeholder="Hauptvideo URL (optional)" 
                                                        class="custom-input w-full px-4 py-2.5 rounded-lg">
                                                 
-                                                <!-- NEU: Zusätzliche Videos -->
+                                                <!-- Zusätzliche Videos -->
                                                 <div>
                                                     <label class="custom-label block mb-2">
                                                         <i class="fas fa-film"></i> Zusätzliche Videos (optional)
@@ -985,7 +986,7 @@ $niches = [
             }
         }
         
-        // NEU: Funktion zum Hinzufügen weiterer Video-Felder
+        // Funktion zum Hinzufügen weiterer Video-Felder
         function addVideoField(listId) {
             const list = document.getElementById('video-list-' + listId);
             const row = document.createElement('div');
