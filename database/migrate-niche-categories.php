@@ -1,26 +1,37 @@
 <?php
 // PHP Backend für die Migration - MUSS GANZ OBEN SEIN
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'migrate') {
-    // Fehlerbehandlung aktivieren
-    error_reporting(E_ALL);
-    ini_set('display_errors', 0);
     
-    // JSON Header SOFORT setzen
-    header('Content-Type: application/json; charset=utf-8');
+    // Alle Ausgaben abfangen
+    ob_start();
+    
+    header('Content-Type: application/json');
     
     try {
-        // Prüfe ob database.php existiert
-        $db_config_path = __DIR__ . '/../config/database.php';
-        if (!file_exists($db_config_path)) {
-            throw new Exception('Datenbankonfiguration nicht gefunden: ' . $db_config_path);
+        // Versuche verschiedene Pfade zur database.php
+        $possible_paths = [
+            __DIR__ . '/config/database.php',
+            __DIR__ . '/../config/database.php',
+            dirname(__DIR__) . '/config/database.php',
+            $_SERVER['DOCUMENT_ROOT'] . '/config/database.php'
+        ];
+        
+        $db_file = null;
+        foreach ($possible_paths as $path) {
+            if (file_exists($path)) {
+                $db_file = $path;
+                break;
+            }
         }
         
-        // Lade Datenbankverbindung
-        require_once $db_config_path;
+        if (!$db_file) {
+            throw new Exception('Datenbankverbindung nicht gefunden. Mögliche Pfade: ' . implode(', ', $possible_paths));
+        }
         
-        // Prüfe ob getDBConnection Funktion existiert
+        require_once $db_file;
+        
         if (!function_exists('getDBConnection')) {
-            throw new Exception('getDBConnection Funktion nicht gefunden in database.php');
+            throw new Exception('getDBConnection Funktion nicht gefunden in ' . $db_file);
         }
         
         $pdo = getDBConnection();
@@ -75,38 +86,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $errors[] = "Fehler beim Setzen der Standard-Werte: " . $e->getMessage();
         }
         
+        // Ausgabe leeren
+        ob_end_clean();
+        
         if (!empty($errors)) {
             echo json_encode([
                 'success' => false,
                 'error' => implode("\n", $errors),
                 'messages' => $messages
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
         } else {
             echo json_encode([
                 'success' => true,
                 'messages' => $messages
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
         }
         
-    } catch (PDOException $e) {
-        echo json_encode([
-            'success' => false,
-            'error' => 'Datenbankfehler: ' . $e->getMessage(),
-            'details' => [
-                'code' => $e->getCode(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine()
-            ]
-        ]);
     } catch (Exception $e) {
+        ob_end_clean();
         echo json_encode([
             'success' => false,
-            'error' => $e->getMessage(),
-            'details' => [
-                'file' => $e->getFile(),
-                'line' => $e->getLine()
-            ]
-        ]);
+            'error' => 'Kritischer Fehler: ' . $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], JSON_UNESCAPED_UNICODE);
     }
     
     exit;
@@ -257,7 +259,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             border-radius: 6px;
             overflow-x: auto;
             margin-top: 12px;
-            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-word;
         }
         
         .steps {
@@ -375,21 +378,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     body: 'action=migrate'
                 });
                 
-                // Prüfe ob Response OK ist
-                if (!response.ok) {
-                    throw new Error(`HTTP Fehler: ${response.status} ${response.statusText}`);
-                }
-                
-                // Hole Response Text
                 const responseText = await response.text();
+                console.log('Raw response:', responseText);
                 
-                // Versuche JSON zu parsen
                 let data;
                 try {
                     data = JSON.parse(responseText);
-                } catch (parseError) {
-                    // Zeige die ersten 500 Zeichen der Response für Debugging
-                    throw new Error('Ungültige JSON-Antwort. Server-Antwort:\n\n' + responseText.substring(0, 500));
+                } catch (e) {
+                    throw new Error('Server antwortete nicht mit JSON. Antwort: ' + responseText.substring(0, 500));
                 }
                 
                 if (data.success) {
@@ -410,23 +406,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 }
             } catch (error) {
                 resultDiv.className = 'result error';
-                let errorDetails = error.message;
-                
-                // Füge Stack-Trace hinzu falls vorhanden
-                if (error.stack) {
-                    errorDetails += '\n\nStack Trace:\n' + error.stack;
-                }
-                
                 resultDiv.innerHTML = `
                     <strong>❌ Fehler bei der Migration</strong><br><br>
-                    <pre>${errorDetails}</pre>
-                    <br>
+                    ${error.message}
+                    <br><br>
                     <strong>Mögliche Lösungen:</strong><br>
                     1. Prüfe die Datenbankverbindung in config/database.php<br>
                     2. Stelle sicher, dass die Datenbank erreichbar ist<br>
-                    3. Prüfe ob die Tabellen 'freebies' und 'customer_freebies' existieren<br>
-                    4. Kontaktiere den Support mit dem obigen Fehler
+                    3. Öffne die Browser-Konsole (F12) für Details<br>
+                    4. Kontaktiere den Support, falls das Problem weiterhin besteht
                 `;
+                console.error('Migration Error:', error);
             } finally {
                 btn.disabled = false;
                 btn.textContent = '🔄 Erneut versuchen';
