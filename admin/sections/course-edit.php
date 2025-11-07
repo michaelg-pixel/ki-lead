@@ -1,6 +1,7 @@
 <?php
 /**
  * Kurs bearbeiten - Mit Modulen & Lektionen
+ * ERWEITERT: Drip Content & Multi-Video Support
  */
 
 $course_id = $_GET['id'] ?? null;
@@ -33,7 +34,7 @@ if ($course['type'] === 'video') {
     $stmt->execute([$course_id]);
     $modules = $stmt->fetchAll();
     
-    // Lektionen für jedes Modul laden - OHNE Referenz!
+    // Lektionen für jedes Modul laden
     foreach ($modules as $key => $module) {
         $stmt = $pdo->prepare("
             SELECT * FROM course_lessons 
@@ -42,6 +43,18 @@ if ($course['type'] === 'video') {
         ");
         $stmt->execute([$module['id']]);
         $modules[$key]['lessons'] = $stmt->fetchAll();
+        
+        // NEU: Zusätzliche Videos für jede Lektion laden
+        foreach ($modules[$key]['lessons'] as $lkey => $lesson) {
+            $stmt = $pdo->prepare("
+                SELECT COUNT(*) as video_count 
+                FROM lesson_videos 
+                WHERE lesson_id = ?
+            ");
+            $stmt->execute([$lesson['id']]);
+            $videoCount = $stmt->fetchColumn();
+            $modules[$key]['lessons'][$lkey]['additional_video_count'] = $videoCount;
+        }
     }
 }
 
@@ -202,9 +215,22 @@ if (isset($_GET['debug'])) {
                                                     <div class="lesson-info">
                                                         <strong><?php echo htmlspecialchars($lesson['title']); ?></strong>
                                                         <div class="lesson-meta-row">
+                                                            <!-- NEU: Drip Content Badge -->
+                                                            <?php if (isset($lesson['unlock_after_days']) && $lesson['unlock_after_days'] !== null && $lesson['unlock_after_days'] > 0): ?>
+                                                                <span class="lesson-meta" style="background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;">
+                                                                    🔒 Tag <?php echo $lesson['unlock_after_days']; ?>
+                                                                </span>
+                                                            <?php endif; ?>
+                                                            
                                                             <?php if ($lesson['video_url']): ?>
                                                                 <span class="lesson-meta">🎥 Video</span>
                                                             <?php endif; ?>
+                                                            
+                                                            <!-- NEU: Zusätzliche Videos Badge -->
+                                                            <?php if ($lesson['additional_video_count'] > 0): ?>
+                                                                <span class="lesson-meta">🎬 +<?php echo $lesson['additional_video_count']; ?> Videos</span>
+                                                            <?php endif; ?>
+                                                            
                                                             <?php if ($lesson['pdf_attachment']): ?>
                                                                 <span class="lesson-meta">📄 PDF</span>
                                                             <?php endif; ?>
@@ -249,7 +275,6 @@ if (isset($_GET['debug'])) {
     </div>
 </div>
 
-<!-- Modals bleiben gleich wie vorher - gekürzt für Übersicht -->
 <!-- Add Module Modal -->
 <div id="addModuleModal" class="modal hidden">
     <div class="modal-content">
@@ -304,7 +329,7 @@ if (isset($_GET['debug'])) {
     </div>
 </div>
 
-<!-- Add Lesson Modal -->
+<!-- Add Lesson Modal - ERWEITERT -->
 <div id="addLessonModal" class="modal hidden">
     <div class="modal-content">
         <div class="modal-header">
@@ -318,11 +343,32 @@ if (isset($_GET['debug'])) {
                     <label>Lektionstitel *</label>
                     <input type="text" name="title" required placeholder="z.B. Was ist künstliche Intelligenz?">
                 </div>
+                
+                <!-- NEU: Drip Content -->
                 <div class="form-group">
-                    <label>Videolink (Vimeo oder YouTube)</label>
+                    <label>⏰ Freischaltung nach X Tagen (optional)</label>
+                    <input type="number" name="unlock_after_days" min="0" placeholder="Leer = sofort, 7 = nach 7 Tagen">
+                    <small>Gib die Anzahl der Tage an (0 oder leer = sofort verfügbar)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Hauptvideo (Vimeo oder YouTube)</label>
                     <input type="url" name="video_url" placeholder="https://vimeo.com/123456789">
                     <small>Unterstützt: Vimeo und YouTube Links</small>
                 </div>
+                
+                <!-- NEU: Zusätzliche Videos -->
+                <div class="form-group">
+                    <label>🎬 Zusätzliche Videos (optional)</label>
+                    <div id="additionalVideos" style="display: flex; flex-direction: column; gap: 8px;">
+                        <!-- Videos werden hier dynamisch hinzugefügt -->
+                    </div>
+                    <button type="button" onclick="addVideoField('add')" class="btn-secondary" style="margin-top: 8px; width: 100%;">
+                        + Weiteres Video hinzufügen
+                    </button>
+                    <small>Du kannst beliebig viele Videos zu dieser Lektion hinzufügen</small>
+                </div>
+                
                 <div class="form-group">
                     <label>Beschreibung</label>
                     <textarea name="description" rows="3" placeholder="Optionale Beschreibung der Lektion..."></textarea>
@@ -340,7 +386,7 @@ if (isset($_GET['debug'])) {
     </div>
 </div>
 
-<!-- Edit Lesson Modal -->
+<!-- Edit Lesson Modal - ERWEITERT -->
 <div id="editLessonModal" class="modal hidden">
     <div class="modal-content">
         <div class="modal-header">
@@ -354,11 +400,31 @@ if (isset($_GET['debug'])) {
                     <label>Lektionstitel *</label>
                     <input type="text" name="title" id="editLessonTitle" required placeholder="z.B. Was ist künstliche Intelligenz?">
                 </div>
+                
+                <!-- NEU: Drip Content -->
                 <div class="form-group">
-                    <label>Videolink (Vimeo oder YouTube)</label>
+                    <label>⏰ Freischaltung nach X Tagen (optional)</label>
+                    <input type="number" name="unlock_after_days" id="editLessonUnlockDays" min="0" placeholder="Leer = sofort">
+                    <small>Gib die Anzahl der Tage an (0 oder leer = sofort verfügbar)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Hauptvideo (Vimeo oder YouTube)</label>
                     <input type="url" name="video_url" id="editLessonVideoUrl" placeholder="https://vimeo.com/123456789">
                     <small>Unterstützt: Vimeo und YouTube Links</small>
                 </div>
+                
+                <!-- NEU: Zusätzliche Videos -->
+                <div class="form-group">
+                    <label>🎬 Zusätzliche Videos (optional)</label>
+                    <div id="editAdditionalVideos" style="display: flex; flex-direction: column; gap: 8px;">
+                        <!-- Videos werden hier dynamisch hinzugefügt -->
+                    </div>
+                    <button type="button" onclick="addVideoField('edit')" class="btn-secondary" style="margin-top: 8px; width: 100%;">
+                        + Weiteres Video hinzufügen
+                    </button>
+                </div>
+                
                 <div class="form-group">
                     <label>Beschreibung</label>
                     <textarea name="description" id="editLessonDescription" rows="3" placeholder="Optionale Beschreibung der Lektion..."></textarea>
@@ -381,7 +447,7 @@ if (isset($_GET['debug'])) {
 
 <style>
 .course-editor { max-width: 1600px; margin: 0 auto; }
-.editor-header { display: flex; justify-between: space-between; align-items: flex-start; margin-bottom: 32px; flex-wrap: wrap; gap: 20px; }
+.editor-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; flex-wrap: wrap; gap: 20px; }
 .back-link { display: inline-block; color: #a0a0a0; text-decoration: none; margin-bottom: 12px; transition: color 0.2s; }
 .back-link:hover { color: #c084fc; }
 .course-type-badge-inline { display: inline-block; background: rgba(168, 85, 247, 0.2); border: 1px solid rgba(168, 85, 247, 0.4); padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; color: #c084fc; }
@@ -391,7 +457,7 @@ if (isset($_GET['debug'])) {
 .sidebar-section h3 { font-size: 18px; color: white; font-weight: 700; margin: 0 0 20px 0; }
 .form-group { margin-bottom: 20px; }
 .form-group label { display: block; font-size: 13px; font-weight: 600; color: #c084fc; margin-bottom: 8px; letter-spacing: 0.3px; }
-.form-group input[type="text"], .form-group input[type="url"], .form-group input[type="file"], .form-group textarea, .form-group select { width: 100%; background: rgba(26, 26, 46, 0.8); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px; padding: 10px 12px; color: #e0e0e0; font-size: 14px; font-family: inherit; transition: all 0.2s ease; }
+.form-group input[type="text"], .form-group input[type="url"], .form-group input[type="number"], .form-group input[type="file"], .form-group textarea, .form-group select { width: 100%; background: rgba(26, 26, 46, 0.8); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px; padding: 10px 12px; color: #e0e0e0; font-size: 14px; font-family: inherit; transition: all 0.2s ease; }
 .form-group input::placeholder, .form-group textarea::placeholder { color: #a0a0a0; }
 .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; background: rgba(26, 26, 46, 0.95); border-color: rgba(168, 85, 247, 0.6); box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2); }
 .form-group small { display: block; font-size: 12px; color: #a0a0a0; margin-top: 4px; }
@@ -412,7 +478,7 @@ if (isset($_GET['debug'])) {
 .lesson-item:hover { border-color: rgba(168, 85, 247, 0.4); background: rgba(15, 15, 30, 1); }
 .lesson-info { flex: 1; }
 .lesson-info strong { color: #e0e0e0; font-size: 14px; font-weight: 600; display: block; margin-bottom: 6px; }
-.lesson-meta-row { display: flex; gap: 8px; }
+.lesson-meta-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .lesson-meta { font-size: 11px; color: #c084fc; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); padding: 3px 10px; border-radius: 12px; font-weight: 600; }
 .lesson-actions { display: flex; gap: 8px; }
 .btn-icon { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(168, 85, 247, 0.3); font-size: 16px; cursor: pointer; padding: 8px; border-radius: 6px; transition: all 0.2s; }
@@ -436,6 +502,44 @@ if (isset($_GET['debug'])) {
 </style>
 
 <script>
+// NEU: Globaler Counter für Video-Felder
+let videoFieldCounter = 0;
+
+// NEU: Video-Feld hinzufügen
+function addVideoField(context) {
+    videoFieldCounter++;
+    const containerId = context === 'add' ? 'additionalVideos' : 'editAdditionalVideos';
+    const container = document.getElementById(containerId);
+    
+    const videoField = document.createElement('div');
+    videoField.className = 'video-field-row';
+    videoField.style.cssText = 'display: flex; gap: 8px; align-items: center;';
+    videoField.innerHTML = `
+        <input type="text" 
+               name="video_titles[]" 
+               placeholder="Video Titel" 
+               style="width: 180px; background: rgba(26, 26, 46, 0.8); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px; padding: 10px 12px; color: #e0e0e0; font-size: 14px;">
+        <input type="url" 
+               name="video_urls[]" 
+               placeholder="https://vimeo.com/..." 
+               style="flex: 1; background: rgba(26, 26, 46, 0.8); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px; padding: 10px 12px; color: #e0e0e0; font-size: 14px;">
+        <button type="button" 
+                onclick="this.parentElement.remove()" 
+                class="btn-icon" 
+                style="padding: 10px 12px;">
+            🗑️
+        </button>
+    `;
+    container.appendChild(videoField);
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 function reloadWithCacheBust() {
     const url = new URL(window.location.href);
     url.searchParams.delete('t');
@@ -517,10 +621,83 @@ async function deleteModule(moduleId) {
     }
 }
 
-function showAddLessonModal(moduleId) { document.getElementById('lessonModuleId').value = moduleId; document.getElementById('addLessonModal').classList.remove('hidden'); }
-function closeAddLessonModal() { document.getElementById('addLessonModal').classList.add('hidden'); document.getElementById('addLessonForm').reset(); }
-function showEditLessonModal(lesson) { document.getElementById('editLessonId').value = lesson.id; document.getElementById('editLessonTitle').value = lesson.title; document.getElementById('editLessonVideoUrl').value = lesson.video_url || ''; document.getElementById('editLessonDescription').value = lesson.description || ''; const pdfInfo = document.getElementById('editLessonCurrentPdf'); const pdfName = document.getElementById('editLessonPdfName'); if (lesson.pdf_attachment) { pdfName.textContent = lesson.pdf_attachment; pdfInfo.style.display = 'block'; } else { pdfInfo.style.display = 'none'; } document.getElementById('editLessonModal').classList.remove('hidden'); }
-function closeEditLessonModal() { document.getElementById('editLessonModal').classList.add('hidden'); document.getElementById('editLessonForm').reset(); }
+function showAddLessonModal(moduleId) { 
+    document.getElementById('lessonModuleId').value = moduleId; 
+    document.getElementById('additionalVideos').innerHTML = ''; // Reset videos
+    document.getElementById('addLessonModal').classList.remove('hidden'); 
+}
+
+function closeAddLessonModal() { 
+    document.getElementById('addLessonModal').classList.add('hidden'); 
+    document.getElementById('addLessonForm').reset(); 
+    document.getElementById('additionalVideos').innerHTML = '';
+}
+
+// NEU: Erweiterte showEditLessonModal Funktion
+function showEditLessonModal(lesson) { 
+    document.getElementById('editLessonId').value = lesson.id; 
+    document.getElementById('editLessonTitle').value = lesson.title; 
+    document.getElementById('editLessonVideoUrl').value = lesson.video_url || ''; 
+    document.getElementById('editLessonDescription').value = lesson.description || ''; 
+    
+    // NEU: Drip Content Wert setzen
+    document.getElementById('editLessonUnlockDays').value = lesson.unlock_after_days || '';
+    
+    const pdfInfo = document.getElementById('editLessonCurrentPdf'); 
+    const pdfName = document.getElementById('editLessonPdfName'); 
+    if (lesson.pdf_attachment) { 
+        pdfName.textContent = lesson.pdf_attachment; 
+        pdfInfo.style.display = 'block'; 
+    } else { 
+        pdfInfo.style.display = 'none'; 
+    } 
+    
+    // NEU: Zusätzliche Videos laden
+    const editVideosContainer = document.getElementById('editAdditionalVideos');
+    editVideosContainer.innerHTML = '';
+    
+    // Lade zusätzliche Videos aus Datenbank
+    fetch('/admin/api/courses/lessons/get-videos.php?lesson_id=' + lesson.id)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.videos && data.videos.length > 0) {
+                data.videos.forEach(video => {
+                    videoFieldCounter++;
+                    const videoField = document.createElement('div');
+                    videoField.className = 'video-field-row';
+                    videoField.style.cssText = 'display: flex; gap: 8px; align-items: center;';
+                    videoField.innerHTML = `
+                        <input type="text" 
+                               name="video_titles[]" 
+                               value="${escapeHtml(video.video_title)}" 
+                               placeholder="Video Titel" 
+                               style="width: 180px; background: rgba(26, 26, 46, 0.8); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px; padding: 10px 12px; color: #e0e0e0; font-size: 14px;">
+                        <input type="url" 
+                               name="video_urls[]" 
+                               value="${escapeHtml(video.video_url)}" 
+                               placeholder="https://vimeo.com/..." 
+                               style="flex: 1; background: rgba(26, 26, 46, 0.8); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px; padding: 10px 12px; color: #e0e0e0; font-size: 14px;">
+                        <button type="button" 
+                                onclick="this.parentElement.remove()" 
+                                class="btn-icon" 
+                                style="padding: 10px 12px;">
+                            🗑️
+                        </button>
+                    `;
+                    editVideosContainer.appendChild(videoField);
+                });
+            }
+        })
+        .catch(error => console.error('Fehler beim Laden der Videos:', error));
+    
+    document.getElementById('editLessonModal').classList.remove('hidden'); 
+}
+
+function closeEditLessonModal() { 
+    document.getElementById('editLessonModal').classList.add('hidden'); 
+    document.getElementById('editLessonForm').reset(); 
+    document.getElementById('editAdditionalVideos').innerHTML = '';
+}
 
 async function handleAddLesson(event) {
     event.preventDefault();
