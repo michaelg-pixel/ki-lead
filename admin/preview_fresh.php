@@ -1,7 +1,7 @@
 <?php
 /**
- * NEUE Admin-Vorschau für Kurse - KOMPLETT NEU (kein Cache möglich)
- * Version 2.0 - Fresh Load
+ * NEUE Admin-Vorschau für Kurse - BUGFIX VERSION
+ * Version 2.1 - Fixed PHP Reference Bug
  */
 session_start();
 require_once '../config/database.php';
@@ -38,17 +38,17 @@ $stmt = $pdo->prepare("SELECT * FROM course_modules WHERE course_id = ? ORDER BY
 $stmt->execute([$course_id]);
 $modules = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Lektionen für jedes Modul laden
-foreach ($modules as &$module) {
+// Lektionen für jedes Modul laden - WICHTIG: KEIN & bei foreach!
+for ($i = 0; $i < count($modules); $i++) {
     $stmt = $pdo->prepare("SELECT * FROM course_lessons WHERE module_id = ? ORDER BY sort_order ASC");
-    $stmt->execute([$module['id']]);
-    $module['lessons'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt->execute([$modules[$i]['id']]);
+    $modules[$i]['lessons'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Zusätzliche Videos
-    foreach ($module['lessons'] as &$lesson) {
+    // Zusätzliche Videos - WICHTIG: KEIN & bei foreach!
+    for ($j = 0; $j < count($modules[$i]['lessons']); $j++) {
         $stmt = $pdo->prepare("SELECT * FROM lesson_videos WHERE lesson_id = ? ORDER BY sort_order ASC");
-        $stmt->execute([$lesson['id']]);
-        $lesson['additional_videos'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $stmt->execute([$modules[$i]['lessons'][$j]['id']]);
+        $modules[$i]['lessons'][$j]['additional_videos'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }
 
@@ -122,14 +122,7 @@ $timestamp = time();
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>NEUE Vorschau: <?php echo htmlspecialchars($course['title']); ?> [<?php echo $timestamp; ?>]</title>
-    
-    <!-- DEBUG -->
-    <!--
-    TIMESTAMP: <?php echo $timestamp; ?>
-    MODULE COUNT: <?php echo count($modules); ?>
-    MODULES: <?php foreach($modules as $m) echo $m['title'] . ', '; ?>
-    -->
+    <title>Vorschau: <?php echo htmlspecialchars($course['title']); ?> [FIXED <?php echo $timestamp; ?>]</title>
     
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -341,7 +334,7 @@ $timestamp = time();
 </head>
 <body>
     <div class="admin-banner">
-        <span>✨ NEUE VORSCHAU (kein Cache) - Geladen: <?php echo date('H:i:s', $timestamp); ?></span>
+        <span>✅ BUGFIX VERSION - Geladen: <?php echo date('H:i:s', $timestamp); ?></span>
         <a href="dashboard.php?page=templates">← Zurück</a>
     </div>
 
@@ -349,7 +342,7 @@ $timestamp = time();
         <div class="sidebar">
             <div class="sidebar-header">
                 <h2><?php echo htmlspecialchars($course['title']); ?></h2>
-                <div class="timestamp">Timestamp: <?php echo $timestamp; ?></div>
+                <div class="timestamp">Version: FIXED</div>
                 <div class="timestamp">Module: <?php echo count($modules); ?></div>
             </div>
             
@@ -379,7 +372,7 @@ $timestamp = time();
                                             <div class="lesson-info">
                                                 <div class="lesson-title">
                                                     <?php echo htmlspecialchars($lesson['title']); ?>
-                                                    <?php if ($lesson['unlock_after_days'] > 0): ?>
+                                                    <?php if (isset($lesson['unlock_after_days']) && $lesson['unlock_after_days'] > 0): ?>
                                                         <span class="drip-badge">🕐 Tag <?php echo $lesson['unlock_after_days']; ?></span>
                                                     <?php endif; ?>
                                                 </div>
@@ -427,7 +420,7 @@ $timestamp = time();
                 <div class="lesson-content">
                     <div class="lesson-header">
                         <h1><?php echo htmlspecialchars($current_lesson['title']); ?></h1>
-                        <div class="preview-badge">✨ Neue Vorschau</div>
+                        <div class="preview-badge">✅ Bugfix</div>
                     </div>
                     
                     <?php if ($current_lesson['description']): ?>
