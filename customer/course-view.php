@@ -1,6 +1,6 @@
 <?php
 /**
- * Kursansicht für Kunden UND Leads
+ * Kursansicht für Kunden UND Leads - CACHE-BUSTING VERSION
  * Video-Player + Lektionen + Fortschritt
  * Leads (nicht eingeloggt) können Freebie-Kurse sehen
  * ERWEITERT: Multi-Video Support
@@ -8,6 +8,12 @@
 
 session_start();
 require_once '../config/database.php';
+
+// CACHE-BUSTING Headers
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+header("Expires: 0");
 
 $pdo = getDBConnection();
 
@@ -66,6 +72,9 @@ if ($course['type'] === 'pdf') {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+        <meta http-equiv="Pragma" content="no-cache">
+        <meta http-equiv="Expires" content="0">
         <title><?php echo htmlspecialchars($course['title']); ?> - PDF</title>
         <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -135,7 +144,7 @@ $stmt = $pdo->prepare("
     ORDER BY sort_order ASC
 ");
 $stmt->execute([$course_id]);
-$modules = $stmt->fetchAll();
+$modules = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Lektionen für jedes Modul laden mit Fortschritt (nur wenn eingeloggt)
 foreach ($modules as &$module) {
@@ -159,9 +168,9 @@ foreach ($modules as &$module) {
         ");
         $stmt->execute([$module['id']]);
     }
-    $module['lessons'] = $stmt->fetchAll();
+    $module['lessons'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // NEU: Zusätzliche Videos für jede Lektion laden
+    // Zusätzliche Videos für jede Lektion laden
     foreach ($module['lessons'] as &$lesson) {
         $stmt = $pdo->prepare("
             SELECT * FROM lesson_videos 
@@ -169,7 +178,7 @@ foreach ($modules as &$module) {
             ORDER BY sort_order ASC
         ");
         $stmt->execute([$lesson['id']]);
-        $lesson['additional_videos'] = $stmt->fetchAll();
+        $lesson['additional_videos'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }
 
@@ -201,9 +210,14 @@ if (!$current_lesson && $is_logged_in) {
     }
 }
 
-if (!$current_lesson && count($modules) > 0 && count($modules[0]['lessons']) > 0) {
-    // Wenn alle abgeschlossen oder Lead: erste Lektion
-    $current_lesson = $modules[0]['lessons'][0];
+if (!$current_lesson && count($modules) > 0) {
+    // Wenn alle abgeschlossen oder Lead: erste Lektion im ersten Modul mit Lektionen
+    foreach ($modules as $module) {
+        if (count($module['lessons']) > 0) {
+            $current_lesson = $module['lessons'][0];
+            break;
+        }
+    }
 }
 
 // Video URL parsen
@@ -231,8 +245,6 @@ function parseVideoUrl($url) {
     
     return null;
 }
-
-$video_embed = $current_lesson ? parseVideoUrl($current_lesson['video_url']) : null;
 
 // Aktuelles Video auswählen (Hauptvideo oder zusätzliches Video)
 $selected_video_index = isset($_GET['video']) ? (int)$_GET['video'] : 0;
@@ -265,13 +277,22 @@ if (!$current_video_url && $current_lesson) {
         $current_video_title = $current_lesson['additional_videos'][0]['video_title'] ?: "Video 1";
     }
 }
+
+$cache_bust = time();
 ?>
 <!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($course['title']); ?> - Kurs</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title><?php echo htmlspecialchars($course['title']); ?> - Kurs [v<?php echo $cache_bust; ?>]</title>
+    
+    <!-- DEBUG INFO -->
+    <!-- Module Count: <?php echo count($modules); ?> -->
+    
     <style>
         * {
             margin: 0;
@@ -369,17 +390,27 @@ if (!$current_video_url && $current_lesson) {
             background: rgba(168, 85, 247, 0.05);
             border-radius: 10px;
             margin-bottom: 8px;
+            border: 1px solid rgba(168, 85, 247, 0.15);
         }
         
         .module-header h3 {
             font-size: 16px;
             color: white;
             margin-bottom: 6px;
+            font-weight: 700;
         }
         
         .module-header p {
             font-size: 13px;
             color: var(--text-secondary);
+        }
+        
+        .module-empty {
+            padding: 16px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 13px;
+            font-style: italic;
         }
         
         .lessons {
@@ -494,7 +525,6 @@ if (!$current_video_url && $current_lesson) {
             color: var(--text-secondary);
         }
         
-        /* NEU: Video-Switcher Styles */
         .video-switcher {
             background: rgba(26, 26, 46, 0.95);
             border-top: 1px solid var(--border);
@@ -667,47 +697,60 @@ if (!$current_video_url && $current_lesson) {
             </div>
             
             <div class="modules-container">
-                <?php foreach ($modules as $module): ?>
-                    <div class="module">
-                        <div class="module-header">
-                            <h3><?php echo htmlspecialchars($module['title']); ?></h3>
-                            <?php if ($module['description']): ?>
-                                <p><?php echo htmlspecialchars($module['description']); ?></p>
+                <?php if (count($modules) > 0): ?>
+                    <?php foreach ($modules as $module_index => $module): ?>
+                        <div class="module">
+                            <div class="module-header">
+                                <h3>#<?php echo ($module_index + 1); ?> <?php echo htmlspecialchars($module['title']); ?></h3>
+                                <?php if ($module['description']): ?>
+                                    <p><?php echo htmlspecialchars($module['description']); ?></p>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <?php if (count($module['lessons']) > 0): ?>
+                                <div class="lessons">
+                                    <?php foreach ($module['lessons'] as $lesson): ?>
+                                        <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $lesson['id']; ?>&_t=<?php echo $cache_bust; ?>" 
+                                           class="lesson-item <?php echo $current_lesson && $current_lesson['id'] == $lesson['id'] ? 'active' : ''; ?> <?php echo ($is_logged_in && isset($lesson['completed']) && $lesson['completed']) ? 'completed' : ''; ?>">
+                                            <div class="lesson-icon">
+                                                <?php if ($is_logged_in && isset($lesson['completed']) && $lesson['completed']): ?>
+                                                    ✅
+                                                <?php elseif ($current_lesson && $current_lesson['id'] == $lesson['id']): ?>
+                                                    ▶️
+                                                <?php else: ?>
+                                                    ⚪
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="lesson-info">
+                                                <div class="lesson-title"><?php echo htmlspecialchars($lesson['title']); ?></div>
+                                                <?php
+                                                $video_count = 0;
+                                                if ($lesson['video_url']) $video_count++;
+                                                if (!empty($lesson['additional_videos'])) $video_count += count($lesson['additional_videos']);
+                                                ?>
+                                                <?php if ($video_count > 0): ?>
+                                                    <div class="lesson-meta">🎥 <?php echo $video_count; ?> Video<?php echo $video_count > 1 ? 's' : ''; ?></div>
+                                                <?php endif; ?>
+                                                <?php if ($lesson['pdf_attachment']): ?>
+                                                    <div class="lesson-meta">📄 PDF verfügbar</div>
+                                                <?php endif; ?>
+                                            </div>
+                                        </a>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php else: ?>
+                                <div class="module-empty">
+                                    📝 Noch keine Lektionen in diesem Modul
+                                </div>
                             <?php endif; ?>
                         </div>
-                        
-                        <div class="lessons">
-                            <?php foreach ($module['lessons'] as $lesson): ?>
-                                <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $lesson['id']; ?>" 
-                                   class="lesson-item <?php echo $current_lesson && $current_lesson['id'] == $lesson['id'] ? 'active' : ''; ?> <?php echo ($is_logged_in && isset($lesson['completed']) && $lesson['completed']) ? 'completed' : ''; ?>">
-                                    <div class="lesson-icon">
-                                        <?php if ($is_logged_in && isset($lesson['completed']) && $lesson['completed']): ?>
-                                            ✅
-                                        <?php elseif ($current_lesson && $current_lesson['id'] == $lesson['id']): ?>
-                                            ▶️
-                                        <?php else: ?>
-                                            ⚪
-                                        <?php endif; ?>
-                                    </div>
-                                    <div class="lesson-info">
-                                        <div class="lesson-title"><?php echo htmlspecialchars($lesson['title']); ?></div>
-                                        <?php
-                                        $video_count = 0;
-                                        if ($lesson['video_url']) $video_count++;
-                                        if (!empty($lesson['additional_videos'])) $video_count += count($lesson['additional_videos']);
-                                        ?>
-                                        <?php if ($video_count > 0): ?>
-                                            <div class="lesson-meta">🎥 <?php echo $video_count; ?> Video<?php echo $video_count > 1 ? 's' : ''; ?></div>
-                                        <?php endif; ?>
-                                        <?php if ($lesson['pdf_attachment']): ?>
-                                            <div class="lesson-meta">📄 PDF verfügbar</div>
-                                        <?php endif; ?>
-                                    </div>
-                                </a>
-                            <?php endforeach; ?>
-                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);">
+                        <span style="font-size: 48px; display: block; margin-bottom: 16px;">📚</span>
+                        <p>Noch keine Module erstellt</p>
                     </div>
-                <?php endforeach; ?>
+                <?php endif; ?>
             </div>
             
             <?php if ($is_logged_in): ?>
@@ -744,7 +787,7 @@ if (!$current_video_url && $current_lesson) {
                 <?php if ($total_videos > 1): ?>
                 <div class="video-switcher">
                     <?php if ($has_main_video): ?>
-                        <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $current_lesson['id']; ?>&video=0" 
+                        <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $current_lesson['id']; ?>&video=0&_t=<?php echo $cache_bust; ?>" 
                            class="video-switch-btn <?php echo $selected_video_index === 0 ? 'active' : ''; ?>">
                             🎬 Hauptvideo
                         </a>
@@ -752,7 +795,7 @@ if (!$current_video_url && $current_lesson) {
                     
                     <?php if ($has_additional_videos): ?>
                         <?php foreach ($current_lesson['additional_videos'] as $index => $video): ?>
-                            <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $current_lesson['id']; ?>&video=<?php echo $index + 1; ?>" 
+                            <a href="?id=<?php echo $course_id; ?>&lesson=<?php echo $current_lesson['id']; ?>&video=<?php echo $index + 1; ?>&_t=<?php echo $cache_bust; ?>" 
                                class="video-switch-btn <?php echo $selected_video_index === ($index + 1) ? 'active' : ''; ?>">
                                 📹 <?php echo htmlspecialchars($video['video_title'] ?: 'Video ' . ($index + 1)); ?>
                             </a>
@@ -802,7 +845,7 @@ if (!$current_video_url && $current_lesson) {
                 <div class="no-lessons">
                     <span style="font-size: 80px;">📚</span>
                     <h2>Keine Lektionen verfügbar</h2>
-                    <p>Dieser Kurs enthält noch keine Lektionen.</p>
+                    <p>Dieser Kurs enthält noch keine Lektionen oder alle Module sind leer.</p>
                     <?php if ($is_logged_in): ?>
                         <a href="dashboard.php?page=kurse" class="btn-primary">Zurück zur Übersicht</a>
                     <?php endif; ?>
@@ -812,6 +855,11 @@ if (!$current_video_url && $current_lesson) {
     </div>
 
     <script>
+        // Cache-Busting
+        if (performance.navigation.type === 2) {
+            location.reload(true);
+        }
+        
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const icon = document.getElementById('toggleIcon');
