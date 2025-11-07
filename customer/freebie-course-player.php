@@ -23,7 +23,7 @@ if (!empty($lead_email) && !filter_var($lead_email, FILTER_VALIDATE_EMAIL)) {
     $lead_email = ''; // Ungültige E-Mail ignorieren
 }
 
-// Kurs und Freebie laden
+// Kurs und Freebie laden + Customer-Info für Empfehlungsprogramm-Check
 try {
     $stmt = $pdo->prepare("
         SELECT 
@@ -32,9 +32,13 @@ try {
             fc.description as course_description,
             cf.id as freebie_id,
             cf.headline,
-            cf.primary_color
+            cf.primary_color,
+            cf.customer_id,
+            u.referral_enabled,
+            u.ref_code
         FROM freebie_courses fc
         JOIN customer_freebies cf ON fc.freebie_id = cf.id
+        JOIN users u ON cf.customer_id = u.id
         WHERE fc.id = ?
     ");
     $stmt->execute([$course_id]);
@@ -48,6 +52,9 @@ try {
     $course_title = $data['course_title'];
     $course_description = $data['course_description'];
     $primary_color = $data['primary_color'] ?? '#8B5CF6';
+    $customer_id = $data['customer_id'];
+    $referral_enabled = (int)$data['referral_enabled'];
+    $ref_code = $data['ref_code'] ?? '';
     
 } catch (PDOException $e) {
     die('Fehler beim Laden des Kurses: ' . $e->getMessage());
@@ -183,6 +190,9 @@ foreach ($modules as $module) {
     $total_lessons += count($module['lessons']);
 }
 $progress_percent = $total_lessons > 0 ? round(($completed_count / $total_lessons) * 100) : 0;
+
+// Empfehlungsprogramm-Button soll nur angezeigt werden wenn NICHT aktiviert
+$show_referral_cta = ($referral_enabled == 0);
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -288,6 +298,98 @@ $progress_percent = $total_lessons > 0 ? round(($completed_count / $total_lesson
             left: 0;
             width: 100%;
             height: 100%;
+        }
+        
+        /* Empfehlungsprogramm CTA Banner */
+        .referral-cta-banner {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 30px rgba(245, 158, 11, 0.3);
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% {
+                box-shadow: 0 10px 30px rgba(245, 158, 11, 0.3);
+            }
+            50% {
+                box-shadow: 0 15px 40px rgba(245, 158, 11, 0.5);
+            }
+        }
+        
+        .referral-cta-content {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .referral-cta-icon {
+            font-size: 48px;
+            flex-shrink: 0;
+        }
+        
+        .referral-cta-text {
+            flex: 1;
+            min-width: 250px;
+        }
+        
+        .referral-cta-title {
+            color: white;
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .referral-cta-description {
+            color: rgba(255, 255, 255, 0.95);
+            font-size: 15px;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+        
+        .referral-cta-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 28px;
+            background: white;
+            color: #d97706;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 16px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        .referral-cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .referral-cta-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+        
+        .referral-cta-feature {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 14px;
+        }
+        
+        .referral-cta-feature-icon {
+            font-size: 20px;
         }
         
         .lesson-info {
@@ -534,6 +636,18 @@ $progress_percent = $total_lessons > 0 ? round(($completed_count / $total_lesson
                 width: 100%;
                 justify-content: center;
             }
+            
+            .referral-cta-banner {
+                padding: 20px;
+            }
+            
+            .referral-cta-title {
+                font-size: 18px;
+            }
+            
+            .referral-cta-icon {
+                font-size: 36px;
+            }
         }
     </style>
 </head>
@@ -571,6 +685,43 @@ $progress_percent = $total_lessons > 0 ? round(($completed_count / $total_lesson
                     </div>
                 <?php endif; ?>
             </div>
+            
+            <!-- Empfehlungsprogramm CTA Banner (nur wenn NICHT aktiviert) -->
+            <?php if ($show_referral_cta): ?>
+            <div class="referral-cta-banner">
+                <div class="referral-cta-content">
+                    <div class="referral-cta-icon">🚀</div>
+                    <div class="referral-cta-text">
+                        <div class="referral-cta-title">
+                            Verdiene mit Empfehlungen!
+                            <span style="background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 8px; font-size: 12px;">NEU</span>
+                        </div>
+                        <div class="referral-cta-description">
+                            Aktiviere jetzt dein Empfehlungsprogramm und erhalte automatisch Belohnungen für jeden Lead, den du vermittelst. Starte noch heute!
+                        </div>
+                        <a href="https://app.mehr-infos-jetzt.de/lead_login.php" class="referral-cta-button">
+                            <span>✨</span>
+                            <span>Jetzt Empfehlungsprogramm aktivieren</span>
+                            <span>→</span>
+                        </a>
+                        <div class="referral-cta-features">
+                            <div class="referral-cta-feature">
+                                <span class="referral-cta-feature-icon">✅</span>
+                                <span>Automatische Belohnungen</span>
+                            </div>
+                            <div class="referral-cta-feature">
+                                <span class="referral-cta-feature-icon">📊</span>
+                                <span>Live-Tracking Dashboard</span>
+                            </div>
+                            <div class="referral-cta-feature">
+                                <span class="referral-cta-feature-icon">🎁</span>
+                                <span>Individuelle Prämien</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
             
             <div class="lesson-info">
                 <h2 class="lesson-title" id="lessonTitle"><?php echo htmlspecialchars($current_lesson['title']); ?></h2>
