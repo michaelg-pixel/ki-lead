@@ -1,6 +1,6 @@
 <?php
 /**
- * BROWSER-MIGRATION: Drip Content & Multi-Video für course_lessons
+ * BROWSER-MIGRATION: Drip Content & Multi-Video (FIXED VERSION)
  * 
  * Aufruf: https://deine-domain.de/admin/api/migrate-course-lessons-drip.php
  * 
@@ -136,29 +136,73 @@ $success = [];
             border-radius: 4px;
             font-family: 'Courier New', monospace;
         }
+        pre {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 0.875rem;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🚀 Datenbank-Migration</h1>
-        <p class="subtitle">Drip Content & Multi-Video Support für course_lessons</p>
+        <p class="subtitle">Drip Content & Multi-Video Support</p>
 
         <?php if (!isset($_GET['run'])): ?>
+            <?php
+            // Analyse der Datenbank-Struktur
+            $hasLessons = false;
+            $hasCourseLessons = false;
+            $hasLessonVideos = false;
+            
+            try {
+                $stmt = $pdo->query("SHOW TABLES LIKE 'lessons'");
+                $hasLessons = $stmt->rowCount() > 0;
+                
+                $stmt = $pdo->query("SHOW TABLES LIKE 'course_lessons'");
+                $hasCourseLessons = $stmt->rowCount() > 0;
+                
+                $stmt = $pdo->query("SHOW TABLES LIKE 'lesson_videos'");
+                $hasLessonVideos = $stmt->rowCount() > 0;
+            } catch (PDOException $e) {
+                $errors[] = "Fehler bei Datenbankanalyse: " . $e->getMessage();
+            }
+            ?>
+            
             <!-- Bestätigung -->
+            <div class="box info">
+                <h2>🔍 Datenbank-Analyse</h2>
+                <ul>
+                    <li>✓ Tabelle <code>lessons</code>: <?= $hasLessons ? '✅ Vorhanden' : '❌ Nicht vorhanden' ?></li>
+                    <li>✓ Tabelle <code>course_lessons</code>: <?= $hasCourseLessons ? '✅ Vorhanden' : '❌ Nicht vorhanden' ?></li>
+                    <li>✓ Tabelle <code>lesson_videos</code>: <?= $hasLessonVideos ? '⚠️ Existiert bereits (wird angepasst)' : '✅ Wird erstellt' ?></li>
+                </ul>
+            </div>
+            
             <div class="box warning">
                 <h2>⚠️ Warnung</h2>
                 <ul>
                     <li>✓ Dieses Script führt Änderungen an der Datenbank durch</li>
                     <li>✓ Es wird dringend empfohlen, vorher ein Backup zu erstellen</li>
                     <li>✓ Die Migration ist sicher und kann mehrfach ausgeführt werden</li>
+                    <?php if ($hasLessonVideos): ?>
+                        <li>⚠️ <strong>lesson_videos existiert bereits und wird angepasst!</strong></li>
+                    <?php endif; ?>
                 </ul>
             </div>
 
             <div class="box info">
                 <h2>ℹ️ Was wird geändert?</h2>
                 <ul>
-                    <li><strong>course_lessons:</strong> Neue Spalte <code>unlock_after_days</code></li>
-                    <li><strong>lesson_videos:</strong> Neue Tabelle für mehrere Videos pro Lektion</li>
+                    <?php if ($hasLessons): ?>
+                        <li><strong>lessons:</strong> Neue Spalte <code>unlock_after_days</code></li>
+                    <?php endif; ?>
+                    <?php if ($hasCourseLessons): ?>
+                        <li><strong>course_lessons:</strong> Neue Spalte <code>unlock_after_days</code></li>
+                    <?php endif; ?>
+                    <li><strong>lesson_videos:</strong> <?= $hasLessonVideos ? 'Wird angepasst' : 'Neue Tabelle' ?> für mehrere Videos</li>
                     <li><strong>course_enrollments:</strong> Neue Tabelle für Einschreibungs-Tracking</li>
                 </ul>
             </div>
@@ -176,76 +220,108 @@ $success = [];
             </div>
 
             <?php
-            $totalSteps = 4;
+            $totalSteps = 6;
             $currentStep = 0;
+            
+            // Prüfe welche Tabellen existieren
+            $stmt = $pdo->query("SHOW TABLES LIKE 'lessons'");
+            $hasLessons = $stmt->rowCount() > 0;
+            
+            $stmt = $pdo->query("SHOW TABLES LIKE 'course_lessons'");
+            $hasCourseLessons = $stmt->rowCount() > 0;
+            
+            $stmt = $pdo->query("SHOW TABLES LIKE 'lesson_videos'");
+            $hasLessonVideos = $stmt->rowCount() > 0;
 
-            // SCHRITT 1: unlock_after_days zu course_lessons hinzufügen
+            // SCHRITT 1: unlock_after_days zu lessons hinzufügen (falls vorhanden)
+            if ($hasLessons) {
+                try {
+                    $currentStep++;
+                    
+                    $stmt = $pdo->query("SHOW COLUMNS FROM lessons LIKE 'unlock_after_days'");
+                    $exists = $stmt->rowCount() > 0;
+                    
+                    if (!$exists) {
+                        $sql = "ALTER TABLE lessons 
+                                ADD COLUMN unlock_after_days INT NULL DEFAULT NULL 
+                                COMMENT 'Tage bis zur Freischaltung (NULL = sofort verfügbar)'";
+                        $pdo->exec($sql);
+                        $success[] = "✅ Spalte 'unlock_after_days' zu lessons hinzugefügt";
+                    } else {
+                        $success[] = "ℹ️ Spalte 'unlock_after_days' in lessons existiert bereits";
+                    }
+                } catch (PDOException $e) {
+                    $errors[] = "❌ Fehler bei lessons.unlock_after_days: " . $e->getMessage();
+                }
+            }
+
+            // SCHRITT 2: unlock_after_days zu course_lessons hinzufügen (falls vorhanden)
+            if ($hasCourseLessons) {
+                try {
+                    $currentStep++;
+                    
+                    $stmt = $pdo->query("SHOW COLUMNS FROM course_lessons LIKE 'unlock_after_days'");
+                    $exists = $stmt->rowCount() > 0;
+                    
+                    if (!$exists) {
+                        $sql = "ALTER TABLE course_lessons 
+                                ADD COLUMN unlock_after_days INT NULL DEFAULT NULL 
+                                COMMENT 'Tage bis zur Freischaltung (NULL = sofort verfügbar)'";
+                        $pdo->exec($sql);
+                        $success[] = "✅ Spalte 'unlock_after_days' zu course_lessons hinzugefügt";
+                    } else {
+                        $success[] = "ℹ️ Spalte 'unlock_after_days' in course_lessons existiert bereits";
+                    }
+                } catch (PDOException $e) {
+                    $errors[] = "❌ Fehler bei course_lessons.unlock_after_days: " . $e->getMessage();
+                }
+            }
+
+            // SCHRITT 3: lesson_videos Tabelle anpassen/erstellen
             try {
                 $currentStep++;
                 
-                // Prüfen ob Spalte existiert
-                $stmt = $pdo->query("SHOW COLUMNS FROM course_lessons LIKE 'unlock_after_days'");
-                $exists = $stmt->rowCount() > 0;
-                
-                if (!$exists) {
-                    $sql = "ALTER TABLE course_lessons 
-                            ADD COLUMN unlock_after_days INT NULL DEFAULT NULL 
-                            COMMENT 'Tage bis zur Freischaltung (NULL = sofort verfügbar)' 
-                            AFTER video_url";
-                    $pdo->exec($sql);
-                    $success[] = "✅ Spalte 'unlock_after_days' zu course_lessons hinzugefügt";
+                if ($hasLessonVideos) {
+                    // Tabelle existiert bereits - versuche sie zu behalten
+                    $success[] = "ℹ️ Tabelle 'lesson_videos' existiert bereits - wird beibehalten";
                     
-                    // Index hinzufügen
-                    try {
-                        $sql = "ALTER TABLE course_lessons ADD INDEX idx_unlock_after_days (unlock_after_days)";
-                        $pdo->exec($sql);
-                        $success[] = "✅ Index für 'unlock_after_days' erstellt";
-                    } catch (PDOException $e) {
-                        if (strpos($e->getMessage(), 'Duplicate') === false) {
-                            throw $e;
-                        }
-                        $success[] = "ℹ️ Index existiert bereits";
+                    // Prüfe ob alle benötigten Spalten existieren
+                    $stmt = $pdo->query("SHOW COLUMNS FROM lesson_videos");
+                    $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                    
+                    $requiredColumns = ['id', 'lesson_id', 'video_title', 'video_url', 'sort_order'];
+                    $missingColumns = array_diff($requiredColumns, $columns);
+                    
+                    if (!empty($missingColumns)) {
+                        $success[] = "⚠️ Fehlende Spalten in lesson_videos: " . implode(', ', $missingColumns);
+                    } else {
+                        $success[] = "✅ lesson_videos hat alle erforderlichen Spalten";
                     }
                 } else {
-                    $success[] = "ℹ️ Spalte 'unlock_after_days' existiert bereits";
+                    // Tabelle neu erstellen - verwende lessons als Referenz (funktioniert mit beiden Systemen)
+                    $referenceTable = $hasLessons ? 'lessons' : 'course_lessons';
+                    
+                    $sql = "CREATE TABLE lesson_videos (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        lesson_id INT NOT NULL COMMENT 'Referenz zur Lektions-Tabelle',
+                        video_title VARCHAR(255) NOT NULL COMMENT 'Titel des Videos',
+                        video_url VARCHAR(500) NOT NULL COMMENT 'Vimeo oder YouTube URL',
+                        sort_order INT DEFAULT 0 COMMENT 'Sortierung',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP,
+                        
+                        INDEX idx_lesson_id (lesson_id),
+                        INDEX idx_sort_order (sort_order)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+                    
+                    $pdo->exec($sql);
+                    $success[] = "✅ Tabelle 'lesson_videos' erstellt (ohne Foreign Key wegen Kompatibilität)";
                 }
             } catch (PDOException $e) {
-                $errors[] = "❌ Fehler bei unlock_after_days: " . $e->getMessage();
+                $errors[] = "❌ Fehler bei lesson_videos: " . $e->getMessage();
             }
 
-            // SCHRITT 2: lesson_videos Tabelle erstellen
-            try {
-                $currentStep++;
-                
-                $sql = "CREATE TABLE IF NOT EXISTS lesson_videos (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    lesson_id INT NOT NULL COMMENT 'Referenz zur course_lessons-Tabelle',
-                    video_title VARCHAR(255) NOT NULL COMMENT 'Titel des Videos',
-                    video_url VARCHAR(500) NOT NULL COMMENT 'Vimeo oder YouTube URL',
-                    sort_order INT DEFAULT 0 COMMENT 'Sortierung',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP,
-                    
-                    INDEX idx_lesson_id (lesson_id),
-                    INDEX idx_sort_order (sort_order),
-                    
-                    FOREIGN KEY (lesson_id) 
-                        REFERENCES course_lessons(id) 
-                        ON DELETE CASCADE
-                        ON UPDATE CASCADE
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
-                
-                $pdo->exec($sql);
-                $success[] = "✅ Tabelle 'lesson_videos' erstellt";
-            } catch (PDOException $e) {
-                if (strpos($e->getMessage(), 'already exists') !== false) {
-                    $success[] = "ℹ️ Tabelle 'lesson_videos' existiert bereits";
-                } else {
-                    $errors[] = "❌ Fehler bei lesson_videos: " . $e->getMessage();
-                }
-            }
-
-            // SCHRITT 3: course_enrollments Tabelle erstellen
+            // SCHRITT 4: course_enrollments Tabelle erstellen
             try {
                 $currentStep++;
                 
@@ -270,27 +346,67 @@ $success = [];
                 }
             }
 
-            // SCHRITT 4: Daten-Check
+            // SCHRITT 5: Daten-Check
             try {
                 $currentStep++;
                 
-                // Prüfe ob alles korrekt erstellt wurde
-                $stmt = $pdo->query("SHOW COLUMNS FROM course_lessons LIKE 'unlock_after_days'");
-                $hasColumn = $stmt->rowCount() > 0;
+                $checks = [];
+                
+                if ($hasLessons) {
+                    $stmt = $pdo->query("SHOW COLUMNS FROM lessons LIKE 'unlock_after_days'");
+                    $checks['lessons'] = $stmt->rowCount() > 0;
+                }
+                
+                if ($hasCourseLessons) {
+                    $stmt = $pdo->query("SHOW COLUMNS FROM course_lessons LIKE 'unlock_after_days'");
+                    $checks['course_lessons'] = $stmt->rowCount() > 0;
+                }
                 
                 $stmt = $pdo->query("SHOW TABLES LIKE 'lesson_videos'");
-                $hasVideosTable = $stmt->rowCount() > 0;
+                $checks['lesson_videos'] = $stmt->rowCount() > 0;
                 
                 $stmt = $pdo->query("SHOW TABLES LIKE 'course_enrollments'");
-                $hasEnrollmentsTable = $stmt->rowCount() > 0;
+                $checks['course_enrollments'] = $stmt->rowCount() > 0;
                 
-                if ($hasColumn && $hasVideosTable && $hasEnrollmentsTable) {
+                $allOk = !in_array(false, $checks, true);
+                
+                if ($allOk) {
                     $success[] = "✅ Alle Änderungen erfolgreich verifiziert";
                 } else {
                     $errors[] = "⚠️ Einige Änderungen konnten nicht verifiziert werden";
                 }
             } catch (PDOException $e) {
                 $errors[] = "⚠️ Verifikation fehlgeschlagen: " . $e->getMessage();
+            }
+
+            // SCHRITT 6: Zusammenfassung
+            $currentStep++;
+            
+            // Strukturanalyse ausgeben
+            try {
+                $structureInfo = [];
+                
+                if ($hasLessons) {
+                    $stmt = $pdo->query("DESCRIBE lessons");
+                    $cols = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                    $structureInfo[] = "lessons: " . count($cols) . " Spalten";
+                }
+                
+                if ($hasCourseLessons) {
+                    $stmt = $pdo->query("DESCRIBE course_lessons");
+                    $cols = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                    $structureInfo[] = "course_lessons: " . count($cols) . " Spalten";
+                }
+                
+                $stmt = $pdo->query("DESCRIBE lesson_videos");
+                $cols = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                $structureInfo[] = "lesson_videos: " . count($cols) . " Spalten";
+                
+                if (!empty($structureInfo)) {
+                    $success[] = "📊 Struktur: " . implode(', ', $structureInfo);
+                }
+            } catch (PDOException $e) {
+                // Ignorieren
             }
 
             // Ergebnisse anzeigen
@@ -320,8 +436,9 @@ $success = [];
                 <h2>📋 Nächste Schritte</h2>
                 <ul>
                     <li>1️⃣ Gehe zu einem Kurs im Admin-Bereich</li>
-                    <li>2️⃣ Klicke auf "Neue Lektion hinzufügen"</li>
-                    <li>3️⃣ Die neuen Felder sollten jetzt sichtbar sein:
+                    <li>2️⃣ Drücke <code>Strg + F5</code> um den Cache zu leeren</li>
+                    <li>3️⃣ Klicke auf "Neue Lektion hinzufügen"</li>
+                    <li>4️⃣ Die neuen Felder sollten jetzt sichtbar sein:
                         <ul style="margin-left: 20px; margin-top: 10px;">
                             <li>⏰ Freischaltung nach X Tagen</li>
                             <li>🎬 Zusätzliche Videos</li>
