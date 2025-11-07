@@ -35,6 +35,13 @@ if ($is_edit) {
         $stmt = $conn->prepare("SELECT * FROM lessons WHERE module_id = ? ORDER BY sort_order");
         $stmt->execute([$module['id']]);
         $lessons_by_module[$module['id']] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // NEU: Zusätzliche Videos pro Lektion laden
+        foreach ($lessons_by_module[$module['id']] as $key => $lesson) {
+            $stmt = $conn->prepare("SELECT * FROM lesson_videos WHERE lesson_id = ? ORDER BY sort_order");
+            $stmt->execute([$lesson['id']]);
+            $lessons_by_module[$module['id']][$key]['additional_videos'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
     }
 }
 
@@ -119,12 +126,13 @@ if (isset($_POST['edit_module'])) {
     exit;
 }
 
-// Lektion hinzufügen
+// Lektion hinzufügen - ERWEITERT
 if (isset($_POST['add_lesson'])) {
     $module_id = (int)$_POST['module_id'];
     $lesson_title = $_POST['lesson_title'];
     $lesson_description = $_POST['lesson_description'];
-    $vimeo_url = $_POST['vimeo_url'];
+    $vimeo_url = $_POST['vimeo_url'] ?? '';
+    $unlock_after_days = !empty($_POST['unlock_after_days']) ? (int)$_POST['unlock_after_days'] : null;
     
     // PDF hochladen
     $pdf_file = '';
@@ -149,22 +157,40 @@ if (isset($_POST['add_lesson'])) {
     $stmt->execute([$module_id]);
     $next_order = $stmt->fetch(PDO::FETCH_ASSOC)['next_order'];
     
+    // NEU: unlock_after_days hinzugefügt
     $stmt = $conn->prepare("
-        INSERT INTO lessons (module_id, title, description, vimeo_url, pdf_file, sort_order) 
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO lessons (module_id, title, description, vimeo_url, pdf_file, unlock_after_days, sort_order) 
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     ");
-    $stmt->execute([$module_id, $lesson_title, $lesson_description, $vimeo_url, $pdf_file, $next_order]);
+    $stmt->execute([$module_id, $lesson_title, $lesson_description, $vimeo_url, $pdf_file, $unlock_after_days, $next_order]);
+    $lesson_id = $conn->lastInsertId();
+    
+    // NEU: Mehrere Videos hinzufügen
+    if (!empty($_POST['video_urls']) && is_array($_POST['video_urls'])) {
+        $video_titles = $_POST['video_titles'] ?? [];
+        foreach ($_POST['video_urls'] as $index => $video_url) {
+            if (!empty($video_url)) {
+                $video_title = $video_titles[$index] ?? "Video " . ($index + 1);
+                $stmt = $conn->prepare("
+                    INSERT INTO lesson_videos (lesson_id, video_title, video_url, sort_order) 
+                    VALUES (?, ?, ?, ?)
+                ");
+                $stmt->execute([$lesson_id, $video_title, $video_url, $index + 1]);
+            }
+        }
+    }
     
     header('Location: course-edit.php?id=' . $course_id . '&lesson_added=1');
     exit;
 }
 
-// Lektion bearbeiten
+// Lektion bearbeiten - ERWEITERT
 if (isset($_POST['edit_lesson'])) {
     $lesson_id = (int)$_POST['lesson_id'];
     $lesson_title = $_POST['lesson_title'];
     $lesson_description = $_POST['lesson_description'];
-    $vimeo_url = $_POST['vimeo_url'];
+    $vimeo_url = $_POST['vimeo_url'] ?? '';
+    $unlock_after_days = !empty($_POST['unlock_after_days']) ? (int)$_POST['unlock_after_days'] : null;
     
     // Aktuelle PDF-Datei laden
     $stmt = $conn->prepare("SELECT pdf_file FROM lessons WHERE id = ?");
@@ -185,7 +211,6 @@ if (isset($_POST['edit_lesson'])) {
             $upload_path = $upload_dir . $new_filename;
             
             if (move_uploaded_file($_FILES['pdf_file']['tmp_name'], $upload_path)) {
-                // Alte PDF löschen
                 if ($pdf_file && file_exists($upload_dir . $pdf_file)) {
                     unlink($upload_dir . $pdf_file);
                 }
@@ -194,12 +219,31 @@ if (isset($_POST['edit_lesson'])) {
         }
     }
     
+    // NEU: unlock_after_days hinzugefügt
     $stmt = $conn->prepare("
         UPDATE lessons 
-        SET title = ?, description = ?, vimeo_url = ?, pdf_file = ? 
+        SET title = ?, description = ?, vimeo_url = ?, pdf_file = ?, unlock_after_days = ? 
         WHERE id = ?
     ");
-    $stmt->execute([$lesson_title, $lesson_description, $vimeo_url, $pdf_file, $lesson_id]);
+    $stmt->execute([$lesson_title, $lesson_description, $vimeo_url, $pdf_file, $unlock_after_days, $lesson_id]);
+    
+    // NEU: Zusätzliche Videos aktualisieren
+    $stmt = $conn->prepare("DELETE FROM lesson_videos WHERE lesson_id = ?");
+    $stmt->execute([$lesson_id]);
+    
+    if (!empty($_POST['video_urls']) && is_array($_POST['video_urls'])) {
+        $video_titles = $_POST['video_titles'] ?? [];
+        foreach ($_POST['video_urls'] as $index => $video_url) {
+            if (!empty($video_url)) {
+                $video_title = $video_titles[$index] ?? "Video " . ($index + 1);
+                $stmt = $conn->prepare("
+                    INSERT INTO lesson_videos (lesson_id, video_title, video_url, sort_order) 
+                    VALUES (?, ?, ?, ?)
+                ");
+                $stmt->execute([$lesson_id, $video_title, $video_url, $index + 1]);
+            }
+        }
+    }
     
     header('Location: course-edit.php?id=' . $course_id . '&lesson_updated=1');
     exit;
@@ -426,6 +470,19 @@ $niches = [
             width: 1.25rem;
             height: 1.25rem;
             cursor: pointer;
+        }
+        
+        /* NEU: Drip Content Badge */
+        .drip-badge {
+            background: rgba(245, 158, 11, 0.2);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            color: #fbbf24;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
         }
     </style>
 </head>
@@ -664,10 +721,30 @@ $niches = [
                                                 <div class="card-deep p-4 rounded-lg">
                                                     <div class="flex justify-between items-start">
                                                         <div class="flex-1">
-                                                            <div class="font-semibold text-white"><?= htmlspecialchars($lesson['title']) ?></div>
+                                                            <div class="font-semibold text-white flex items-center gap-2">
+                                                                <?= htmlspecialchars($lesson['title']) ?>
+                                                                <!-- NEU: Drip Content Badge -->
+                                                                <?php if ($lesson['unlock_after_days'] !== null && $lesson['unlock_after_days'] > 0): ?>
+                                                                    <span class="drip-badge">
+                                                                        <i class="fas fa-clock"></i>
+                                                                        Tag <?= $lesson['unlock_after_days'] ?>
+                                                                    </span>
+                                                                <?php endif; ?>
+                                                            </div>
                                                             <div class="text-sm mt-1" style="color: #a0a0a0;"><?= htmlspecialchars($lesson['description']) ?></div>
-                                                            <div class="text-xs mt-2 flex items-center gap-4" style="color: #c084fc;">
-                                                                <span><i class="fas fa-video mr-1"></i> <?= htmlspecialchars($lesson['vimeo_url']) ?></span>
+                                                            <div class="text-xs mt-2 flex items-center gap-4 flex-wrap" style="color: #c084fc;">
+                                                                <?php if ($lesson['vimeo_url']): ?>
+                                                                    <span><i class="fas fa-video mr-1"></i> Hauptvideo</span>
+                                                                <?php endif; ?>
+                                                                
+                                                                <!-- NEU: Zusätzliche Videos anzeigen -->
+                                                                <?php if (!empty($lesson['additional_videos'])): ?>
+                                                                    <span>
+                                                                        <i class="fas fa-film mr-1"></i> 
+                                                                        +<?= count($lesson['additional_videos']) ?> weitere<?= count($lesson['additional_videos']) != 1 ? '' : 's' ?> Video<?= count($lesson['additional_videos']) != 1 ? 's' : '' ?>
+                                                                    </span>
+                                                                <?php endif; ?>
+                                                                
                                                                 <?php if ($lesson['pdf_file']): ?>
                                                                     <a href="../uploads/pdfs/<?= htmlspecialchars($lesson['pdf_file']) ?>" 
                                                                        target="_blank" class="hover:underline">
@@ -698,7 +775,7 @@ $niches = [
                                                             <input type="hidden" name="lesson_id" value="<?= $lesson['id'] ?>">
                                                             <div class="space-y-3">
                                                                 <div>
-                                                                    <label class="custom-label block mb-2">Lektionstitel</label>
+                                                                    <label class="custom-label block mb-2">Lektionstitel *</label>
                                                                     <input type="text" name="lesson_title" 
                                                                            value="<?= htmlspecialchars($lesson['title']) ?>" 
                                                                            class="custom-input w-full px-4 py-2.5 rounded-lg" required>
@@ -708,12 +785,65 @@ $niches = [
                                                                     <textarea name="lesson_description" rows="2" 
                                                                               class="custom-input w-full px-4 py-2.5 rounded-lg"><?= htmlspecialchars($lesson['description']) ?></textarea>
                                                                 </div>
+                                                                
+                                                                <!-- NEU: Drip Content Feld -->
                                                                 <div>
-                                                                    <label class="custom-label block mb-2">Vimeo URL</label>
+                                                                    <label class="custom-label block mb-2">
+                                                                        <i class="fas fa-clock"></i> Freischaltung nach X Tagen (optional)
+                                                                    </label>
+                                                                    <input type="number" name="unlock_after_days" 
+                                                                           value="<?= htmlspecialchars($lesson['unlock_after_days'] ?? '') ?>" 
+                                                                           class="custom-input w-full px-4 py-2.5 rounded-lg" 
+                                                                           min="0"
+                                                                           placeholder="Leer = sofort, 7 = nach 7 Tagen">
+                                                                    <p class="text-xs mt-1" style="color: #a0a0a0;">
+                                                                        Gib die Anzahl der Tage an (leer oder 0 = sofort verfügbar)
+                                                                    </p>
+                                                                </div>
+                                                                
+                                                                <div>
+                                                                    <label class="custom-label block mb-2">Hauptvideo URL (Vimeo/YouTube)</label>
                                                                     <input type="url" name="vimeo_url" 
                                                                            value="<?= htmlspecialchars($lesson['vimeo_url']) ?>" 
-                                                                           class="custom-input w-full px-4 py-2.5 rounded-lg" required>
+                                                                           class="custom-input w-full px-4 py-2.5 rounded-lg"
+                                                                           placeholder="https://vimeo.com/123456789">
                                                                 </div>
+                                                                
+                                                                <!-- NEU: Zusätzliche Videos -->
+                                                                <div>
+                                                                    <label class="custom-label block mb-2">
+                                                                        <i class="fas fa-film"></i> Zusätzliche Videos (optional)
+                                                                    </label>
+                                                                    
+                                                                    <div class="space-y-2" id="video-list-edit-<?= $lesson['id'] ?>">
+                                                                        <?php if (!empty($lesson['additional_videos'])): ?>
+                                                                            <?php foreach ($lesson['additional_videos'] as $video): ?>
+                                                                                <div class="flex gap-2 video-row">
+                                                                                    <input type="text" name="video_titles[]" 
+                                                                                           value="<?= htmlspecialchars($video['video_title']) ?>"
+                                                                                           placeholder="Video Titel" 
+                                                                                           class="custom-input px-3 py-2 rounded-lg" 
+                                                                                           style="width: 180px;">
+                                                                                    <input type="url" name="video_urls[]" 
+                                                                                           value="<?= htmlspecialchars($video['video_url']) ?>"
+                                                                                           placeholder="https://vimeo.com/..." 
+                                                                                           class="custom-input px-3 py-2 rounded-lg flex-1">
+                                                                                    <button type="button" onclick="this.parentElement.remove()" 
+                                                                                            class="btn-danger px-3 py-2 rounded-lg text-sm">
+                                                                                        <i class="fas fa-trash"></i>
+                                                                                    </button>
+                                                                                </div>
+                                                                            <?php endforeach; ?>
+                                                                        <?php endif; ?>
+                                                                    </div>
+                                                                    
+                                                                    <button type="button" 
+                                                                            onclick="addVideoField('edit-<?= $lesson['id'] ?>')" 
+                                                                            class="btn-secondary px-4 py-2 rounded-lg text-sm mt-2 inline-flex items-center gap-2">
+                                                                        <i class="fas fa-plus"></i> Weiteres Video
+                                                                    </button>
+                                                                </div>
+                                                                
                                                                 <div>
                                                                     <label class="custom-label block mb-2">
                                                                         PDF hochladen (optional - leer lassen um beizubehalten)
@@ -752,17 +882,48 @@ $niches = [
                                         <form method="POST" enctype="multipart/form-data" class="mt-4 card-deep p-4 rounded-lg">
                                             <input type="hidden" name="module_id" value="<?= $module['id'] ?>">
                                             <div class="space-y-3">
-                                                <input type="text" name="lesson_title" placeholder="Lektionstitel" 
+                                                <input type="text" name="lesson_title" placeholder="Lektionstitel *" 
                                                        class="custom-input w-full px-4 py-2.5 rounded-lg" required>
+                                                
                                                 <textarea name="lesson_description" placeholder="Beschreibung" rows="2" 
                                                           class="custom-input w-full px-4 py-2.5 rounded-lg"></textarea>
-                                                <input type="url" name="vimeo_url" placeholder="Vimeo URL" 
-                                                       class="custom-input w-full px-4 py-2.5 rounded-lg" required>
+                                                
+                                                <!-- NEU: Drip Content -->
+                                                <div>
+                                                    <input type="number" name="unlock_after_days" 
+                                                           placeholder="Freischaltung nach X Tagen (leer = sofort)" 
+                                                           class="custom-input w-full px-4 py-2.5 rounded-lg" 
+                                                           min="0">
+                                                    <p class="text-xs mt-1" style="color: #a0a0a0;">
+                                                        <i class="fas fa-info-circle"></i> 
+                                                        z.B. "7" für Freischaltung nach 7 Tagen
+                                                    </p>
+                                                </div>
+                                                
+                                                <input type="url" name="vimeo_url" placeholder="Hauptvideo URL (optional)" 
+                                                       class="custom-input w-full px-4 py-2.5 rounded-lg">
+                                                
+                                                <!-- NEU: Zusätzliche Videos -->
+                                                <div>
+                                                    <label class="custom-label block mb-2">
+                                                        <i class="fas fa-film"></i> Zusätzliche Videos (optional)
+                                                    </label>
+                                                    <div class="space-y-2" id="video-list-new-<?= $module['id'] ?>">
+                                                        <!-- Videos werden hier dynamisch hinzugefügt -->
+                                                    </div>
+                                                    <button type="button" 
+                                                            onclick="addVideoField('new-<?= $module['id'] ?>')" 
+                                                            class="btn-secondary px-4 py-2 rounded-lg text-sm mt-2 inline-flex items-center gap-2">
+                                                        <i class="fas fa-plus"></i> Video hinzufügen
+                                                    </button>
+                                                </div>
+                                                
                                                 <div>
                                                     <label class="custom-label block mb-2">PDF hochladen (optional)</label>
                                                     <input type="file" name="pdf_file" accept=".pdf" 
                                                            class="custom-input w-full px-4 py-2.5 rounded-lg">
                                                 </div>
+                                                
                                                 <button type="submit" name="add_lesson" 
                                                         class="btn-primary px-5 py-2.5 rounded-lg font-semibold inline-flex items-center gap-2">
                                                     <i class="fas fa-plus"></i> Lektion hinzufügen
@@ -822,6 +983,28 @@ $niches = [
             } else {
                 editForm.classList.add('hidden');
             }
+        }
+        
+        // NEU: Funktion zum Hinzufügen weiterer Video-Felder
+        function addVideoField(listId) {
+            const list = document.getElementById('video-list-' + listId);
+            const row = document.createElement('div');
+            row.className = 'flex gap-2 video-row';
+            row.innerHTML = `
+                <input type="text" name="video_titles[]" 
+                       placeholder="Video Titel" 
+                       class="custom-input px-3 py-2 rounded-lg" 
+                       style="width: 180px;">
+                <input type="url" name="video_urls[]" 
+                       placeholder="https://vimeo.com/..." 
+                       class="custom-input px-3 py-2 rounded-lg flex-1"
+                       required>
+                <button type="button" onclick="this.parentElement.remove()" 
+                        class="btn-danger px-3 py-2 rounded-lg text-sm">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+            list.appendChild(row);
         }
     </script>
 
