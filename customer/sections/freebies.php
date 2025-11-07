@@ -252,16 +252,22 @@ try {
         border-color: rgba(102, 126, 234, 0.5);
     }
     
+    /* VERBESSERTE FREEBIE PREVIEW DARSTELLUNG */
     .freebie-preview {
         height: 200px;
         position: relative;
         overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
     }
     
     .freebie-preview img {
         width: 100%;
         height: 100%;
-        object-fit: cover;
+        object-fit: contain; /* GEÄNDERT von cover zu contain */
+        object-position: center;
     }
     
     .freebie-preview-placeholder {
@@ -491,6 +497,11 @@ try {
             grid-template-columns: 1fr;
         }
         
+        .freebie-preview {
+            height: 180px;
+            padding: 12px;
+        }
+        
         .limit-banner {
             flex-direction: column;
             text-align: center;
@@ -513,6 +524,13 @@ try {
         .btn-copy {
             padding: 6px 10px;
             font-size: 11px;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .freebie-preview {
+            height: 160px;
+            padding: 10px;
         }
     }
 </style>
