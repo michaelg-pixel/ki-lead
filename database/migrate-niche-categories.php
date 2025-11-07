@@ -1,3 +1,110 @@
+<?php
+// PHP Backend für die Migration - MUSS ganz oben stehen!
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'migrate') {
+    
+    // Alle Ausgaben puffern
+    ob_start();
+    
+    header('Content-Type: application/json');
+    
+    try {
+        // Prüfe ob config/database.php existiert
+        $config_path = __DIR__ . '/config/database.php';
+        if (!file_exists($config_path)) {
+            // Versuche alternative Pfade
+            $config_path = __DIR__ . '/../config/database.php';
+            if (!file_exists($config_path)) {
+                throw new Exception('Datenbank-Konfiguration nicht gefunden. Pfad: ' . __DIR__ . '/config/database.php');
+            }
+        }
+        
+        require_once $config_path;
+        
+        // Prüfe ob Funktion existiert
+        if (!function_exists('getDBConnection')) {
+            throw new Exception('Funktion getDBConnection() nicht gefunden in database.php');
+        }
+        
+        $pdo = getDBConnection();
+        
+        if (!$pdo) {
+            throw new Exception('Datenbankverbindung fehlgeschlagen - getDBConnection() gab null zurück');
+        }
+        
+        $messages = [];
+        $errors = [];
+        
+        // SCHRITT 1: Prüfen und Hinzufügen der niche-Spalte in freebies
+        try {
+            $stmt = $pdo->query("SHOW COLUMNS FROM freebies LIKE 'niche'");
+            if ($stmt->rowCount() === 0) {
+                $pdo->exec("
+                    ALTER TABLE freebies 
+                    ADD COLUMN niche VARCHAR(50) DEFAULT 'sonstiges' AFTER name
+                ");
+                $messages[] = "✓ Spalte 'niche' zur Tabelle 'freebies' hinzugefügt";
+            } else {
+                $messages[] = "ℹ️ Spalte 'niche' existiert bereits in 'freebies'";
+            }
+        } catch (PDOException $e) {
+            $errors[] = "Fehler bei freebies.niche: " . $e->getMessage();
+        }
+        
+        // SCHRITT 2: Prüfen und Hinzufügen der niche-Spalte in customer_freebies
+        try {
+            $stmt = $pdo->query("SHOW COLUMNS FROM customer_freebies LIKE 'niche'");
+            if ($stmt->rowCount() === 0) {
+                $pdo->exec("
+                    ALTER TABLE customer_freebies 
+                    ADD COLUMN niche VARCHAR(50) DEFAULT 'sonstiges' AFTER customer_id
+                ");
+                $messages[] = "✓ Spalte 'niche' zur Tabelle 'customer_freebies' hinzugefügt";
+            } else {
+                $messages[] = "ℹ️ Spalte 'niche' existiert bereits in 'customer_freebies'";
+            }
+        } catch (PDOException $e) {
+            $errors[] = "Fehler bei customer_freebies.niche: " . $e->getMessage();
+        }
+        
+        // SCHRITT 3: Standard-Wert für bestehende Einträge setzen
+        try {
+            $stmt = $pdo->exec("UPDATE freebies SET niche = 'sonstiges' WHERE niche IS NULL OR niche = ''");
+            $messages[] = "✓ Standard-Werte für {$stmt} bestehende Freebies gesetzt";
+            
+            $stmt = $pdo->exec("UPDATE customer_freebies SET niche = 'sonstiges' WHERE niche IS NULL OR niche = ''");
+            $messages[] = "✓ Standard-Werte für {$stmt} Customer-Freebies gesetzt";
+        } catch (PDOException $e) {
+            $errors[] = "Fehler beim Setzen der Standard-Werte: " . $e->getMessage();
+        }
+        
+        // Puffer leeren
+        ob_end_clean();
+        
+        if (!empty($errors)) {
+            echo json_encode([
+                'success' => false,
+                'error' => implode("\n", $errors),
+                'messages' => $messages
+            ]);
+        } else {
+            echo json_encode([
+                'success' => true,
+                'messages' => $messages
+            ]);
+        }
+        
+    } catch (Exception $e) {
+        ob_end_clean();
+        echo json_encode([
+            'success' => false,
+            'error' => 'Kritischer Fehler: ' . $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+    }
+    
+    exit;
+}
+?>
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -143,6 +250,7 @@
             border-radius: 6px;
             overflow-x: auto;
             margin-top: 12px;
+            font-size: 12px;
         }
         
         .steps {
@@ -260,6 +368,13 @@
                     body: 'action=migrate'
                 });
                 
+                // Prüfe Content-Type
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    throw new Error('Server gab kein JSON zurück. Response:\n' + text.substring(0, 500));
+                }
+                
                 const data = await response.json();
                 
                 if (data.success) {
@@ -287,7 +402,8 @@
                     <strong>Mögliche Lösungen:</strong><br>
                     1. Prüfe die Datenbankverbindung in config/database.php<br>
                     2. Stelle sicher, dass die Datenbank erreichbar ist<br>
-                    3. Kontaktiere den Support, falls das Problem weiterhin besteht
+                    3. Überprüfe die PHP-Fehlerprotokolle<br>
+                    4. Kontaktiere den Support, falls das Problem weiterhin besteht
                     <pre>${error.stack || ''}</pre>
                 `;
             } finally {
@@ -298,82 +414,3 @@
     </script>
 </body>
 </html>
-
-<?php
-// PHP Backend für die Migration
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'migrate') {
-    header('Content-Type: application/json');
-    
-    try {
-        require_once __DIR__ . '/config/database.php';
-        $pdo = getDBConnection();
-        
-        $messages = [];
-        $errors = [];
-        
-        // SCHRITT 1: Prüfen und Hinzufügen der niche-Spalte in freebies
-        try {
-            $stmt = $pdo->query("SHOW COLUMNS FROM freebies LIKE 'niche'");
-            if ($stmt->rowCount() === 0) {
-                $pdo->exec("
-                    ALTER TABLE freebies 
-                    ADD COLUMN niche VARCHAR(50) DEFAULT 'sonstiges' AFTER name
-                ");
-                $messages[] = "✓ Spalte 'niche' zur Tabelle 'freebies' hinzugefügt";
-            } else {
-                $messages[] = "ℹ️ Spalte 'niche' existiert bereits in 'freebies'";
-            }
-        } catch (PDOException $e) {
-            $errors[] = "Fehler bei freebies.niche: " . $e->getMessage();
-        }
-        
-        // SCHRITT 2: Prüfen und Hinzufügen der niche-Spalte in customer_freebies
-        try {
-            $stmt = $pdo->query("SHOW COLUMNS FROM customer_freebies LIKE 'niche'");
-            if ($stmt->rowCount() === 0) {
-                $pdo->exec("
-                    ALTER TABLE customer_freebies 
-                    ADD COLUMN niche VARCHAR(50) DEFAULT 'sonstiges' AFTER customer_id
-                ");
-                $messages[] = "✓ Spalte 'niche' zur Tabelle 'customer_freebies' hinzugefügt";
-            } else {
-                $messages[] = "ℹ️ Spalte 'niche' existiert bereits in 'customer_freebies'";
-            }
-        } catch (PDOException $e) {
-            $errors[] = "Fehler bei customer_freebies.niche: " . $e->getMessage();
-        }
-        
-        // SCHRITT 3: Standard-Wert für bestehende Einträge setzen
-        try {
-            $stmt = $pdo->exec("UPDATE freebies SET niche = 'sonstiges' WHERE niche IS NULL OR niche = ''");
-            $messages[] = "✓ Standard-Werte für {$stmt} bestehende Freebies gesetzt";
-            
-            $stmt = $pdo->exec("UPDATE customer_freebies SET niche = 'sonstiges' WHERE niche IS NULL OR niche = ''");
-            $messages[] = "✓ Standard-Werte für {$stmt} Customer-Freebies gesetzt";
-        } catch (PDOException $e) {
-            $errors[] = "Fehler beim Setzen der Standard-Werte: " . $e->getMessage();
-        }
-        
-        if (!empty($errors)) {
-            echo json_encode([
-                'success' => false,
-                'error' => implode("\n", $errors),
-                'messages' => $messages
-            ]);
-        } else {
-            echo json_encode([
-                'success' => true,
-                'messages' => $messages
-            ]);
-        }
-        
-    } catch (Exception $e) {
-        echo json_encode([
-            'success' => false,
-            'error' => 'Kritischer Fehler: ' . $e->getMessage()
-        ]);
-    }
-    
-    exit;
-}
-?>
