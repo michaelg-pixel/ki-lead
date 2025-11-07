@@ -3,6 +3,7 @@
  * Öffentliche Freebie-Ansicht
  * Zeigt das Freebie-Template mit vollständigem Layout
  * WICHTIG: Diese Seite ist ÖFFENTLICH und erfordert KEINE Authentifizierung!
+ * ✨ Optimiert: Kleinere Mockups ohne Schatten, zentrierte Headlines
  */
 
 // KEINE Auth-Checks hier!
@@ -122,7 +123,7 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             padding: 80px 40px;
         }
         
-        /* Preheadline */
+        /* Preheadline - IMMER ZENTRIERT */
         .preheadline {
             color: <?php echo $primary_color; ?>;
             font-size: <?php echo $preheadline_size; ?>px;
@@ -134,7 +135,7 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             text-align: center;
         }
         
-        /* Headline */
+        /* Headline - IMMER ZENTRIERT */
         .headline {
             font-size: <?php echo $headline_size; ?>px;
             font-family: '<?php echo $headline_font; ?>', sans-serif;
@@ -145,7 +146,7 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             text-align: center;
         }
         
-        /* Subheadline */
+        /* Subheadline - IMMER ZENTRIERT */
         .subheadline {
             font-size: <?php echo $subheadline_size; ?>px;
             font-family: '<?php echo $subheadline_font; ?>', sans-serif;
@@ -155,12 +156,14 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             text-align: center;
         }
         
-        /* Layouts */
+        /* ✨ Layouts - OPTIMIERT */
         .layout-hybrid {
             display: grid;
-            grid-template-columns: 2fr 3fr;
-            gap: 60px;
-            align-items: center;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            align-items: start;
+            max-width: 1200px;
+            margin: 0 auto;
         }
         
         .layout-centered {
@@ -171,12 +174,14 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
         
         .layout-sidebar {
             display: grid;
-            grid-template-columns: 3fr 2fr;
-            gap: 60px;
-            align-items: center;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            align-items: start;
+            max-width: 1200px;
+            margin: 0 auto;
         }
         
-        /* Mockup */
+        /* ✨ Mockup - KLEINER & OHNE SCHATTEN */
         .mockup {
             display: flex;
             justify-content: center;
@@ -185,15 +190,14 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
         
         .mockup img {
             width: 100%;
-            max-width: 380px;
+            max-width: 280px;
             height: auto;
             border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
         }
         
         .mockup-placeholder {
             width: 100%;
-            max-width: 380px;
+            max-width: 280px;
             aspect-ratio: 3/4;
             background: linear-gradient(135deg, <?php echo $primary_color; ?>20, <?php echo $primary_color; ?>40);
             border-radius: 12px;
@@ -229,24 +233,33 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             line-height: 1.5;
         }
         
-        /* CTA Button */
+        /* ✨ CTA Button - KOMPAKTER */
         .cta-button {
             background: <?php echo $primary_color; ?>;
             color: white;
-            padding: 16px 40px;
+            padding: 14px 32px;
             border: none;
-            border-radius: 8px;
-            font-size: 18px;
+            border-radius: 10px;
+            font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            box-shadow: 0 4px 12px <?php echo $primary_color; ?>40;
-            transition: transform 0.2s;
+            transition: all 0.3s;
             text-decoration: none;
             display: inline-block;
         }
         
         .cta-button:hover {
             transform: translateY(-2px);
+            opacity: 0.9;
+        }
+        
+        /* ✨ Content Wrapper für Hybrid/Sidebar - Headlines verbleiben zentriert */
+        .content-wrapper {
+            width: 100%;
+        }
+        
+        .content-wrapper .bulletpoints {
+            text-align: left;
         }
         
         /* Footer */
@@ -300,7 +313,7 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
 <body>
     <div class="container">
         <?php if ($layout === 'centered'): ?>
-            <!-- CENTERED LAYOUT -->
+            <!-- ✨ CENTERED LAYOUT - OPTIMIERT -->
             <div class="layout-centered">
                 <?php if (!empty($freebie['preheadline'])): ?>
                     <div class="preheadline"><?php echo htmlspecialchars($freebie['preheadline']); ?></div>
@@ -341,7 +354,18 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             </div>
             
         <?php elseif ($layout === 'hybrid'): ?>
-            <!-- HYBRID LAYOUT -->
+            <!-- ✨ HYBRID LAYOUT - OPTIMIERT mit zentrierten Headlines -->
+            <!-- Headlines werden ÜBER dem Grid zentriert angezeigt -->
+            <?php if (!empty($freebie['preheadline'])): ?>
+                <div class="preheadline"><?php echo htmlspecialchars($freebie['preheadline']); ?></div>
+            <?php endif; ?>
+            
+            <h1 class="headline"><?php echo htmlspecialchars($freebie['headline'] ?? 'Deine Überschrift'); ?></h1>
+            
+            <?php if (!empty($freebie['subheadline'])): ?>
+                <p class="subheadline" style="max-width: 900px; margin-left: auto; margin-right: auto;"><?php echo htmlspecialchars($freebie['subheadline']); ?></p>
+            <?php endif; ?>
+            
             <div class="layout-hybrid">
                 <?php if ($show_mockup): ?>
                     <div class="mockup">
@@ -349,17 +373,7 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
                     </div>
                 <?php endif; ?>
                 
-                <div>
-                    <?php if (!empty($freebie['preheadline'])): ?>
-                        <div class="preheadline"><?php echo htmlspecialchars($freebie['preheadline']); ?></div>
-                    <?php endif; ?>
-                    
-                    <h1 class="headline"><?php echo htmlspecialchars($freebie['headline'] ?? 'Deine Überschrift'); ?></h1>
-                    
-                    <?php if (!empty($freebie['subheadline'])): ?>
-                        <p class="subheadline"><?php echo htmlspecialchars($freebie['subheadline']); ?></p>
-                    <?php endif; ?>
-                    
+                <div class="content-wrapper">
                     <?php if (!empty($freebie['bullet_points'])): ?>
                         <div class="bulletpoints">
                             <?php
@@ -377,7 +391,7 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
                         </div>
                     <?php endif; ?>
                     
-                    <div style="text-align: center;">
+                    <div style="text-align: left; margin-top: 24px;">
                         <button class="cta-button" onclick="window.location.href='<?php echo htmlspecialchars($freebie['thank_you_link'] ?? '#'); ?>'">
                             <?php echo htmlspecialchars($freebie['cta_text'] ?? 'Jetzt kostenlos sichern'); ?>
                         </button>
@@ -386,19 +400,20 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             </div>
             
         <?php else: ?>
-            <!-- SIDEBAR LAYOUT -->
+            <!-- ✨ SIDEBAR LAYOUT - OPTIMIERT mit zentrierten Headlines -->
+            <!-- Headlines werden ÜBER dem Grid zentriert angezeigt -->
+            <?php if (!empty($freebie['preheadline'])): ?>
+                <div class="preheadline"><?php echo htmlspecialchars($freebie['preheadline']); ?></div>
+            <?php endif; ?>
+            
+            <h1 class="headline"><?php echo htmlspecialchars($freebie['headline'] ?? 'Deine Überschrift'); ?></h1>
+            
+            <?php if (!empty($freebie['subheadline'])): ?>
+                <p class="subheadline" style="max-width: 900px; margin-left: auto; margin-right: auto;"><?php echo htmlspecialchars($freebie['subheadline']); ?></p>
+            <?php endif; ?>
+            
             <div class="layout-sidebar">
-                <div>
-                    <?php if (!empty($freebie['preheadline'])): ?>
-                        <div class="preheadline"><?php echo htmlspecialchars($freebie['preheadline']); ?></div>
-                    <?php endif; ?>
-                    
-                    <h1 class="headline"><?php echo htmlspecialchars($freebie['headline'] ?? 'Deine Überschrift'); ?></h1>
-                    
-                    <?php if (!empty($freebie['subheadline'])): ?>
-                        <p class="subheadline"><?php echo htmlspecialchars($freebie['subheadline']); ?></p>
-                    <?php endif; ?>
-                    
+                <div class="content-wrapper">
                     <?php if (!empty($freebie['bullet_points'])): ?>
                         <div class="bulletpoints">
                             <?php
@@ -416,7 +431,7 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
                         </div>
                     <?php endif; ?>
                     
-                    <div style="text-align: center;">
+                    <div style="text-align: left; margin-top: 24px;">
                         <button class="cta-button" onclick="window.location.href='<?php echo htmlspecialchars($freebie['thank_you_link'] ?? '#'); ?>'">
                             <?php echo htmlspecialchars($freebie['cta_text'] ?? 'Jetzt kostenlos sichern'); ?>
                         </button>
