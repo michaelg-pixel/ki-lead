@@ -771,16 +771,33 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
                 gap: 16px;
             }
             
+            /* Warning Box - RESPONSIVE */
             .warning-box {
                 padding: 20px 16px;
+                border-radius: 16px;
+                border-width: 3px;
+            }
+            
+            .warning-box::before,
+            .warning-box::after {
+                font-size: 80px;
+                opacity: 0.08;
+            }
+            
+            .warning-icon {
+                font-size: 36px;
+                margin-bottom: 10px;
             }
             
             .warning-title {
-                font-size: 22px;
+                font-size: 20px;
+                letter-spacing: 0.5px;
+                margin-bottom: 6px;
             }
             
             .warning-text {
-                font-size: 16px;
+                font-size: 15px;
+                line-height: 1.4;
             }
             
             .video-container {
