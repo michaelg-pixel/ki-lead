@@ -200,7 +200,7 @@ $show_referral_cta = ($referral_enabled == 0);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($course_title); ?></title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -300,97 +300,314 @@ $show_referral_cta = ($referral_enabled == 0);
             height: 100%;
         }
         
-        /* Empfehlungsprogramm CTA Banner */
+        /* ============================================
+           SPEKTAKULÄRER CTA BANNER MIT EFFEKTEN
+           ============================================ */
+        
         .referral-cta-banner {
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-            border-radius: 16px;
-            padding: 24px;
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 50%, #ff6b35 100%);
+            background-size: 200% 200%;
+            border-radius: 20px;
+            padding: 28px;
             margin-bottom: 24px;
-            box-shadow: 0 10px 30px rgba(245, 158, 11, 0.3);
-            animation: pulse-glow 2s ease-in-out infinite;
+            position: relative;
+            overflow: hidden;
+            animation: gradient-shift 4s ease infinite, mega-pulse 3s ease-in-out infinite;
+            box-shadow: 
+                0 0 40px rgba(255, 107, 53, 0.6),
+                0 0 80px rgba(255, 107, 53, 0.4),
+                0 20px 60px rgba(255, 107, 53, 0.3);
         }
         
-        @keyframes pulse-glow {
-            0%, 100% {
-                box-shadow: 0 10px 30px rgba(245, 158, 11, 0.3);
+        /* Gradient Animation */
+        @keyframes gradient-shift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        /* Mega Pulse Animation */
+        @keyframes mega-pulse {
+            0%, 100% { 
+                transform: scale(1);
+                box-shadow: 
+                    0 0 40px rgba(255, 107, 53, 0.6),
+                    0 0 80px rgba(255, 107, 53, 0.4),
+                    0 20px 60px rgba(255, 107, 53, 0.3);
             }
-            50% {
-                box-shadow: 0 15px 40px rgba(245, 158, 11, 0.5);
+            50% { 
+                transform: scale(1.02);
+                box-shadow: 
+                    0 0 60px rgba(255, 107, 53, 0.8),
+                    0 0 120px rgba(255, 107, 53, 0.6),
+                    0 30px 80px rgba(255, 107, 53, 0.5);
             }
+        }
+        
+        /* Glühender Rand-Effekt */
+        .referral-cta-banner::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, 
+                #ff0000, #ff7300, #fffb00, #48ff00, 
+                #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000);
+            background-size: 400% 400%;
+            border-radius: 20px;
+            z-index: -1;
+            filter: blur(8px);
+            opacity: 0.7;
+            animation: rainbow-glow 8s linear infinite;
+        }
+        
+        @keyframes rainbow-glow {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 400% 50%; }
+        }
+        
+        /* Shine-Effekt über den Banner */
+        .referral-cta-banner::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -100%;
+            width: 100%;
+            height: 200%;
+            background: linear-gradient(
+                90deg,
+                rgba(255, 255, 255, 0) 0%,
+                rgba(255, 255, 255, 0.3) 50%,
+                rgba(255, 255, 255, 0) 100%
+            );
+            transform: rotate(30deg);
+            animation: shine-sweep 4s ease-in-out infinite;
+        }
+        
+        @keyframes shine-sweep {
+            0% { left: -100%; }
+            20%, 100% { left: 200%; }
         }
         
         .referral-cta-content {
+            position: relative;
+            z-index: 1;
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 24px;
             flex-wrap: wrap;
         }
         
+        /* Animiertes Raketen-Icon */
         .referral-cta-icon {
-            font-size: 48px;
+            font-size: 56px;
             flex-shrink: 0;
+            animation: rocket-float 2s ease-in-out infinite;
+            filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.8));
+        }
+        
+        @keyframes rocket-float {
+            0%, 100% { 
+                transform: translateY(0) rotate(-5deg);
+            }
+            50% { 
+                transform: translateY(-15px) rotate(5deg);
+            }
         }
         
         .referral-cta-text {
             flex: 1;
-            min-width: 250px;
+            min-width: 280px;
         }
         
         .referral-cta-title {
             color: white;
-            font-size: 22px;
-            font-weight: 700;
-            margin-bottom: 8px;
+            font-size: 26px;
+            font-weight: 900;
+            margin-bottom: 10px;
             display: flex;
             align-items: center;
-            gap: 8px;
-        }
-        
-        .referral-cta-description {
-            color: rgba(255, 255, 255, 0.95);
-            font-size: 15px;
-            line-height: 1.6;
-            margin-bottom: 16px;
-        }
-        
-        .referral-cta-button {
-            display: inline-flex;
-            align-items: center;
             gap: 10px;
-            padding: 14px 28px;
-            background: white;
-            color: #d97706;
-            text-decoration: none;
-            border-radius: 10px;
-            font-weight: 700;
-            font-size: 16px;
-            transition: all 0.3s;
+            flex-wrap: wrap;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.3);
+            animation: title-pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes title-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+        }
+        
+        .referral-cta-badge {
+            background: rgba(255, 255, 255, 0.95);
+            color: #ff6b35;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            animation: badge-bounce 1s ease-in-out infinite;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
         
-        .referral-cta-button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        @keyframes badge-bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
         }
         
+        .referral-cta-description {
+            color: rgba(255, 255, 255, 0.98);
+            font-size: 16px;
+            line-height: 1.7;
+            margin-bottom: 20px;
+            font-weight: 500;
+            text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        /* MEGA CTA BUTTON */
+        .referral-cta-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 18px 36px;
+            background: white;
+            color: #ff6b35;
+            text-decoration: none;
+            border-radius: 14px;
+            font-weight: 900;
+            font-size: 18px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 
+                0 8px 24px rgba(0, 0, 0, 0.3),
+                0 0 40px rgba(255, 255, 255, 0.5),
+                inset 0 0 0 2px rgba(255, 107, 53, 0.2);
+            position: relative;
+            overflow: hidden;
+            animation: button-glow 2s ease-in-out infinite;
+        }
+        
+        @keyframes button-glow {
+            0%, 100% {
+                box-shadow: 
+                    0 8px 24px rgba(0, 0, 0, 0.3),
+                    0 0 40px rgba(255, 255, 255, 0.5),
+                    inset 0 0 0 2px rgba(255, 107, 53, 0.2);
+            }
+            50% {
+                box-shadow: 
+                    0 12px 32px rgba(0, 0, 0, 0.4),
+                    0 0 60px rgba(255, 255, 255, 0.8),
+                    inset 0 0 0 3px rgba(255, 107, 53, 0.4);
+            }
+        }
+        
+        .referral-cta-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 107, 53, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .referral-cta-button:hover {
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 
+                0 16px 40px rgba(0, 0, 0, 0.4),
+                0 0 80px rgba(255, 255, 255, 0.9),
+                inset 0 0 0 3px rgba(255, 107, 53, 0.4);
+        }
+        
+        .referral-cta-button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        .referral-cta-button:active {
+            transform: translateY(-2px) scale(1.02);
+        }
+        
+        .referral-cta-button-icon {
+            font-size: 22px;
+            animation: icon-spin 3s linear infinite;
+        }
+        
+        @keyframes icon-spin {
+            0%, 90% { transform: rotate(0deg); }
+            95% { transform: rotate(15deg); }
+            100% { transform: rotate(0deg); }
+        }
+        
+        .referral-cta-button-arrow {
+            font-size: 24px;
+            transition: transform 0.3s;
+        }
+        
+        .referral-cta-button:hover .referral-cta-button-arrow {
+            transform: translateX(8px);
+        }
+        
+        /* Features Grid */
         .referral-cta-features {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 12px;
-            margin-top: 16px;
+            gap: 14px;
+            margin-top: 20px;
         }
         
         .referral-cta-feature {
             display: flex;
             align-items: center;
-            gap: 8px;
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 14px;
+            gap: 10px;
+            color: rgba(255, 255, 255, 0.95);
+            font-size: 15px;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 10px 14px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+        }
+        
+        .referral-cta-feature:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateX(5px);
         }
         
         .referral-cta-feature-icon {
-            font-size: 20px;
+            font-size: 24px;
+            animation: feature-bounce 2s ease-in-out infinite;
         }
+        
+        .referral-cta-feature:nth-child(1) .referral-cta-feature-icon {
+            animation-delay: 0s;
+        }
+        
+        .referral-cta-feature:nth-child(2) .referral-cta-feature-icon {
+            animation-delay: 0.2s;
+        }
+        
+        .referral-cta-feature:nth-child(3) .referral-cta-feature-icon {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes feature-bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+        
+        /* ============================================
+           ENDE CTA BANNER
+           ============================================ */
         
         .lesson-info {
             background: var(--bg-secondary);
@@ -637,16 +854,67 @@ $show_referral_cta = ($referral_enabled == 0);
                 justify-content: center;
             }
             
+            /* Responsive CTA Banner */
             .referral-cta-banner {
                 padding: 20px;
+                border-radius: 16px;
+            }
+            
+            .referral-cta-content {
+                flex-direction: column;
+                text-align: center;
+                gap: 16px;
+            }
+            
+            .referral-cta-icon {
+                font-size: 48px;
+            }
+            
+            .referral-cta-title {
+                font-size: 22px;
+                justify-content: center;
+            }
+            
+            .referral-cta-description {
+                font-size: 15px;
+            }
+            
+            .referral-cta-button {
+                width: 100%;
+                padding: 16px 24px;
+                font-size: 16px;
+            }
+            
+            .referral-cta-features {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .referral-cta-banner {
+                padding: 16px;
+            }
+            
+            .referral-cta-icon {
+                font-size: 40px;
             }
             
             .referral-cta-title {
                 font-size: 18px;
             }
             
-            .referral-cta-icon {
-                font-size: 36px;
+            .referral-cta-description {
+                font-size: 14px;
+            }
+            
+            .referral-cta-button {
+                font-size: 14px;
+                padding: 14px 20px;
+            }
+            
+            .referral-cta-badge {
+                font-size: 11px;
+                padding: 3px 8px;
             }
         }
     </style>
@@ -694,15 +962,15 @@ $show_referral_cta = ($referral_enabled == 0);
                     <div class="referral-cta-text">
                         <div class="referral-cta-title">
                             Verdiene mit Empfehlungen!
-                            <span style="background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 8px; font-size: 12px;">NEU</span>
+                            <span class="referral-cta-badge">NEU ✨</span>
                         </div>
                         <div class="referral-cta-description">
                             Aktiviere jetzt dein Empfehlungsprogramm und erhalte automatisch Belohnungen für jeden Lead, den du vermittelst. Starte noch heute!
                         </div>
                         <a href="https://app.mehr-infos-jetzt.de/lead_login.php" class="referral-cta-button">
-                            <span>✨</span>
-                            <span>Jetzt Empfehlungsprogramm aktivieren</span>
-                            <span>→</span>
+                            <span class="referral-cta-button-icon">✨</span>
+                            <span>Jetzt aktivieren</span>
+                            <span class="referral-cta-button-arrow">→</span>
                         </a>
                         <div class="referral-cta-features">
                             <div class="referral-cta-feature">
