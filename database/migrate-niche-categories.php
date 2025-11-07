@@ -1,38 +1,26 @@
 <?php
-// Fehlerbehandlung und JSON-Output sicherstellen
-error_reporting(E_ALL);
-ini_set('display_errors', 0);
-ini_set('log_errors', 1);
-
-// PHP Backend für die Migration
+// PHP Backend für die Migration - MUSS GANZ OBEN SEIN
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'migrate') {
+    // Fehlerbehandlung aktivieren
+    error_reporting(E_ALL);
+    ini_set('display_errors', 0);
+    
+    // JSON Header SOFORT setzen
     header('Content-Type: application/json; charset=utf-8');
     
     try {
-        // Verschiedene mögliche Pfade zur database.php testen
-        $possible_paths = [
-            __DIR__ . '/config/database.php',
-            __DIR__ . '/../config/database.php',
-            dirname(__DIR__) . '/config/database.php',
-            $_SERVER['DOCUMENT_ROOT'] . '/config/database.php'
-        ];
-        
-        $config_found = false;
-        foreach ($possible_paths as $path) {
-            if (file_exists($path)) {
-                require_once $path;
-                $config_found = true;
-                break;
-            }
+        // Prüfe ob database.php existiert
+        $db_config_path = __DIR__ . '/../config/database.php';
+        if (!file_exists($db_config_path)) {
+            throw new Exception('Datenbankonfiguration nicht gefunden: ' . $db_config_path);
         }
         
-        if (!$config_found) {
-            throw new Exception('Datenbank-Konfiguration nicht gefunden. Gesuchte Pfade: ' . implode(', ', $possible_paths));
-        }
+        // Lade Datenbankverbindung
+        require_once $db_config_path;
         
-        // Verbindung herstellen
+        // Prüfe ob getDBConnection Funktion existiert
         if (!function_exists('getDBConnection')) {
-            throw new Exception('getDBConnection() Funktion nicht gefunden in database.php');
+            throw new Exception('getDBConnection Funktion nicht gefunden in database.php');
         }
         
         $pdo = getDBConnection();
@@ -92,20 +80,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 'success' => false,
                 'error' => implode("\n", $errors),
                 'messages' => $messages
-            ], JSON_UNESCAPED_UNICODE);
+            ]);
         } else {
             echo json_encode([
                 'success' => true,
                 'messages' => $messages
-            ], JSON_UNESCAPED_UNICODE);
+            ]);
         }
         
+    } catch (PDOException $e) {
+        echo json_encode([
+            'success' => false,
+            'error' => 'Datenbankfehler: ' . $e->getMessage(),
+            'details' => [
+                'code' => $e->getCode(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]
+        ]);
     } catch (Exception $e) {
         echo json_encode([
             'success' => false,
-            'error' => 'Kritischer Fehler: ' . $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ], JSON_UNESCAPED_UNICODE);
+            'error' => $e->getMessage(),
+            'details' => [
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]
+        ]);
     }
     
     exit;
@@ -256,8 +257,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             border-radius: 6px;
             overflow-x: auto;
             margin-top: 12px;
-            white-space: pre-wrap;
-            word-wrap: break-word;
+            font-size: 12px;
         }
         
         .steps {
@@ -375,13 +375,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     body: 'action=migrate'
                 });
                 
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    const text = await response.text();
-                    throw new Error('Server hat keine JSON-Antwort zurückgegeben. Antwort: ' + text.substring(0, 500));
+                // Prüfe ob Response OK ist
+                if (!response.ok) {
+                    throw new Error(`HTTP Fehler: ${response.status} ${response.statusText}`);
                 }
                 
-                const data = await response.json();
+                // Hole Response Text
+                const responseText = await response.text();
+                
+                // Versuche JSON zu parsen
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    // Zeige die ersten 500 Zeichen der Response für Debugging
+                    throw new Error('Ungültige JSON-Antwort. Server-Antwort:\n\n' + responseText.substring(0, 500));
+                }
                 
                 if (data.success) {
                     resultDiv.className = 'result success';
@@ -396,23 +405,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         <br>
                         <em>Du kannst dieses Migrations-Script jetzt löschen.</em>
                     `;
-                    btn.textContent = '✅ Migration abgeschlossen';
                 } else {
                     throw new Error(data.error || 'Unbekannter Fehler');
                 }
             } catch (error) {
                 resultDiv.className = 'result error';
+                let errorDetails = error.message;
+                
+                // Füge Stack-Trace hinzu falls vorhanden
+                if (error.stack) {
+                    errorDetails += '\n\nStack Trace:\n' + error.stack;
+                }
+                
                 resultDiv.innerHTML = `
                     <strong>❌ Fehler bei der Migration</strong><br><br>
-                    ${error.message}
-                    <br><br>
+                    <pre>${errorDetails}</pre>
+                    <br>
                     <strong>Mögliche Lösungen:</strong><br>
                     1. Prüfe die Datenbankverbindung in config/database.php<br>
                     2. Stelle sicher, dass die Datenbank erreichbar ist<br>
                     3. Prüfe ob die Tabellen 'freebies' und 'customer_freebies' existieren<br>
-                    4. Kontaktiere den Support, falls das Problem weiterhin besteht
-                    <pre>${error.stack || ''}</pre>
+                    4. Kontaktiere den Support mit dem obigen Fehler
                 `;
+            } finally {
                 btn.disabled = false;
                 btn.textContent = '🔄 Erneut versuchen';
             }
