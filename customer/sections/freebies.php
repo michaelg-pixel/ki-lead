@@ -27,12 +27,12 @@ $nicheLabels = [
     'persoenliche-entwicklung' => '🧠 Persönliche Entwicklung',
     'finanzen-investment' => '💰 Finanzen & Investment',
     'immobilien' => '🏠 Immobilien',
-    'e-commerce' => '🛒 E-Commerce',
+    'ecommerce-dropshipping' => '🛒 E-Commerce',
     'affiliate-marketing' => '📈 Affiliate Marketing',
-    'social-media' => '📱 Social Media',
+    'social-media-marketing' => '📱 Social Media',
     'ki-automation' => '🤖 KI & Automation',
     'coaching-consulting' => '👔 Coaching',
-    'spiritualitaet' => '✨ Spiritualität',
+    'spiritualitaet-mindfulness' => '✨ Spiritualität',
     'beziehungen-dating' => '❤️ Beziehungen',
     'eltern-familie' => '👨‍👩‍👧 Familie',
     'karriere-beruf' => '🎯 Karriere',
@@ -134,10 +134,18 @@ try {
     $stmt_custom->execute([$customer_id]);
     $customFreebies = $stmt_custom->fetchAll(PDO::FETCH_ASSOC);
     
+    // Nischen zählen für Filter
+    $nicheCount = [];
+    foreach ($freebies as $freebie) {
+        $niche = $freebie['niche'] ?? 'sonstiges';
+        $nicheCount[$niche] = ($nicheCount[$niche] ?? 0) + 1;
+    }
+    
 } catch (PDOException $e) {
     $freebies = [];
     $customer_freebies_data = [];
     $customFreebies = [];
+    $nicheCount = [];
     $error = $e->getMessage();
 }
 ?>
@@ -252,6 +260,74 @@ try {
     .tab-content.active {
         display: block;
     }
+    
+    /* NISCHEN-FILTER */
+    .filter-section {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 32px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+    
+    .filter-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .filter-dropdown {
+        flex: 1;
+        min-width: 250px;
+        max-width: 400px;
+        padding: 12px 16px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        color: white;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .filter-dropdown:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(102, 126, 234, 0.5);
+    }
+    
+    .filter-dropdown:focus {
+        outline: none;
+        border-color: #667eea;
+        background: rgba(255, 255, 255, 0.12);
+    }
+    
+    .filter-dropdown option {
+        background: #1a1a2e;
+        color: white;
+        padding: 8px;
+    }
+    
+    .filter-stats {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        color: #888;
+    }
+    
+    .filter-count {
+        background: rgba(102, 126, 234, 0.2);
+        color: #667eea;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-weight: 600;
+    }
 
     .freebies-grid {
         display: grid;
@@ -272,6 +348,10 @@ try {
         transform: translateY(-8px);
         box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
         border-color: rgba(102, 126, 234, 0.5);
+    }
+    
+    .freebie-card.hidden {
+        display: none;
     }
     
     /* VERBESSERTE FREEBIE PREVIEW DARSTELLUNG */
@@ -508,6 +588,19 @@ try {
         text-align: center;
     }
     
+    .empty-state {
+        text-align: center;
+        padding: 80px 20px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        display: none;
+    }
+    
+    .empty-state.show {
+        display: block;
+    }
+    
     @media (max-width: 1400px) {
         .freebies-grid {
             grid-template-columns: repeat(3, 1fr);
@@ -552,6 +645,15 @@ try {
         .btn-copy {
             padding: 6px 10px;
             font-size: 11px;
+        }
+        
+        .filter-section {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .filter-dropdown {
+            max-width: 100%;
         }
     }
     
@@ -635,7 +737,39 @@ try {
                 <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>3.</strong> Kopiere die Links und nutze sie in deinem Marketing</p>
             </div>
             
-            <div class="freebies-grid">
+            <!-- NISCHEN-FILTER -->
+            <div class="filter-section">
+                <span class="filter-label">🎯 Nische filtern:</span>
+                <select id="nicheFilter" class="filter-dropdown" onchange="filterByNiche()">
+                    <option value="">Alle Nischen anzeigen</option>
+                    <?php foreach ($nicheLabels as $nicheKey => $nicheLabel): ?>
+                        <?php if (isset($nicheCount[$nicheKey]) && $nicheCount[$nicheKey] > 0): ?>
+                            <option value="<?php echo htmlspecialchars($nicheKey); ?>">
+                                <?php echo htmlspecialchars($nicheLabel); ?> (<?php echo $nicheCount[$nicheKey]; ?>)
+                            </option>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                </select>
+                <div class="filter-stats">
+                    <span id="filterResultCount" class="filter-count"><?php echo count($freebies); ?></span>
+                    <span>Templates</span>
+                </div>
+            </div>
+            
+            <!-- Empty State (versteckt bis Filter aktiv) -->
+            <div id="emptyFilterState" class="empty-state">
+                <div style="font-size: 64px; margin-bottom: 20px;">🔍</div>
+                <h3 style="font-size: 24px; color: white; margin-bottom: 12px;">Keine Templates gefunden</h3>
+                <p style="font-size: 16px; color: #888; margin-bottom: 24px;">
+                    Für diese Nische gibt es noch keine Templates.
+                </p>
+                <button onclick="document.getElementById('nicheFilter').value=''; filterByNiche();" 
+                        style="padding: 12px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;">
+                    Alle Templates anzeigen
+                </button>
+            </div>
+            
+            <div class="freebies-grid" id="templatesGrid">
                 <?php foreach ($freebies as $freebie): 
                     $isUsedByCustomer = isset($customer_freebies_data[$freebie['id']]);
                     $customer_freebie_data = $customer_freebies_data[$freebie['id']] ?? null;
@@ -680,9 +814,10 @@ try {
                     $date = new DateTime($freebie['created_at']);
                     $formattedDate = $date->format('d.m.Y');
                     
-                    $nicheLabel = $nicheLabels[$freebie['niche'] ?? 'sonstiges'] ?? '📂 Sonstiges';
+                    $nicheKey = $freebie['niche'] ?? 'sonstiges';
+                    $nicheLabel = $nicheLabels[$nicheKey] ?? '📂 Sonstiges';
                 ?>
-                    <div class="freebie-card">
+                    <div class="freebie-card" data-niche="<?php echo htmlspecialchars($nicheKey); ?>">
                         <div class="freebie-preview" style="background: <?php echo htmlspecialchars($bgColor); ?>;">
                             <div class="freebie-badges">
                                 <?php if ($isUsedByCustomer): ?>
@@ -957,6 +1092,34 @@ function switchTab(tabName) {
     // Show selected tab
     document.getElementById('tab-' + tabName).classList.add('active');
     event.target.classList.add('active');
+}
+
+function filterByNiche() {
+    const selectedNiche = document.getElementById('nicheFilter').value;
+    const cards = document.querySelectorAll('#templatesGrid .freebie-card');
+    const emptyState = document.getElementById('emptyFilterState');
+    let visibleCount = 0;
+    
+    cards.forEach(card => {
+        const cardNiche = card.getAttribute('data-niche');
+        
+        if (selectedNiche === '' || cardNiche === selectedNiche) {
+            card.classList.remove('hidden');
+            visibleCount++;
+        } else {
+            card.classList.add('hidden');
+        }
+    });
+    
+    // Update counter
+    document.getElementById('filterResultCount').textContent = visibleCount;
+    
+    // Show/hide empty state
+    if (visibleCount === 0) {
+        emptyState.classList.add('show');
+    } else {
+        emptyState.classList.remove('show');
+    }
 }
 
 function copyCustomerLink(inputId) {
