@@ -14,29 +14,38 @@ try {
     
     // 1. unlock_after_days Feld zu course_lessons hinzufügen
     try {
-        $pdo->exec("
-            ALTER TABLE course_lessons 
-            ADD COLUMN IF NOT EXISTS unlock_after_days INT NULL DEFAULT NULL 
-            COMMENT 'Tage bis zur Freischaltung (NULL = sofort verfügbar)'
-        ");
-        $results[] = "✅ unlock_after_days Feld hinzugefügt";
-    } catch (Exception $e) {
-        if (strpos($e->getMessage(), 'Duplicate column') !== false) {
-            $results[] = "ℹ️ unlock_after_days Feld existiert bereits";
+        // Erst prüfen ob Spalte existiert
+        $stmt = $pdo->query("SHOW COLUMNS FROM course_lessons LIKE 'unlock_after_days'");
+        if ($stmt->rowCount() == 0) {
+            // Spalte existiert nicht, hinzufügen
+            $pdo->exec("
+                ALTER TABLE course_lessons 
+                ADD COLUMN unlock_after_days INT NULL DEFAULT NULL 
+                COMMENT 'Tage bis zur Freischaltung (NULL = sofort verfügbar)'
+            ");
+            $results[] = "✅ unlock_after_days Feld hinzugefügt";
         } else {
-            throw $e;
+            $results[] = "ℹ️ unlock_after_days Feld existiert bereits";
         }
+    } catch (Exception $e) {
+        $results[] = "⚠️ unlock_after_days: " . $e->getMessage();
     }
     
     // Index für Performance
     try {
-        $pdo->exec("
-            ALTER TABLE course_lessons 
-            ADD INDEX IF NOT EXISTS idx_unlock_after_days (unlock_after_days)
-        ");
-        $results[] = "✅ Index für unlock_after_days erstellt";
+        // Prüfen ob Index existiert
+        $stmt = $pdo->query("SHOW INDEX FROM course_lessons WHERE Key_name = 'idx_unlock_after_days'");
+        if ($stmt->rowCount() == 0) {
+            $pdo->exec("
+                ALTER TABLE course_lessons 
+                ADD INDEX idx_unlock_after_days (unlock_after_days)
+            ");
+            $results[] = "✅ Index für unlock_after_days erstellt";
+        } else {
+            $results[] = "ℹ️ Index existiert bereits";
+        }
     } catch (Exception $e) {
-        $results[] = "ℹ️ Index existiert bereits oder konnte nicht erstellt werden";
+        $results[] = "ℹ️ Index: " . $e->getMessage();
     }
     
     // 2. lesson_videos Tabelle für mehrere Videos pro Lektion
@@ -89,14 +98,18 @@ try {
     $results[] = "✅ course_enrollments Tabelle erstellt";
     
     // 4. Bestehende Enrollments automatisch erstellen (für User mit course_access)
-    $stmt = $pdo->query("
-        INSERT IGNORE INTO course_enrollments (user_id, course_id, enrolled_at)
-        SELECT user_id, course_id, created_at
-        FROM course_access
-        WHERE created_at IS NOT NULL
-    ");
-    $enrolled = $stmt->rowCount();
-    $results[] = "✅ $enrolled bestehende Enrollments migriert";
+    try {
+        $stmt = $pdo->query("
+            INSERT IGNORE INTO course_enrollments (user_id, course_id, enrolled_at)
+            SELECT user_id, course_id, created_at
+            FROM course_access
+            WHERE created_at IS NOT NULL
+        ");
+        $enrolled = $stmt->rowCount();
+        $results[] = "✅ $enrolled bestehende Enrollments migriert";
+    } catch (Exception $e) {
+        $results[] = "ℹ️ Enrollments: " . $e->getMessage();
+    }
     
     // Erfolg!
     echo json_encode([
