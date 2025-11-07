@@ -5,17 +5,17 @@
             padding: 20px;
             display: flex;
             gap: 12px;
-            overflow-x: auto;
-            overflow-y: hidden; /* KEIN vertikaler Scrollbalken */
-            flex-wrap: wrap;
-            min-height: 80px; /* Fixe Höhe für Sichtbarkeit */
-            -webkit-overflow-scrolling: touch; /* Smooth scrolling */
+            overflow-x: auto;      /* Horizontal scrollen wenn nötig */
+            overflow-y: hidden;     /* KEIN vertikaler Scrollbalken */
+            flex-wrap: nowrap;      /* EINE Reihe - horizontal scrollen statt wrappen */
+            min-height: 80px;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;  /* Firefox */
         }
         
-        /* Scrollbar verstecken (optional) */
+        /* Scrollbar komplett verstecken */
         .video-tabs::-webkit-scrollbar {
-            height: 0;
-            width: 0;
+            display: none;  /* Chrome, Safari, Opera */
         }
         
         .video-tab {
@@ -33,4 +33,5 @@
             cursor: pointer;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             white-space: nowrap;
+            flex-shrink: 0;  /* Tabs werden nicht zusammengedrückt */
         }
