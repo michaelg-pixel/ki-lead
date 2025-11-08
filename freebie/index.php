@@ -1,6 +1,6 @@
 <?php
 /**
- * Freebie Public Page mit POPUP-SUPPORT & 🆕 FONT-SYSTEM
+ * Freebie Public Page mit POPUP-SUPPORT & 🆕 FONT-SYSTEM & 🍪 COOKIE-BANNER
  */
 
 error_reporting(E_ALL);
@@ -191,7 +191,7 @@ $templateFile = __DIR__ . '/templates/layout1.php';
 if (file_exists($templateFile)) {
     require $templateFile;
 } else {
-    // Fallback - Direkte Ausgabe MIT FONTS
+    // Fallback - Direkte Ausgabe MIT FONTS & COOKIE-BANNER
     ?>
     <!DOCTYPE html>
     <html lang="de">
@@ -332,6 +332,9 @@ if (file_exists($templateFile)) {
         });
         </script>
         <?php endif; ?>
+        
+        <!-- 🍪 Cookie-Banner -->
+        <?php require_once __DIR__ . '/../includes/cookie-banner.php'; ?>
     </body>
     </html>
     <?php
