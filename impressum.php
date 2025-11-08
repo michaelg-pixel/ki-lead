@@ -29,6 +29,9 @@ if (!$legal_text || empty($legal_text['impressum'])) {
 } else {
     $content = $legal_text['impressum'];
 }
+
+// Für Cookie-Banner
+$customer_id = $user_id;
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -53,5 +56,8 @@ if (!$legal_text || empty($legal_text['impressum'])) {
             </div>
         </div>
     </div>
+    
+    <!-- 🍪 Cookie-Banner -->
+    <?php require_once __DIR__ . '/includes/cookie-banner.php'; ?>
 </body>
 </html>
