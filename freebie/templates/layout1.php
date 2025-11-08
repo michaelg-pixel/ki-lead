@@ -3,6 +3,7 @@
  * Layout 1 Template - ALL 3 LAYOUTS (Hybrid, Centered, Sidebar)
  * 🆕 MIT BULLET ICON STYLE SUPPORT & FONT-SYSTEM
  * ✨ Optimiert: Kleinere Mockups & Optins ohne Schatten - ALLE LAYOUTS
+ * 🍪 MIT COOKIE-BANNER
  */
 
 // 🆕 BULLET ICON STYLE LADEN
@@ -675,6 +676,9 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
         }
     </script>
     <?php endif; ?>
+
+    <!-- 🍪 Cookie-Banner -->
+    <?php require_once __DIR__ . '/../../includes/cookie-banner.php'; ?>
 
 </body>
 </html>
