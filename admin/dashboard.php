@@ -23,10 +23,6 @@ $admin_email = $_SESSION['email'] ?? '';
 
 // Aktuelle Seite bestimmen
 $page = $_GET['page'] ?? 'overview';
-
-// Für Cookie-Banner
-$user_id = $_SESSION['user_id'];
-$customer_id = $user_id;
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -380,8 +376,5 @@ $customer_id = $user_id;
             });
         });
     </script>
-    
-    <!-- 🍪 Cookie-Banner -->
-    <?php require_once __DIR__ . '/../includes/cookie-banner.php'; ?>
 </body>
 </html>
