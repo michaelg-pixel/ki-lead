@@ -13,6 +13,7 @@ $pdo = getDBConnection();
 $customer_id = $_SESSION['user_id'];
 $customer_name = $_SESSION['name'] ?? 'Kunde';
 $customer_email = $_SESSION['email'] ?? '';
+$user_id = $customer_id; // Für Cookie-Banner
 
 // Aktuelle Seite bestimmen
 $page = $_GET['page'] ?? 'overview';
@@ -497,5 +498,8 @@ $page = $_GET['page'] ?? 'overview';
             }
         });
     </script>
+    
+    <!-- 🍪 Cookie-Banner -->
+    <?php require_once __DIR__ . '/../includes/cookie-banner.php'; ?>
 </body>
 </html>
