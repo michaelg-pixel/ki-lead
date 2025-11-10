@@ -1,10 +1,12 @@
 <?php
 /**
- * Digistore24 Webhook Handler - VERSION 3.0
- * Mit Source-Tracking und Konflikt-Schutz
+ * Digistore24 Webhook Handler - VERSION 3.1
+ * Mit Source-Tracking, Konflikt-Schutz und MARKTPLATZ-INTEGRATION
  * 
- * Empfängt Kunden von Digistore24 und erstellt automatisch Accounts + Kurs-Zugang + Freebie-Limits
- * Respektiert manuelle Admin-Änderungen und verhindert ungewollte Überschreibungen
+ * Empfängt Kunden von Digistore24 und:
+ * - Erstellt automatisch Accounts + Kurs-Zugang + Freebie-Limits
+ * - Kopiert Marktplatz-Freebies automatisch in Käufer-Account
+ * - Respektiert manuelle Admin-Änderungen
  */
 
 require_once '../config/database.php';
@@ -90,6 +92,16 @@ function handleNewCustomer($pdo, $data) {
         throw new Exception('Product ID is required');
     }
     
+    // MARKTPLATZ-CHECK: Ist dies ein Marktplatz-Freebie-Kauf?
+    $marketplaceFreebie = checkMarketplacePurchase($pdo, $productId);
+    
+    if ($marketplaceFreebie) {
+        // Dies ist ein Marktplatz-Kauf!
+        handleMarketplacePurchase($pdo, $email, $name, $productId, $marketplaceFreebie, $orderId);
+        return;
+    }
+    
+    // NORMAL: Regulärer Produkt-Kauf
     // Produkt-Konfiguration laden
     $productConfig = getProductConfig($pdo, $productId);
     
@@ -156,6 +168,201 @@ function handleNewCustomer($pdo, $data) {
         'freebies_limit' => $productConfig['own_freebies_limit'],
         'referral_slots' => $productConfig['referral_program_slots']
     ], 'success');
+}
+
+/**
+ * MARKTPLATZ: Prüft ob Produkt-ID ein Marktplatz-Freebie ist
+ */
+function checkMarketplacePurchase($pdo, $productId) {
+    $stmt = $pdo->prepare("
+        SELECT id, customer_id, headline, marketplace_price
+        FROM customer_freebies 
+        WHERE digistore_product_id = ? 
+        AND marketplace_enabled = 1
+        LIMIT 1
+    ");
+    $stmt->execute([$productId]);
+    
+    return $stmt->fetch();
+}
+
+/**
+ * MARKTPLATZ: Verarbeitet Kauf eines Marktplatz-Freebies
+ */
+function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $sourceFreebie, $orderId) {
+    logWebhook([
+        'message' => 'Marketplace purchase detected',
+        'buyer_email' => $buyerEmail,
+        'product_id' => $productId,
+        'freebie_id' => $sourceFreebie['id'],
+        'seller_id' => $sourceFreebie['customer_id']
+    ], 'marketplace');
+    
+    // Käufer-Account finden oder erstellen
+    $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
+    $stmt->execute([$buyerEmail]);
+    $buyer = $stmt->fetch();
+    
+    $buyerId = null;
+    
+    if (!$buyer) {
+        // Neuen Käufer-Account erstellen
+        $buyerId = createMarketplaceBuyer($pdo, $buyerEmail, $buyerName, $orderId);
+    } else {
+        $buyerId = $buyer['id'];
+    }
+    
+    // Prüfen ob Freebie bereits gekauft wurde
+    $stmt = $pdo->prepare("
+        SELECT id FROM customer_freebies 
+        WHERE customer_id = ? AND copied_from_freebie_id = ?
+    ");
+    $stmt->execute([$buyerId, $sourceFreebie['id']]);
+    
+    if ($stmt->fetch()) {
+        logWebhook([
+            'info' => 'Freebie already purchased by this user',
+            'buyer_id' => $buyerId,
+            'freebie_id' => $sourceFreebie['id']
+        ], 'info');
+        return;
+    }
+    
+    // FREEBIE KOPIEREN mit allen Daten
+    $copiedFreebieId = copyMarketplaceFreebie($pdo, $buyerId, $sourceFreebie['id']);
+    
+    // VERKAUFSZÄHLER ERHÖHEN beim Original
+    $stmt = $pdo->prepare("
+        UPDATE customer_freebies 
+        SET marketplace_sales_count = marketplace_sales_count + 1
+        WHERE id = ?
+    ");
+    $stmt->execute([$sourceFreebie['id']]);
+    
+    // E-Mail an Käufer senden
+    sendMarketplacePurchaseEmail($buyerEmail, $buyerName, $sourceFreebie['headline']);
+    
+    logWebhook([
+        'success' => 'Marketplace freebie copied to buyer',
+        'buyer_id' => $buyerId,
+        'buyer_email' => $buyerEmail,
+        'source_freebie_id' => $sourceFreebie['id'],
+        'copied_freebie_id' => $copiedFreebieId,
+        'seller_id' => $sourceFreebie['customer_id']
+    ], 'marketplace_success');
+}
+
+/**
+ * MARKTPLATZ: Erstellt Account für Marktplatz-Käufer
+ */
+function createMarketplaceBuyer($pdo, $email, $name, $orderId) {
+    $rawCode = 'RAW-' . date('Y') . '-' . str_pad(rand(1, 999), 3, '0', STR_PAD_LEFT);
+    $password = bin2hex(random_bytes(8));
+    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+    
+    $stmt = $pdo->prepare("
+        INSERT INTO users (
+            name, email, password, role, is_active, raw_code,
+            digistore_order_id, source, created_at
+        ) VALUES (?, ?, ?, 'customer', 1, ?, ?, 'marketplace', NOW())
+    ");
+    
+    $stmt->execute([$name, $email, $hashedPassword, $rawCode, $orderId]);
+    
+    $userId = $pdo->lastInsertId();
+    
+    // Standard-Limits für Marktplatz-Käufer (können später upgraden)
+    $stmt = $pdo->prepare("
+        INSERT INTO customer_freebie_limits (customer_id, freebie_limit, product_name, source)
+        VALUES (?, 2, 'Marktplatz Käufer', 'marketplace')
+    ");
+    $stmt->execute([$userId]);
+    
+    // Willkommens-E-Mail senden
+    sendMarketplaceBuyerWelcomeEmail($email, $name, $password, $rawCode);
+    
+    return $userId;
+}
+
+/**
+ * MARKTPLATZ: Kopiert ein Freebie komplett in Käufer-Account
+ */
+function copyMarketplaceFreebie($pdo, $buyerId, $sourceFreebieId) {
+    // Original-Freebie laden
+    $stmt = $pdo->prepare("SELECT * FROM customer_freebies WHERE id = ?");
+    $stmt->execute([$sourceFreebieId]);
+    $source = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$source) {
+        throw new Exception('Source freebie not found');
+    }
+    
+    // Neues unique_id generieren
+    $uniqueId = bin2hex(random_bytes(16));
+    
+    // Freebie kopieren
+    $stmt = $pdo->prepare("
+        INSERT INTO customer_freebies (
+            customer_id,
+            template_id,
+            freebie_type,
+            headline,
+            subheadline,
+            preheadline,
+            mockup_image_url,
+            background_color,
+            primary_color,
+            cta_text,
+            bullet_points,
+            layout,
+            email_field_text,
+            button_text,
+            privacy_checkbox_text,
+            thank_you_headline,
+            thank_you_message,
+            email_provider,
+            email_api_key,
+            email_list_id,
+            course_id,
+            unique_id,
+            niche,
+            original_creator_id,
+            copied_from_freebie_id,
+            marketplace_enabled,
+            created_at
+        ) VALUES (
+            ?, ?, 'purchased', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            NULL, NULL, NULL, ?, ?, ?, ?, ?, 0, NOW()
+        )
+    ");
+    
+    $stmt->execute([
+        $buyerId,
+        $source['template_id'],
+        $source['headline'],
+        $source['subheadline'],
+        $source['preheadline'],
+        $source['mockup_image_url'],
+        $source['background_color'],
+        $source['primary_color'],
+        $source['cta_text'],
+        $source['bullet_points'],
+        $source['layout'],
+        $source['email_field_text'],
+        $source['button_text'],
+        $source['privacy_checkbox_text'],
+        $source['thank_you_headline'],
+        $source['thank_you_message'],
+        $source['course_id'],
+        $uniqueId,
+        $source['niche'],
+        $source['customer_id'], // Original-Ersteller
+        $sourceFreebieId // Original-Freebie
+    ]);
+    
+    $copiedId = $pdo->lastInsertId();
+    
+    return $copiedId;
 }
 
 /**
@@ -664,6 +871,116 @@ function sendWelcomeEmail($email, $name, $password, $rawCode, $productConfig) {
                 <p style='color: #888; font-size: 14px; margin-top: 30px; text-align: center;'>
                     Bei Fragen stehen wir dir gerne zur Verfügung!<br>
                     Viel Erfolg mit deinem KI Leadsystem! 🎯
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    ";
+    
+    $headers = "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+    $headers .= "From: KI Leadsystem <noreply@mehr-infos-jetzt.de>\r\n";
+    
+    mail($email, $subject, $message, $headers);
+}
+
+/**
+ * MARKTPLATZ: Willkommens-E-Mail für Marktplatz-Käufer
+ */
+function sendMarketplaceBuyerWelcomeEmail($email, $name, $password, $rawCode) {
+    $subject = "🎉 Willkommen beim KI Leadsystem - Dein Marktplatz-Kauf";
+    
+    $message = "
+    <html>
+    <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
+        <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
+            <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0;'>
+                <h1 style='color: white; margin: 0; font-size: 32px;'>🎉 Willkommen, $name!</h1>
+                <p style='color: rgba(255,255,255,0.9); margin: 10px 0 0 0;'>Dein Freebie wartet auf dich!</p>
+            </div>
+            
+            <div style='background: white; padding: 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);'>
+                <p>Vielen Dank für deinen Kauf im Marktplatz!</p>
+                <p>Dein gekauftes Freebie wurde automatisch in deinen Account kopiert und steht dir jetzt zur Verfügung.</p>
+                
+                <div style='background: #f5f7fa; padding: 20px; border-radius: 8px; margin: 20px 0;'>
+                    <h3 style='margin: 0 0 15px 0; color: #667eea;'>🔑 Deine Zugangsdaten:</h3>
+                    <table style='width: 100%; border-collapse: collapse;'>
+                        <tr>
+                            <td style='padding: 8px 0; color: #6b7280;'>E-Mail:</td>
+                            <td style='padding: 8px 0; font-weight: bold;'>$email</td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 8px 0; color: #6b7280;'>Passwort:</td>
+                            <td style='padding: 8px 0; font-family: monospace; font-weight: bold;'>$password</td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 8px 0; color: #6b7280;'>RAW-Code:</td>
+                            <td style='padding: 8px 0; font-family: monospace; font-weight: bold;'>$rawCode</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <div style='text-align: center; margin: 30px 0;'>
+                    <a href='https://app.mehr-infos-jetzt.de/public/login.php' 
+                       style='display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                              color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;'>
+                        🚀 Jetzt einloggen
+                    </a>
+                </div>
+                
+                <p style='color: #888; font-size: 14px; margin-top: 30px; text-align: center;'>
+                    Viel Erfolg mit deinem Freebie! 🎯<br>
+                    Du kannst jederzeit weitere Freebies im Marktplatz entdecken!
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    ";
+    
+    $headers = "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+    $headers .= "From: KI Leadsystem <noreply@mehr-infos-jetzt.de>\r\n";
+    
+    mail($email, $subject, $message, $headers);
+}
+
+/**
+ * MARKTPLATZ: Kauf-Bestätigung an Käufer
+ */
+function sendMarketplacePurchaseEmail($email, $name, $freebieTitle) {
+    $subject = "✅ Dein Freebie ist jetzt verfügbar!";
+    
+    $message = "
+    <html>
+    <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
+        <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
+            <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0;'>
+                <h1 style='color: white; margin: 0; font-size: 32px;'>🎉 Erfolgreich gekauft!</h1>
+            </div>
+            
+            <div style='background: white; padding: 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);'>
+                <p>Hallo $name,</p>
+                <p>dein Freebie <strong>\"$freebieTitle\"</strong> wurde erfolgreich in deinen Account kopiert!</p>
+                
+                <div style='background: #f0fdf4; border: 2px solid #22c55e; padding: 20px; border-radius: 8px; margin: 20px 0;'>
+                    <p style='margin: 0; color: #166534;'>
+                        ✅ Du kannst das Freebie jetzt bearbeiten und für deine Zwecke anpassen!
+                    </p>
+                </div>
+                
+                <div style='text-align: center; margin: 30px 0;'>
+                    <a href='https://app.mehr-infos-jetzt.de/customer/dashboard.php?page=freebies' 
+                       style='display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                              color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;'>
+                        🎁 Zu meinen Freebies
+                    </a>
+                </div>
+                
+                <p style='color: #888; font-size: 14px; margin-top: 30px; text-align: center;'>
+                    Viel Erfolg mit deinem neuen Freebie! 🚀
                 </p>
             </div>
         </div>
