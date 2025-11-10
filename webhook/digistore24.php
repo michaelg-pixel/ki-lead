@@ -1,12 +1,13 @@
 <?php
 /**
- * Digistore24 Webhook Handler - VERSION 3.1
- * Mit Source-Tracking, Konflikt-Schutz und MARKTPLATZ-INTEGRATION
+ * Digistore24 Webhook Handler - VERSION 3.2
+ * Mit Source-Tracking, Konflikt-Schutz, MARKTPLATZ-INTEGRATION und JV-TRACKING
  * 
  * Empfängt Kunden von Digistore24 und:
  * - Erstellt automatisch Accounts + Kurs-Zugang + Freebie-Limits
  * - Kopiert Marktplatz-Freebies automatisch in Käufer-Account
  * - Respektiert manuelle Admin-Änderungen
+ * - Speichert JV-Partner und Affiliate-Daten für Tracking
  */
 
 require_once '../config/database.php';
@@ -84,6 +85,28 @@ function handleNewCustomer($pdo, $data) {
     $productId = $data['product_id'] ?? '';
     $productName = $data['product_name'] ?? '';
     
+    // JV-Partner und Affiliate-Daten extrahieren
+    $partnerUsername = $data['partner_username'] ?? null;
+    $affiliateUsername = $data['affiliate_username'] ?? null;
+    $jvCommissionData = null;
+    
+    // JV-Kommissions-Daten sammeln (falls vorhanden)
+    if (isset($data['partner_commission_amount']) || isset($data['affiliate_commission_amount'])) {
+        $jvCommissionData = [
+            'partner' => [
+                'username' => $partnerUsername,
+                'commission_amount' => $data['partner_commission_amount'] ?? null,
+                'commission_percent' => $data['partner_commission_percent'] ?? null
+            ],
+            'affiliate' => [
+                'username' => $affiliateUsername,
+                'commission_amount' => $data['affiliate_commission_amount'] ?? null,
+                'commission_percent' => $data['affiliate_commission_percent'] ?? null
+            ],
+            'recorded_at' => date('Y-m-d H:i:s')
+        ];
+    }
+    
     if (empty($email)) {
         throw new Exception('Email is required');
     }
@@ -133,14 +156,21 @@ function handleNewCustomer($pdo, $data) {
     
     if ($existingUser) {
         $userId = $existingUser['id'];
+        
+        // JV-Daten beim existierenden User aktualisieren
+        updateUserJVData($pdo, $userId, $partnerUsername, $affiliateUsername, $jvCommissionData);
+        
         logWebhook([
-            'message' => 'User already exists, granting access',
+            'message' => 'User already exists, granting access and updating JV data',
             'email' => $email,
-            'user_id' => $userId
+            'user_id' => $userId,
+            'partner_username' => $partnerUsername,
+            'affiliate_username' => $affiliateUsername
         ], 'info');
     } else {
-        // Neuen User erstellen
-        $userId = createNewUser($pdo, $email, $name, $orderId, $productId, $productConfig);
+        // Neuen User erstellen (inkl. JV-Daten)
+        $userId = createNewUser($pdo, $email, $name, $orderId, $productId, $productConfig, 
+                                 $partnerUsername, $affiliateUsername, $jvCommissionData);
         $isNewUser = true;
     }
     
@@ -166,8 +196,45 @@ function handleNewCustomer($pdo, $data) {
         'product_id' => $productId,
         'product_type' => $productConfig['product_type'],
         'freebies_limit' => $productConfig['own_freebies_limit'],
-        'referral_slots' => $productConfig['referral_program_slots']
+        'referral_slots' => $productConfig['referral_program_slots'],
+        'jv_partner' => $partnerUsername,
+        'affiliate' => $affiliateUsername
     ], 'success');
+}
+
+/**
+ * JV-Daten beim existierenden User aktualisieren
+ */
+function updateUserJVData($pdo, $userId, $partnerUsername, $affiliateUsername, $jvCommissionData) {
+    try {
+        $stmt = $pdo->prepare("
+            UPDATE users 
+            SET jv_partner_username = ?,
+                affiliate_username = ?,
+                jv_commission_data = ?
+            WHERE id = ?
+        ");
+        
+        $stmt->execute([
+            $partnerUsername,
+            $affiliateUsername,
+            $jvCommissionData ? json_encode($jvCommissionData) : null,
+            $userId
+        ]);
+        
+        logWebhook([
+            'success' => 'JV data updated for existing user',
+            'user_id' => $userId,
+            'partner_username' => $partnerUsername,
+            'affiliate_username' => $affiliateUsername
+        ], 'success');
+    } catch (PDOException $e) {
+        logWebhook([
+            'warning' => 'Could not update JV data - columns may not exist yet',
+            'user_id' => $userId,
+            'error' => $e->getMessage()
+        ], 'warning');
+    }
 }
 
 /**
@@ -388,9 +455,10 @@ function getProductConfig($pdo, $productId) {
 }
 
 /**
- * Neuen User erstellen
+ * Neuen User erstellen - VERSION 3.2 mit JV-Tracking
  */
-function createNewUser($pdo, $email, $name, $orderId, $productId, $productConfig) {
+function createNewUser($pdo, $email, $name, $orderId, $productId, $productConfig, 
+                       $partnerUsername = null, $affiliateUsername = null, $jvCommissionData = null) {
     // RAW-Code generieren
     $rawCode = 'RAW-' . date('Y') . '-' . str_pad(rand(1, 999), 3, '0', STR_PAD_LEFT);
     
@@ -398,32 +466,72 @@ function createNewUser($pdo, $email, $name, $orderId, $productId, $productConfig
     $password = bin2hex(random_bytes(8));
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
     
-    // Kunden in Datenbank anlegen
-    $stmt = $pdo->prepare("
-        INSERT INTO users (
-            name, 
-            email, 
-            password, 
-            role, 
-            is_active,
-            raw_code,
-            digistore_order_id,
-            digistore_product_id,
-            digistore_product_name,
-            source,
-            created_at
-        ) VALUES (?, ?, ?, 'customer', 1, ?, ?, ?, ?, 'digistore24', NOW())
-    ");
-    
-    $stmt->execute([
-        $name,
-        $email,
-        $hashedPassword,
-        $rawCode,
-        $orderId,
-        $productId,
-        $productConfig['product_name'] ?? 'Unbekannt'
-    ]);
+    // Kunden in Datenbank anlegen (mit JV-Daten falls vorhanden)
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO users (
+                name, 
+                email, 
+                password, 
+                role, 
+                is_active,
+                raw_code,
+                digistore_order_id,
+                digistore_product_id,
+                digistore_product_name,
+                jv_partner_username,
+                affiliate_username,
+                jv_commission_data,
+                source,
+                created_at
+            ) VALUES (?, ?, ?, 'customer', 1, ?, ?, ?, ?, ?, ?, ?, 'digistore24', NOW())
+        ");
+        
+        $stmt->execute([
+            $name,
+            $email,
+            $hashedPassword,
+            $rawCode,
+            $orderId,
+            $productId,
+            $productConfig['product_name'] ?? 'Unbekannt',
+            $partnerUsername,
+            $affiliateUsername,
+            $jvCommissionData ? json_encode($jvCommissionData) : null
+        ]);
+    } catch (PDOException $e) {
+        // Falls JV-Spalten noch nicht existieren, ohne JV-Daten erstellen
+        logWebhook([
+            'warning' => 'JV columns not available, creating user without JV data',
+            'error' => $e->getMessage()
+        ], 'warning');
+        
+        $stmt = $pdo->prepare("
+            INSERT INTO users (
+                name, 
+                email, 
+                password, 
+                role, 
+                is_active,
+                raw_code,
+                digistore_order_id,
+                digistore_product_id,
+                digistore_product_name,
+                source,
+                created_at
+            ) VALUES (?, ?, ?, 'customer', 1, ?, ?, ?, ?, 'digistore24', NOW())
+        ");
+        
+        $stmt->execute([
+            $name,
+            $email,
+            $hashedPassword,
+            $rawCode,
+            $orderId,
+            $productId,
+            $productConfig['product_name'] ?? 'Unbekannt'
+        ]);
+    }
     
     $userId = $pdo->lastInsertId();
     
@@ -435,7 +543,9 @@ function createNewUser($pdo, $email, $name, $orderId, $productId, $productConfig
         'user_id' => $userId,
         'email' => $email,
         'raw_code' => $rawCode,
-        'product_type' => $productConfig['product_type'] ?? 'custom'
+        'product_type' => $productConfig['product_type'] ?? 'custom',
+        'jv_partner' => $partnerUsername,
+        'affiliate' => $affiliateUsername
     ], 'success');
     
     return $userId;
