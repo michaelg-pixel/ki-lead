@@ -3,6 +3,7 @@
  * 🎓 FREEBIE COURSE API
  * 
  * API Endpoints für Videokurs-Management
+ * MIT VOLLSTÄNDIGER UNTERSTÜTZUNG für Button & Freischaltung
  */
 
 session_start();
@@ -139,6 +140,11 @@ try {
             $video_url = trim($input['video_url'] ?? '');
             $pdf_url = trim($input['pdf_url'] ?? '');
             
+            // ✅ BUTTON & FREISCHALTUNG FELDER
+            $button_text = trim($input['button_text'] ?? '');
+            $button_url = trim($input['button_url'] ?? '');
+            $unlock_after_days = intval($input['unlock_after_days'] ?? 0);
+            
             if (!$module_id || empty($title)) {
                 throw new Exception('Modul ID und Titel erforderlich');
             }
@@ -154,8 +160,23 @@ try {
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
             $next_order = ($result['max_order'] ?? 0) + 1;
             
-            $stmt = $pdo->prepare("INSERT INTO freebie_course_lessons (module_id, title, description, video_url, pdf_url, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())");
-            $stmt->execute([$module_id, $title, $description, $video_url, $pdf_url, $next_order]);
+            // ✅ MIT ALLEN FELDERN
+            $stmt = $pdo->prepare("
+                INSERT INTO freebie_course_lessons 
+                (module_id, title, description, video_url, pdf_url, button_text, button_url, unlock_after_days, sort_order, created_at, updated_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+            ");
+            $stmt->execute([
+                $module_id, 
+                $title, 
+                $description, 
+                $video_url, 
+                $pdf_url, 
+                $button_text, 
+                $button_url, 
+                $unlock_after_days, 
+                $next_order
+            ]);
             
             echo json_encode(['success' => true, 'lesson_id' => $pdo->lastInsertId(), 'message' => 'Lektion erstellt']);
             break;
@@ -167,6 +188,11 @@ try {
             $video_url = trim($input['video_url'] ?? '');
             $pdf_url = trim($input['pdf_url'] ?? '');
             
+            // ✅ BUTTON & FREISCHALTUNG FELDER
+            $button_text = trim($input['button_text'] ?? '');
+            $button_url = trim($input['button_url'] ?? '');
+            $unlock_after_days = intval($input['unlock_after_days'] ?? 0);
+            
             if (!$lesson_id || empty($title)) {
                 throw new Exception('Lektion ID und Titel erforderlich');
             }
@@ -177,8 +203,24 @@ try {
                 throw new Exception('Keine Berechtigung');
             }
             
-            $stmt = $pdo->prepare("UPDATE freebie_course_lessons SET title = ?, description = ?, video_url = ?, pdf_url = ?, updated_at = NOW() WHERE id = ?");
-            $stmt->execute([$title, $description, $video_url, $pdf_url, $lesson_id]);
+            // ✅ MIT ALLEN FELDERN
+            $stmt = $pdo->prepare("
+                UPDATE freebie_course_lessons 
+                SET title = ?, description = ?, video_url = ?, pdf_url = ?, 
+                    button_text = ?, button_url = ?, unlock_after_days = ?, 
+                    updated_at = NOW() 
+                WHERE id = ?
+            ");
+            $stmt->execute([
+                $title, 
+                $description, 
+                $video_url, 
+                $pdf_url, 
+                $button_text, 
+                $button_url, 
+                $unlock_after_days, 
+                $lesson_id
+            ]);
             
             echo json_encode(['success' => true, 'message' => 'Lektion aktualisiert']);
             break;
