@@ -98,7 +98,7 @@ try {
     // Prüfen, welche Freebies der Kunde bereits bearbeitet hat (template-basiert)
     // WICHTIG: mockup_image_url auch aus customer_freebies laden!
     $stmt_customer = $pdo->prepare("
-        SELECT template_id, id as customer_freebie_id, unique_id, mockup_image_url
+        SELECT template_id, id as customer_freebie_id, unique_id, mockup_image_url, niche
         FROM customer_freebies 
         WHERE customer_id = ? AND (freebie_type = 'template' OR freebie_type IS NULL)
     ");
@@ -109,7 +109,8 @@ try {
             $customer_freebies_data[$row['template_id']] = [
                 'id' => $row['customer_freebie_id'],
                 'unique_id' => $row['unique_id'],
-                'mockup_image_url' => $row['mockup_image_url']
+                'mockup_image_url' => $row['mockup_image_url'],
+                'niche' => $row['niche']
             ];
         }
     }
@@ -608,6 +609,142 @@ try {
         text-align: center;
     }
     
+    /* Nischen-Editor Styles */
+    .niche-editor-section {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .niche-display {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px;
+        background: rgba(102, 126, 234, 0.08);
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        border-radius: 8px;
+    }
+    
+    .niche-display-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #667eea;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .niche-display-value {
+        color: white;
+        font-size: 13px;
+        font-weight: 500;
+    }
+    
+    .btn-edit-niche {
+        padding: 6px 12px;
+        background: rgba(102, 126, 234, 0.3);
+        border: 1px solid #667eea;
+        border-radius: 6px;
+        color: white;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+    
+    .btn-edit-niche:hover {
+        background: rgba(102, 126, 234, 0.5);
+    }
+    
+    .niche-selector {
+        display: none;
+        margin-top: 12px;
+        padding: 12px;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+    }
+    
+    .niche-selector.active {
+        display: block;
+    }
+    
+    .niche-selector-label {
+        color: white;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        display: block;
+    }
+    
+    .niche-selector-dropdown {
+        width: 100%;
+        padding: 10px 12px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+        color: white;
+        font-size: 13px;
+        cursor: pointer;
+        margin-bottom: 12px;
+    }
+    
+    .niche-selector-dropdown:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    }
+    
+    .niche-selector-dropdown option {
+        background: #1a1a2e;
+        color: white;
+        padding: 10px;
+    }
+    
+    .niche-selector-actions {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .btn-save-niche {
+        flex: 1;
+        padding: 10px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 6px;
+        color: white;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .btn-save-niche:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-cancel-niche {
+        padding: 10px 16px;
+        background: rgba(239, 68, 68, 0.2);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 6px;
+        color: #f87171;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .btn-cancel-niche:hover {
+        background: rgba(239, 68, 68, 0.3);
+    }
+    
     @media (max-width: 1400px) {
         .freebies-grid {
             grid-template-columns: repeat(3, 1fr);
@@ -818,7 +955,10 @@ try {
                     $date = new DateTime($freebie['created_at']);
                     $formattedDate = $date->format('d.m.Y');
                     
-                    $nicheValue = $freebie['niche'] ?? 'sonstiges';
+                    // Nische aus customer_freebies nehmen, falls vorhanden, sonst aus template
+                    $nicheValue = ($isUsedByCustomer && $customer_freebie_data && !empty($customer_freebie_data['niche'])) 
+                        ? $customer_freebie_data['niche'] 
+                        : ($freebie['niche'] ?? 'sonstiges');
                     $nicheLabel = $nicheLabels[$nicheValue] ?? '📂 Sonstiges';
                 ?>
                     <div class="freebie-card" data-niche="<?php echo htmlspecialchars($nicheValue); ?>" data-type="template">
@@ -917,6 +1057,43 @@ try {
                                             <button onclick="copyCustomerLink('thankyou-link-<?php echo $freebie['id']; ?>')" 
                                                     class="btn-copy">
                                                 📋
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Nischen-Editor -->
+                                <div class="niche-editor-section">
+                                    <div class="niche-display">
+                                        <div>
+                                            <div class="niche-display-label">
+                                                <span>🏷️</span>
+                                                <span>Nische</span>
+                                            </div>
+                                            <div class="niche-display-value" id="niche-value-<?php echo $customer_freebie_data['id']; ?>">
+                                                <?php echo htmlspecialchars($nicheLabel); ?>
+                                            </div>
+                                        </div>
+                                        <button class="btn-edit-niche" onclick="toggleNicheEditor(<?php echo $customer_freebie_data['id']; ?>)">
+                                            ✏️ Ändern
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="niche-selector" id="niche-selector-<?php echo $customer_freebie_data['id']; ?>">
+                                        <label class="niche-selector-label">Nische auswählen:</label>
+                                        <select class="niche-selector-dropdown" id="niche-dropdown-<?php echo $customer_freebie_data['id']; ?>">
+                                            <?php foreach ($nicheLabels as $value => $label): ?>
+                                                <option value="<?php echo htmlspecialchars($value); ?>" <?php echo $value === $nicheValue ? 'selected' : ''; ?>>
+                                                    <?php echo htmlspecialchars($label); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <div class="niche-selector-actions">
+                                            <button class="btn-save-niche" onclick="saveNiche(<?php echo $customer_freebie_data['id']; ?>)">
+                                                💾 Speichern
+                                            </button>
+                                            <button class="btn-cancel-niche" onclick="toggleNicheEditor(<?php echo $customer_freebie_data['id']; ?>)">
+                                                ✕ Abbrechen
                                             </button>
                                         </div>
                                     </div>
@@ -1056,6 +1233,43 @@ try {
                                 </div>
                             </div>
                             
+                            <!-- Nischen-Editor für Custom Freebies -->
+                            <div class="niche-editor-section">
+                                <div class="niche-display">
+                                    <div>
+                                        <div class="niche-display-label">
+                                            <span>🏷️</span>
+                                            <span>Nische</span>
+                                        </div>
+                                        <div class="niche-display-value" id="niche-value-<?php echo $custom['id']; ?>">
+                                            <?php echo htmlspecialchars($nicheLabel); ?>
+                                        </div>
+                                    </div>
+                                    <button class="btn-edit-niche" onclick="toggleNicheEditor(<?php echo $custom['id']; ?>)">
+                                        ✏️ Ändern
+                                    </button>
+                                </div>
+                                
+                                <div class="niche-selector" id="niche-selector-<?php echo $custom['id']; ?>">
+                                    <label class="niche-selector-label">Nische auswählen:</label>
+                                    <select class="niche-selector-dropdown" id="niche-dropdown-<?php echo $custom['id']; ?>">
+                                        <?php foreach ($nicheLabels as $value => $label): ?>
+                                            <option value="<?php echo htmlspecialchars($value); ?>" <?php echo $value === $nicheValue ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($label); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <div class="niche-selector-actions">
+                                        <button class="btn-save-niche" onclick="saveNiche(<?php echo $custom['id']; ?>)">
+                                            💾 Speichern
+                                        </button>
+                                        <button class="btn-cancel-niche" onclick="toggleNicheEditor(<?php echo $custom['id']; ?>)">
+                                            ✕ Abbrechen
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <div style="margin-top: 16px;">
                                 <button onclick="deleteCustomFreebie(<?php echo $custom['id']; ?>)" 
                                         class="action-btn action-btn-delete" 
@@ -1087,6 +1301,9 @@ try {
 <script>
 // Aktiver Tab
 let activeTab = 'templates';
+
+// Nischen Labels für JavaScript
+const nicheLabels = <?php echo json_encode($nicheLabels); ?>;
 
 function switchTab(tabName) {
     activeTab = tabName;
@@ -1224,6 +1441,79 @@ function deleteCustomFreebie(id) {
     .catch(error => {
         console.error('Error:', error);
         alert('Fehler beim Löschen');
+    });
+}
+
+// Nischen-Editor Toggle
+function toggleNicheEditor(freebieId) {
+    const selector = document.getElementById('niche-selector-' + freebieId);
+    if (selector) {
+        selector.classList.toggle('active');
+    }
+}
+
+// Nische speichern
+function saveNiche(freebieId) {
+    const dropdown = document.getElementById('niche-dropdown-' + freebieId);
+    if (!dropdown) return;
+    
+    const selectedNiche = dropdown.value;
+    const selectedLabel = nicheLabels[selectedNiche] || '📂 Sonstiges';
+    
+    // API Call zum Speichern
+    fetch('/api/update-freebie-niche.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            freebie_id: freebieId,
+            niche: selectedNiche
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update UI
+            const valueDisplay = document.getElementById('niche-value-' + freebieId);
+            if (valueDisplay) {
+                valueDisplay.textContent = selectedLabel;
+            }
+            
+            // Update data-niche Attribut der Karte
+            const card = document.querySelector(`[data-type] .niche-editor-section #niche-selector-${freebieId}`).closest('.freebie-card');
+            if (card) {
+                card.setAttribute('data-niche', selectedNiche);
+            }
+            
+            // Update Badge
+            const nichebadge = card.querySelector('.badge-niche');
+            if (nicheBadge) {
+                nicheBadge.textContent = selectedLabel;
+            }
+            
+            // Editor schließen
+            toggleNicheEditor(freebieId);
+            
+            // Success Feedback
+            const button = document.querySelector(`#niche-selector-${freebieId} .btn-save-niche`);
+            if (button) {
+                const originalText = button.innerHTML;
+                button.innerHTML = '✓ Gespeichert';
+                button.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+                
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.style.background = '';
+                }, 2000);
+            }
+        } else {
+            alert('Fehler beim Speichern: ' + (data.error || 'Unbekannter Fehler'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Fehler beim Speichern der Nische');
     });
 }
 
