@@ -3,7 +3,7 @@
 global $pdo;
 
 if (!isset($pdo)) {
-    require_once '../config/database.php';
+    require_once __DIR__ . '/../../config/database.php';
     $pdo = getDBConnection();
 }
 
@@ -115,8 +115,10 @@ try {
 <style>
 .marketplace-container {
     padding: 32px;
-    max-width: 1600px;
+    max-width: 1800px;
     margin: 0 auto;
+    background: #f9fafb;
+    min-height: 100vh;
 }
 
 .marketplace-header {
@@ -158,27 +160,50 @@ try {
 
 .freebies-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-    gap: 24px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
     margin-top: 24px;
 }
 
-.freebie-marketplace-card {
+.freebie-card {
     background: white;
-    border-radius: 16px;
+    border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     overflow: hidden;
     transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
 }
 
-.freebie-marketplace-card:hover {
+.freebie-card:hover {
     box-shadow: 0 8px 24px rgba(0,0,0,0.12);
     transform: translateY(-2px);
 }
 
+.marketplace-status-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 10;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.marketplace-status-badge.active {
+    background: #10b981;
+    color: white;
+}
+
+.marketplace-status-badge.inactive {
+    background: #ef4444;
+    color: white;
+}
+
 .freebie-preview {
     position: relative;
-    height: 240px;
+    height: 180px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
@@ -188,96 +213,172 @@ try {
     object-fit: cover;
 }
 
-.marketplace-badge {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    background: rgba(255, 255, 255, 0.95);
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.marketplace-badge.active {
-    background: #10b981;
-    color: white;
-}
-
-.marketplace-badge.inactive {
-    background: #ef4444;
-    color: white;
-}
-
 .freebie-content {
-    padding: 20px;
+    padding: 16px;
 }
 
 .freebie-niche {
     display: inline-block;
-    font-size: 12px;
-    padding: 4px 10px;
+    font-size: 11px;
+    padding: 3px 8px;
     background: #f3f4f6;
-    border-radius: 12px;
-    margin-bottom: 12px;
+    border-radius: 10px;
+    margin-bottom: 8px;
     font-weight: 500;
 }
 
 .freebie-content h3 {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
     color: #1a1a1a;
     margin-bottom: 8px;
-    line-height: 1.4;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
-.freebie-content p {
-    font-size: 14px;
-    color: #666;
-    line-height: 1.5;
-    margin-bottom: 16px;
-}
-
-.marketplace-stats {
+.freebie-stats {
     display: flex;
-    gap: 16px;
-    margin-bottom: 16px;
-    padding-top: 16px;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    padding-top: 12px;
     border-top: 1px solid #e5e7eb;
+    font-size: 13px;
 }
 
-.stat-item {
+.stat-price {
+    color: #10b981;
+    font-weight: 600;
+}
+
+.stat-sales {
+    color: #666;
+}
+
+.btn-edit {
+    width: 100%;
+    margin-top: 12px;
+    padding: 10px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-edit:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+/* Modal Styles */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 9998;
+    backdrop-filter: blur(4px);
+}
+
+.modal-overlay.active {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    color: #666;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
 }
 
-.marketplace-form {
-    border-top: 1px solid #e5e7eb;
-    padding-top: 16px;
+.marketplace-modal {
+    background: white;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { 
+        transform: translateY(30px);
+        opacity: 0;
+    }
+    to { 
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-header {
+    padding: 24px;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a1a1a;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #666;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.modal-close:hover {
+    background: #f3f4f6;
+    color: #1a1a1a;
+}
+
+.modal-body {
+    padding: 24px;
 }
 
 .form-group {
-    margin-bottom: 16px;
+    margin-bottom: 20px;
 }
 
 .form-group label {
     display: block;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: #374151;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 }
 
 .form-group input,
 .form-group textarea {
     width: 100%;
-    padding: 10px 12px;
+    padding: 12px;
     border: 1px solid #d1d5db;
     border-radius: 8px;
     font-size: 14px;
@@ -292,7 +393,7 @@ try {
 }
 
 .form-group textarea {
-    min-height: 80px;
+    min-height: 100px;
     resize: vertical;
 }
 
@@ -300,14 +401,14 @@ try {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
 }
 
 .switch {
     position: relative;
     display: inline-block;
-    width: 48px;
-    height: 26px;
+    width: 52px;
+    height: 28px;
 }
 
 .switch input {
@@ -325,14 +426,14 @@ try {
     bottom: 0;
     background-color: #cbd5e0;
     transition: 0.3s;
-    border-radius: 26px;
+    border-radius: 28px;
 }
 
 .slider:before {
     position: absolute;
     content: "";
-    height: 20px;
-    width: 20px;
+    height: 22px;
+    width: 22px;
     left: 3px;
     bottom: 3px;
     background-color: white;
@@ -345,31 +446,13 @@ input:checked + .slider {
 }
 
 input:checked + .slider:before {
-    transform: translateX(22px);
+    transform: translateX(24px);
 }
 
 .toggle-switch label {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     color: #374151;
-}
-
-.btn-save-marketplace {
-    width: 100%;
-    padding: 12px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.btn-save-marketplace:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
 .thankyou-link-box {
@@ -377,12 +460,12 @@ input:checked + .slider:before {
     border: 2px dashed #d1d5db;
     border-radius: 8px;
     padding: 16px;
-    margin-top: 16px;
+    margin-bottom: 20px;
 }
 
 .thankyou-link-box label {
     display: block;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: #374151;
     margin-bottom: 8px;
@@ -420,9 +503,53 @@ input:checked + .slider:before {
     background: #059669;
 }
 
+.modal-footer {
+    padding: 20px 24px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    gap: 12px;
+}
+
+.btn-cancel {
+    flex: 1;
+    padding: 12px;
+    background: #f3f4f6;
+    color: #374151;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-cancel:hover {
+    background: #e5e7eb;
+}
+
+.btn-save {
+    flex: 2;
+    padding: 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-save:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
 .empty-state {
     text-align: center;
     padding: 80px 20px;
+    background: white;
+    border-radius: 12px;
 }
 
 .empty-state-icon {
@@ -479,6 +606,18 @@ input:checked + .slider:before {
     text-decoration: underline;
 }
 
+@media (max-width: 1400px) {
+    .freebies-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 1024px) {
+    .freebies-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
 @media (max-width: 768px) {
     .marketplace-container {
         padding: 20px;
@@ -490,6 +629,11 @@ input:checked + .slider:before {
     
     .marketplace-header h1 {
         font-size: 24px;
+    }
+    
+    .marketplace-modal {
+        width: 95%;
+        max-height: 95vh;
     }
 }
 </style>
@@ -514,24 +658,25 @@ input:checked + .slider:before {
     <?php if (empty($my_freebies)): ?>
         <div class="empty-state">
             <div class="empty-state-icon">📦</div>
-            <h3>Noch keine Freebies erstellt</h3>
-            <p>Erstelle zuerst ein Custom Freebie, um es auf dem Marktplatz anzubieten</p>
+            <h3>Noch keine Custom Freebies erstellt</h3>
+            <p>Erstelle zuerst ein Custom Freebie, um es auf dem Marktplatz anzubieten.<br>
+            Template-Freebies können nicht verkauft werden.</p>
             <a href="?page=freebies" class="btn-create-freebie">
-                ➕ Erstes Freebie erstellen
+                ➕ Erstes Custom Freebie erstellen
             </a>
         </div>
     <?php else: ?>
         <div class="freebies-grid">
             <?php foreach ($my_freebies as $freebie): ?>
-                <div class="freebie-marketplace-card">
+                <div class="freebie-card" onclick="openMarketplaceModal(<?= $freebie['id'] ?>)">
+                    <div class="marketplace-status-badge <?= $freebie['marketplace_enabled'] ? 'active' : 'inactive' ?>">
+                        <?= $freebie['marketplace_enabled'] ? '✓ Aktiv' : '○ Inaktiv' ?>
+                    </div>
+                    
                     <div class="freebie-preview" style="background: <?= htmlspecialchars($freebie['background_color'] ?? '#667eea') ?>">
                         <?php if (!empty($freebie['mockup_image_url'])): ?>
                             <img src="<?= htmlspecialchars($freebie['mockup_image_url']) ?>" alt="Freebie Preview">
                         <?php endif; ?>
-                        
-                        <div class="marketplace-badge <?= $freebie['marketplace_enabled'] ? 'active' : 'inactive' ?>">
-                            <?= $freebie['marketplace_enabled'] ? '✓ Aktiv' : '○ Inaktiv' ?>
-                        </div>
                     </div>
 
                     <div class="freebie-content">
@@ -542,82 +687,15 @@ input:checked + .slider:before {
                         <?php endif; ?>
 
                         <h3><?= htmlspecialchars($freebie['headline']) ?></h3>
+
+                        <div class="freebie-stats">
+                            <span class="stat-price">💰 <?= number_format($freebie['marketplace_price'] ?? 0, 2) ?>€</span>
+                            <span class="stat-sales">📊 <?= (int)($freebie['marketplace_sales_count'] ?? 0) ?></span>
+                        </div>
                         
-                        <?php if (!empty($freebie['subheadline'])): ?>
-                            <p><?= htmlspecialchars($freebie['subheadline']) ?></p>
-                        <?php endif; ?>
-
-                        <?php if ($freebie['marketplace_enabled']): ?>
-                            <div class="marketplace-stats">
-                                <div class="stat-item">
-                                    💰 <?= number_format($freebie['marketplace_price'] ?? 0, 2) ?>€
-                                </div>
-                                <div class="stat-item">
-                                    📊 <?= (int)($freebie['marketplace_sales_count'] ?? 0) ?> Verkäufe
-                                </div>
-                            </div>
-                        <?php endif; ?>
-
-                        <form class="marketplace-form" onsubmit="saveMarketplaceSettings(event, <?= $freebie['id'] ?>)">
-                            <div class="toggle-switch">
-                                <label class="switch">
-                                    <input type="checkbox" 
-                                           name="marketplace_enabled" 
-                                           <?= $freebie['marketplace_enabled'] ? 'checked' : '' ?>
-                                           onchange="toggleMarketplaceFields(this, <?= $freebie['id'] ?>)">
-                                    <span class="slider"></span>
-                                </label>
-                                <label>Auf Marktplatz anbieten</label>
-                            </div>
-
-                            <div id="marketplace-fields-<?= $freebie['id'] ?>" style="<?= $freebie['marketplace_enabled'] ? '' : 'display: none;' ?>">
-                                <div class="form-group">
-                                    <label>💰 Verkaufspreis (in €)</label>
-                                    <input type="number" 
-                                           name="marketplace_price" 
-                                           step="0.01" 
-                                           min="0" 
-                                           value="<?= htmlspecialchars($freebie['marketplace_price'] ?? '9.99') ?>" 
-                                           placeholder="9.99">
-                                </div>
-
-                                <div class="form-group">
-                                    <label>🔗 Digistore24 Produkt-ID</label>
-                                    <input type="number" 
-                                           name="digistore_product_id" 
-                                           value="<?= htmlspecialchars($freebie['digistore_product_id'] ?? '') ?>" 
-                                           placeholder="z.B. 12345">
-                                </div>
-
-                                <div class="form-group">
-                                    <label>📝 Marktplatz-Beschreibung</label>
-                                    <textarea name="marketplace_description" 
-                                              placeholder="Beschreibe dein Freebie für potenzielle Käufer..."><?= htmlspecialchars($freebie['marketplace_description'] ?? '') ?></textarea>
-                                </div>
-
-                                <div class="thankyou-link-box">
-                                    <label>🎁 Thank You Link für Digistore24</label>
-                                    <p style="font-size: 12px; color: #666; margin-bottom: 8px;">
-                                        Kopiere diesen Link und füge ihn in deine Digistore24 Produkteinstellungen ein
-                                    </p>
-                                    <div class="link-copy-wrapper">
-                                        <input type="text" 
-                                               readonly 
-                                               id="thankyou-link-<?= $freebie['id'] ?>"
-                                               value="https://app.mehr-infos-jetzt.de/public/marketplace-thankyou.php?product_id=<?= $freebie['digistore_product_id'] ?? 'DEINE_PRODUKT_ID' ?>&freebie_id=<?= $freebie['id'] ?>">
-                                        <button type="button" 
-                                                class="btn-copy-link" 
-                                                onclick="copyThankYouLink(<?= $freebie['id'] ?>)">
-                                            📋 Kopieren
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button type="submit" class="btn-save-marketplace">
-                                💾 Einstellungen speichern
-                            </button>
-                        </form>
+                        <button class="btn-edit" onclick="event.stopPropagation(); openMarketplaceModal(<?= $freebie['id'] ?>)">
+                            ⚙️ Einstellungen
+                        </button>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -633,32 +711,141 @@ input:checked + .slider:before {
     </div>
 </div>
 
+<!-- Marketplace Modal -->
+<div class="modal-overlay" id="marketplaceModal" onclick="if(event.target === this) closeMarketplaceModal()">
+    <div class="marketplace-modal">
+        <div class="modal-header">
+            <h2>🏪 Marktplatz-Einstellungen</h2>
+            <button class="modal-close" onclick="closeMarketplaceModal()">×</button>
+        </div>
+        
+        <form id="marketplaceForm" onsubmit="saveMarketplaceSettings(event)">
+            <div class="modal-body">
+                <div class="toggle-switch">
+                    <label class="switch">
+                        <input type="checkbox" id="modalMarketplaceEnabled" name="marketplace_enabled" onchange="toggleModalFields()">
+                        <span class="slider"></span>
+                    </label>
+                    <label for="modalMarketplaceEnabled">Auf Marktplatz anbieten</label>
+                </div>
+
+                <div id="modalMarketplaceFields" style="display: none;">
+                    <div class="form-group">
+                        <label>💰 Verkaufspreis (in €)</label>
+                        <input type="number" 
+                               id="modalPrice"
+                               name="marketplace_price" 
+                               step="0.01" 
+                               min="0" 
+                               placeholder="9.99">
+                    </div>
+
+                    <div class="form-group">
+                        <label>🔗 DigiStore24 Produkt-ID</label>
+                        <input type="number" 
+                               id="modalDigistoreId"
+                               name="digistore_product_id" 
+                               placeholder="z.B. 613818">
+                    </div>
+
+                    <div class="form-group">
+                        <label>📝 Marktplatz-Beschreibung</label>
+                        <textarea id="modalDescription"
+                                  name="marketplace_description" 
+                                  placeholder="Beschreibe dein Freebie für potenzielle Käufer..."></textarea>
+                    </div>
+
+                    <div class="thankyou-link-box">
+                        <label>🎁 Thank You Link für DigiStore24</label>
+                        <p style="font-size: 12px; color: #666; margin-bottom: 8px;">
+                            Kopiere diesen Link und füge ihn in deine DigiStore24 Produkteinstellungen ein
+                        </p>
+                        <div class="link-copy-wrapper">
+                            <input type="text" 
+                                   readonly 
+                                   id="modalThankYouLink">
+                            <button type="button" 
+                                    class="btn-copy-link" 
+                                    onclick="copyModalThankYouLink()">
+                                📋 Kopieren
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeMarketplaceModal()">
+                    Abbrechen
+                </button>
+                <button type="submit" class="btn-save">
+                    💾 Speichern
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
-function toggleMarketplaceFields(checkbox, freebieId) {
-    const fields = document.getElementById(`marketplace-fields-${freebieId}`);
-    if (checkbox.checked) {
-        fields.style.display = 'block';
-    } else {
-        fields.style.display = 'none';
-    }
+// Freebie-Daten für Modal
+const freebiesData = <?= json_encode($my_freebies) ?>;
+let currentFreebieId = null;
+
+function openMarketplaceModal(freebieId) {
+    currentFreebieId = freebieId;
+    const freebie = freebiesData.find(f => f.id == freebieId);
+    
+    if (!freebie) return;
+    
+    // Felder füllen
+    document.getElementById('modalMarketplaceEnabled').checked = freebie.marketplace_enabled == 1;
+    document.getElementById('modalPrice').value = freebie.marketplace_price || '9.99';
+    document.getElementById('modalDigistoreId').value = freebie.digistore_product_id || '';
+    document.getElementById('modalDescription').value = freebie.marketplace_description || '';
+    
+    // Thank You Link
+    const digistoreId = freebie.digistore_product_id || 'DEINE_PRODUKT_ID';
+    document.getElementById('modalThankYouLink').value = 
+        `https://app.mehr-infos-jetzt.de/public/marketplace-thankyou.php?product_id=${digistoreId}&freebie_id=${freebieId}`;
+    
+    // Felder anzeigen/verstecken
+    toggleModalFields();
+    
+    // Modal öffnen
+    document.getElementById('marketplaceModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
 }
 
-async function saveMarketplaceSettings(event, freebieId) {
+function closeMarketplaceModal() {
+    document.getElementById('marketplaceModal').classList.remove('active');
+    document.body.style.overflow = '';
+    currentFreebieId = null;
+}
+
+function toggleModalFields() {
+    const enabled = document.getElementById('modalMarketplaceEnabled').checked;
+    const fields = document.getElementById('modalMarketplaceFields');
+    fields.style.display = enabled ? 'block' : 'none';
+}
+
+async function saveMarketplaceSettings(event) {
     event.preventDefault();
+    
+    if (!currentFreebieId) return;
     
     const form = event.target;
     const formData = new FormData(form);
     
     const data = {
         action: 'update_marketplace',
-        freebie_id: freebieId,
+        freebie_id: currentFreebieId,
         enabled: form.marketplace_enabled.checked ? 1 : 0,
         price: formData.get('marketplace_price') || 0,
         digistore_id: formData.get('digistore_product_id') || 0,
         description: formData.get('marketplace_description') || ''
     };
     
-    const submitBtn = form.querySelector('button[type="submit"]');
+    const submitBtn = form.querySelector('.btn-save');
     const originalText = submitBtn.textContent;
     submitBtn.textContent = '💾 Speichere...';
     submitBtn.disabled = true;
@@ -676,10 +863,22 @@ async function saveMarketplaceSettings(event, freebieId) {
         
         if (result.success) {
             submitBtn.textContent = '✓ Gespeichert!';
+            
+            // Update data in array
+            const freebie = freebiesData.find(f => f.id == currentFreebieId);
+            if (freebie) {
+                freebie.marketplace_enabled = data.enabled;
+                freebie.marketplace_price = data.price;
+                freebie.digistore_product_id = data.digistore_id;
+                freebie.marketplace_description = data.description;
+            }
+            
             setTimeout(() => {
                 submitBtn.textContent = originalText;
                 submitBtn.disabled = false;
-            }, 2000);
+                closeMarketplaceModal();
+                location.reload(); // Reload to show updated cards
+            }, 1000);
         } else {
             throw new Error(result.message);
         }
@@ -690,8 +889,8 @@ async function saveMarketplaceSettings(event, freebieId) {
     }
 }
 
-function copyThankYouLink(freebieId) {
-    const input = document.getElementById(`thankyou-link-${freebieId}`);
+function copyModalThankYouLink() {
+    const input = document.getElementById('modalThankYouLink');
     input.select();
     document.execCommand('copy');
     
@@ -705,4 +904,11 @@ function copyThankYouLink(freebieId) {
         btn.style.background = '';
     }, 2000);
 }
+
+// ESC-Taste zum Schließen
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeMarketplaceModal();
+    }
+});
 </script>
