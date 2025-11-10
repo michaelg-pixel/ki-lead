@@ -31,7 +31,7 @@ $nicheLabels = [
     'sonstiges' => '📂 Sonstiges'
 ];
 
-// Eigene Freebies laden (für Marktplatz-Vorbereitung)
+// EIGENE Freebies laden (NUR custom und template, die der User selbst erstellt hat)
 try {
     $stmt = $pdo->prepare("
         SELECT 
@@ -49,9 +49,12 @@ try {
             course_lessons_count,
             course_duration,
             marketplace_sales_count,
-            freebie_type
+            freebie_type,
+            created_at
         FROM customer_freebies
-        WHERE customer_id = ? AND (freebie_type = 'custom' OR freebie_type = 'template')
+        WHERE customer_id = ? 
+        AND freebie_type IN ('custom', 'template')
+        AND copied_from_freebie_id IS NULL
         ORDER BY created_at DESC
     ");
     $stmt->execute([$customer_id]);
@@ -598,7 +601,7 @@ try {
             🏪 Marktplatz
         </h1>
         <p class="marketplace-subtitle">
-            Teile deine Freebies oder kaufe Freebies von anderen
+            Teile deine eigenen Freebies oder kaufe Freebies von anderen
         </p>
     </div>
     
@@ -606,8 +609,9 @@ try {
     <div class="info-banner">
         <h3>💡 So funktioniert der Marktplatz</h3>
         <p>
-            <strong>Als Verkäufer:</strong> Erstelle deine Freebies, bereite sie für den Marktplatz vor, füge einen DigiStore24-Link hinzu und aktiviere sie im Marktplatz.<br>
-            <strong>Als Käufer:</strong> Durchsuche den Marktplatz, kaufe Freebies über DigiStore24, und sie werden automatisch in deinen Account kopiert!
+            <strong>Als Verkäufer:</strong> Erstelle deine eigenen Freebies, bereite sie für den Marktplatz vor, füge einen DigiStore24-Link hinzu und aktiviere sie im Marktplatz.<br>
+            <strong>Als Käufer:</strong> Durchsuche den Marktplatz, kaufe Freebies über DigiStore24, und sie werden automatisch in deinen Account kopiert!<br>
+            <strong>Joint Venture:</strong> Wir sind mit je 15% als Joint Venture Partner an jedem Verkauf beteiligt.
         </p>
     </div>
     
@@ -623,16 +627,16 @@ try {
         </button>
     </div>
     
-    <!-- TAB 1: Meine Freebies vorbereiten -->
+    <!-- TAB 1: Meine EIGENEN Freebies vorbereiten -->
     <div id="tab-prepare" class="tab-content active">
         <?php if (empty($my_freebies)): ?>
             <div class="empty-state">
                 <div class="empty-state-icon">📦</div>
-                <h3>Noch keine Freebies erstellt</h3>
-                <p>Erstelle zuerst ein Freebie, um es im Marktplatz anzubieten!</p>
+                <h3>Noch keine eigenen Freebies erstellt</h3>
+                <p>Erstelle zuerst ein eigenes Freebie, um es im Marktplatz anzubieten!</p>
                 <div style="margin-top: 24px;">
                     <a href="?page=freebies" class="action-btn action-btn-primary">
-                        🎁 Freebie erstellen
+                        🎁 Eigenes Freebie erstellen
                     </a>
                 </div>
             </div>
@@ -702,7 +706,8 @@ try {
                             
                             <?php if (!empty($freebie['marketplace_description'])): ?>
                                 <div class="freebie-description">
-                                    <?php echo nl2br(htmlspecialchars($freebie['marketplace_description'])); ?>
+                                    <?php echo nl2br(htmlspecialchars(substr($freebie['marketplace_description'], 0, 150))); ?>
+                                    <?php if (strlen($freebie['marketplace_description']) > 150): ?>...<?php endif; ?>
                                 </div>
                             <?php endif; ?>
                             
@@ -776,7 +781,7 @@ try {
                     step="0.01"
                     min="0"
                     placeholder="z.B. 19.99">
-                <div class="form-hint">Der Verkaufspreis für dein Freebie</div>
+                <div class="form-hint">Der Verkaufspreis für dein Freebie (wir sind mit 15% Joint Venture Partner beteiligt)</div>
             </div>
             
             <div class="form-group">
@@ -789,7 +794,7 @@ try {
                     name="digistore_product_id" 
                     class="form-input"
                     placeholder="z.B. 12345">
-                <div class="form-hint">Deine DigiStore24 Produkt-ID für automatische Abwicklung</div>
+                <div class="form-hint">Deine DigiStore24 Produkt-ID für automatische Abwicklung. Vergiss nicht, die 15% Partnerprovision einzutragen!</div>
             </div>
             
             <div class="form-group">
@@ -806,7 +811,7 @@ try {
             
             <div class="form-group">
                 <label class="form-label" for="course_lessons_count">
-                    📚 Anzahl Lektionen
+                    📚 Anzahl Lektionen (optional)
                 </label>
                 <input 
                     type="number" 
@@ -819,7 +824,7 @@ try {
             
             <div class="form-group">
                 <label class="form-label" for="course_duration">
-                    ⏱️ Kursdauer
+                    ⏱️ Kursdauer (optional)
                 </label>
                 <input 
                     type="text" 
