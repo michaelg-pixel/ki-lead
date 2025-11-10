@@ -172,10 +172,11 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
         .freebie-mockup img {
             max-width: 100%;
             height: auto;
+            max-width: 380px;
             border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
         }
         
+        /* HEADLINES IMMER ZENTRIERT */
         .freebie-preheadline {
             color: <?php echo htmlspecialchars($freebie['primary_color'] ?? '#667eea'); ?>;
             font-size: <?php echo (int)$preheadlineSize; ?>px;
@@ -304,14 +305,14 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 60px;
-            align-items: center;
+            align-items: start;
         }
         
         .layout-sidebar {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 60px;
-            align-items: center;
+            align-items: start;
         }
         
         @media (max-width: 1024px) {
@@ -383,30 +384,31 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
                 <?php
                 $layout = $freebie['layout'] ?? 'hybrid';
                 
-                // Mockup HTML
-                $mockup_html = '';
-                $mockup_url = $freebie['mockup_image_url'] ?? '';
-                if (!empty($mockup_url)) {
-                    $mockup_html = '
-                        <div class="freebie-mockup">
-                            <img src="' . htmlspecialchars($mockup_url) . '" alt="Mockup" style="max-width: 380px;">
-                        </div>
-                    ';
-                }
-                
+                // HEADLINES - IMMER ZENTRIERT, IMMER OBEN
                 // Preheadline HTML
                 $preheadline_html = '';
                 if (!empty($freebie['preheadline'])) {
                     $preheadline_html = '<div class="freebie-preheadline">' . htmlspecialchars($freebie['preheadline']) . '</div>';
                 }
                 
-                // Headline
+                // Headline - IMMER ZENTRIERT
                 $headline_html = '<div class="freebie-headline">' . htmlspecialchars($freebie['headline'] ?? 'Freebie Headline') . '</div>';
                 
-                // Subheadline HTML
+                // Subheadline HTML - IMMER ZENTRIERT
                 $subheadline_html = '';
                 if (!empty($freebie['subheadline'])) {
                     $subheadline_html = '<div class="freebie-subheadline">' . htmlspecialchars($freebie['subheadline']) . '</div>';
+                }
+                
+                // Mockup HTML - IMMER ANZEIGEN
+                $mockup_html = '';
+                $mockup_url = $freebie['mockup_image_url'] ?? '';
+                if (!empty($mockup_url)) {
+                    $mockup_html = '
+                        <div class="freebie-mockup">
+                            <img src="' . htmlspecialchars($mockup_url) . '" alt="Mockup">
+                        </div>
+                    ';
                 }
                 
                 // 🆕 BULLET POINTS MIT BULLET ICON STYLE LOGIK
@@ -471,8 +473,9 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
                     ';
                 }
                 
-                // Layout rendern
+                // Layout rendern - HEADLINES IMMER ZENTRIERT OBEN
                 if ($layout === 'centered') {
+                    // CENTERED: Alles zentriert untereinander
                     echo '<div class="layout-centered">';
                     echo $preheadline_html;
                     echo $headline_html;
@@ -482,29 +485,33 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
                     echo $form_html;
                     echo $cta_html;
                     echo '</div>';
+                    
                 } elseif ($layout === 'hybrid') {
-                    // HYBRID: Mockup LINKS, Text RECHTS (wie in Screenshot 1)
+                    // HYBRID: Headlines oben zentriert, dann Mockup LINKS, Bullets RECHTS
+                    echo $preheadline_html;
+                    echo $headline_html;
+                    echo $subheadline_html;
+                    
                     echo '<div class="layout-hybrid">';
                     echo '<div>' . $mockup_html . '</div>';
                     echo '<div>';
-                    echo $preheadline_html;
-                    echo str_replace('text-align: center;', 'text-align: center;', $headline_html);
-                    echo str_replace('text-align: center;', 'text-align: center;', $subheadline_html);
                     echo $bullets_html;
                     echo $form_html;
-                    echo str_replace('text-align: center;', 'text-align: center;', $cta_html);
+                    echo $cta_html;
                     echo '</div>';
                     echo '</div>';
+                    
                 } else { // sidebar
-                    // SIDEBAR: Text LINKS, Mockup RECHTS (wie in Screenshot 2)
+                    // SIDEBAR: Headlines oben zentriert, dann Bullets LINKS, Mockup RECHTS
+                    echo $preheadline_html;
+                    echo $headline_html;
+                    echo $subheadline_html;
+                    
                     echo '<div class="layout-sidebar">';
                     echo '<div>';
-                    echo $preheadline_html;
-                    echo str_replace('text-align: center;', 'text-align: center;', $headline_html);
-                    echo str_replace('text-align: center;', 'text-align: center;', $subheadline_html);
                     echo $bullets_html;
                     echo $form_html;
-                    echo str_replace('text-align: center;', 'text-align: center;', $cta_html);
+                    echo $cta_html;
                     echo '</div>';
                     echo '<div>' . $mockup_html . '</div>';
                     echo '</div>';
