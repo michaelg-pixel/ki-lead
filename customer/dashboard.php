@@ -1,16 +1,21 @@
-            <a href="?page=belohnungsstufen" class="nav-item <?php echo $page === 'belohnungsstufen' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
-                <span class="nav-icon">🏆</span>
-                <span>Belohnungsstufen</span>
-            </a>
-            <a href="?page=marktplatz-browse" class="nav-item <?php echo $page === 'marktplatz-browse' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
-                <span class="nav-icon">🛍️</span>
-                <span>Marktplatz durchsuchen</span>
-            </a>
-            <a href="?page=marktplatz" class="nav-item <?php echo $page === 'marktplatz' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
-                <span class="nav-icon">🏪</span>
-                <span>Meine Marktplatz-Angebote</span>
-            </a>
-            <a href="?page=ki-prompt" class="nav-item <?php echo $page === 'ki-prompt' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
-                <span class="nav-icon">🤖</span>
-                <span>KI Prompt</span>
-            </a>
+            <?php elseif ($page === 'marktplatz'): ?>
+                <?php 
+                $section_file = __DIR__ . '/sections/marktplatz.php';
+                if (file_exists($section_file)) {
+                    include $section_file;
+                } else {
+                    echo '<div style="padding: 32px; text-align: center;"><h3>Marktplatz wird geladen...</h3></div>';
+                }
+                ?>
+            
+            <?php elseif ($page === 'marktplatz-browse'): ?>
+                <?php 
+                $section_file = __DIR__ . '/sections/marktplatz-browse.php';
+                if (file_exists($section_file)) {
+                    include $section_file;
+                } else {
+                    echo '<div style="padding: 32px; text-align: center;"><h3>Marktplatz wird geladen...</h3></div>';
+                }
+                ?>
+            
+            <?php elseif ($page === 'ki-prompt'): ?>
