@@ -7,16 +7,63 @@
  * https://app.mehr-infos-jetzt.de/public/marketplace-thankyou.php
  */
 
+require_once __DIR__ . '/../config/database.php';
+
 // Basis-Informationen
 $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
 $domain = $_SERVER['HTTP_HOST'];
 $loginUrl = $protocol . '://' . $domain . '/public/login.php';
 $supportEmail = 'support@mehr-infos-jetzt.de';
 
-// Optional: DigiStore24 Parameter auslesen (falls übergeben)
+// DigiStore24 Parameter auslesen
 $buyerEmail = $_GET['buyer_email'] ?? '';
 $productName = $_GET['product_name'] ?? 'Dein Freebie';
 $orderId = $_GET['order_id'] ?? '';
+$productId = $_GET['product_id'] ?? '';
+
+// Verkäufer-Informationen und Rechtstexte laden
+$sellerUserId = null;
+$impressumLink = null;
+$datenschutzLink = null;
+
+try {
+    $pdo = getDBConnection();
+    
+    // Versuche den Verkäufer anhand der DigiStore-Produkt-ID zu finden
+    if ($productId) {
+        $stmt = $pdo->prepare("
+            SELECT customer_id 
+            FROM customer_freebies 
+            WHERE digistore_product_id = ? OR digistore_product_id LIKE ?
+            LIMIT 1
+        ");
+        $stmt->execute([$productId, '%/' . $productId . '%']);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($result) {
+            $sellerUserId = $result['customer_id'];
+        }
+    }
+    
+    // Falls gefunden, Rechtstexte-Links generieren
+    if ($sellerUserId) {
+        // Prüfen ob Rechtstexte existieren
+        $stmt = $pdo->prepare("
+            SELECT id FROM legal_texts 
+            WHERE user_id = ? 
+            AND (impressum != '' OR datenschutz != '')
+        ");
+        $stmt->execute([$sellerUserId]);
+        
+        if ($stmt->fetch()) {
+            $impressumLink = $protocol . '://' . $domain . '/impressum.php?user=' . $sellerUserId;
+            $datenschutzLink = $protocol . '://' . $domain . '/datenschutz.php?user=' . $sellerUserId;
+        }
+    }
+} catch (Exception $e) {
+    // Fehler loggen, aber Seite trotzdem anzeigen
+    error_log("Marketplace Thank-You Page Error: " . $e->getMessage());
+}
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -36,9 +83,15 @@ $orderId = $_GET['order_id'] ?? '';
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+        
+        .main-wrapper {
+            flex: 1;
+            display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
         }
         
         .container {
@@ -285,6 +338,61 @@ $orderId = $_GET['order_id'] ?? '';
             text-decoration: underline;
         }
         
+        /* Footer Styles */
+        .footer {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            margin-top: 40px;
+            border-radius: 16px;
+            text-align: center;
+        }
+        
+        .footer-content {
+            max-width: 700px;
+            margin: 0 auto;
+        }
+        
+        .footer-title {
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            opacity: 0.9;
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+        
+        .footer-link {
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .footer-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .footer-note {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 12px;
+            margin-top: 12px;
+        }
+        
         @media (max-width: 640px) {
             .header {
                 padding: 32px 20px;
@@ -310,130 +418,170 @@ $orderId = $_GET['order_id'] ?? '';
             .copy-input-wrapper {
                 flex-direction: column;
             }
+            
+            .footer {
+                padding: 16px;
+            }
+            
+            .footer-links {
+                flex-direction: column;
+                gap: 12px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <div class="success-icon">🎉</div>
-            <h1>Vielen Dank für deinen Kauf!</h1>
-            <p>Dein Freebie wurde erfolgreich in deinen Account kopiert</p>
-        </div>
-        
-        <!-- Content -->
-        <div class="content">
-            <!-- Payment Info -->
-            <div class="info-box">
-                <div class="info-box-title">
-                    <span>💳</span>
-                    <span>Zahlungsinformation</span>
-                </div>
-                <div class="info-box-text">
-                    Die Abbuchung erfolgt durch <strong>digistore24.com</strong><br>
-                    <?php if ($orderId): ?>
-                        Deine Bestellnummer: <strong><?php echo htmlspecialchars($orderId); ?></strong>
-                    <?php endif; ?>
-                </div>
+    <div class="main-wrapper">
+        <div class="container">
+            <!-- Header -->
+            <div class="header">
+                <div class="success-icon">🎉</div>
+                <h1>Vielen Dank für deinen Kauf!</h1>
+                <p>Dein Freebie wurde erfolgreich in deinen Account kopiert</p>
             </div>
             
-            <!-- Steps -->
-            <div class="steps">
-                <h2 class="steps-title">🚀 So geht es weiter</h2>
+            <!-- Content -->
+            <div class="content">
+                <!-- Payment Info -->
+                <div class="info-box">
+                    <div class="info-box-title">
+                        <span>💳</span>
+                        <span>Zahlungsinformation</span>
+                    </div>
+                    <div class="info-box-text">
+                        Die Abbuchung erfolgt durch <strong>digistore24.com</strong><br>
+                        <?php if ($orderId): ?>
+                            Deine Bestellnummer: <strong><?php echo htmlspecialchars($orderId); ?></strong>
+                        <?php endif; ?>
+                    </div>
+                </div>
                 
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <div class="step-title">Login-Daten per E-Mail</div>
-                        <div class="step-description">
-                            Du erhältst in wenigen Minuten eine E-Mail mit deinen Zugangsdaten 
-                            (E-Mail-Adresse, Passwort und RAW-Code) an 
-                            <?php if ($buyerEmail): ?>
-                                <strong><?php echo htmlspecialchars($buyerEmail); ?></strong>
-                            <?php else: ?>
-                                deine E-Mail-Adresse
-                            <?php endif; ?>
+                <!-- Steps -->
+                <div class="steps">
+                    <h2 class="steps-title">🚀 So geht es weiter</h2>
+                    
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <div class="step-title">Login-Daten per E-Mail</div>
+                            <div class="step-description">
+                                Du erhältst in wenigen Minuten eine E-Mail mit deinen Zugangsdaten 
+                                (E-Mail-Adresse, Passwort und RAW-Code) an 
+                                <?php if ($buyerEmail): ?>
+                                    <strong><?php echo htmlspecialchars($buyerEmail); ?></strong>
+                                <?php else: ?>
+                                    deine E-Mail-Adresse
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <div class="step-title">Login ins Dashboard</div>
+                            <div class="step-description">
+                                Nutze die Login-Daten aus der E-Mail, um dich im KI Leadsystem Dashboard anzumelden. 
+                                Das Freebie wurde automatisch in deinen Account kopiert!
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <div class="step-title">Freebie anpassen</div>
+                            <div class="step-description">
+                                Passe das Freebie nach deinen Wünschen an - Texte, Farben, E-Mail-Integration, 
+                                und vieles mehr. Der Videokurs bleibt beim ursprünglichen Verkäufer.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <div class="step-title">Links nutzen</div>
+                            <div class="step-description">
+                                Nutze deine personalisierten Freebie-Links in deinem Marketing, auf Social Media, 
+                                oder in deinen E-Mail-Kampagnen.
+                            </div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <div class="step-title">Login ins Dashboard</div>
-                        <div class="step-description">
-                            Nutze die Login-Daten aus der E-Mail, um dich im KI Leadsystem Dashboard anzumelden. 
-                            Das Freebie wurde automatisch in deinen Account kopiert!
-                        </div>
+                <!-- Login Box -->
+                <div class="login-box">
+                    <div class="login-box-title">🔐 Bereit zum Start?</div>
+                    <a href="<?php echo htmlspecialchars($loginUrl); ?>" class="login-btn">
+                        Jetzt einloggen
+                    </a>
+                    <div class="login-hint">
+                        Nutze die Zugangsdaten aus deiner E-Mail
                     </div>
                 </div>
                 
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <div class="step-title">Freebie anpassen</div>
-                        <div class="step-description">
-                            Passe das Freebie nach deinen Wünschen an - Texte, Farben, E-Mail-Integration, 
-                            und vieles mehr. Der Videokurs bleibt beim ursprünglichen Verkäufer.
-                        </div>
+                <!-- Copy Login Link -->
+                <div class="copy-section">
+                    <div class="copy-title">
+                        <span>📋</span>
+                        <span>Login-Link für später speichern:</span>
+                    </div>
+                    <div class="copy-input-wrapper">
+                        <input 
+                            type="text" 
+                            class="copy-input" 
+                            value="<?php echo htmlspecialchars($loginUrl); ?>" 
+                            readonly 
+                            id="loginLink">
+                        <button class="copy-btn" onclick="copyLoginLink()">
+                            Link kopieren
+                        </button>
                     </div>
                 </div>
                 
-                <div class="step">
-                    <div class="step-number">4</div>
-                    <div class="step-content">
-                        <div class="step-title">Links nutzen</div>
-                        <div class="step-description">
-                            Nutze deine personalisierten Freebie-Links in deinem Marketing, auf Social Media, 
-                            oder in deinen E-Mail-Kampagnen.
-                        </div>
+                <!-- Support -->
+                <div class="support-box">
+                    <div class="support-title">💬 Brauchst du Hilfe?</div>
+                    <div class="support-text">
+                        Unser Support-Team steht dir gerne zur Verfügung!
                     </div>
+                    <a href="mailto:<?php echo $supportEmail; ?>" class="support-email">
+                        <?php echo $supportEmail; ?>
+                    </a>
                 </div>
-            </div>
-            
-            <!-- Login Box -->
-            <div class="login-box">
-                <div class="login-box-title">🔐 Bereit zum Start?</div>
-                <a href="<?php echo htmlspecialchars($loginUrl); ?>" class="login-btn">
-                    Jetzt einloggen
-                </a>
-                <div class="login-hint">
-                    Nutze die Zugangsdaten aus deiner E-Mail
-                </div>
-            </div>
-            
-            <!-- Copy Login Link -->
-            <div class="copy-section">
-                <div class="copy-title">
-                    <span>📋</span>
-                    <span>Login-Link für später speichern:</span>
-                </div>
-                <div class="copy-input-wrapper">
-                    <input 
-                        type="text" 
-                        class="copy-input" 
-                        value="<?php echo htmlspecialchars($loginUrl); ?>" 
-                        readonly 
-                        id="loginLink">
-                    <button class="copy-btn" onclick="copyLoginLink()">
-                        Link kopieren
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Support -->
-            <div class="support-box">
-                <div class="support-title">💬 Brauchst du Hilfe?</div>
-                <div class="support-text">
-                    Unser Support-Team steht dir gerne zur Verfügung!
-                </div>
-                <a href="mailto:<?php echo $supportEmail; ?>" class="support-email">
-                    <?php echo $supportEmail; ?>
-                </a>
             </div>
         </div>
     </div>
+    
+    <!-- Footer mit Rechtstexten des Verkäufers -->
+    <?php if ($impressumLink || $datenschutzLink): ?>
+    <div class="footer">
+        <div class="footer-content">
+            <div class="footer-title">📄 Rechtliche Informationen</div>
+            <div class="footer-links">
+                <?php if ($impressumLink): ?>
+                    <a href="<?php echo htmlspecialchars($impressumLink); ?>" 
+                       target="_blank" 
+                       class="footer-link">
+                        📋 Impressum
+                    </a>
+                <?php endif; ?>
+                
+                <?php if ($datenschutzLink): ?>
+                    <a href="<?php echo htmlspecialchars($datenschutzLink); ?>" 
+                       target="_blank" 
+                       class="footer-link">
+                        🔒 Datenschutz
+                    </a>
+                <?php endif; ?>
+            </div>
+            <div class="footer-note">
+                Diese Rechtstexte stammen vom Verkäufer des Freebies
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
     
     <script>
         function copyLoginLink() {
