@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migration: Category ID zu Freebies</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .description {
+            color: #666;
+            margin-bottom: 30px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        #log {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info { color: #17a2b8; }
+        .warning { color: #ffc107; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Migration: Category ID zu Freebies</h1>
+        <div class="description">
+            <strong>Was macht diese Migration?</strong><br>
+            Fügt die Spalte <code>category_id</code> zur Tabelle <code>customer_freebies</code> hinzu.<br>
+            Dies ermöglicht die Kategorisierung von Custom Freebies für den Marktplatz.
+        </div>
+        
+        <button onclick="runMigration()" id="migrateBtn">
+            Migration starten
+        </button>
+        
+        <div id="log"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString('de-DE');
+            const className = type;
+            logDiv.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        async function runMigration() {
+            const btn = document.getElementById('migrateBtn');
+            btn.disabled = true;
+            btn.textContent = 'Migration läuft...';
+            
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML = '';
+            
+            log('🚀 Starte Migration...', 'info');
+
+            try {
+                // Schritt 1: Prüfen ob Spalte bereits existiert
+                log('Prüfe ob category_id bereits existiert...', 'info');
+                const checkResponse = await fetch('/api/check-column.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        table: 'customer_freebies',
+                        column: 'category_id'
+                    })
+                });
+                
+                const checkResult = await checkResponse.json();
+                
+                if (checkResult.exists) {
+                    log('⚠️ Spalte category_id existiert bereits!', 'warning');
+                    log('Migration nicht erforderlich.', 'info');
+                    btn.textContent = 'Bereits migriert';
+                    return;
+                }
+                
+                // Schritt 2: Spalte hinzufügen
+                log('Füge category_id Spalte hinzu...', 'info');
+                const response = await fetch('/api/execute-migration.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        sql: `ALTER TABLE customer_freebies 
+                              ADD COLUMN category_id INT NULL,
+                              ADD CONSTRAINT fk_freebie_category 
+                                  FOREIGN KEY (category_id) 
+                                  REFERENCES freebie_template_categories(id) 
+                                  ON DELETE SET NULL`
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    log('✅ Migration erfolgreich!', 'success');
+                    log('Spalte category_id wurde hinzugefügt.', 'success');
+                    btn.textContent = 'Migration abgeschlossen';
+                    btn.style.background = '#28a745';
+                } else {
+                    throw new Error(result.error || 'Migration fehlgeschlagen');
+                }
+
+            } catch (error) {
+                log('❌ Fehler: ' + error.message, 'error');
+                btn.disabled = false;
+                btn.textContent = 'Erneut versuchen';
+            }
+        }
+    </script>
+</body>
+</html>
