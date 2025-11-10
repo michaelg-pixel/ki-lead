@@ -20,6 +20,10 @@ $productName = $_GET['product_name'] ?? 'Dein Freebie';
 $orderId = $_GET['order_id'] ?? '';
 $productId = $_GET['product_id'] ?? '';
 
+// DEBUG MODE - kann aktiviert werden mit ?debug=1
+$debugMode = isset($_GET['debug']) && $_GET['debug'] == '1';
+$debugInfo = [];
+
 // Verkäufer-Informationen und Rechtstexte laden
 $sellerUserId = null;
 $impressumLink = null;
@@ -29,33 +33,63 @@ $hasLegalTexts = false;
 try {
     $pdo = getDBConnection();
     
+    $debugInfo[] = "DigiStore24 product_id: " . ($productId ?: 'NICHT VORHANDEN');
+    
     // Versuche den Verkäufer anhand der DigiStore-Produkt-ID zu finden
     if ($productId) {
         // Methode 1: Exakte ID-Übereinstimmung
         $stmt = $pdo->prepare("
-            SELECT customer_id 
+            SELECT customer_id, headline, digistore_product_id
             FROM customer_freebies 
             WHERE digistore_product_id = ?
+            AND marketplace_enabled = 1
             LIMIT 1
         ");
         $stmt->execute([$productId]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         
+        $debugInfo[] = "Methode 1 (exakte ID): " . ($result ? "Gefunden - Customer ID: " . $result['customer_id'] : "Nicht gefunden");
+        
         // Methode 2: Falls keine exakte Übereinstimmung, nach ID in URL suchen
         if (!$result) {
             $stmt = $pdo->prepare("
-                SELECT customer_id 
+                SELECT customer_id, headline, digistore_product_id
                 FROM customer_freebies 
                 WHERE digistore_product_id LIKE ?
+                AND marketplace_enabled = 1
                 LIMIT 1
             ");
-            $stmt->execute(['%/' . $productId . '%']);
+            $stmt->execute(['%' . $productId . '%']);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            $debugInfo[] = "Methode 2 (LIKE %ID%): " . ($result ? "Gefunden - Customer ID: " . $result['customer_id'] : "Nicht gefunden");
+        }
+        
+        // Methode 3: Nach /produkt-id am Ende der URL suchen
+        if (!$result) {
+            $stmt = $pdo->prepare("
+                SELECT customer_id, headline, digistore_product_id
+                FROM customer_freebies 
+                WHERE digistore_product_id LIKE ?
+                AND marketplace_enabled = 1
+                LIMIT 1
+            ");
+            $stmt->execute(['%/' . $productId]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            $debugInfo[] = "Methode 3 (endet mit /ID): " . ($result ? "Gefunden - Customer ID: " . $result['customer_id'] : "Nicht gefunden");
         }
         
         if ($result) {
             $sellerUserId = $result['customer_id'];
+            $debugInfo[] = "Verkäufer gefunden: Customer ID " . $sellerUserId;
+            $debugInfo[] = "Freebie: " . $result['headline'];
+            $debugInfo[] = "DigiStore Link im Freebie: " . $result['digistore_product_id'];
+        } else {
+            $debugInfo[] = "FEHLER: Kein Freebie mit dieser product_id gefunden!";
         }
+    } else {
+        $debugInfo[] = "FEHLER: Keine product_id von DigiStore24 übergeben!";
     }
     
     // Falls gefunden, Rechtstexte-Links generieren
@@ -69,22 +103,38 @@ try {
         $stmt->execute([$sellerUserId]);
         $legalTexts = $stmt->fetch(PDO::FETCH_ASSOC);
         
+        $debugInfo[] = "Legal Texts Query: " . ($legalTexts ? "Gefunden" : "Nicht gefunden");
+        
         if ($legalTexts) {
+            $impressumEmpty = empty(trim($legalTexts['impressum']));
+            $datenschutzEmpty = empty(trim($legalTexts['datenschutz']));
+            
+            $debugInfo[] = "Impressum vorhanden: " . ($impressumEmpty ? "NEIN (leer)" : "JA");
+            $debugInfo[] = "Datenschutz vorhanden: " . ($datenschutzEmpty ? "NEIN (leer)" : "JA");
+            
             // Nur Links erstellen wenn Inhalte vorhanden sind
-            if (!empty(trim($legalTexts['impressum']))) {
+            if (!$impressumEmpty) {
                 $impressumLink = $protocol . '://' . $domain . '/impressum.php?user=' . $sellerUserId;
                 $hasLegalTexts = true;
+                $debugInfo[] = "Impressum-Link erstellt: " . $impressumLink;
             }
             
-            if (!empty(trim($legalTexts['datenschutz']))) {
+            if (!$datenschutzEmpty) {
                 $datenschutzLink = $protocol . '://' . $domain . '/datenschutz.php?user=' . $sellerUserId;
                 $hasLegalTexts = true;
+                $debugInfo[] = "Datenschutz-Link erstellt: " . $datenschutzLink;
             }
+        } else {
+            $debugInfo[] = "FEHLER: Keine Legal Texts für user_id " . $sellerUserId . " gefunden!";
         }
     }
+    
+    $debugInfo[] = "hasLegalTexts: " . ($hasLegalTexts ? "TRUE (Footer wird angezeigt)" : "FALSE (Footer wird NICHT angezeigt)");
+    
 } catch (Exception $e) {
     // Fehler loggen, aber Seite trotzdem anzeigen
     error_log("Marketplace Thank-You Page Error: " . $e->getMessage());
+    $debugInfo[] = "EXCEPTION: " . $e->getMessage();
 }
 ?>
 <!DOCTYPE html>
@@ -330,6 +380,30 @@ try {
             background: #d97706;
         }
         
+        /* Debug Box */
+        .debug-box {
+            background: #fef2f2;
+            border: 2px solid #ef4444;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 24px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        
+        .debug-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #dc2626;
+            margin-bottom: 12px;
+        }
+        
+        .debug-item {
+            padding: 4px 0;
+            color: #7f1d1d;
+            line-height: 1.6;
+        }
+        
         /* Footer Styles */
         .footer {
             background: rgba(255, 255, 255, 0.15);
@@ -461,6 +535,19 @@ try {
                         <?php endif; ?>
                     </div>
                 </div>
+                
+                <?php if ($debugMode): ?>
+                <!-- Debug Info -->
+                <div class="debug-box">
+                    <div class="debug-title">🐛 DEBUG INFORMATION</div>
+                    <?php foreach ($debugInfo as $info): ?>
+                        <div class="debug-item">• <?php echo htmlspecialchars($info); ?></div>
+                    <?php endforeach; ?>
+                    <div class="debug-item" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #fca5a5;">
+                        Hint: Füge ?debug=1 zur URL hinzu, um diese Info zu sehen
+                    </div>
+                </div>
+                <?php endif; ?>
                 
                 <!-- Steps -->
                 <div class="steps">
