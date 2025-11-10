@@ -35,14 +35,41 @@ try {
         throw new Exception('Freebie nicht gefunden oder keine Berechtigung');
     }
     
-    // Marktplatz-Daten aktualisieren
-    $marketplace_enabled = isset($input['marketplace_enabled']) ? (bool)$input['marketplace_enabled'] : false;
-    $marketplace_price = isset($input['marketplace_price']) ? (float)$input['marketplace_price'] : null;
-    $digistore_product_id = isset($input['digistore_product_id']) ? trim($input['digistore_product_id']) : null;
-    $marketplace_description = isset($input['marketplace_description']) ? trim($input['marketplace_description']) : null;
-    $course_lessons_count = isset($input['course_lessons_count']) ? (int)$input['course_lessons_count'] : null;
-    $course_duration = isset($input['course_duration']) ? trim($input['course_duration']) : null;
+    // Marktplatz-Daten vorbereiten und konvertieren
+    // WICHTIG: Boolean zu Integer konvertieren!
+    $marketplace_enabled = isset($input['marketplace_enabled']) && $input['marketplace_enabled'] ? 1 : 0;
     
+    // Preis: Leerer String wird zu NULL
+    $marketplace_price = null;
+    if (isset($input['marketplace_price']) && $input['marketplace_price'] !== '' && $input['marketplace_price'] !== null) {
+        $marketplace_price = (float)$input['marketplace_price'];
+    }
+    
+    // DigiStore24 Produkt-ID: Leerer String wird zu NULL
+    $digistore_product_id = null;
+    if (isset($input['digistore_product_id']) && trim($input['digistore_product_id']) !== '') {
+        $digistore_product_id = trim($input['digistore_product_id']);
+    }
+    
+    // Marktplatz-Beschreibung: Leerer String wird zu NULL
+    $marketplace_description = null;
+    if (isset($input['marketplace_description']) && trim($input['marketplace_description']) !== '') {
+        $marketplace_description = trim($input['marketplace_description']);
+    }
+    
+    // Lektionen-Anzahl: Leerer String wird zu NULL
+    $course_lessons_count = null;
+    if (isset($input['course_lessons_count']) && $input['course_lessons_count'] !== '' && $input['course_lessons_count'] !== null) {
+        $course_lessons_count = (int)$input['course_lessons_count'];
+    }
+    
+    // Kursdauer: Leerer String wird zu NULL
+    $course_duration = null;
+    if (isset($input['course_duration']) && trim($input['course_duration']) !== '') {
+        $course_duration = trim($input['course_duration']);
+    }
+    
+    // Update durchführen
     $stmt = $pdo->prepare("
         UPDATE customer_freebies 
         SET 
@@ -69,7 +96,12 @@ try {
     
     echo json_encode([
         'success' => true,
-        'message' => 'Marktplatz-Einstellungen gespeichert'
+        'message' => 'Marktplatz-Einstellungen gespeichert',
+        'data' => [
+            'marketplace_enabled' => $marketplace_enabled,
+            'marketplace_price' => $marketplace_price,
+            'digistore_product_id' => $digistore_product_id
+        ]
     ]);
     
 } catch (Exception $e) {
