@@ -21,10 +21,15 @@ if (!$freebie_id) {
     exit;
 }
 
-// Customer Freebie laden
+// Customer Freebie laden MIT VIDEO-FELDERN
 try {
     $stmt = $pdo->prepare("
-        SELECT cf.*, f.name as template_name, f.mockup_image_url, c.title as course_title
+        SELECT cf.*, 
+               f.name as template_name, 
+               f.mockup_image_url,
+               f.video_url as template_video_url,
+               f.video_format as template_video_format,
+               c.title as course_title
         FROM customer_freebies cf
         LEFT JOIN freebies f ON cf.template_id = f.id
         LEFT JOIN courses c ON f.course_id = c.id
@@ -40,6 +45,28 @@ try {
 } catch (PDOException $e) {
     die('Datenbankfehler: ' . $e->getMessage());
 }
+
+// Video Embed URL Konvertierung
+function getVideoEmbedUrl($url) {
+    if (empty($url)) return null;
+    
+    // YouTube (watch, youtu.be, shorts)
+    if (preg_match('/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/', $url, $matches)) {
+        return 'https://www.youtube.com/embed/' . $matches[1];
+    }
+    
+    // Vimeo
+    if (preg_match('/vimeo\.com\/(\d+)/', $url, $matches)) {
+        return 'https://player.vimeo.com/video/' . $matches[1];
+    }
+    
+    return null;
+}
+
+// Video-Einstellungen mit Fallback
+$videoUrl = $freebie['video_url'] ?? $freebie['template_video_url'] ?? '';
+$videoFormat = $freebie['video_format'] ?? $freebie['template_video_format'] ?? 'widescreen';
+$videoEmbedUrl = getVideoEmbedUrl($videoUrl);
 
 // Font-Einstellungen aus DB mit Fallback auf Defaults
 $preheadlineFont = $freebie['preheadline_font'] ?? $fontConfig['defaults']['preheadline_font'];
@@ -162,6 +189,30 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
             border-radius: 12px;
             padding: 80px 60px;
             min-height: 600px;
+        }
+        
+        /* Video Container */
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%;
+            height: 0;
+            overflow: hidden;
+            border-radius: 16px;
+            margin-bottom: 40px;
+        }
+        
+        .video-container.shorts {
+            padding-bottom: 177.78%; /* 9:16 ratio for Shorts */
+            max-width: 400px;
+            margin: 0 auto 40px;
+        }
+        
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
         }
         
         .freebie-mockup {
@@ -400,7 +451,22 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
                     $subheadline_html = '<div class="freebie-subheadline">' . htmlspecialchars($freebie['subheadline']) . '</div>';
                 }
                 
-                // Mockup HTML - IMMER ANZEIGEN
+                // Video HTML - VOR MOCKUP
+                $video_html = '';
+                if (!empty($videoEmbedUrl)) {
+                    $video_html = '
+                        <div class="video-container ' . ($videoFormat === 'shorts' ? 'shorts' : '') . '">
+                            <iframe 
+                                src="' . htmlspecialchars($videoEmbedUrl) . '" 
+                                frameborder="0" 
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                allowfullscreen>
+                            </iframe>
+                        </div>
+                    ';
+                }
+                
+                // Mockup HTML - NACH VIDEO
                 $mockup_html = '';
                 $mockup_url = $freebie['mockup_image_url'] ?? '';
                 if (!empty($mockup_url)) {
@@ -480,6 +546,7 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
                     echo $preheadline_html;
                     echo $headline_html;
                     echo $subheadline_html;
+                    echo $video_html;
                     echo $mockup_html;
                     echo $bullets_html;
                     echo $form_html;
@@ -487,13 +554,13 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
                     echo '</div>';
                     
                 } elseif ($layout === 'hybrid') {
-                    // HYBRID: Headlines oben zentriert, dann Mockup LINKS, Bullets RECHTS
+                    // HYBRID: Headlines oben zentriert, dann Video/Mockup LINKS, Bullets RECHTS
                     echo $preheadline_html;
                     echo $headline_html;
                     echo $subheadline_html;
                     
                     echo '<div class="layout-hybrid">';
-                    echo '<div>' . $mockup_html . '</div>';
+                    echo '<div>' . $video_html . $mockup_html . '</div>';
                     echo '<div>';
                     echo $bullets_html;
                     echo $form_html;
@@ -502,7 +569,7 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
                     echo '</div>';
                     
                 } else { // sidebar
-                    // SIDEBAR: Headlines oben zentriert, dann Bullets LINKS, Mockup RECHTS
+                    // SIDEBAR: Headlines oben zentriert, dann Bullets LINKS, Video/Mockup RECHTS
                     echo $preheadline_html;
                     echo $headline_html;
                     echo $subheadline_html;
@@ -513,7 +580,7 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
                     echo $form_html;
                     echo $cta_html;
                     echo '</div>';
-                    echo '<div>' . $mockup_html . '</div>';
+                    echo '<div>' . $video_html . $mockup_html . '</div>';
                     echo '</div>';
                 }
                 ?>
