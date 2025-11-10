@@ -1,9 +1,74 @@
+<?php
+/**
+ * Migration: Button & Freischaltungs-Felder für Videokurs
+ */
+
+// Backend Logic FIRST
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['run_migration'])) {
+    header('Content-Type: application/json');
+    
+    require_once __DIR__ . '/../config/database.php';
+    
+    $logs = [];
+    $success = true;
+    
+    try {
+        $pdo = getDBConnection();
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        
+        $logs[] = "✅ Datenbankverbindung hergestellt";
+        
+        // Prüfen ob Tabelle existiert
+        $stmt = $pdo->query("SHOW TABLES LIKE 'freebie_course_lessons'");
+        if ($stmt->rowCount() === 0) {
+            throw new Exception("Tabelle 'freebie_course_lessons' nicht gefunden!");
+        }
+        
+        $logs[] = "✅ Tabelle 'freebie_course_lessons' gefunden";
+        
+        // Aktuelle Spalten abrufen
+        $stmt = $pdo->query("DESCRIBE freebie_course_lessons");
+        $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        $logs[] = "📋 " . count($columns) . " Spalten gefunden";
+        
+        // Felder hinzufügen (falls nicht vorhanden)
+        $fieldsToAdd = [
+            'button_text' => "VARCHAR(255) DEFAULT NULL COMMENT 'Button-Text für CTA'",
+            'button_url' => "TEXT DEFAULT NULL COMMENT 'Button-Ziel-URL'",
+            'unlock_after_days' => "INT DEFAULT 0 COMMENT 'Freischaltung nach X Tagen'"
+        ];
+        
+        foreach ($fieldsToAdd as $field => $definition) {
+            if (!in_array($field, $columns)) {
+                $sql = "ALTER TABLE freebie_course_lessons ADD COLUMN $field $definition";
+                $pdo->exec($sql);
+                $logs[] = "✅ Feld '$field' hinzugefügt";
+            } else {
+                $logs[] = "ℹ️ Feld '$field' existiert bereits";
+            }
+        }
+        
+        $logs[] = "🎉 Migration erfolgreich abgeschlossen!";
+        
+    } catch (Exception $e) {
+        $success = false;
+        $logs[] = "❌ Fehler: " . $e->getMessage();
+    }
+    
+    echo json_encode([
+        'success' => $success,
+        'logs' => $logs
+    ]);
+    exit;
+}
+?>
 <!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Datenbank Migration - Videokurs Button & Freischaltung</title>
+    <title>Datenbank Migration - Videokurs</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -45,6 +110,23 @@
         .info-box ul {
             margin-left: 20px;
             color: #0c4a6e;
+            line-height: 1.8;
+        }
+        .warning-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+        }
+        .warning-box h3 {
+            color: #92400e;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .warning-box ul {
+            margin-left: 20px;
+            color: #92400e;
             line-height: 1.8;
         }
         .btn {
@@ -115,9 +197,9 @@
             </ul>
         </div>
         
-        <div class="info-box" style="background: #fef3c7; border-color: #f59e0b;">
-            <h3 style="color: #92400e;">⚠️ Wichtig:</h3>
-            <ul style="color: #92400e;">
+        <div class="warning-box">
+            <h3>⚠️ Wichtig:</h3>
+            <ul>
                 <li>Diese Migration ist sicher und verändert keine bestehenden Daten</li>
                 <li>Falls die Felder bereits existieren, werden sie übersprungen</li>
                 <li>Die Migration kann mehrfach ausgeführt werden</li>
@@ -141,13 +223,18 @@
             result.style.display = 'none';
             
             try {
+                const formData = new FormData();
+                formData.append('run_migration', '1');
+                
                 const response = await fetch('', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'migrate' })
+                    body: formData
                 });
                 
-                const data = await response.json();
+                const text = await response.text();
+                console.log('Response:', text);
+                
+                const data = JSON.parse(text);
                 
                 result.className = data.success ? 'success' : 'error';
                 result.style.display = 'block';
@@ -162,19 +249,16 @@
                     html += '</div>';
                 }
                 
-                if (data.error) {
-                    html += '<div class="log-entry" style="background: rgba(239,68,68,0.2);">Fehler: ' + data.error + '</div>';
-                }
-                
                 result.innerHTML = html;
                 
                 btn.disabled = false;
                 btn.innerHTML = data.success ? '✅ Migration abgeschlossen' : '🔄 Erneut versuchen';
                 
             } catch (error) {
+                console.error('Error:', error);
                 result.className = 'error';
                 result.style.display = 'block';
-                result.innerHTML = '<h3>❌ Verbindungsfehler</h3><div class="log-entry">' + error.message + '</div>';
+                result.innerHTML = '<h3>❌ Fehler</h3><div class="log-entry">' + error.message + '</div>';
                 
                 btn.disabled = false;
                 btn.innerHTML = '🔄 Erneut versuchen';
@@ -183,70 +267,3 @@
     </script>
 </body>
 </html>
-
-<?php
-// Migration Backend
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    header('Content-Type: application/json');
-    
-    $input = json_decode(file_get_contents('php://input'), true);
-    
-    if (isset($input['action']) && $input['action'] === 'migrate') {
-        require_once __DIR__ . '/../../config/database.php';
-        
-        $logs = [];
-        $success = true;
-        
-        try {
-            $pdo = getDBConnection();
-            $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-            
-            $logs[] = "✅ Datenbankverbindung hergestellt";
-            
-            // Prüfen ob Tabelle existiert
-            $stmt = $pdo->query("SHOW TABLES LIKE 'freebie_course_lessons'");
-            if ($stmt->rowCount() === 0) {
-                throw new Exception("Tabelle 'freebie_course_lessons' nicht gefunden!");
-            }
-            
-            $logs[] = "✅ Tabelle 'freebie_course_lessons' gefunden";
-            
-            // Aktuelle Spalten abrufen
-            $stmt = $pdo->query("DESCRIBE freebie_course_lessons");
-            $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
-            
-            $logs[] = "📋 Aktuelle Spalten: " . implode(', ', $columns);
-            
-            // Felder hinzufügen (falls nicht vorhanden)
-            $fieldsToAdd = [
-                'button_text' => "VARCHAR(255) DEFAULT NULL COMMENT 'Button-Text für CTA'",
-                'button_url' => "TEXT DEFAULT NULL COMMENT 'Button-Ziel-URL'",
-                'unlock_after_days' => "INT DEFAULT 0 COMMENT 'Freischaltung nach X Tagen'"
-            ];
-            
-            foreach ($fieldsToAdd as $field => $definition) {
-                if (!in_array($field, $columns)) {
-                    $sql = "ALTER TABLE freebie_course_lessons ADD COLUMN $field $definition";
-                    $pdo->exec($sql);
-                    $logs[] = "✅ Feld '$field' hinzugefügt";
-                } else {
-                    $logs[] = "ℹ️ Feld '$field' existiert bereits";
-                }
-            }
-            
-            $logs[] = "✅ Migration erfolgreich abgeschlossen!";
-            
-        } catch (Exception $e) {
-            $success = false;
-            $logs[] = "❌ Fehler: " . $e->getMessage();
-        }
-        
-        echo json_encode([
-            'success' => $success,
-            'logs' => $logs,
-            'error' => $success ? null : end($logs)
-        ]);
-        exit;
-    }
-}
-?>
