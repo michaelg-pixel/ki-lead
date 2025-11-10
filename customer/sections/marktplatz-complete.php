@@ -1,5 +1,5 @@
 <?php
-// Marktplatz Section für Customer Dashboard
+// Marktplatz Section für Customer Dashboard - NUR EIGENE FREEBIES
 global $pdo;
 
 if (!isset($pdo)) {
@@ -112,93 +112,6 @@ try {
         font-size: 15px;
         opacity: 0.95;
         line-height: 1.6;
-    }
-    
-    .tab-navigation {
-        display: flex;
-        gap: 8px;
-        margin-bottom: 32px;
-        border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-        padding-bottom: 0;
-    }
-    
-    .tab-btn {
-        padding: 14px 28px;
-        background: transparent;
-        border: none;
-        color: #888;
-        font-size: 16px;
-        font-weight: 600;
-        cursor: pointer;
-        border-bottom: 3px solid transparent;
-        margin-bottom: -2px;
-        transition: all 0.2s;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    
-    .tab-btn:hover {
-        color: #667eea;
-    }
-    
-    .tab-btn.active {
-        color: white;
-        border-bottom-color: #667eea;
-    }
-    
-    .tab-content {
-        display: none;
-    }
-    
-    .tab-content.active {
-        display: block;
-    }
-    
-    .filter-section {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 32px;
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        flex-wrap: wrap;
-    }
-    
-    .filter-label {
-        color: white;
-        font-size: 16px;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .filter-select {
-        flex: 1;
-        min-width: 250px;
-        padding: 12px 16px;
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 8px;
-        color: white;
-        font-size: 14px;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-    
-    .filter-select:hover {
-        background: rgba(255, 255, 255, 0.15);
-        border-color: rgba(102, 126, 234, 0.5);
-    }
-    
-    .filter-select option {
-        background: #1a1a2e;
-        color: white;
-        padding: 10px;
     }
     
     .marketplace-grid {
@@ -333,22 +246,6 @@ try {
         flex: 1;
     }
     
-    .freebie-price {
-        font-size: 28px;
-        font-weight: 700;
-        color: #667eea;
-        margin-bottom: 16px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-    
-    .price-label {
-        font-size: 14px;
-        color: #888;
-        font-weight: 400;
-    }
-    
     .freebie-actions {
         display: grid;
         gap: 12px;
@@ -387,16 +284,6 @@ try {
     
     .action-btn-secondary:hover {
         background: rgba(255, 255, 255, 0.2);
-    }
-    
-    .action-btn-success {
-        background: rgba(34, 197, 94, 0.2);
-        color: #22c55e;
-        border: 1px solid rgba(34, 197, 94, 0.3);
-    }
-    
-    .action-btn-success:hover {
-        background: rgba(34, 197, 94, 0.3);
     }
     
     .action-btn:disabled {
@@ -653,10 +540,6 @@ try {
             grid-template-columns: 1fr;
         }
         
-        .tab-navigation {
-            overflow-x: auto;
-        }
-        
         .modal-content {
             padding: 30px 20px;
         }
@@ -672,10 +555,10 @@ try {
     <!-- Header -->
     <div class="marketplace-header">
         <h1 class="marketplace-title">
-            🏪 Marktplatz
+            🏪 Meine Marktplatz-Angebote
         </h1>
         <p class="marketplace-subtitle">
-            Teile deine eigenen Freebies oder kaufe Freebies von anderen
+            Bereite deine Freebies für den Marktplatz vor
         </p>
     </div>
     
@@ -683,148 +566,109 @@ try {
     <div class="info-banner">
         <h3>💡 So funktioniert der Marktplatz</h3>
         <p>
-            <strong>Als Verkäufer:</strong> Erstelle deine eigenen Freebies, bereite sie für den Marktplatz vor, füge einen DigiStore24-Link hinzu und aktiviere sie im Marktplatz.<br>
-            <strong>Als Käufer:</strong> Durchsuche den Marktplatz, kaufe Freebies über DigiStore24, und sie werden automatisch in deinen Account kopiert zum Bearbeiten!<br>
+            Erstelle deine eigenen Freebies, bereite sie für den Marktplatz vor, füge einen DigiStore24-Link hinzu und aktiviere sie. Andere Kunden können deine Freebies dann im <a href="?page=marktplatz-browse" style="color: white; text-decoration: underline;">Marktplatz</a> entdecken und kaufen!<br>
             <strong>Joint Venture:</strong> Wir sind mit je 15% als Joint Venture Partner an jedem Verkauf beteiligt.
         </p>
     </div>
     
-    <!-- Tab Navigation -->
-    <div class="tab-navigation">
-        <button class="tab-btn active" onclick="switchMarketplaceTab('prepare')">
-            <span>✨</span>
-            <span>Meine Freebies vorbereiten</span>
-        </button>
-        <button class="tab-btn" onclick="switchMarketplaceTab('browse')">
-            <span>🔍</span>
-            <span>Marktplatz durchsuchen</span>
-        </button>
-    </div>
-    
-    <!-- TAB 1: Meine EIGENEN Freebies vorbereiten -->
-    <div id="tab-prepare" class="tab-content active">
-        <?php if (empty($my_freebies)): ?>
-            <div class="empty-state">
-                <div class="empty-state-icon">📦</div>
-                <h3>Noch keine eigenen Freebies erstellt</h3>
-                <p>Erstelle zuerst ein eigenes Freebie, um es im Marktplatz anzubieten!</p>
-                <div style="margin-top: 24px;">
-                    <a href="?page=freebies" class="action-btn action-btn-primary">
-                        🎁 Eigenes Freebie erstellen
-                    </a>
-                </div>
+    <!-- Meine EIGENEN Freebies -->
+    <?php if (empty($my_freebies)): ?>
+        <div class="empty-state">
+            <div class="empty-state-icon">📦</div>
+            <h3>Noch keine eigenen Freebies erstellt</h3>
+            <p>Erstelle zuerst ein eigenes Freebie, um es im Marktplatz anzubieten!</p>
+            <div style="margin-top: 24px;">
+                <a href="?page=freebies" class="action-btn action-btn-primary">
+                    🎁 Eigenes Freebie erstellen
+                </a>
             </div>
-        <?php else: ?>
-            <div class="marketplace-grid">
-                <?php foreach ($my_freebies as $freebie): 
-                    $bgColor = $freebie['background_color'] ?: '#667eea';
-                    $nicheValue = $freebie['niche'] ?? 'sonstiges';
-                    $nicheLabel = $nicheLabels[$nicheValue] ?? '📂 Sonstiges';
-                    $isActive = $freebie['marketplace_enabled'] == 1;
-                ?>
-                    <div class="freebie-card">
-                        <div class="freebie-preview" style="background: <?php echo htmlspecialchars($bgColor); ?>;">
-                            <div class="freebie-badges">
-                                <span class="freebie-badge <?php echo $isActive ? 'badge-active' : 'badge-inactive'; ?>">
-                                    <?php echo $isActive ? '✓ Aktiv' : '○ Inaktiv'; ?>
-                                </span>
-                                <span class="freebie-badge badge-niche"><?php echo htmlspecialchars($nicheLabel); ?></span>
-                            </div>
-                            
-                            <?php if (!empty($freebie['mockup_image_url'])): ?>
-                                <img src="<?php echo htmlspecialchars($freebie['mockup_image_url']); ?>" 
-                                     alt="<?php echo htmlspecialchars($freebie['headline']); ?>">
-                            <?php else: ?>
-                                <div style="font-size: 64px;">🎁</div>
-                            <?php endif; ?>
+        </div>
+    <?php else: ?>
+        <div class="marketplace-grid">
+            <?php foreach ($my_freebies as $freebie): 
+                $bgColor = $freebie['background_color'] ?: '#667eea';
+                $nicheValue = $freebie['niche'] ?? 'sonstiges';
+                $nicheLabel = $nicheLabels[$nicheValue] ?? '📂 Sonstiges';
+                $isActive = $freebie['marketplace_enabled'] == 1;
+            ?>
+                <div class="freebie-card">
+                    <div class="freebie-preview" style="background: <?php echo htmlspecialchars($bgColor); ?>;">
+                        <div class="freebie-badges">
+                            <span class="freebie-badge <?php echo $isActive ? 'badge-active' : 'badge-inactive'; ?>">
+                                <?php echo $isActive ? '✓ Aktiv' : '○ Inaktiv'; ?>
+                            </span>
+                            <span class="freebie-badge badge-niche"><?php echo htmlspecialchars($nicheLabel); ?></span>
                         </div>
                         
-                        <div class="freebie-content">
-                            <h3 class="freebie-title">
-                                <?php echo htmlspecialchars($freebie['headline']); ?>
-                            </h3>
-                            
-                            <?php if (!empty($freebie['subheadline'])): ?>
-                                <p class="freebie-subtitle">
-                                    <?php echo htmlspecialchars($freebie['subheadline']); ?>
-                                </p>
-                            <?php endif; ?>
-                            
-                            <div class="freebie-meta">
-                                <?php if ($freebie['marketplace_price']): ?>
-                                    <div class="meta-item">
-                                        <span class="meta-icon">💰</span>
-                                        <span><?php echo number_format($freebie['marketplace_price'], 2, ',', '.'); ?> €</span>
-                                    </div>
-                                <?php endif; ?>
-                                
-                                <?php if ($freebie['course_lessons_count']): ?>
-                                    <div class="meta-item">
-                                        <span class="meta-icon">📚</span>
-                                        <span><?php echo $freebie['course_lessons_count']; ?> Lektionen</span>
-                                    </div>
-                                <?php endif; ?>
-                                
-                                <?php if ($freebie['course_duration']): ?>
-                                    <div class="meta-item">
-                                        <span class="meta-icon">⏱️</span>
-                                        <span><?php echo htmlspecialchars($freebie['course_duration']); ?></span>
-                                    </div>
-                                <?php endif; ?>
-                                
+                        <?php if (!empty($freebie['mockup_image_url'])): ?>
+                            <img src="<?php echo htmlspecialchars($freebie['mockup_image_url']); ?>" 
+                                 alt="<?php echo htmlspecialchars($freebie['headline']); ?>">
+                        <?php else: ?>
+                            <div style="font-size: 64px;">🎁</div>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <div class="freebie-content">
+                        <h3 class="freebie-title">
+                            <?php echo htmlspecialchars($freebie['headline']); ?>
+                        </h3>
+                        
+                        <?php if (!empty($freebie['subheadline'])): ?>
+                            <p class="freebie-subtitle">
+                                <?php echo htmlspecialchars($freebie['subheadline']); ?>
+                            </p>
+                        <?php endif; ?>
+                        
+                        <div class="freebie-meta">
+                            <?php if ($freebie['marketplace_price']): ?>
                                 <div class="meta-item">
-                                    <span class="meta-icon">📊</span>
-                                    <span><?php echo $freebie['marketplace_sales_count'] ?? 0; ?> Verkäufe</span>
-                                </div>
-                            </div>
-                            
-                            <?php if (!empty($freebie['marketplace_description'])): ?>
-                                <div class="freebie-description">
-                                    <?php echo nl2br(htmlspecialchars(substr($freebie['marketplace_description'], 0, 150))); ?>
-                                    <?php if (strlen($freebie['marketplace_description']) > 150): ?>...<?php endif; ?>
+                                    <span class="meta-icon">💰</span>
+                                    <span><?php echo number_format($freebie['marketplace_price'], 2, ',', '.'); ?> €</span>
                                 </div>
                             <?php endif; ?>
                             
-                            <div class="freebie-actions">
-                                <button onclick="openMarketplaceEditor(<?php echo $freebie['id']; ?>)" 
-                                        class="action-btn action-btn-primary">
-                                    ⚙️ Marktplatz-Einstellungen
-                                </button>
+                            <?php if ($freebie['course_lessons_count']): ?>
+                                <div class="meta-item">
+                                    <span class="meta-icon">📚</span>
+                                    <span><?php echo $freebie['course_lessons_count']; ?> Lektionen</span>
+                                </div>
+                            <?php endif; ?>
+                            
+                            <?php if ($freebie['course_duration']): ?>
+                                <div class="meta-item">
+                                    <span class="meta-icon">⏱️</span>
+                                    <span><?php echo htmlspecialchars($freebie['course_duration']); ?></span>
+                                </div>
+                            <?php endif; ?>
+                            
+                            <div class="meta-item">
+                                <span class="meta-icon">📊</span>
+                                <span><?php echo $freebie['marketplace_sales_count'] ?? 0; ?> Verkäufe</span>
                             </div>
                         </div>
+                        
+                        <?php if (!empty($freebie['marketplace_description'])): ?>
+                            <div class="freebie-description">
+                                <?php echo nl2br(htmlspecialchars(substr($freebie['marketplace_description'], 0, 150))); ?>
+                                <?php if (strlen($freebie['marketplace_description']) > 150): ?>...<?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <div class="freebie-actions">
+                            <button onclick="openMarketplaceEditor(<?php echo $freebie['id']; ?>)" 
+                                    class="action-btn action-btn-primary">
+                                ⚙️ Marktplatz-Einstellungen
+                            </button>
+                        </div>
                     </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
-    </div>
-    
-    <!-- TAB 2: Marktplatz durchsuchen -->
-    <div id="tab-browse" class="tab-content">
-        <!-- Nischen Filter -->
-        <div class="filter-section">
-            <div class="filter-label">
-                🔍 Nach Nische filtern:
-            </div>
-            <select id="marketplaceNicheFilter" class="filter-select" onchange="loadMarketplaceFreebies()">
-                <option value="">Alle Nischen anzeigen</option>
-                <?php foreach ($nicheLabels as $value => $label): ?>
-                    <option value="<?php echo htmlspecialchars($value); ?>">
-                        <?php echo htmlspecialchars($label); ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
+                </div>
+            <?php endforeach; ?>
         </div>
-        
-        <div id="marketplaceGrid" class="marketplace-grid">
-            <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
-                <div style="font-size: 48px; margin-bottom: 16px;">🔄</div>
-                <p style="color: #888;">Lade Marktplatz-Freebies...</p>
-            </div>
-        </div>
-    </div>
+    <?php endif; ?>
     
     <!-- Footer -->
     <div class="marketplace-footer">
+        <a href="?page=marktplatz-browse" class="footer-link">🔍 Marktplatz durchsuchen</a>
         <a href="/impressum.php" class="footer-link" target="_blank">📄 Impressum</a>
         <a href="/datenschutz.php" class="footer-link" target="_blank">🔒 Datenschutz</a>
     </div>
@@ -949,25 +793,7 @@ try {
 </div>
 
 <script>
-const nicheLabels = <?php echo json_encode($nicheLabels); ?>;
 let currentEditFreebieId = null;
-
-// Tab-Switching
-function switchMarketplaceTab(tab) {
-    document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.remove('active');
-    });
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    document.getElementById('tab-' + tab).classList.add('active');
-    event.target.closest('.tab-btn').classList.add('active');
-    
-    if (tab === 'browse') {
-        loadMarketplaceFreebies();
-    }
-}
 
 // Danke-Seiten URL kopieren
 function copyThankYouUrl() {
@@ -1055,7 +881,7 @@ function saveMarketplaceSettings(event) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('✅ Einstellungen gespeichert!');
+            alert('✅ Einstellungen gespeichert! Dein Freebie ist jetzt im Marktplatz sichtbar.');
             closeMarketplaceEditor();
             location.reload();
         } else {
@@ -1066,153 +892,5 @@ function saveMarketplaceSettings(event) {
         console.error('Error:', error);
         alert('❌ Fehler beim Speichern');
     });
-}
-
-// Marktplatz-Freebies laden
-function loadMarketplaceFreebies() {
-    const niche = document.getElementById('marketplaceNicheFilter').value;
-    const grid = document.getElementById('marketplaceGrid');
-    
-    grid.innerHTML = `
-        <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
-            <div style="font-size: 48px; margin-bottom: 16px;">🔄</div>
-            <p style="color: #888;">Lade Marktplatz-Freebies...</p>
-        </div>
-    `;
-    
-    const url = niche ? `/api/marketplace-list.php?niche=${encodeURIComponent(niche)}` : '/api/marketplace-list.php';
-    
-    fetch(url)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.freebies) {
-                if (data.freebies.length === 0) {
-                    grid.innerHTML = `
-                        <div style="grid-column: 1 / -1;" class="empty-state">
-                            <div class="empty-state-icon">🔍</div>
-                            <h3>Keine Freebies gefunden</h3>
-                            <p>Aktuell sind keine Freebies in dieser Kategorie verfügbar.</p>
-                        </div>
-                    `;
-                } else {
-                    grid.innerHTML = data.freebies.map(freebie => createMarketplaceCard(freebie)).join('');
-                }
-            } else {
-                grid.innerHTML = `
-                    <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #f87171;">
-                        ❌ Fehler beim Laden: ${data.error || 'Unbekannter Fehler'}
-                    </div>
-                `;
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            grid.innerHTML = `
-                <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #f87171;">
-                    ❌ Fehler beim Laden der Freebies
-                </div>
-            `;
-        });
-}
-
-// Marktplatz-Karte erstellen - AKTUALISIERT für Checkout-Links
-function createMarketplaceCard(freebie) {
-    const nicheLabel = nicheLabels[freebie.niche] || '📂 Sonstiges';
-    const bgColor = freebie.background_color || '#667eea';
-    const imageHtml = freebie.mockup_image_url 
-        ? `<img src="${freebie.mockup_image_url}" alt="${freebie.headline}">`
-        : '<div style="font-size: 64px;">🎁</div>';
-    
-    let actionButton = '';
-    if (freebie.is_own) {
-        actionButton = `
-            <button class="action-btn action-btn-secondary" disabled>
-                👤 Dein eigenes Freebie
-            </button>
-        `;
-    } else if (freebie.already_purchased) {
-        actionButton = `
-            <button class="action-btn action-btn-success" disabled>
-                ✓ Bereits gekauft
-            </button>
-        `;
-    } else if (freebie.digistore_product_id) {
-        // Prüfen ob es eine URL oder nur eine ID ist
-        let checkoutUrl = freebie.digistore_product_id;
-        if (!checkoutUrl.startsWith('http')) {
-            // Wenn keine vollständige URL, dann als Produkt-ID behandeln
-            checkoutUrl = `https://www.digistore24.com/product/${freebie.digistore_product_id}`;
-        }
-        
-        actionButton = `
-            <a href="${checkoutUrl}" 
-               target="_blank" 
-               class="action-btn action-btn-primary">
-                💳 Jetzt kaufen
-            </a>
-        `;
-    } else {
-        actionButton = `
-            <button class="action-btn action-btn-secondary" disabled>
-                ⚠️ Kein Kauflink verfügbar
-            </button>
-        `;
-    }
-    
-    return `
-        <div class="freebie-card">
-            <div class="freebie-preview" style="background: ${bgColor};">
-                <div class="freebie-badges">
-                    <span class="freebie-badge badge-niche">${nicheLabel}</span>
-                </div>
-                ${imageHtml}
-            </div>
-            
-            <div class="freebie-content">
-                <h3 class="freebie-title">${freebie.headline}</h3>
-                
-                ${freebie.subheadline ? `<p class="freebie-subtitle">${freebie.subheadline}</p>` : ''}
-                
-                <div class="freebie-meta">
-                    ${freebie.course_lessons_count ? `
-                        <div class="meta-item">
-                            <span class="meta-icon">📚</span>
-                            <span>${freebie.course_lessons_count} Lektionen</span>
-                        </div>
-                    ` : ''}
-                    
-                    ${freebie.course_duration ? `
-                        <div class="meta-item">
-                            <span class="meta-icon">⏱️</span>
-                            <span>${freebie.course_duration}</span>
-                        </div>
-                    ` : ''}
-                    
-                    <div class="meta-item">
-                        <span class="meta-icon">📊</span>
-                        <span>${freebie.marketplace_sales_count || 0} Verkäufe</span>
-                    </div>
-                    
-                    <div class="meta-item">
-                        <span class="meta-icon">👤</span>
-                        <span>${freebie.creator_name}</span>
-                    </div>
-                </div>
-                
-                ${freebie.marketplace_description ? `
-                    <div class="freebie-description">${freebie.marketplace_description.replace(/\n/g, '<br>')}</div>
-                ` : ''}
-                
-                <div class="freebie-price">
-                    ${freebie.marketplace_price ? `${parseFloat(freebie.marketplace_price).toFixed(2).replace('.', ',')} €` : 'Kostenlos'}
-                    <span class="price-label">Einmalzahlung</span>
-                </div>
-                
-                <div class="freebie-actions">
-                    ${actionButton}
-                </div>
-            </div>
-        </div>
-    `;
 }
 </script>
