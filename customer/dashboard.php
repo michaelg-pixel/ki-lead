@@ -153,17 +153,19 @@ $page = $_GET['page'] ?? 'overview';
             overflow-y: auto;
         }
         
+        /* Menüpunkte kleiner gemacht */
         .nav-item {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 12px 16px;
+            gap: 10px;
+            padding: 10px 14px;
             color: #999;
             text-decoration: none;
             border-radius: 8px;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
             transition: all 0.2s;
             cursor: pointer;
+            font-size: 14px;
         }
         
         .nav-item:hover {
@@ -177,8 +179,8 @@ $page = $_GET['page'] ?? 'overview';
         }
         
         .nav-icon {
-            font-size: 20px;
-            width: 24px;
+            font-size: 18px;
+            width: 20px;
             text-align: center;
         }
         
@@ -293,7 +295,8 @@ $page = $_GET['page'] ?? 'overview';
             }
             
             .nav-item {
-                padding: 10px 14px;
+                padding: 9px 12px;
+                font-size: 13px;
             }
             
             .user-section {
@@ -359,6 +362,10 @@ $page = $_GET['page'] ?? 'overview';
             <a href="?page=belohnungsstufen" class="nav-item <?php echo $page === 'belohnungsstufen' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
                 <span class="nav-icon">🏆</span>
                 <span>Belohnungsstufen</span>
+            </a>
+            <a href="?page=marktplatz" class="nav-item <?php echo $page === 'marktplatz' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
+                <span class="nav-icon">🏪</span>
+                <span>Marktplatz</span>
             </a>
             <a href="?page=ki-prompt" class="nav-item <?php echo $page === 'ki-prompt' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
                 <span class="nav-icon">🤖</span>
@@ -440,6 +447,16 @@ $page = $_GET['page'] ?? 'overview';
                     include $section_file;
                 } else {
                     echo '<div style="padding: 32px; text-align: center;"><h3>Belohnungsstufen werden geladen...</h3></div>';
+                }
+                ?>
+            
+            <?php elseif ($page === 'marktplatz'): ?>
+                <?php 
+                $section_file = __DIR__ . '/sections/marktplatz.php';
+                if (file_exists($section_file)) {
+                    include $section_file;
+                } else {
+                    echo '<div style="padding: 32px; text-align: center;"><h3>Marktplatz wird geladen...</h3></div>';
                 }
                 ?>
             
