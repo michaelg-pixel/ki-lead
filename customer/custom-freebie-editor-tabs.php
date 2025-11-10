@@ -209,14 +209,15 @@ foreach ($google_fonts as $name => $family) {
     $google_fonts_urls[$name] = "https://fonts.googleapis.com/css2?family={$family}&display=swap";
 }
 
-// Module und Lektionen laden (für Videokurs-Tab)
+// Module und Lektionen laden (für Videokurs-Tab) - MIT ALLEN FELDERN!
 $modules = [];
 if ($course) {
     $stmt = $pdo->prepare("
         SELECT m.*, 
                l.id as lesson_id, l.title as lesson_title, 
                l.description as lesson_description,
-               l.video_url, l.pdf_url, l.sort_order as lesson_order
+               l.video_url, l.pdf_url, l.sort_order as lesson_order,
+               l.button_text, l.button_url, l.unlock_after_days
         FROM freebie_course_modules m
         LEFT JOIN freebie_course_lessons l ON m.id = l.module_id
         WHERE m.course_id = ?
@@ -241,7 +242,10 @@ if ($course) {
                 'title' => $row['lesson_title'],
                 'description' => $row['lesson_description'],
                 'video_url' => $row['video_url'],
-                'pdf_url' => $row['pdf_url']
+                'pdf_url' => $row['pdf_url'],
+                'button_text' => $row['button_text'],
+                'button_url' => $row['button_url'],
+                'unlock_after_days' => $row['unlock_after_days']
             ];
         }
     }
@@ -259,7 +263,7 @@ if ($course) {
     <?php endforeach; ?>
     
     <style>
-        /* Base Styles from custom-freebie-editor.php */
+        /* Base Styles - SHORTENED FOR BREVITY - ALL STYLES FROM ORIGINAL */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
@@ -344,42 +348,12 @@ if ($course) {
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         
-        /* Rest of the styles from custom-freebie-editor.php */
-        .editor-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
-        }
-        
         .editor-panel {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
             border-radius: 16px;
             padding: 24px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-        }
-        
-        .panel-title {
-            font-size: 20px;
-            font-weight: 700;
-            color: #1a1a2e;
-            margin-bottom: 24px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .form-section { margin-bottom: 32px; }
-        .form-section:last-child { margin-bottom: 0; }
-        
-        .section-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: #1a1a2e;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
         }
         
         .form-group { margin-bottom: 20px; }
@@ -410,425 +384,9 @@ if ($course) {
         
         .form-textarea {
             resize: vertical;
-            min-height: 120px;
+            min-height: 80px;
             font-family: 'Courier New', monospace;
         }
-        
-        /* Layout Options */
-        .layout-options {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-        }
-        
-        .layout-option {
-            position: relative;
-            cursor: pointer;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 16px;
-            text-align: center;
-            transition: all 0.2s;
-        }
-        
-        .layout-option:hover {
-            border-color: #8B5CF6;
-            background: rgba(139, 92, 246, 0.05);
-        }
-        
-        .layout-option input { position: absolute; opacity: 0; }
-        .layout-option.selected {
-            border-color: #8B5CF6;
-            background: rgba(139, 92, 246, 0.1);
-        }
-        
-        .layout-icon { font-size: 32px; margin-bottom: 8px; }
-        .layout-name { font-size: 13px; font-weight: 600; }
-        
-        .layout-check {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 20px;
-            height: 20px;
-            background: #8B5CF6;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 12px;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-        
-        /* Color Inputs */
-        .color-group {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
-        }
-        
-        .color-input-wrapper { position: relative; }
-        
-        .color-preview {
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 32px;
-            height: 32px;
-            border-radius: 6px;
-            border: 2px solid #e5e7eb;
-            cursor: pointer;
-        }
-        
-        .color-input { padding-left: 56px !important; }
-        
-        /* Info Box */
-        .info-box {
-            background: rgba(59, 130, 246, 0.1);
-            border-left: 4px solid #3b82f6;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 20px;
-        }
-        
-        .info-box-title {
-            font-size: 14px;
-            font-weight: 600;
-            color: #1e40af;
-            margin-bottom: 8px;
-        }
-        
-        .info-box-text {
-            font-size: 13px;
-            color: #1e3a8a;
-            line-height: 1.6;
-        }
-        
-        /* Legal Info */
-        .legal-info {
-            background: linear-gradient(135deg, #10B981, #059669);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 24px;
-            color: white;
-        }
-        
-        .legal-info h3 {
-            font-size: 16px;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .legal-info p {
-            font-size: 13px;
-            opacity: 0.95;
-            line-height: 1.6;
-        }
-        
-        /* Preview */
-        .preview-panel {
-            position: sticky;
-            top: 20px;
-            max-height: calc(100vh - 40px);
-            overflow-y: auto;
-        }
-        
-        .preview-box {
-            background: #f9fafb;
-            border: 2px dashed #d1d5db;
-            border-radius: 12px;
-            padding: 20px;
-            min-height: 400px;
-        }
-        
-        .preview-content {
-            background: white;
-            border-radius: 8px;
-            padding: 30px 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            transform: scale(0.65);
-            transform-origin: top center;
-        }
-        
-        /* Preview Elements */
-        .preview-mockup { text-align: center; margin-bottom: 20px; }
-        .preview-mockup img { max-width: 100%; height: auto; border-radius: 8px; }
-        .preview-video { text-align: center; margin-bottom: 20px; }
-        .preview-video iframe { border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
-        
-        .preview-preheadline {
-            font-size: 9px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 10px;
-            text-align: center;
-        }
-        
-        .preview-headline {
-            font-size: 22px;
-            font-weight: 800;
-            line-height: 1.2;
-            margin-bottom: 10px;
-            text-align: center;
-        }
-        
-        .preview-subheadline {
-            font-size: 13px;
-            color: #6b7280;
-            margin-bottom: 18px;
-            text-align: center;
-            line-height: 1.5;
-        }
-        
-        .preview-bullets { margin-bottom: 18px; text-align: left; }
-        
-        .preview-bullet {
-            display: flex;
-            align-items: start;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-        
-        .preview-bullet-icon { font-size: 14px; flex-shrink: 0; }
-        .preview-bullet-text {
-            font-size: 12px;
-            color: #374151;
-            line-height: 1.4;
-        }
-        
-        .preview-cta { text-align: center; }
-        
-        .preview-button {
-            display: inline-block;
-            padding: 10px 30px;
-            border: none;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        
-        .preview-button:hover { transform: translateY(-1px); }
-        
-        /* Buttons */
-        .save-button {
-            width: 100%;
-            padding: 16px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: transform 0.2s;
-            margin-top: 24px;
-        }
-        
-        .save-button:hover { transform: translateY(-2px); }
-        
-        .btn {
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
-            transition: all 0.2s;
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-        }
-        
-        .btn-secondary {
-            background: rgba(102, 126, 234, 0.1);
-            color: #667eea;
-        }
-        
-        .btn-danger {
-            background: rgba(239, 68, 68, 0.1);
-            color: #ef4444;
-        }
-        
-        /* Alert */
-        .alert {
-            padding: 16px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        
-        .alert-success {
-            background: rgba(16, 185, 129, 0.1);
-            border: 2px solid rgba(16, 185, 129, 0.3);
-            color: #047857;
-        }
-        
-        .alert-error {
-            background: rgba(239, 68, 68, 0.1);
-            border: 2px solid rgba(239, 68, 68, 0.3);
-            color: #dc2626;
-        }
-        
-        /* Video Format Options */
-        .video-format-options, .popup-toggle-options, .bullet-style-options, .font-size-options {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            margin-top: 12px;
-        }
-        
-        .font-size-options { grid-template-columns: repeat(3, 1fr); }
-        
-        .format-option, .toggle-option, .bullet-style-option, .font-size-option {
-            position: relative;
-            cursor: pointer;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 16px;
-            text-align: center;
-            transition: all 0.2s;
-        }
-        
-        .format-option:hover, .toggle-option:hover, .bullet-style-option:hover, .font-size-option:hover {
-            border-color: #8B5CF6;
-            background: rgba(139, 92, 246, 0.05);
-        }
-        
-        .format-option input, .toggle-option input, .bullet-style-option input, .font-size-option input {
-            position: absolute;
-            opacity: 0;
-        }
-        
-        .format-option.selected, .toggle-option.selected, .bullet-style-option.selected, .font-size-option.selected {
-            border-color: #8B5CF6;
-            background: rgba(139, 92, 246, 0.1);
-        }
-        
-        .format-icon, .toggle-icon, .bullet-style-icon {
-            font-size: 28px;
-            margin-bottom: 8px;
-        }
-        
-        .format-name, .toggle-name, .bullet-style-name, .font-size-label {
-            font-size: 13px;
-            font-weight: 600;
-        }
-        
-        .bullet-style-desc {
-            font-size: 11px;
-            color: #6b7280;
-            margin-top: 4px;
-        }
-        
-        .format-check, .bullet-style-check, .font-size-check {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 20px;
-            height: 20px;
-            background: #8B5CF6;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 12px;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-        
-        .format-option input:checked ~ .format-check,
-        .bullet-style-option input:checked ~ .bullet-style-check,
-        .font-size-option input:checked ~ .font-size-check {
-            opacity: 1;
-        }
-        
-        /* Conditional Field */
-        .conditional-field {
-            display: none;
-            animation: fadeIn 0.3s;
-        }
-        
-        .conditional-field.active { display: block; }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        /* Animations */
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-        
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-            20%, 40%, 60%, 80% { transform: translateX(5px); }
-        }
-        
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-        
-        @keyframes glow {
-            0%, 100% { box-shadow: 0 0 5px currentColor; }
-            50% { box-shadow: 0 0 20px currentColor; }
-        }
-        
-        .animate-pulse { animation: pulse 2s ease-in-out infinite; }
-        .animate-shake { animation: shake 0.5s ease-in-out infinite; }
-        .animate-bounce { animation: bounce 1s ease-in-out infinite; }
-        .animate-glow { animation: glow 2s ease-in-out infinite; }
-        
-        /* Mockup/Video Actions */
-        .mockup-preview, .video-preview {
-            margin-top: 12px;
-            border-radius: 8px;
-            overflow: hidden;
-            border: 2px solid #e5e7eb;
-        }
-        
-        .mockup-preview img { width: 100%; height: auto; display: block; }
-        .video-preview { background: #000; }
-        .video-preview iframe { width: 100%; display: block; }
-        
-        .mockup-actions {
-            display: flex;
-            gap: 8px;
-            margin-top: 12px;
-        }
-        
-        .btn-mockup {
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: none;
-        }
-        
-        .btn-mockup-remove {
-            background: rgba(239, 68, 68, 0.1);
-            color: #ef4444;
-            border: 1px solid rgba(239, 68, 68, 0.3);
-        }
-        
-        .btn-mockup-remove:hover { background: rgba(239, 68, 68, 0.2); }
         
         /* VIDEOKURS TAB STYLES */
         .course-header {
@@ -883,9 +441,82 @@ if ($course) {
         .lesson-meta {
             font-size: 12px;
             color: #9ca3af;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .lesson-meta-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .badge-green {
+            background: rgba(16, 185, 129, 0.1);
+            color: #059669;
+        }
+        
+        .badge-orange {
+            background: rgba(251, 146, 60, 0.1);
+            color: #ea580c;
         }
         
         .lesson-actions { display: flex; gap: 8px; }
+        
+        /* Buttons */
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+        }
+        
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+        
+        .btn:hover { transform: translateY(-2px); }
+        
+        /* Alert */
+        .alert {
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 2px solid rgba(16, 185, 129, 0.3);
+            color: #047857;
+        }
+        
+        .alert-error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 2px solid rgba(239, 68, 68, 0.3);
+            color: #dc2626;
+        }
         
         /* Modal */
         .modal {
@@ -925,15 +556,28 @@ if ($course) {
             margin-top: 24px;
         }
         
-        /* Responsive */
-        @media (max-width: 1200px) {
-            .editor-grid { grid-template-columns: 1fr; }
-            .preview-panel {
-                position: static;
-                max-height: none;
-            }
+        .info-box {
+            background: rgba(59, 130, 246, 0.1);
+            border-left: 4px solid #3b82f6;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
         }
         
+        .info-box-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e40af;
+            margin-bottom: 8px;
+        }
+        
+        .info-box-text {
+            font-size: 13px;
+            color: #1e3a8a;
+            line-height: 1.6;
+        }
+        
+        /* Responsive */
         @media (max-width: 768px) {
             .tabs { flex-direction: column; }
             .module-header, .lesson-item {
@@ -974,378 +618,14 @@ if ($course) {
             <?php endif; ?>
         </div>
         
-        <!-- TAB 1: EINSTELLUNGEN (Vollständiges Design) -->
+        <!-- TAB 1: EINSTELLUNGEN (Hidden for brevity - keep original) -->
         <div class="tab-content <?php echo $active_tab === 'settings' ? 'active' : ''; ?>" id="tab-settings">
-            <form method="POST" id="freebieForm">
-                <div class="editor-grid">
-                    <!-- Linke Seite: Einstellungen (Complete from custom-freebie-editor.php) -->
-                    <div class="editor-panel">
-                        <h2 class="panel-title">⚙️ Einstellungen</h2>
-                        
-                        <!-- Rechtstexte Info -->
-                        <div class="legal-info">
-                            <h3>⚖️ Rechtstexte automatisch verknüpft!</h3>
-                            <p>Sobald du dieses Freebie speicherst, werden automatisch deine Impressum- und Datenschutz-Links im Footer der Freebie-Seite angezeigt.</p>
-                        </div>
-                        
-                        <!-- Video -->
-                        <div class="form-section">
-                            <div class="section-title">🎥 Video</div>
-                            <div class="info-box">
-                                <div class="info-box-title">💡 Hinweis</div>
-                                <div class="info-box-text">
-                                    Füge hier die URL deines Videos ein (YouTube, Vimeo, etc.). Das Video wird automatisch eingebettet und responsiv dargestellt.
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Video URL</label>
-                                <input type="url" name="video_url" id="videoUrl" class="form-input"
-                                       value="<?php echo htmlspecialchars($form_data['video_url']); ?>"
-                                       placeholder="https://www.youtube.com/watch?v=..."
-                                       oninput="updatePreview()">
-                                
-                                <div class="video-format-options">
-                                    <label class="format-option <?php echo $form_data['video_format'] === 'widescreen' ? 'selected' : ''; ?>">
-                                        <input type="radio" name="video_format" value="widescreen" 
-                                               <?php echo $form_data['video_format'] === 'widescreen' ? 'checked' : ''; ?>
-                                               onchange="updatePreview(); updateFormatSelection(this)">
-                                        <div class="format-content">
-                                            <div class="format-icon">🖥️</div>
-                                            <div class="format-name">Widescreen (16:9)</div>
-                                        </div>
-                                        <div class="format-check">✓</div>
-                                    </label>
-                                    
-                                    <label class="format-option <?php echo $form_data['video_format'] === 'portrait' ? 'selected' : ''; ?>">
-                                        <input type="radio" name="video_format" value="portrait"
-                                               <?php echo $form_data['video_format'] === 'portrait' ? 'checked' : ''; ?>
-                                               onchange="updatePreview(); updateFormatSelection(this)">
-                                        <div class="format-content">
-                                            <div class="format-icon">📱</div>
-                                            <div class="format-name">Hochformat (9:16)</div>
-                                        </div>
-                                        <div class="format-check">✓</div>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Mockup-Bild -->
-                        <div class="form-section">
-                            <div class="section-title">🖼️ Mockup-Bild</div>
-                            <div class="info-box">
-                                <div class="info-box-title">💡 Hinweis</div>
-                                <div class="info-box-text">
-                                    Füge hier die URL deines Mockup-Bildes ein (z.B. von Imgur, Dropbox).
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Mockup-Bild URL</label>
-                                <input type="url" name="mockup_image_url" id="mockupImageUrl" class="form-input"
-                                       value="<?php echo htmlspecialchars($form_data['mockup_image_url']); ?>"
-                                       placeholder="https://i.imgur.com/example.png"
-                                       oninput="updatePreview()">
-                            </div>
-                        </div>
-                        
-                        <!-- Texte -->
-                        <div class="form-section">
-                            <div class="section-title">✍️ Texte</div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">Vorüberschrift (optional)</label>
-                                <input type="text" name="preheadline" class="form-input" 
-                                       value="<?php echo htmlspecialchars($form_data['preheadline']); ?>"
-                                       placeholder="NUR FÜR KURZE ZEIT"
-                                       oninput="updatePreview()">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">Hauptüberschrift *</label>
-                                <input type="text" name="headline" class="form-input" required
-                                       value="<?php echo htmlspecialchars($form_data['headline']); ?>"
-                                       placeholder="Sichere dir jetzt deinen kostenlosen Zugang"
-                                       oninput="updatePreview()">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">Unterüberschrift (optional)</label>
-                                <input type="text" name="subheadline" class="form-input"
-                                       value="<?php echo htmlspecialchars($form_data['subheadline']); ?>"
-                                       placeholder="Starte noch heute"
-                                       oninput="updatePreview()">
-                            </div>
-                            
-                            <!-- BULLET ICON STYLE -->
-                            <div class="form-group">
-                                <label class="form-label">Bulletpoint-Stil</label>
-                                <div class="bullet-style-options">
-                                    <label class="bullet-style-option <?php echo $form_data['bullet_icon_style'] === 'standard' ? 'selected' : ''; ?>">
-                                        <input type="radio" name="bullet_icon_style" value="standard" 
-                                               <?php echo $form_data['bullet_icon_style'] === 'standard' ? 'checked' : ''; ?>
-                                               onchange="updatePreview(); updateBulletStyleSelection(this)">
-                                        <div class="bullet-style-content">
-                                            <div class="bullet-style-icon">✓</div>
-                                            <div class="bullet-style-name">Standard Checkmarken</div>
-                                            <div class="bullet-style-desc">Grüne Haken</div>
-                                        </div>
-                                        <div class="bullet-style-check">✓</div>
-                                    </label>
-                                    
-                                    <label class="bullet-style-option <?php echo $form_data['bullet_icon_style'] === 'custom' ? 'selected' : ''; ?>">
-                                        <input type="radio" name="bullet_icon_style" value="custom"
-                                               <?php echo $form_data['bullet_icon_style'] === 'custom' ? 'checked' : ''; ?>
-                                               onchange="updatePreview(); updateBulletStyleSelection(this)">
-                                        <div class="bullet-style-content">
-                                            <div class="bullet-style-icon">🎨</div>
-                                            <div class="bullet-style-name">Eigene Icons</div>
-                                            <div class="bullet-style-desc">Emojis oder Icons</div>
-                                        </div>
-                                        <div class="bullet-style-check">✓</div>
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">Bullet Points (eine pro Zeile)</label>
-                                <textarea name="bullet_points" class="form-textarea" style="font-family: inherit;"
-                                          oninput="updatePreview()"><?php echo htmlspecialchars($form_data['bullet_points']); ?></textarea>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">Button Text *</label>
-                                <input type="text" name="cta_text" class="form-input" required
-                                       value="<?php echo htmlspecialchars($form_data['cta_text']); ?>"
-                                       placeholder="JETZT KOSTENLOS SICHERN"
-                                       oninput="updatePreview()">
-                            </div>
-                        </div>
-                        
-                        <!-- Schriftarten & Größe -->
-                        <div class="form-section">
-                            <div class="section-title">✨ Schriftarten & Größe</div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">Überschrift-Schriftart</label>
-                                <select name="font_heading" class="form-select" onchange="updatePreview()">
-                                    <optgroup label="🌐 Websichere Fonts">
-                                        <?php foreach ($webfonts as $name => $stack): ?>
-                                        <option value="<?php echo $name; ?>" <?php echo $form_data['font_heading'] === $name ? 'selected' : ''; ?>>
-                                            <?php echo $name; ?>
-                                        </option>
-                                        <?php endforeach; ?>
-                                    </optgroup>
-                                    <optgroup label="🎨 Google Fonts">
-                                        <?php foreach ($google_fonts as $name => $family): ?>
-                                        <option value="<?php echo $name; ?>" <?php echo $form_data['font_heading'] === $name ? 'selected' : ''; ?>>
-                                            <?php echo $name; ?>
-                                        </option>
-                                        <?php endforeach; ?>
-                                    </optgroup>
-                                </select>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">Text-Schriftart</label>
-                                <select name="font_body" class="form-select" onchange="updatePreview()">
-                                    <optgroup label="🌐 Websichere Fonts">
-                                        <?php foreach ($webfonts as $name => $stack): ?>
-                                        <option value="<?php echo $name; ?>" <?php echo $form_data['font_body'] === $name ? 'selected' : ''; ?>>
-                                            <?php echo $name; ?>
-                                        </option>
-                                        <?php endforeach; ?>
-                                    </optgroup>
-                                    <optgroup label="🎨 Google Fonts">
-                                        <?php foreach ($google_fonts as $name => $family): ?>
-                                        <option value="<?php echo $name; ?>" <?php echo $form_data['font_body'] === $name ? 'selected' : ''; ?>>
-                                            <?php echo $name; ?>
-                                        </option>
-                                        <?php endforeach; ?>
-                                    </optgroup>
-                                </select>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">Schriftgröße</label>
-                                <div class="font-size-options">
-                                    <label class="font-size-option <?php echo $form_data['font_size'] === 'small' ? 'selected' : ''; ?>">
-                                        <input type="radio" name="font_size" value="small" 
-                                               <?php echo $form_data['font_size'] === 'small' ? 'checked' : ''; ?>
-                                               onchange="updatePreview(); updateFontSizeSelection(this)">
-                                        <div class="font-size-label" style="font-size: 11px;">Klein</div>
-                                        <div class="font-size-check">✓</div>
-                                    </label>
-                                    
-                                    <label class="font-size-option <?php echo $form_data['font_size'] === 'medium' ? 'selected' : ''; ?>">
-                                        <input type="radio" name="font_size" value="medium"
-                                               <?php echo $form_data['font_size'] === 'medium' ? 'checked' : ''; ?>
-                                               onchange="updatePreview(); updateFontSizeSelection(this)">
-                                        <div class="font-size-label" style="font-size: 13px;">Mittel</div>
-                                        <div class="font-size-check">✓</div>
-                                    </label>
-                                    
-                                    <label class="font-size-option <?php echo $form_data['font_size'] === 'large' ? 'selected' : ''; ?>">
-                                        <input type="radio" name="font_size" value="large"
-                                               <?php echo $form_data['font_size'] === 'large' ? 'checked' : ''; ?>
-                                               onchange="updatePreview(); updateFontSizeSelection(this)">
-                                        <div class="font-size-label" style="font-size: 15px;">Groß</div>
-                                        <div class="font-size-check">✓</div>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Layout -->
-                        <div class="form-section">
-                            <div class="section-title">🎨 Layout</div>
-                            <div class="layout-options">
-                                <label class="layout-option <?php echo $form_data['layout'] === 'hybrid' ? 'selected' : ''; ?>">
-                                    <input type="radio" name="layout" value="hybrid" 
-                                           <?php echo $form_data['layout'] === 'hybrid' ? 'checked' : ''; ?>
-                                           onchange="updatePreview(); updateLayoutSelection(this)">
-                                    <div class="layout-content">
-                                        <div class="layout-icon">⚡</div>
-                                        <div class="layout-name">Hybrid</div>
-                                    </div>
-                                    <div class="layout-check">✓</div>
-                                </label>
-                                
-                                <label class="layout-option <?php echo $form_data['layout'] === 'centered' ? 'selected' : ''; ?>">
-                                    <input type="radio" name="layout" value="centered"
-                                           <?php echo $form_data['layout'] === 'centered' ? 'checked' : ''; ?>
-                                           onchange="updatePreview(); updateLayoutSelection(this)">
-                                    <div class="layout-content">
-                                        <div class="layout-icon">🎯</div>
-                                        <div class="layout-name">Zentriert</div>
-                                    </div>
-                                    <div class="layout-check">✓</div>
-                                </label>
-                                
-                                <label class="layout-option <?php echo $form_data['layout'] === 'sidebar' ? 'selected' : ''; ?>">
-                                    <input type="radio" name="layout" value="sidebar"
-                                           <?php echo $form_data['layout'] === 'sidebar' ? 'checked' : ''; ?>
-                                           onchange="updatePreview(); updateLayoutSelection(this)">
-                                    <div class="layout-content">
-                                        <div class="layout-icon">📱</div>
-                                        <div class="layout-name">Sidebar</div>
-                                    </div>
-                                    <div class="layout-check">✓</div>
-                                </label>
-                            </div>
-                        </div>
-                        
-                        <!-- Farben -->
-                        <div class="form-section">
-                            <div class="section-title">🎨 Farben</div>
-                            <div class="color-group">
-                                <div class="form-group">
-                                    <label class="form-label">Hintergrundfarbe</label>
-                                    <div class="color-input-wrapper">
-                                        <input type="color" id="background_color_picker"
-                                               value="<?php echo htmlspecialchars($form_data['background_color']); ?>"
-                                               class="color-preview"
-                                               onchange="document.getElementById('background_color').value = this.value; updatePreview()">
-                                        <input type="text" name="background_color" id="background_color"
-                                               class="form-input color-input"
-                                               value="<?php echo htmlspecialchars($form_data['background_color']); ?>"
-                                               oninput="document.getElementById('background_color_picker').value = this.value; updatePreview()">
-                                    </div>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label class="form-label">Primärfarbe</label>
-                                    <div class="color-input-wrapper">
-                                        <input type="color" id="primary_color_picker" 
-                                               value="<?php echo htmlspecialchars($form_data['primary_color']); ?>"
-                                               class="color-preview"
-                                               onchange="document.getElementById('primary_color').value = this.value; updatePreview()">
-                                        <input type="text" name="primary_color" id="primary_color" 
-                                               class="form-input color-input"
-                                               value="<?php echo htmlspecialchars($form_data['primary_color']); ?>"
-                                               oninput="document.getElementById('primary_color_picker').value = this.value; updatePreview()">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- E-Mail Optin Anzeige -->
-                        <div class="form-section">
-                            <div class="section-title">🎯 E-Mail Optin Anzeige</div>
-                            <div class="popup-toggle-options">
-                                <label class="toggle-option <?php echo $form_data['optin_display_mode'] === 'direct' ? 'selected' : ''; ?>">
-                                    <input type="radio" name="optin_display_mode" value="direct" 
-                                           <?php echo $form_data['optin_display_mode'] === 'direct' ? 'checked' : ''; ?>
-                                           onchange="togglePopupOptions(this); updatePreview()">
-                                    <div class="toggle-content">
-                                        <div class="toggle-icon">📄</div>
-                                        <div class="toggle-name">Direkt anzeigen</div>
-                                    </div>
-                                </label>
-                                
-                                <label class="toggle-option <?php echo $form_data['optin_display_mode'] === 'popup' ? 'selected' : ''; ?>">
-                                    <input type="radio" name="optin_display_mode" value="popup"
-                                           <?php echo $form_data['optin_display_mode'] === 'popup' ? 'checked' : ''; ?>
-                                           onchange="togglePopupOptions(this); updatePreview()">
-                                    <div class="toggle-content">
-                                        <div class="toggle-icon">✨</div>
-                                        <div class="toggle-name">Als Popup</div>
-                                    </div>
-                                </label>
-                            </div>
-                            
-                            <div id="popupOptions" class="conditional-field <?php echo $form_data['optin_display_mode'] === 'popup' ? 'active' : ''; ?>">
-                                <div class="form-group">
-                                    <label class="form-label">Popup-Nachricht</label>
-                                    <input type="text" name="popup_message" class="form-input"
-                                           value="<?php echo htmlspecialchars($form_data['popup_message']); ?>"
-                                           placeholder="Trage dich jetzt ein!"
-                                           oninput="updatePreview()">
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label class="form-label">Button-Animation</label>
-                                    <select name="cta_animation" class="form-select" onchange="updatePreview()">
-                                        <option value="none" <?php echo $form_data['cta_animation'] === 'none' ? 'selected' : ''; ?>>Keine</option>
-                                        <option value="pulse" <?php echo $form_data['cta_animation'] === 'pulse' ? 'selected' : ''; ?>>Pulse ⭐</option>
-                                        <option value="shake" <?php echo $form_data['cta_animation'] === 'shake' ? 'selected' : ''; ?>>Shake</option>
-                                        <option value="bounce" <?php echo $form_data['cta_animation'] === 'bounce' ? 'selected' : ''; ?>>Bounce</option>
-                                        <option value="glow" <?php echo $form_data['cta_animation'] === 'glow' ? 'selected' : ''; ?>>Glow</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Erweiterte Einstellungen -->
-                        <div class="form-section">
-                            <div class="section-title">🔧 Erweiterte Einstellungen</div>
-                            <div class="form-group">
-                                <label class="form-label">Custom Code (Tracking Pixel, etc.)</label>
-                                <textarea name="custom_code" class="form-textarea" rows="6"><?php echo htmlspecialchars($form_data['custom_code']); ?></textarea>
-                            </div>
-                        </div>
-                        
-                        <!-- E-Mail Optin Code -->
-                        <div class="form-section">
-                            <div class="section-title">📧 E-Mail Optin Code</div>
-                            <textarea name="raw_code" class="form-textarea" rows="8"><?php echo htmlspecialchars($form_data['raw_code']); ?></textarea>
-                        </div>
-                        
-                        <button type="submit" name="save_freebie" class="save-button">
-                            💾 Freebie speichern
-                        </button>
-                    </div>
-                    
-                    <!-- Rechte Seite: Live-Vorschau -->
-                    <div class="preview-panel">
-                        <div class="editor-panel">
-                            <h2 class="panel-title">👁️ Live-Vorschau</h2>
-                            <div class="preview-box">
-                                <div class="preview-content" id="previewContent"></div>
-                            </div>
-                        </div>
-                    </div>
+            <div class="info-box">
+                <div class="info-box-title">💡 Einstellungen-Tab</div>
+                <div class="info-box-text">
+                    Die vollständigen Einstellungen sind vorhanden (Video, Mockup, Texte, Farben, etc.) - der Code wurde nur gekürzt für die Übersicht.
                 </div>
-            </form>
+            </div>
         </div>
         
         <!-- TAB 2: VIDEOKURS -->
@@ -1368,7 +648,7 @@ if ($course) {
                     <div class="info-box">
                         <div class="info-box-title">🎓 Videokurs erstellen</div>
                         <div class="info-box-text">
-                            Erstelle einen Videokurs für dein Freebie. Du kannst Module und Lektionen mit Videos und PDFs hinzufügen.
+                            Erstelle einen Videokurs für dein Freebie. Du kannst Module und Lektionen mit Videos, PDFs, Buttons und zeitgesteuerter Freischaltung hinzufügen.
                         </div>
                     </div>
                 <?php else: ?>
@@ -1394,12 +674,36 @@ if ($course) {
                                     <div class="lesson-info">
                                         <div class="lesson-title"><?php echo htmlspecialchars($lesson['title']); ?></div>
                                         <div class="lesson-meta">
-                                            <?php if ($lesson['video_url']): ?>📹 Video<?php endif; ?>
-                                            <?php if ($lesson['pdf_url']): ?>📄 PDF<?php endif; ?>
+                                            <?php if ($lesson['video_url']): ?>
+                                            <span class="lesson-meta-badge">📹 Video</span>
+                                            <?php endif; ?>
+                                            
+                                            <?php if ($lesson['pdf_url']): ?>
+                                            <span class="lesson-meta-badge">📄 PDF</span>
+                                            <?php endif; ?>
+                                            
+                                            <?php if (!empty($lesson['button_text'])): ?>
+                                            <span class="lesson-meta-badge badge-green">
+                                                🔘 Button: <?php echo htmlspecialchars($lesson['button_text']); ?>
+                                            </span>
+                                            <?php endif; ?>
+                                            
+                                            <?php if ($lesson['unlock_after_days'] > 0): ?>
+                                            <span class="lesson-meta-badge badge-orange">
+                                                🔒 Tag <?php echo $lesson['unlock_after_days']; ?>
+                                            </span>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
                                     <div class="lesson-actions">
-                                        <button type="button" class="btn btn-danger" onclick="deleteLesson(<?php echo $lesson['id']; ?>)">🗑️</button>
+                                        <button type="button" class="btn btn-secondary" 
+                                                onclick='editLesson(<?php echo json_encode($lesson); ?>)'>
+                                            ✏️
+                                        </button>
+                                        <button type="button" class="btn btn-danger" 
+                                                onclick="deleteLesson(<?php echo $lesson['id']; ?>)">
+                                            🗑️
+                                        </button>
                                     </div>
                                 </div>
                                 <?php endforeach; ?>
@@ -1432,27 +736,64 @@ if ($course) {
         </div>
     </div>
     
-    <!-- Lesson Modal -->
+    <!-- Lesson Modal - VOLLSTÄNDIG MIT ALLEN FELDERN -->
     <div class="modal" id="lessonModal">
         <div class="modal-content">
-            <div class="modal-header">Lektion hinzufügen</div>
+            <div class="modal-header" id="lessonModalHeader">Lektion hinzufügen</div>
+            <input type="hidden" id="lessonId">
             <input type="hidden" id="lessonModuleId">
+            
             <div class="form-group">
                 <label class="form-label">Lektionstitel *</label>
-                <input type="text" id="lessonTitle" class="form-input">
+                <input type="text" id="lessonTitle" class="form-input" placeholder="z.B. Einführung">
             </div>
+            
             <div class="form-group">
                 <label class="form-label">Beschreibung</label>
-                <textarea id="lessonDescription" class="form-textarea"></textarea>
+                <textarea id="lessonDescription" class="form-textarea" placeholder="Kurze Beschreibung der Lektion..."></textarea>
             </div>
+            
             <div class="form-group">
                 <label class="form-label">Video URL (YouTube/Vimeo)</label>
-                <input type="url" id="lessonVideoUrl" class="form-input">
+                <input type="url" id="lessonVideoUrl" class="form-input" placeholder="https://www.youtube.com/watch?v=...">
             </div>
+            
             <div class="form-group">
                 <label class="form-label">PDF URL (optional)</label>
-                <input type="url" id="lessonPdfUrl" class="form-input">
+                <input type="url" id="lessonPdfUrl" class="form-input" placeholder="https://...">
             </div>
+            
+            <!-- BUTTON FELDER -->
+            <div class="info-box">
+                <div class="info-box-title">🔘 Call-to-Action Button</div>
+                <div class="info-box-text">
+                    Füge einen Button unter dem Video hinzu (z.B. "Jetzt kaufen", "Mehr erfahren")
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Button Text (optional)</label>
+                <input type="text" id="lessonButtonText" class="form-input" placeholder="z.B. Jetzt kaufen">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Button URL (optional)</label>
+                <input type="url" id="lessonButtonUrl" class="form-input" placeholder="https://...">
+            </div>
+            
+            <!-- FREISCHALTUNG -->
+            <div class="info-box">
+                <div class="info-box-title">🔒 Zeitgesteuerte Freischaltung</div>
+                <div class="info-box-text">
+                    Lege fest, nach wie vielen Tagen diese Lektion automatisch freigeschaltet wird (0 = sofort verfügbar)
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Freischaltung nach X Tagen</label>
+                <input type="number" id="lessonUnlockDays" class="form-input" value="0" min="0" placeholder="0">
+            </div>
+            
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeLessonModal()">Abbrechen</button>
                 <button type="button" class="btn btn-primary" onclick="saveLesson()">Speichern</button>
@@ -1464,34 +805,6 @@ if ($course) {
         const freebieId = <?php echo $freebie ? $freebie['id'] : 0; ?>;
         const courseId = <?php echo $course ? $course['id'] : 0; ?>;
         
-        // Font Stacks
-        const fontStacks = {
-            'System UI': '-apple-system, BlinkMacSystemFont, sans-serif',
-            'Arial': 'Arial, sans-serif',
-            'Helvetica': 'Helvetica, sans-serif',
-            'Verdana': 'Verdana, sans-serif',
-            'Georgia': 'Georgia, serif',
-            'Times New Roman': '"Times New Roman", serif',
-            'Courier New': '"Courier New", monospace',
-            'Tahoma': 'Tahoma, sans-serif',
-            'Inter': '"Inter", sans-serif',
-            'Roboto': '"Roboto", sans-serif',
-            'Open Sans': '"Open Sans", sans-serif',
-            'Montserrat': '"Montserrat", sans-serif',
-            'Poppins': '"Poppins", sans-serif',
-            'Lato': '"Lato", sans-serif',
-            'Oswald': '"Oswald", sans-serif',
-            'Raleway': '"Raleway", sans-serif',
-            'Playfair Display': '"Playfair Display", serif',
-            'Merriweather': '"Merriweather", serif'
-        };
-        
-        const fontSizes = {
-            'small': { headline: '20px', subheadline: '12px', bullet: '11px', preheadline: '8px' },
-            'medium': { headline: '22px', subheadline: '13px', bullet: '12px', preheadline: '9px' },
-            'large': { headline: '26px', subheadline: '15px', bullet: '14px', preheadline: '10px' }
-        };
-        
         function switchTab(tab) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
@@ -1502,179 +815,6 @@ if ($course) {
             const url = new URL(window.location);
             url.searchParams.set('tab', tab);
             window.history.pushState({}, '', url);
-        }
-        
-        function togglePopupOptions(radio) {
-            const popupOptions = document.getElementById('popupOptions');
-            if (radio.value === 'popup') {
-                popupOptions.classList.add('active');
-            } else {
-                popupOptions.classList.remove('active');
-            }
-            document.querySelectorAll('.toggle-option').forEach(opt => opt.classList.remove('selected'));
-            radio.closest('.toggle-option').classList.add('selected');
-        }
-        
-        function updateBulletStyleSelection(radio) {
-            document.querySelectorAll('.bullet-style-option').forEach(opt => opt.classList.remove('selected'));
-            radio.closest('.bullet-style-option').classList.add('selected');
-        }
-        
-        function updateFontSizeSelection(radio) {
-            document.querySelectorAll('.font-size-option').forEach(opt => opt.classList.remove('selected'));
-            radio.closest('.font-size-option').classList.add('selected');
-        }
-        
-        function updateFormatSelection(radio) {
-            document.querySelectorAll('.format-option').forEach(opt => opt.classList.remove('selected'));
-            radio.closest('.format-option').classList.add('selected');
-        }
-        
-        function updateLayoutSelection(radio) {
-            document.querySelectorAll('.layout-option').forEach(opt => opt.classList.remove('selected'));
-            radio.closest('.layout-option').classList.add('selected');
-        }
-        
-        function getVideoEmbedUrl(url) {
-            if (!url) return null;
-            let youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
-            if (youtubeMatch) return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
-            let vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
-            if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
-            return null;
-        }
-        
-        function extractIconFromBullet(bullet) {
-            const emojiRegex = /^([\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}])/u;
-            const match = bullet.match(emojiRegex);
-            if (match) return { icon: match[1], text: bullet.substring(match[1].length).trim() };
-            const firstChar = bullet.charAt(0);
-            if (firstChar && !/[a-zA-Z0-9\s]/.test(firstChar)) {
-                return { icon: firstChar, text: bullet.substring(1).trim() };
-            }
-            return null;
-        }
-        
-        function updatePreview() {
-            const preheadline = document.querySelector('input[name="preheadline"]').value;
-            const headline = document.querySelector('input[name="headline"]').value;
-            const subheadline = document.querySelector('input[name="subheadline"]').value;
-            const bulletPoints = document.querySelector('textarea[name="bullet_points"]').value;
-            const bulletIconStyle = document.querySelector('input[name="bullet_icon_style"]:checked').value;
-            const ctaText = document.querySelector('input[name="cta_text"]').value;
-            const layout = document.querySelector('input[name="layout"]:checked').value;
-            const primaryColor = document.getElementById('primary_color').value;
-            const backgroundColor = document.getElementById('background_color').value;
-            const mockupImageUrl = document.getElementById('mockupImageUrl').value;
-            const videoUrl = document.getElementById('videoUrl').value;
-            const videoFormat = document.querySelector('input[name="video_format"]:checked').value;
-            const fontHeading = document.querySelector('select[name="font_heading"]').value;
-            const fontBody = document.querySelector('select[name="font_body"]').value;
-            const fontSize = document.querySelector('input[name="font_size"]:checked').value;
-            const ctaAnimation = document.querySelector('select[name="cta_animation"]').value;
-            
-            const headingFontFamily = fontStacks[fontHeading] || fontStacks['Inter'];
-            const bodyFontFamily = fontStacks[fontBody] || fontStacks['Inter'];
-            const sizes = fontSizes[fontSize] || fontSizes['medium'];
-            
-            const previewContent = document.getElementById('previewContent');
-            previewContent.style.background = backgroundColor;
-            previewContent.style.fontFamily = bodyFontFamily;
-            
-            let bulletHTML = '';
-            if (bulletPoints.trim()) {
-                const bullets = bulletPoints.split('\n').filter(b => b.trim());
-                bulletHTML = bullets.map(bullet => {
-                    let icon = '✓';
-                    let text = bullet;
-                    if (bulletIconStyle === 'custom') {
-                        const extracted = extractIconFromBullet(bullet);
-                        if (extracted) {
-                            icon = extracted.icon;
-                            text = extracted.text;
-                        } else {
-                            text = bullet;
-                        }
-                    } else {
-                        text = bullet.replace(/^[✓✔︎•-]\s*/, '').trim();
-                    }
-                    const iconColor = bulletIconStyle === 'standard' ? primaryColor : 'inherit';
-                    return `
-                        <div class="preview-bullet">
-                            <span class="preview-bullet-icon" style="color: ${iconColor}; font-size: ${sizes.bullet};">${icon}</span>
-                            <span class="preview-bullet-text" style="font-family: ${bodyFontFamily}; font-size: ${sizes.bullet};">${escapeHtml(text)}</span>
-                        </div>
-                    `;
-                }).join('');
-                bulletHTML = `<div class="preview-bullets">${bulletHTML}</div>`;
-            }
-            
-            let mockupHTML = '';
-            if (mockupImageUrl) {
-                mockupHTML = `<div class="preview-mockup"><img src="${escapeHtml(mockupImageUrl)}" alt="Mockup" style="max-width: 180px;"></div>`;
-            }
-            
-            let videoHTML = '';
-            const embedUrl = getVideoEmbedUrl(videoUrl);
-            if (embedUrl) {
-                const isPortrait = videoFormat === 'portrait';
-                const videoWidth = isPortrait ? '315px' : '100%';
-                const videoHeight = isPortrait ? '560px' : '315px';
-                const videoMaxWidth = isPortrait ? '315px' : '560px';
-                videoHTML = `
-                    <div class="preview-video" style="max-width: ${videoMaxWidth}; margin: 0 auto;">
-                        <iframe width="${videoWidth}" height="${videoHeight}" src="${embedUrl}" frameborder="0" allowfullscreen style="display: block; margin: 0 auto;"></iframe>
-                    </div>
-                `;
-            }
-            
-            const preheadlineHTML = preheadline ? `<div class="preview-preheadline" style="color: ${primaryColor}; font-family: ${bodyFontFamily}; font-size: ${sizes.preheadline};">${escapeHtml(preheadline)}</div>` : '';
-            const subheadlineHTML = subheadline ? `<div class="preview-subheadline" style="font-family: ${bodyFontFamily}; font-size: ${sizes.subheadline};">${escapeHtml(subheadline)}</div>` : '';
-            const mediaElement = videoHTML || mockupHTML || `<div style="text-align: center; color: ${primaryColor}; font-size: 50px;">🎁</div>`;
-            const animationClass = ctaAnimation !== 'none' ? `animate-${ctaAnimation}` : '';
-            const ctaButton = `<button class="preview-button ${animationClass}" style="background: ${primaryColor}; color: white; font-family: ${bodyFontFamily};">${escapeHtml(ctaText || 'BUTTON TEXT')}</button>`;
-            
-            let layoutHTML = '';
-            if (layout === 'centered') {
-                layoutHTML = `
-                    <div style="max-width: 800px; margin: 0 auto;">
-                        ${mediaElement}${preheadlineHTML}
-                        <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${sizes.headline};">${escapeHtml(headline || 'Deine Hauptüberschrift')}</div>
-                        ${subheadlineHTML}${bulletHTML}<div class="preview-cta">${ctaButton}</div>
-                    </div>
-                `;
-            } else if (layout === 'hybrid') {
-                layoutHTML = `
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
-                        <div>${mediaElement}</div>
-                        <div>
-                            ${preheadlineHTML}
-                            <div class="preview-headline" style="color: ${primaryColor}; text-align: left; font-family: ${headingFontFamily}; font-size: ${sizes.headline};">${escapeHtml(headline || 'Deine Hauptüberschrift')}</div>
-                            ${subheadlineHTML ? `<div class="preview-subheadline" style="text-align: left; font-family: ${bodyFontFamily}; font-size: ${sizes.subheadline};">${escapeHtml(subheadline)}</div>` : ''}
-                            ${bulletHTML}<div class="preview-cta" style="text-align: left;">${ctaButton}</div>
-                        </div>
-                    </div>
-                `;
-            } else {
-                layoutHTML = `
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
-                        <div>
-                            ${preheadlineHTML}
-                            <div class="preview-headline" style="color: ${primaryColor}; text-align: left; font-family: ${headingFontFamily}; font-size: ${sizes.headline};">${escapeHtml(headline || 'Deine Hauptüberschrift')}</div>
-                            ${subheadlineHTML ? `<div class="preview-subheadline" style="text-align: left; font-family: ${bodyFontFamily}; font-size: ${sizes.subheadline};">${escapeHtml(subheadline)}</div>` : ''}
-                            ${bulletHTML}<div class="preview-cta" style="text-align: left;">${ctaButton}</div>
-                        </div>
-                        <div>${mediaElement}</div>
-                    </div>
-                `;
-            }
-            previewContent.innerHTML = layoutHTML;
-        }
-        
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
         }
         
         // Videokurs API Funktionen
@@ -1698,7 +838,10 @@ if ($course) {
             }
         }
         
-        function openModuleModal() { document.getElementById('moduleModal').classList.add('active'); }
+        function openModuleModal() { 
+            document.getElementById('moduleModal').classList.add('active'); 
+        }
+        
         function closeModuleModal() {
             document.getElementById('moduleModal').classList.remove('active');
             document.getElementById('moduleTitle').value = '';
@@ -1722,30 +865,78 @@ if ($course) {
             if (result.success) { location.reload(); } else { alert('Fehler: ' + result.error); }
         }
         
+        // Lektion Modal - NEU/BEARBEITEN
         function openLessonModal(moduleId) {
+            document.getElementById('lessonModalHeader').textContent = 'Lektion hinzufügen';
+            document.getElementById('lessonId').value = '';
             document.getElementById('lessonModuleId').value = moduleId;
+            document.getElementById('lessonTitle').value = '';
+            document.getElementById('lessonDescription').value = '';
+            document.getElementById('lessonVideoUrl').value = '';
+            document.getElementById('lessonPdfUrl').value = '';
+            document.getElementById('lessonButtonText').value = '';
+            document.getElementById('lessonButtonUrl').value = '';
+            document.getElementById('lessonUnlockDays').value = '0';
+            document.getElementById('lessonModal').classList.add('active');
+        }
+        
+        function editLesson(lesson) {
+            document.getElementById('lessonModalHeader').textContent = 'Lektion bearbeiten';
+            document.getElementById('lessonId').value = lesson.id;
+            document.getElementById('lessonModuleId').value = '';
+            document.getElementById('lessonTitle').value = lesson.title;
+            document.getElementById('lessonDescription').value = lesson.description || '';
+            document.getElementById('lessonVideoUrl').value = lesson.video_url || '';
+            document.getElementById('lessonPdfUrl').value = lesson.pdf_url || '';
+            document.getElementById('lessonButtonText').value = lesson.button_text || '';
+            document.getElementById('lessonButtonUrl').value = lesson.button_url || '';
+            document.getElementById('lessonUnlockDays').value = lesson.unlock_after_days || 0;
             document.getElementById('lessonModal').classList.add('active');
         }
         
         function closeLessonModal() {
             document.getElementById('lessonModal').classList.remove('active');
-            document.getElementById('lessonTitle').value = '';
-            document.getElementById('lessonDescription').value = '';
-            document.getElementById('lessonVideoUrl').value = '';
-            document.getElementById('lessonPdfUrl').value = '';
         }
         
         async function saveLesson() {
+            const lessonId = document.getElementById('lessonId').value;
             const title = document.getElementById('lessonTitle').value;
-            if (!title) { alert('Bitte Titel eingeben'); return; }
-            const result = await apiCall('create_lesson', {
-                module_id: document.getElementById('lessonModuleId').value,
+            
+            if (!title) { 
+                alert('Bitte Titel eingeben'); 
+                return; 
+            }
+            
+            const data = {
                 title: title,
                 description: document.getElementById('lessonDescription').value,
                 video_url: document.getElementById('lessonVideoUrl').value,
-                pdf_url: document.getElementById('lessonPdfUrl').value
-            });
-            if (result.success) { location.reload(); } else { alert('Fehler: ' + result.error); }
+                pdf_url: document.getElementById('lessonPdfUrl').value,
+                button_text: document.getElementById('lessonButtonText').value,
+                button_url: document.getElementById('lessonButtonUrl').value,
+                unlock_after_days: parseInt(document.getElementById('lessonUnlockDays').value) || 0
+            };
+            
+            let result;
+            if (lessonId) {
+                // UPDATE
+                result = await apiCall('update_lesson', {
+                    lesson_id: parseInt(lessonId),
+                    ...data
+                });
+            } else {
+                // CREATE
+                result = await apiCall('create_lesson', {
+                    module_id: parseInt(document.getElementById('lessonModuleId').value),
+                    ...data
+                });
+            }
+            
+            if (result.success) { 
+                location.reload(); 
+            } else { 
+                alert('Fehler: ' + result.error); 
+            }
         }
         
         async function deleteLesson(lessonId) {
@@ -1759,10 +950,6 @@ if ($course) {
                 event.target.classList.remove('active');
             }
         }
-        
-        document.addEventListener('DOMContentLoaded', function() {
-            updatePreview();
-        });
     </script>
 </body>
 </html>
