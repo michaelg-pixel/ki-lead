@@ -226,20 +226,23 @@ try {
     }
     
     .freebie-preview {
-        height: 200px;
+        height: 240px;
         position: relative;
         overflow: hidden;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 16px;
+        padding: 20px;
     }
     
     .freebie-preview img {
-        width: 100%;
-        height: 100%;
+        max-width: 90%;
+        max-height: 90%;
+        width: auto;
+        height: auto;
         object-fit: contain;
         object-position: center;
+        filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
     }
     
     .freebie-badges {
@@ -863,15 +866,15 @@ try {
             
             <div class="form-group">
                 <label class="form-label" for="digistore_product_id">
-                    🔗 DigiStore24 Produkt-ID
+                    🔗 DigiStore24 Checkout-Link
                 </label>
                 <input 
                     type="text" 
                     id="digistore_product_id" 
                     name="digistore_product_id" 
                     class="form-input"
-                    placeholder="z.B. 12345">
-                <div class="form-hint">Deine DigiStore24 Produkt-ID für automatische Abwicklung. Vergiss nicht, die 15% Partnerprovision einzutragen!</div>
+                    placeholder="z.B. https://www.digistore24.com/product/12345 oder https://www.digistore24.com/redir/...">
+                <div class="form-hint">Gib hier deinen vollständigen DigiStore24 Checkout-Link oder Produkt-URL ein. Vergiss nicht, die 15% Partnerprovision einzutragen!</div>
             </div>
             
             <!-- Danke-Seiten Link zum Kopieren -->
@@ -1112,7 +1115,7 @@ function loadMarketplaceFreebies() {
         });
 }
 
-// Marktplatz-Karte erstellen
+// Marktplatz-Karte erstellen - AKTUALISIERT für Checkout-Links
 function createMarketplaceCard(freebie) {
     const nicheLabel = nicheLabels[freebie.niche] || '📂 Sonstiges';
     const bgColor = freebie.background_color || '#667eea';
@@ -1134,8 +1137,15 @@ function createMarketplaceCard(freebie) {
             </button>
         `;
     } else if (freebie.digistore_product_id) {
+        // Prüfen ob es eine URL oder nur eine ID ist
+        let checkoutUrl = freebie.digistore_product_id;
+        if (!checkoutUrl.startsWith('http')) {
+            // Wenn keine vollständige URL, dann als Produkt-ID behandeln
+            checkoutUrl = `https://www.digistore24.com/product/${freebie.digistore_product_id}`;
+        }
+        
         actionButton = `
-            <a href="https://www.digistore24.com/product/${freebie.digistore_product_id}" 
+            <a href="${checkoutUrl}" 
                target="_blank" 
                class="action-btn action-btn-primary">
                 💳 Jetzt kaufen
