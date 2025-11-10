@@ -45,7 +45,7 @@ try {
     $data = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$data) {
-        die('Kurs nicht gefunden');
+        die('❌ Freebie nicht gefunden oder kein Zugriff');
     }
     
     $freebie_id = $data['freebie_id'];
@@ -60,7 +60,7 @@ try {
     die('Fehler beim Laden des Kurses: ' . $e->getMessage());
 }
 
-// Module und Lektionen laden
+// Module und Lektionen laden - MIT Button-Feldern!
 try {
     $stmt = $pdo->prepare("
         SELECT 
@@ -73,6 +73,9 @@ try {
             l.description as lesson_description,
             l.video_url,
             l.pdf_url,
+            l.button_text,
+            l.button_url,
+            l.unlock_after_days,
             l.sort_order as lesson_order
         FROM freebie_course_modules m
         LEFT JOIN freebie_course_lessons l ON m.id = l.module_id
@@ -100,7 +103,10 @@ try {
                 'title' => $row['lesson_title'],
                 'description' => $row['lesson_description'],
                 'video_url' => $row['video_url'],
-                'pdf_url' => $row['pdf_url']
+                'pdf_url' => $row['pdf_url'],
+                'button_text' => $row['button_text'],
+                'button_url' => $row['button_url'],
+                'unlock_after_days' => $row['unlock_after_days']
             ];
         }
     }
@@ -628,6 +634,80 @@ $show_referral_cta = ($referral_enabled == 0);
             margin-bottom: 24px;
         }
         
+        /* ============================================
+           LEKTIONS-BUTTON STYLING
+           ============================================ */
+        
+        .lesson-button-container {
+            margin-bottom: 24px;
+        }
+        
+        .lesson-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 16px 32px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 
+                0 4px 20px rgba(139, 92, 246, 0.4),
+                0 0 30px rgba(139, 92, 246, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .lesson-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .lesson-button:hover {
+            transform: translateY(-3px) scale(1.03);
+            box-shadow: 
+                0 8px 30px rgba(139, 92, 246, 0.6),
+                0 0 50px rgba(139, 92, 246, 0.4);
+        }
+        
+        .lesson-button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        .lesson-button:active {
+            transform: translateY(-1px) scale(1.01);
+        }
+        
+        .lesson-button-icon {
+            font-size: 20px;
+        }
+        
+        .lesson-button-arrow {
+            font-size: 20px;
+            transition: transform 0.3s;
+        }
+        
+        .lesson-button:hover .lesson-button-arrow {
+            transform: translateX(5px);
+        }
+        
+        /* ============================================
+           ENDE LEKTIONS-BUTTON
+           ============================================ */
+        
         .lesson-actions {
             display: flex;
             gap: 12px;
@@ -854,6 +934,12 @@ $show_referral_cta = ($referral_enabled == 0);
                 justify-content: center;
             }
             
+            .lesson-button {
+                width: 100%;
+                padding: 14px 24px;
+                font-size: 15px;
+            }
+            
             /* Responsive CTA Banner */
             .referral-cta-banner {
                 padding: 20px;
@@ -997,6 +1083,20 @@ $show_referral_cta = ($referral_enabled == 0);
                     <p class="lesson-description" id="lessonDescription"><?php echo htmlspecialchars($current_lesson['description']); ?></p>
                 <?php endif; ?>
                 
+                <!-- Lektions-Button (falls vorhanden) -->
+                <?php if (!empty($current_lesson['button_text']) && !empty($current_lesson['button_url'])): ?>
+                <div class="lesson-button-container" id="lessonButtonContainer">
+                    <a href="<?php echo htmlspecialchars($current_lesson['button_url']); ?>" 
+                       class="lesson-button" 
+                       target="_blank"
+                       id="lessonButton">
+                        <span class="lesson-button-icon">🎯</span>
+                        <span id="lessonButtonText"><?php echo htmlspecialchars($current_lesson['button_text']); ?></span>
+                        <span class="lesson-button-arrow">→</span>
+                    </a>
+                </div>
+                <?php endif; ?>
+                
                 <div class="lesson-actions">
                     <?php if (!empty($lead_email)): ?>
                     <button class="btn btn-primary" id="btnComplete" onclick="toggleComplete()">
@@ -1044,6 +1144,8 @@ $show_referral_cta = ($referral_enabled == 0);
                                  data-title="<?php echo htmlspecialchars($lesson['title']); ?>"
                                  data-description="<?php echo htmlspecialchars($lesson['description'] ?? ''); ?>"
                                  data-pdf-url="<?php echo htmlspecialchars($lesson['pdf_url'] ?? ''); ?>"
+                                 data-button-text="<?php echo htmlspecialchars($lesson['button_text'] ?? ''); ?>"
+                                 data-button-url="<?php echo htmlspecialchars($lesson['button_url'] ?? ''); ?>"
                                  onclick="loadLesson(<?php echo $lesson['id']; ?>)">
                                 <span class="lesson-icon">
                                     <?php if ($is_completed): ?>
@@ -1095,6 +1197,8 @@ $show_referral_cta = ($referral_enabled == 0);
             const title = lessonItem.dataset.title;
             const description = lessonItem.dataset.description;
             const pdfUrl = lessonItem.dataset.pdfUrl;
+            const buttonText = lessonItem.dataset.buttonText;
+            const buttonUrl = lessonItem.dataset.buttonUrl;
             
             // Video aktualisieren
             const videoContainer = document.getElementById('videoContainer');
@@ -1116,6 +1220,39 @@ $show_referral_cta = ($referral_enabled == 0);
             const descEl = document.getElementById('lessonDescription');
             if (descEl) {
                 descEl.textContent = description;
+            }
+            
+            // Button aktualisieren
+            const buttonContainer = document.getElementById('lessonButtonContainer');
+            if (buttonText && buttonUrl) {
+                if (!buttonContainer) {
+                    // Container erstellen
+                    const newContainer = document.createElement('div');
+                    newContainer.id = 'lessonButtonContainer';
+                    newContainer.className = 'lesson-button-container';
+                    newContainer.innerHTML = `
+                        <a href="${buttonUrl}" class="lesson-button" target="_blank" id="lessonButton">
+                            <span class="lesson-button-icon">🎯</span>
+                            <span id="lessonButtonText">${buttonText}</span>
+                            <span class="lesson-button-arrow">→</span>
+                        </a>
+                    `;
+                    const descriptionEl = document.getElementById('lessonDescription');
+                    if (descriptionEl) {
+                        descriptionEl.after(newContainer);
+                    } else {
+                        document.querySelector('.lesson-info').insertBefore(newContainer, document.querySelector('.lesson-actions'));
+                    }
+                } else {
+                    // Button aktualisieren
+                    const button = document.getElementById('lessonButton');
+                    button.href = buttonUrl;
+                    document.getElementById('lessonButtonText').textContent = buttonText;
+                    buttonContainer.style.display = 'block';
+                }
+            } else if (buttonContainer) {
+                // Button verstecken
+                buttonContainer.style.display = 'none';
             }
             
             // Complete-Button aktualisieren
