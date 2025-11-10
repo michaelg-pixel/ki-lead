@@ -37,10 +37,10 @@ try {
             cf.course_duration,
             cf.marketplace_sales_count,
             cf.created_at,
-            c.name as creator_name,
-            c.email as creator_email
+            u.name as creator_name,
+            u.email as creator_email
         FROM customer_freebies cf
-        INNER JOIN customers c ON cf.customer_id = c.id
+        INNER JOIN users u ON cf.customer_id = u.id
         WHERE cf.marketplace_enabled = 1
     ";
     
