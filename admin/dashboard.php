@@ -139,9 +139,9 @@ $page = $_GET['page'] ?? 'overview';
                 <span class="nav-icon">🚀</span>
                 <span>Empfehlungen</span>
             </a>
-            <a href="?page=social" class="nav-item <?php echo $page === 'social' ? 'active' : ''; ?>">
-                <span class="nav-icon">📱</span>
-                <span>Social Media</span>
+            <a href="?page=jv-check" class="nav-item <?php echo $page === 'jv-check' ? 'active' : ''; ?>">
+                <span class="nav-icon">✅</span>
+                <span>JV Check Verifizierung</span>
             </a>
             <a href="?page=digistore" class="nav-item <?php echo $page === 'digistore' ? 'active' : ''; ?>">
                 <span class="nav-icon">🛒</span>
@@ -183,6 +183,7 @@ $page = $_GET['page'] ?? 'overview';
                         'course-edit' => 'Kurs bearbeiten',
                         'tutorials' => 'Anleitungen & Tutorials verwalten',
                         'referrals' => 'Empfehlungsprogramm-Übersicht',
+                        'jv-check' => 'JV Check Verifizierung',
                         'digistore' => 'Digistore24 Integration',
                         'settings' => 'Einstellungen',
                         'profile' => 'Admin-Profil'
@@ -311,6 +312,9 @@ $page = $_GET['page'] ?? 'overview';
             
             <?php elseif ($page === 'referrals'): ?>
                 <?php include 'sections/referrals.php'; ?>
+            
+            <?php elseif ($page === 'jv-check'): ?>
+                <?php include 'sections/jv-check.php'; ?>
             
             <?php elseif ($page === 'digistore'): ?>
                 <?php include 'sections/digistore.php'; ?>
