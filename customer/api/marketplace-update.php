@@ -4,11 +4,10 @@ session_start();
 // Login-Check
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
     http_response_code(401);
-    echo json_encode(['success' => false, 'message' => 'Nicht eingeloggt']);
-    exit;
+    die(json_encode(['success' => false, 'message' => 'Nicht eingeloggt']));
 }
 
-require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../../config/database.php';
 $pdo = getDBConnection();
 
 $customer_id = $_SESSION['user_id'];
@@ -19,8 +18,7 @@ header('Content-Type: application/json');
 // POST-Request verarbeiten
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
-    echo json_encode(['success' => false, 'message' => 'Nur POST erlaubt']);
-    exit;
+    die(json_encode(['success' => false, 'message' => 'Nur POST erlaubt']));
 }
 
 try {
@@ -48,8 +46,7 @@ try {
         SET marketplace_enabled = ?,
             marketplace_price = ?,
             digistore_product_id = ?,
-            marketplace_description = ?,
-            updated_at = NOW()
+            marketplace_description = ?
         WHERE id = ? AND customer_id = ?
     ");
     
@@ -62,15 +59,15 @@ try {
         $customer_id
     ]);
     
-    echo json_encode([
+    die(json_encode([
         'success' => true, 
         'message' => 'Marktplatz-Einstellungen erfolgreich gespeichert!'
-    ]);
+    ]));
     
 } catch (Exception $e) {
     http_response_code(400);
-    echo json_encode([
+    die(json_encode([
         'success' => false, 
         'message' => $e->getMessage()
-    ]);
+    ]));
 }
