@@ -2,7 +2,7 @@
 /**
  * Custom Freebie Editor mit Tab-System
  * Tab 1: Einstellungen (Optin-Seite) - Vollständiges Design
- * Tab 2: Videokurs (Module & Lektionen)
+ * Tab 2: Videokurs (Module & Lektionen) - MIT ALLEN FEATURES
  */
 
 session_start();
@@ -263,7 +263,7 @@ if ($course) {
     <?php endforeach; ?>
     
     <style>
-        /* Base Styles - SHORTENED FOR BREVITY - ALL STYLES FROM ORIGINAL */
+        /* Base Styles */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
@@ -356,6 +356,29 @@ if ($course) {
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
         
+        .panel-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .form-section { margin-bottom: 32px; }
+        .form-section:last-child { margin-bottom: 0; }
+        
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
         .form-group { margin-bottom: 20px; }
         
         .form-label {
@@ -387,6 +410,22 @@ if ($course) {
             min-height: 80px;
             font-family: 'Courier New', monospace;
         }
+        
+        .save-button {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-top: 24px;
+        }
+        
+        .save-button:hover { transform: translateY(-2px); }
         
         /* VIDEOKURS TAB STYLES */
         .course-header {
@@ -577,6 +616,28 @@ if ($course) {
             line-height: 1.6;
         }
         
+        .legal-info {
+            background: linear-gradient(135deg, #10B981, #059669);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            color: white;
+        }
+        
+        .legal-info h3 {
+            font-size: 16px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .legal-info p {
+            font-size: 13px;
+            opacity: 0.95;
+            line-height: 1.6;
+        }
+        
         /* Responsive */
         @media (max-width: 768px) {
             .tabs { flex-direction: column; }
@@ -618,14 +679,75 @@ if ($course) {
             <?php endif; ?>
         </div>
         
-        <!-- TAB 1: EINSTELLUNGEN (Hidden for brevity - keep original) -->
+        <!-- TAB 1: EINSTELLUNGEN -->
         <div class="tab-content <?php echo $active_tab === 'settings' ? 'active' : ''; ?>" id="tab-settings">
-            <div class="info-box">
-                <div class="info-box-title">💡 Einstellungen-Tab</div>
-                <div class="info-box-text">
-                    Die vollständigen Einstellungen sind vorhanden (Video, Mockup, Texte, Farben, etc.) - der Code wurde nur gekürzt für die Übersicht.
+            <form method="POST" id="freebieForm">
+                <div class="editor-panel">
+                    <h2 class="panel-title">⚙️ Einstellungen</h2>
+                    
+                    <!-- Rechtstexte Info -->
+                    <div class="legal-info">
+                        <h3>⚖️ Rechtstexte automatisch verknüpft!</h3>
+                        <p>Sobald du dieses Freebie speicherst, werden automatisch deine Impressum- und Datenschutz-Links im Footer der Freebie-Seite angezeigt.</p>
+                    </div>
+                    
+                    <!-- Video -->
+                    <div class="form-section">
+                        <div class="section-title">🎥 Video</div>
+                        <div class="form-group">
+                            <label class="form-label">Video URL</label>
+                            <input type="url" name="video_url" class="form-input"
+                                   value="<?php echo htmlspecialchars($form_data['video_url']); ?>"
+                                   placeholder="https://www.youtube.com/watch?v=...">
+                        </div>
+                    </div>
+                    
+                    <!-- Mockup-Bild -->
+                    <div class="form-section">
+                        <div class="section-title">🖼️ Mockup-Bild</div>
+                        <div class="form-group">
+                            <label class="form-label">Mockup-Bild URL</label>
+                            <input type="url" name="mockup_image_url" class="form-input"
+                                   value="<?php echo htmlspecialchars($form_data['mockup_image_url']); ?>"
+                                   placeholder="https://i.imgur.com/example.png">
+                        </div>
+                    </div>
+                    
+                    <!-- Texte -->
+                    <div class="form-section">
+                        <div class="section-title">✍️ Texte</div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Hauptüberschrift *</label>
+                            <input type="text" name="headline" class="form-input" required
+                                   value="<?php echo htmlspecialchars($form_data['headline']); ?>"
+                                   placeholder="Sichere dir jetzt deinen kostenlosen Zugang">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Bullet Points (eine pro Zeile)</label>
+                            <textarea name="bullet_points" class="form-textarea" style="font-family: inherit;"><?php echo htmlspecialchars($form_data['bullet_points']); ?></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Button Text *</label>
+                            <input type="text" name="cta_text" class="form-input" required
+                                   value="<?php echo htmlspecialchars($form_data['cta_text']); ?>"
+                                   placeholder="JETZT KOSTENLOS SICHERN">
+                        </div>
+                    </div>
+                    
+                    <!-- E-Mail Optin Code -->
+                    <div class="form-section">
+                        <div class="section-title">📧 E-Mail Optin Code</div>
+                        <textarea name="raw_code" class="form-textarea" rows="8"><?php echo htmlspecialchars($form_data['raw_code']); ?></textarea>
+                    </div>
+                    
+                    <button type="submit" name="save_freebie" class="save-button">
+                        💾 Freebie speichern
+                    </button>
                 </div>
-            </div>
+            </form>
         </div>
         
         <!-- TAB 2: VIDEOKURS -->
@@ -736,7 +858,7 @@ if ($course) {
         </div>
     </div>
     
-    <!-- Lesson Modal - VOLLSTÄNDIG MIT ALLEN FELDERN -->
+    <!-- Lesson Modal - VOLLSTÄNDIG -->
     <div class="modal" id="lessonModal">
         <div class="modal-content">
             <div class="modal-header" id="lessonModalHeader">Lektion hinzufügen</div>
@@ -750,7 +872,7 @@ if ($course) {
             
             <div class="form-group">
                 <label class="form-label">Beschreibung</label>
-                <textarea id="lessonDescription" class="form-textarea" placeholder="Kurze Beschreibung der Lektion..."></textarea>
+                <textarea id="lessonDescription" class="form-textarea" placeholder="Kurze Beschreibung..."></textarea>
             </div>
             
             <div class="form-group">
@@ -817,7 +939,7 @@ if ($course) {
             window.history.pushState({}, '', url);
         }
         
-        // Videokurs API Funktionen
+        // Videokurs API
         async function apiCall(action, data) {
             const response = await fetch('/customer/api/freebie-course-api.php', {
                 method: 'POST',
@@ -865,7 +987,7 @@ if ($course) {
             if (result.success) { location.reload(); } else { alert('Fehler: ' + result.error); }
         }
         
-        // Lektion Modal - NEU/BEARBEITEN
+        // Lektion Modal
         function openLessonModal(moduleId) {
             document.getElementById('lessonModalHeader').textContent = 'Lektion hinzufügen';
             document.getElementById('lessonId').value = '';
@@ -919,13 +1041,11 @@ if ($course) {
             
             let result;
             if (lessonId) {
-                // UPDATE
                 result = await apiCall('update_lesson', {
                     lesson_id: parseInt(lessonId),
                     ...data
                 });
             } else {
-                // CREATE
                 result = await apiCall('create_lesson', {
                     module_id: parseInt(document.getElementById('lessonModuleId').value),
                     ...data
