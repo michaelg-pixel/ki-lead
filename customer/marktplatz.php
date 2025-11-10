@@ -31,53 +31,6 @@ $nicheLabels = [
     'sonstiges' => '📂 Sonstiges'
 ];
 
-// AJAX Handler für Marktplatz-Updates
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
-    header('Content-Type: application/json');
-    
-    try {
-        if ($_POST['action'] === 'update_marketplace') {
-            $freebie_id = (int)$_POST['freebie_id'];
-            $enabled = (int)$_POST['enabled'];
-            $price = floatval($_POST['price']);
-            $digistore_id = (int)$_POST['digistore_id'];
-            $description = trim($_POST['description']);
-            
-            // Verify ownership
-            $stmt = $pdo->prepare("SELECT id FROM customer_freebies WHERE id = ? AND customer_id = ? AND freebie_type = 'custom'");
-            $stmt->execute([$freebie_id, $customer_id]);
-            
-            if (!$stmt->fetch()) {
-                throw new Exception('Freebie nicht gefunden');
-            }
-            
-            $stmt = $pdo->prepare("
-                UPDATE customer_freebies 
-                SET marketplace_enabled = ?,
-                    marketplace_price = ?,
-                    digistore_product_id = ?,
-                    marketplace_description = ?
-                WHERE id = ? AND customer_id = ?
-            ");
-            
-            $stmt->execute([
-                $enabled,
-                $price,
-                $digistore_id,
-                $description,
-                $freebie_id,
-                $customer_id
-            ]);
-            
-            echo json_encode(['success' => true, 'message' => 'Marktplatz-Einstellungen gespeichert!']);
-        }
-    } catch (Exception $e) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
-    }
-    exit;
-}
-
 // NUR eigene Custom Freebies laden
 try {
     $stmt = $pdo->prepare("
@@ -837,7 +790,6 @@ async function saveMarketplaceSettings(event) {
     const formData = new FormData(form);
     
     const data = {
-        action: 'update_marketplace',
         freebie_id: currentFreebieId,
         enabled: form.marketplace_enabled.checked ? 1 : 0,
         price: formData.get('marketplace_price') || 0,
@@ -851,7 +803,7 @@ async function saveMarketplaceSettings(event) {
     submitBtn.disabled = true;
     
     try {
-        const response = await fetch('?page=marktplatz', {
+        const response = await fetch('/customer/api/marketplace-update.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
