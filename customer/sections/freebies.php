@@ -1484,12 +1484,12 @@ function saveNiche(freebieId) {
             const card = document.querySelector(`[data-type] .niche-editor-section #niche-selector-${freebieId}`).closest('.freebie-card');
             if (card) {
                 card.setAttribute('data-niche', selectedNiche);
-            }
-            
-            // Update Badge
-            const nichebadge = card.querySelector('.badge-niche');
-            if (nicheBadge) {
-                nicheBadge.textContent = selectedLabel;
+                
+                // Update Badge
+                const nicheBadge = card.querySelector('.badge-niche');
+                if (nicheBadge) {
+                    nicheBadge.textContent = selectedLabel;
+                }
             }
             
             // Editor schließen
