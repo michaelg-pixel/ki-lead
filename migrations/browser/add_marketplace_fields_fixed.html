@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marktplatz Felder Migration (Fixed)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 900px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #667eea;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        
+        .status {
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .status.info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 2px solid #3b82f6;
+        }
+        
+        .status.success {
+            background: #dcfce7;
+            color: #166534;
+            border: 2px solid #22c55e;
+        }
+        
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 2px solid #ef4444;
+        }
+        
+        .status.warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 2px solid #f59e0b;
+        }
+        
+        .log {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+            margin-top: 20px;
+        }
+        
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .info-box {
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .info-box h3 {
+            color: #92400e;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        
+        .info-box ul {
+            margin-left: 20px;
+            color: #78350f;
+        }
+        
+        .info-box li {
+            margin-bottom: 5px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏪 Marktplatz Felder Migration (MySQL Fix)</h1>
+        <p class="subtitle">Erweitert die customer_freebies Tabelle für Marktplatz-Funktionalität</p>
+        
+        <div class="info-box">
+            <h3>Diese Migration fügt folgende Felder hinzu:</h3>
+            <ul>
+                <li><strong>marketplace_enabled</strong> - Ob das Freebie im Marktplatz sichtbar ist</li>
+                <li><strong>marketplace_price</strong> - Preis für das Freebie im Marktplatz</li>
+                <li><strong>digistore_product_id</strong> - DigiStore24 Produkt-ID</li>
+                <li><strong>marketplace_description</strong> - Beschreibung für Marktplatz</li>
+                <li><strong>course_lessons_count</strong> - Anzahl der Lektionen</li>
+                <li><strong>course_duration</strong> - Dauer des Kurses</li>
+                <li><strong>marketplace_sales_count</strong> - Anzahl Verkäufe</li>
+                <li><strong>marketplace_updated_at</strong> - Letzte Aktualisierung</li>
+                <li><strong>original_creator_id</strong> - Bei kopierten Freebies: Original-Ersteller</li>
+                <li><strong>copied_from_freebie_id</strong> - Bei kopierten Freebies: Original-Freebie</li>
+            </ul>
+        </div>
+        
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        
+        <div id="status" class="status info">
+            📊 Bereit für Migration. Diese Version ist MySQL-kompatibel.
+        </div>
+        
+        <div id="log" class="log" style="display: none;"></div>
+        
+        <button id="migrateBtn" onclick="runMigration()">🚀 Migration starten</button>
+    </div>
+    
+    <script>
+        async function runMigration() {
+            const statusDiv = document.getElementById('status');
+            const logDiv = document.getElementById('log');
+            const btn = document.getElementById('migrateBtn');
+            const progressBar = document.getElementById('progressBar');
+            const progressFill = document.getElementById('progressFill');
+            
+            btn.disabled = true;
+            logDiv.style.display = 'block';
+            progressBar.style.display = 'block';
+            logDiv.textContent = '';
+            
+            function log(message) {
+                logDiv.textContent += message + '\n';
+                logDiv.scrollTop = logDiv.scrollHeight;
+            }
+            
+            function updateProgress(percent) {
+                progressFill.style.width = percent + '%';
+            }
+            
+            try {
+                log('🔄 Starte MySQL-kompatible Migration...');
+                updateProgress(10);
+                
+                // Liste der hinzuzufügenden Spalten
+                const columns = [
+                    {
+                        name: 'marketplace_enabled',
+                        definition: 'BOOLEAN DEFAULT FALSE',
+                        description: 'Marktplatz-Aktivierung'
+                    },
+                    {
+                        name: 'marketplace_price',
+                        definition: 'DECIMAL(10,2) DEFAULT NULL',
+                        description: 'Preis'
+                    },
+                    {
+                        name: 'digistore_product_id',
+                        definition: 'VARCHAR(255) DEFAULT NULL',
+                        description: 'DigiStore24 Produkt-ID'
+                    },
+                    {
+                        name: 'marketplace_description',
+                        definition: 'TEXT DEFAULT NULL',
+                        description: 'Marktplatz-Beschreibung'
+                    },
+                    {
+                        name: 'course_lessons_count',
+                        definition: 'INT DEFAULT NULL',
+                        description: 'Anzahl Lektionen'
+                    },
+                    {
+                        name: 'course_duration',
+                        definition: 'VARCHAR(100) DEFAULT NULL',
+                        description: 'Kursdauer'
+                    },
+                    {
+                        name: 'marketplace_sales_count',
+                        definition: 'INT DEFAULT 0',
+                        description: 'Verkaufszähler'
+                    },
+                    {
+                        name: 'marketplace_updated_at',
+                        definition: 'TIMESTAMP NULL DEFAULT NULL',
+                        description: 'Letzte Aktualisierung'
+                    },
+                    {
+                        name: 'original_creator_id',
+                        definition: 'INT DEFAULT NULL',
+                        description: 'Original-Ersteller ID'
+                    },
+                    {
+                        name: 'copied_from_freebie_id',
+                        definition: 'INT DEFAULT NULL',
+                        description: 'Original-Freebie ID'
+                    }
+                ];
+                
+                log(`📝 Prüfe ${columns.length} Spalten...`);
+                updateProgress(20);
+                
+                let addedCount = 0;
+                let skippedCount = 0;
+                let errorCount = 0;
+                
+                for (let i = 0; i < columns.length; i++) {
+                    const column = columns[i];
+                    const percent = 20 + ((i + 1) / columns.length * 70);
+                    updateProgress(percent);
+                    
+                    log(`\n🔍 Prüfe Spalte: ${column.name} (${column.description})`);
+                    
+                    try {
+                        // Prüfe ob Spalte existiert
+                        const checkResponse = await fetch('/api/check-column.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                table: 'customer_freebies',
+                                column: column.name
+                            })
+                        });
+                        
+                        const checkData = await checkResponse.json();
+                        
+                        if (checkData.exists) {
+                            log(`   ⏭️  Übersprungen (existiert bereits)`);
+                            skippedCount++;
+                        } else {
+                            log(`   ➕ Füge hinzu: ${column.definition}`);
+                            
+                            // Spalte hinzufügen
+                            const sql = `ALTER TABLE customer_freebies ADD COLUMN ${column.name} ${column.definition}`;
+                            
+                            const addResponse = await fetch('/api/execute-migration.php', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    sql: sql,
+                                    migration_name: `add_marketplace_field_${column.name}`
+                                })
+                            });
+                            
+                            const addData = await addResponse.json();
+                            
+                            if (addData.success) {
+                                log(`   ✅ Erfolgreich hinzugefügt`);
+                                addedCount++;
+                            } else {
+                                log(`   ❌ Fehler: ${addData.error}`);
+                                errorCount++;
+                            }
+                        }
+                    } catch (error) {
+                        log(`   ❌ Fehler bei ${column.name}: ${error.message}`);
+                        errorCount++;
+                    }
+                    
+                    // Kleine Pause zwischen Requests
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                updateProgress(100);
+                
+                log('\n\n═══════════════════════════════════════');
+                log('📊 MIGRATIONS-ZUSAMMENFASSUNG');
+                log('═══════════════════════════════════════');
+                log(`✅ Hinzugefügt: ${addedCount} Spalte(n)`);
+                log(`⏭️  Übersprungen: ${skippedCount} Spalte(n) (existierten bereits)`);
+                if (errorCount > 0) {
+                    log(`❌ Fehler: ${errorCount} Spalte(n)`);
+                }
+                log('═══════════════════════════════════════\n');
+                
+                if (errorCount === 0 && addedCount > 0) {
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = `✅ Migration erfolgreich! ${addedCount} neue Spalte(n) hinzugefügt.`;
+                } else if (errorCount === 0 && addedCount === 0) {
+                    statusDiv.className = 'status warning';
+                    statusDiv.textContent = '⚠️ Alle Spalten existieren bereits. Keine Änderungen vorgenommen.';
+                } else {
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = `⚠️ Migration mit ${errorCount} Fehler(n) abgeschlossen. ${addedCount} Spalte(n) erfolgreich hinzugefügt.`;
+                }
+                
+                if (addedCount > 0 || skippedCount === columns.length) {
+                    log('\n🎉 Marktplatz-System ist jetzt einsatzbereit!');
+                    log('\nNächste Schritte:');
+                    log('1. Gehe zu Dashboard → Marktplatz');
+                    log('2. Wähle ein Freebie aus');
+                    log('3. Klicke auf "⚙️ Marktplatz-Einstellungen"');
+                    log('4. Fülle alle Felder aus und aktiviere den Marktplatz');
+                }
+                
+            } catch (error) {
+                log('\n❌ KRITISCHER FEHLER: ' + error.message);
+                log('Stack: ' + error.stack);
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '❌ Migration fehlgeschlagen: ' + error.message;
+                btn.disabled = false;
+                updateProgress(0);
+            }
+        }
+    </script>
+</body>
+</html>
