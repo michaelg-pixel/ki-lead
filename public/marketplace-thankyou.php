@@ -13,7 +13,6 @@ require_once __DIR__ . '/../config/database.php';
 $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
 $domain = $_SERVER['HTTP_HOST'];
 $loginUrl = $protocol . '://' . $domain . '/public/login.php';
-$supportEmail = 'support@mehr-infos-jetzt.de';
 
 // DigiStore24 Parameter auslesen
 $buyerEmail = $_GET['buyer_email'] ?? '';
@@ -25,20 +24,34 @@ $productId = $_GET['product_id'] ?? '';
 $sellerUserId = null;
 $impressumLink = null;
 $datenschutzLink = null;
+$hasLegalTexts = false;
 
 try {
     $pdo = getDBConnection();
     
     // Versuche den Verkäufer anhand der DigiStore-Produkt-ID zu finden
     if ($productId) {
+        // Methode 1: Exakte ID-Übereinstimmung
         $stmt = $pdo->prepare("
             SELECT customer_id 
             FROM customer_freebies 
-            WHERE digistore_product_id = ? OR digistore_product_id LIKE ?
+            WHERE digistore_product_id = ?
             LIMIT 1
         ");
-        $stmt->execute([$productId, '%/' . $productId . '%']);
+        $stmt->execute([$productId]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // Methode 2: Falls keine exakte Übereinstimmung, nach ID in URL suchen
+        if (!$result) {
+            $stmt = $pdo->prepare("
+                SELECT customer_id 
+                FROM customer_freebies 
+                WHERE digistore_product_id LIKE ?
+                LIMIT 1
+            ");
+            $stmt->execute(['%/' . $productId . '%']);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        }
         
         if ($result) {
             $sellerUserId = $result['customer_id'];
@@ -47,17 +60,26 @@ try {
     
     // Falls gefunden, Rechtstexte-Links generieren
     if ($sellerUserId) {
-        // Prüfen ob Rechtstexte existieren
+        // Prüfen ob Rechtstexte existieren und nicht leer sind
         $stmt = $pdo->prepare("
-            SELECT id FROM legal_texts 
-            WHERE user_id = ? 
-            AND (impressum != '' OR datenschutz != '')
+            SELECT impressum, datenschutz 
+            FROM legal_texts 
+            WHERE user_id = ?
         ");
         $stmt->execute([$sellerUserId]);
+        $legalTexts = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        if ($stmt->fetch()) {
-            $impressumLink = $protocol . '://' . $domain . '/impressum.php?user=' . $sellerUserId;
-            $datenschutzLink = $protocol . '://' . $domain . '/datenschutz.php?user=' . $sellerUserId;
+        if ($legalTexts) {
+            // Nur Links erstellen wenn Inhalte vorhanden sind
+            if (!empty(trim($legalTexts['impressum']))) {
+                $impressumLink = $protocol . '://' . $domain . '/impressum.php?user=' . $sellerUserId;
+                $hasLegalTexts = true;
+            }
+            
+            if (!empty(trim($legalTexts['datenschutz']))) {
+                $datenschutzLink = $protocol . '://' . $domain . '/datenschutz.php?user=' . $sellerUserId;
+                $hasLegalTexts = true;
+            }
         }
     }
 } catch (Exception $e) {
@@ -101,6 +123,7 @@ try {
             max-width: 700px;
             width: 100%;
             overflow: hidden;
+            margin-bottom: 20px;
         }
         
         .header {
@@ -307,93 +330,71 @@ try {
             background: #d97706;
         }
         
-        .support-box {
-            background: #f8fafc;
-            padding: 24px;
-            border-radius: 12px;
-            text-align: center;
-            margin-top: 32px;
-        }
-        
-        .support-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #1a1a2e;
-            margin-bottom: 8px;
-        }
-        
-        .support-text {
-            font-size: 14px;
-            color: #64748b;
-            margin-bottom: 16px;
-        }
-        
-        .support-email {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: 600;
-        }
-        
-        .support-email:hover {
-            text-decoration: underline;
-        }
-        
         /* Footer Styles */
         .footer {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.15);
             backdrop-filter: blur(10px);
-            padding: 20px;
-            margin-top: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 24px;
             border-radius: 16px;
             text-align: center;
-        }
-        
-        .footer-content {
             max-width: 700px;
             margin: 0 auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
         
         .footer-title {
             color: white;
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 12px;
-            opacity: 0.9;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            opacity: 0.95;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
         
         .footer-links {
             display: flex;
             justify-content: center;
-            gap: 24px;
+            gap: 16px;
             flex-wrap: wrap;
+            margin-bottom: 12px;
         }
         
         .footer-link {
             color: white;
             text-decoration: none;
-            font-size: 14px;
-            font-weight: 500;
-            padding: 8px 16px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            transition: all 0.2s;
+            font-size: 15px;
+            font-weight: 600;
+            padding: 12px 24px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            transition: all 0.3s;
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
         
         .footer-link:hover {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.3);
             transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
         }
         
         .footer-note {
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 12px;
-            margin-top: 12px;
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 13px;
+            line-height: 1.5;
         }
         
         @media (max-width: 640px) {
+            body {
+                padding: 16px;
+            }
+            
             .header {
                 padding: 32px 20px;
             }
@@ -420,12 +421,17 @@ try {
             }
             
             .footer {
-                padding: 16px;
+                padding: 20px 16px;
             }
             
             .footer-links {
                 flex-direction: column;
                 gap: 12px;
+            }
+            
+            .footer-link {
+                width: 100%;
+                justify-content: center;
             }
         }
     </style>
@@ -539,46 +545,40 @@ try {
                         </button>
                     </div>
                 </div>
-                
-                <!-- Support -->
-                <div class="support-box">
-                    <div class="support-title">💬 Brauchst du Hilfe?</div>
-                    <div class="support-text">
-                        Unser Support-Team steht dir gerne zur Verfügung!
-                    </div>
-                    <a href="mailto:<?php echo $supportEmail; ?>" class="support-email">
-                        <?php echo $supportEmail; ?>
-                    </a>
-                </div>
             </div>
         </div>
     </div>
     
     <!-- Footer mit Rechtstexten des Verkäufers -->
-    <?php if ($impressumLink || $datenschutzLink): ?>
+    <?php if ($hasLegalTexts): ?>
     <div class="footer">
-        <div class="footer-content">
-            <div class="footer-title">📄 Rechtliche Informationen</div>
-            <div class="footer-links">
-                <?php if ($impressumLink): ?>
-                    <a href="<?php echo htmlspecialchars($impressumLink); ?>" 
-                       target="_blank" 
-                       class="footer-link">
-                        📋 Impressum
-                    </a>
-                <?php endif; ?>
-                
-                <?php if ($datenschutzLink): ?>
-                    <a href="<?php echo htmlspecialchars($datenschutzLink); ?>" 
-                       target="_blank" 
-                       class="footer-link">
-                        🔒 Datenschutz
-                    </a>
-                <?php endif; ?>
-            </div>
-            <div class="footer-note">
-                Diese Rechtstexte stammen vom Verkäufer des Freebies
-            </div>
+        <div class="footer-title">
+            <span>⚖️</span>
+            <span>Rechtliche Informationen</span>
+        </div>
+        <div class="footer-links">
+            <?php if ($impressumLink): ?>
+                <a href="<?php echo htmlspecialchars($impressumLink); ?>" 
+                   target="_blank" 
+                   rel="noopener noreferrer"
+                   class="footer-link">
+                    <span>📋</span>
+                    <span>Impressum</span>
+                </a>
+            <?php endif; ?>
+            
+            <?php if ($datenschutzLink): ?>
+                <a href="<?php echo htmlspecialchars($datenschutzLink); ?>" 
+                   target="_blank" 
+                   rel="noopener noreferrer"
+                   class="footer-link">
+                    <span>🔒</span>
+                    <span>Datenschutz</span>
+                </a>
+            <?php endif; ?>
+        </div>
+        <div class="footer-note">
+            Diese Rechtstexte stammen vom Verkäufer des Freebies
         </div>
     </div>
     <?php endif; ?>
@@ -611,7 +611,7 @@ try {
             }
         }
         
-        // Smooth scroll animation
+        // Smooth fade-in animation
         window.addEventListener('load', function() {
             document.body.style.opacity = '0';
             setTimeout(() => {
