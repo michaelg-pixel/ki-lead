@@ -176,6 +176,33 @@ $courses = $pdo->query("
                     <input type="text" name="digistore_product_id" placeholder="z.B. 12345">
                     <small>Für automatische Freischaltung über Webhook</small>
                 </div>
+                
+                <!-- NEU: Trennlinie + CTA Button Sektion -->
+                <div class="col-span-2" style="border-top: 2px solid rgba(168, 85, 247, 0.2); margin: 8px 0; padding-top: 16px;">
+                    <h4 style="font-size: 15px; color: #c084fc; margin-bottom: 16px; font-weight: 700;">🔘 Call-to-Action Button (Optional)</h4>
+                </div>
+                
+                <!-- Button-Text -->
+                <div class="form-group col-span-2">
+                    <label>Button-Text</label>
+                    <input type="text" name="button_text" placeholder="z.B. Jetzt kaufen, Mehr erfahren" maxlength="100">
+                    <small>Wird im Course-Player als Button angezeigt</small>
+                </div>
+                
+                <!-- Button-URL -->
+                <div class="form-group col-span-2">
+                    <label>Button-Link (URL)</label>
+                    <input type="url" name="button_url" placeholder="https://...">
+                    <small>Wohin soll der Button verlinken?</small>
+                </div>
+                
+                <!-- Button-Neues Fenster -->
+                <div class="form-group col-span-2">
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" name="button_new_window" id="buttonNewWindow" checked>
+                        <label for="buttonNewWindow">🔗 Link in neuem Fenster öffnen</label>
+                    </div>
+                </div>
             </div>
             
             <div class="modal-footer">
