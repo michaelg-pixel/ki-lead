@@ -67,6 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete'])) {
     $headline = trim($_POST['headline'] ?? '');
     $subheadline = trim($_POST['subheadline'] ?? '');
     $preheadline = trim($_POST['preheadline'] ?? '');
+    $bullet_points = trim($_POST['bullet_points'] ?? '');
     $raw_code = trim($_POST['raw_code'] ?? '');
     
     $design_config_new = json_encode([
@@ -102,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete'])) {
             $stmt = $pdo->prepare("
                 UPDATE freebies 
                 SET name = ?, description = ?, template_type = ?, design_config = ?, customizable_fields = ?, 
-                    is_active = ?, headline = ?, subheadline = ?, preheadline = ?, mockup_image_url = ?,
+                    is_active = ?, headline = ?, subheadline = ?, preheadline = ?, bullet_points = ?, mockup_image_url = ?,
                     primary_color = ?, secondary_color = ?, raw_code = ?, updated_at = NOW()
                 WHERE id = ?
             ");
@@ -117,6 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete'])) {
                 $headline,
                 $subheadline,
                 $preheadline,
+                $bullet_points,
                 $mockup_url,
                 $primary_color,
                 $secondary_color,
@@ -412,6 +414,20 @@ $font_stacks = [
                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                                            placeholder="ohne diese selbst erstellen zu müssen"
                                            oninput="updatePreview()">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Bullet Points (eine pro Zeile)
+                                    </label>
+                                    <textarea 
+                                        id="bullet_points"
+                                        name="bullet_points" 
+                                        rows="5"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                        placeholder="✓ Sofortiger Zugang&#10;✓ Professionelle Inhalte&#10;✓ Schritt für Schritt Anleitung"
+                                        oninput="updatePreview()"><?php echo htmlspecialchars($template['bullet_points'] ?? ''); ?></textarea>
+                                    <p class="text-xs text-gray-500 mt-1">Tipp: Jeder Bullet Point in eine neue Zeile. Du kannst ✓, ✔, • oder - am Anfang verwenden.</p>
                                 </div>
                             </div>
                         </div>
@@ -809,6 +825,7 @@ $font_stacks = [
             const preheadline = document.getElementById('preheadline')?.value || '';
             const headline = document.getElementById('headline')?.value || '';
             const subheadline = document.getElementById('subheadline')?.value || '';
+            const bulletPoints = document.getElementById('bullet_points')?.value || '';
             const primaryColor = document.querySelector('input[name="color_primary"]')?.value || '#8B5CF6';
             const secondaryColor = document.querySelector('input[name="color_secondary"]')?.value || '#6D28D9';
             const textColor = document.querySelector('input[name="color_text"]')?.value || '#1F2937';
@@ -822,12 +839,27 @@ $font_stacks = [
             
             const previewBox = document.getElementById('previewBox');
             
+            // Bullet Points verarbeiten
+            let bulletHTML = '';
+            if (bulletPoints.trim()) {
+                const bullets = bulletPoints.split('\n').filter(b => b.trim());
+                bulletHTML = bullets.map(bullet => {
+                    const cleanBullet = bullet.replace(/^[✓✔︎•-]\s*/, '');
+                    return `<div style="display: flex; align-items: start; gap: 8px; margin-bottom: 8px;">
+                        <span style="color: ${primaryColor}; font-size: 14px;">✓</span>
+                        <span style="font-size: 12px; color: ${textColor};">${escapeHtml(cleanBullet)}</span>
+                    </div>`;
+                }).join('');
+                bulletHTML = `<div style="margin: 20px 0; text-align: left;">${bulletHTML}</div>`;
+            }
+            
             // Live-Vorschau mit websicheren Schriftarten
             const previewContent = `
                 <div style="background: ${bgColor}; color: ${textColor}; padding: 30px; border-radius: 12px; width: 100%; text-align: center; font-family: ${bodyFontStack};">
-                    ${preheadline ? `<p style="font-family: ${bodyFontStack}; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: ${secondaryColor}; margin-bottom: 12px; font-weight: 700;">${preheadline}</p>` : ''}
-                    ${headline ? `<h2 style="font-family: ${headingFontStack}; color: ${primaryColor}; font-size: 22px; font-weight: 700; margin-bottom: 10px; line-height: 1.3;">${headline}</h2>` : `<h2 style="font-family: ${headingFontStack}; color: ${primaryColor}; font-size: 22px; font-weight: 700; margin-bottom: 10px;">Deine Hauptüberschrift</h2>`}
-                    ${subheadline ? `<p style="font-family: ${bodyFontStack}; font-size: 14px; color: ${textColor}; opacity: 0.8; line-height: 1.6;">${subheadline}</p>` : `<p style="font-family: ${bodyFontStack}; font-size: 14px; color: ${textColor}; opacity: 0.8;">Deine Unterüberschrift</p>`}
+                    ${preheadline ? `<p style="font-family: ${bodyFontStack}; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: ${secondaryColor}; margin-bottom: 12px; font-weight: 700;">${escapeHtml(preheadline)}</p>` : ''}
+                    ${headline ? `<h2 style="font-family: ${headingFontStack}; color: ${primaryColor}; font-size: 22px; font-weight: 700; margin-bottom: 10px; line-height: 1.3;">${escapeHtml(headline)}</h2>` : `<h2 style="font-family: ${headingFontStack}; color: ${primaryColor}; font-size: 22px; font-weight: 700; margin-bottom: 10px;">Deine Hauptüberschrift</h2>`}
+                    ${subheadline ? `<p style="font-family: ${bodyFontStack}; font-size: 14px; color: ${textColor}; opacity: 0.8; line-height: 1.6; margin-bottom: 15px;">${escapeHtml(subheadline)}</p>` : ''}
+                    ${bulletHTML}
                     <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid ${primaryColor}; opacity: 0.3;"></div>
                     <p style="font-family: ${bodyFontStack}; font-size: 10px; color: ${textColor}; opacity: 0.5; margin-top: 10px;">
                         <i class="fas fa-check-circle" style="color: #10b981;"></i> Websichere Fonts - 100% DSGVO-konform
@@ -836,6 +868,12 @@ $font_stacks = [
             `;
             
             previewBox.innerHTML = previewContent;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
         
         function confirmDelete() {
