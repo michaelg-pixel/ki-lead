@@ -2,6 +2,7 @@
 /**
  * API: Kurs erstellen
  * POST /admin/api/courses/create.php
+ * ERWEITERT: Button-Felder (button_text, button_url, button_new_window)
  */
 
 session_start();
@@ -27,6 +28,11 @@ try {
     $is_freebie = isset($_POST['is_freebie']) ? 1 : 0;
     $digistore_product_id = $_POST['digistore_product_id'] ?? '';
     $niche = 'other'; // Default niche
+    
+    // NEU: Button-Felder
+    $button_text = $_POST['button_text'] ?? null;
+    $button_url = $_POST['button_url'] ?? null;
+    $button_new_window = isset($_POST['button_new_window']) ? 1 : 0;
     
     // Validation
     if (empty($title)) {
@@ -70,12 +76,42 @@ try {
         }
     }
     
-    // Prüfe ob niche Spalte existiert
-    $stmt = $pdo->query("SHOW COLUMNS FROM courses LIKE 'niche'");
-    $has_niche = $stmt->rowCount() > 0;
+    // Prüfe welche Spalten existieren
+    $stmt = $pdo->query("SHOW COLUMNS FROM courses");
+    $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
     
-    // Insert Course
-    if ($has_niche) {
+    $has_niche = in_array('niche', $columns);
+    $has_button_fields = in_array('button_text', $columns);
+    
+    // Insert Course - ERWEITERT mit Button-Feldern
+    if ($has_niche && $has_button_fields) {
+        $stmt = $pdo->prepare("
+            INSERT INTO courses (
+                title, description, type, additional_info, 
+                mockup_url, pdf_file, is_freebie, digistore_product_id, niche,
+                button_text, button_url, button_new_window
+            ) VALUES (
+                :title, :description, :type, :additional_info,
+                :mockup_url, :pdf_file, :is_freebie, :digistore_product_id, :niche,
+                :button_text, :button_url, :button_new_window
+            )
+        ");
+        
+        $stmt->execute([
+            'title' => $title,
+            'description' => $description,
+            'type' => $type,
+            'additional_info' => $additional_info,
+            'mockup_url' => $mockup_url,
+            'pdf_file' => $pdf_file,
+            'is_freebie' => $is_freebie,
+            'digistore_product_id' => $digistore_product_id,
+            'niche' => $niche,
+            'button_text' => $button_text,
+            'button_url' => $button_url,
+            'button_new_window' => $button_new_window
+        ]);
+    } elseif ($has_niche) {
         $stmt = $pdo->prepare("
             INSERT INTO courses (
                 title, description, type, additional_info, 
@@ -97,7 +133,34 @@ try {
             'digistore_product_id' => $digistore_product_id,
             'niche' => $niche
         ]);
+    } elseif ($has_button_fields) {
+        $stmt = $pdo->prepare("
+            INSERT INTO courses (
+                title, description, type, additional_info, 
+                mockup_url, pdf_file, is_freebie, digistore_product_id,
+                button_text, button_url, button_new_window
+            ) VALUES (
+                :title, :description, :type, :additional_info,
+                :mockup_url, :pdf_file, :is_freebie, :digistore_product_id,
+                :button_text, :button_url, :button_new_window
+            )
+        ");
+        
+        $stmt->execute([
+            'title' => $title,
+            'description' => $description,
+            'type' => $type,
+            'additional_info' => $additional_info,
+            'mockup_url' => $mockup_url,
+            'pdf_file' => $pdf_file,
+            'is_freebie' => $is_freebie,
+            'digistore_product_id' => $digistore_product_id,
+            'button_text' => $button_text,
+            'button_url' => $button_url,
+            'button_new_window' => $button_new_window
+        ]);
     } else {
+        // Fallback ohne niche und button fields
         $stmt = $pdo->prepare("
             INSERT INTO courses (
                 title, description, type, additional_info, 
