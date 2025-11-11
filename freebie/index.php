@@ -41,15 +41,34 @@ $background_color = $freebie['background_color'] ?? '#FFFFFF';
 // Font-Einstellungen
 $font_heading = $freebie['font_heading'] ?? 'Inter';
 $font_body = $freebie['font_body'] ?? 'Inter';
-$font_size = $freebie['font_size'] ?? 'medium';
 
-// Font-Größen Mapping
-$font_sizes = [
-    'small' => ['headline' => '32px', 'subheadline' => '16px', 'body' => '14px', 'preheadline' => '12px'],
-    'medium' => ['headline' => '48px', 'subheadline' => '20px', 'body' => '16px', 'preheadline' => '14px'],
-    'large' => ['headline' => '56px', 'subheadline' => '24px', 'body' => '18px', 'preheadline' => '16px']
+// 🆕 PIXEL-BASIERTE SCHRIFTGRÖSSEN AUS JSON LADEN
+$sizes = [
+    'headline' => '48px',
+    'subheadline' => '20px',
+    'body' => '16px',
+    'preheadline' => '14px'
 ];
-$sizes = $font_sizes[$font_size] ?? $font_sizes['medium'];
+
+// Versuche font_size JSON zu dekodieren
+if (!empty($freebie['font_size'])) {
+    $decoded = json_decode($freebie['font_size'], true);
+    if ($decoded && is_array($decoded)) {
+        // Pixel-Werte mit "px" Suffix
+        if (isset($decoded['headline'])) {
+            $sizes['headline'] = $decoded['headline'] . 'px';
+        }
+        if (isset($decoded['subheadline'])) {
+            $sizes['subheadline'] = $decoded['subheadline'] . 'px';
+        }
+        if (isset($decoded['bullet'])) {
+            $sizes['body'] = $decoded['bullet'] . 'px';
+        }
+        if (isset($decoded['preheadline'])) {
+            $sizes['preheadline'] = $decoded['preheadline'] . 'px';
+        }
+    }
+}
 
 // Mockup und Video
 $show_mockup = !empty($freebie['mockup_image_url']);
