@@ -100,12 +100,14 @@ function getVideoEmbedUrl($url) {
 
 $video_embed_url = getVideoEmbedUrl($video_url);
 
-// Custom Code / Tracking extrahieren
+// Custom Code / Tracking UND E-Mail Optin Code extrahieren
 $custom_tracking_code = '';
+$email_optin_code = '';
 if (!empty($freebie['raw_code'])) {
     $parts = explode('<!-- CUSTOM_TRACKING_CODE -->', $freebie['raw_code']);
+    $email_optin_code = trim($parts[0]); // E-Mail Optin Code
     if (isset($parts[1])) {
-        $custom_tracking_code = trim($parts[1]);
+        $custom_tracking_code = trim($parts[1]); // Tracking Code
     }
 }
 
@@ -311,6 +313,12 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
         .cta-button:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        
+        /* Direct Form Embedding */
+        .direct-form-container {
+            max-width: 500px;
+            margin: 0 auto;
         }
         
         /* Button Animations */
@@ -673,7 +681,6 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
                             
                             // Icon extrahieren je nach Style
                             if ($bullet_icon_style === 'custom') {
-                                // Emoji/Icon am Anfang erkennen
                                 $icon = '✓';
                                 $text = $bullet;
                                 if (preg_match('/^([\x{1F300}-\x{1F9FF}]|[\x{2600}-\x{26FF}]|[\x{2700}-\x{27BF}]|[^\w\s])/u', $bullet, $match)) {
@@ -681,7 +688,6 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
                                     $text = trim(substr($bullet, strlen($icon)));
                                 }
                             } else {
-                                // Standard: grüner Haken
                                 $icon = '✓';
                                 $text = preg_replace('/^[✓✔︎•-]\s*/', '', $bullet);
                             }
@@ -694,13 +700,27 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
                     </div>
                 <?php endif; ?>
                 
+                <!-- CTA: Button (Popup) ODER Formular (Direct) -->
                 <div class="cta-container">
-                    <button 
-                        class="cta-button <?php echo $cta_animation !== 'none' ? 'animate-' . $cta_animation : ''; ?>"
-                        onclick="handleCTAClick()"
-                    >
-                        <?php echo htmlspecialchars($freebie['cta_text']); ?>
-                    </button>
+                    <?php if ($optin_display_mode === 'popup'): ?>
+                        <button 
+                            class="cta-button <?php echo $cta_animation !== 'none' ? 'animate-' . $cta_animation : ''; ?>"
+                            onclick="handleCTAClick()"
+                        >
+                            <?php echo htmlspecialchars($freebie['cta_text']); ?>
+                        </button>
+                    <?php else: ?>
+                        <!-- Direct Mode: Formular einbetten oder Link -->
+                        <?php if (!empty($email_optin_code)): ?>
+                            <div class="direct-form-container">
+                                <?php echo $email_optin_code; ?>
+                            </div>
+                        <?php else: ?>
+                            <a href="/freebie/thankyou.php?id=<?php echo $unique_id; ?>" class="cta-button">
+                                <?php echo htmlspecialchars($freebie['cta_text']); ?>
+                            </a>
+                        <?php endif; ?>
+                    <?php endif; ?>
                 </div>
             </div>
             
@@ -760,12 +780,26 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
                         </div>
                     <?php endif; ?>
                     
-                    <button 
-                        class="cta-button <?php echo $cta_animation !== 'none' ? 'animate-' . $cta_animation : ''; ?>"
-                        onclick="handleCTAClick()"
-                    >
-                        <?php echo htmlspecialchars($freebie['cta_text']); ?>
-                    </button>
+                    <!-- CTA: Button (Popup) ODER Formular (Direct) -->
+                    <?php if ($optin_display_mode === 'popup'): ?>
+                        <button 
+                            class="cta-button <?php echo $cta_animation !== 'none' ? 'animate-' . $cta_animation : ''; ?>"
+                            onclick="handleCTAClick()"
+                        >
+                            <?php echo htmlspecialchars($freebie['cta_text']); ?>
+                        </button>
+                    <?php else: ?>
+                        <!-- Direct Mode: Formular einbetten oder Link -->
+                        <?php if (!empty($email_optin_code)): ?>
+                            <div class="direct-form-container">
+                                <?php echo $email_optin_code; ?>
+                            </div>
+                        <?php else: ?>
+                            <a href="/freebie/thankyou.php?id=<?php echo $unique_id; ?>" class="cta-button">
+                                <?php echo htmlspecialchars($freebie['cta_text']); ?>
+                            </a>
+                        <?php endif; ?>
+                    <?php endif; ?>
                 </div>
             </div>
             
@@ -812,12 +846,26 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
                         </div>
                     <?php endif; ?>
                     
-                    <button 
-                        class="cta-button <?php echo $cta_animation !== 'none' ? 'animate-' . $cta_animation : ''; ?>"
-                        onclick="handleCTAClick()"
-                    >
-                        <?php echo htmlspecialchars($freebie['cta_text']); ?>
-                    </button>
+                    <!-- CTA: Button (Popup) ODER Formular (Direct) -->
+                    <?php if ($optin_display_mode === 'popup'): ?>
+                        <button 
+                            class="cta-button <?php echo $cta_animation !== 'none' ? 'animate-' . $cta_animation : ''; ?>"
+                            onclick="handleCTAClick()"
+                        >
+                            <?php echo htmlspecialchars($freebie['cta_text']); ?>
+                        </button>
+                    <?php else: ?>
+                        <!-- Direct Mode: Formular einbetten oder Link -->
+                        <?php if (!empty($email_optin_code)): ?>
+                            <div class="direct-form-container">
+                                <?php echo $email_optin_code; ?>
+                            </div>
+                        <?php else: ?>
+                            <a href="/freebie/thankyou.php?id=<?php echo $unique_id; ?>" class="cta-button">
+                                <?php echo htmlspecialchars($freebie['cta_text']); ?>
+                            </a>
+                        <?php endif; ?>
+                    <?php endif; ?>
                 </div>
                 
                 <!-- Media Rechts -->
