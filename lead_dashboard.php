@@ -962,35 +962,6 @@ if ($lead['user_id']) {
                 </div>
             </div>
             
-            <!-- KI Super Mailer Box -->
-            <div class="ki-mailer-box">
-                <h2>
-                    <i class="fas fa-robot"></i>
-                    KI Super Mailer
-                </h2>
-                <p>
-                    Schreibt verkaufsstarke E-Mails im Stil von einem Profi Online Marketer.
-                </p>
-                
-                <div class="ki-mailer-features">
-                    <h3>Beispiel Funktionen:</h3>
-                    <ul>
-                        <li>Nimm diese E-Mail und erstelle eine neue konvertierende Version</li>
-                        <li>Erstelle 3 starke Betreff's und Call-to-Action für dieses Angebot</li>
-                        <li>Erstelle 3 aufeinander aufbauende E-Mails für folgendes Produkt</li>
-                        <li>Analysiere folgende URL und Erstelle 3 aufeinander aufbauende E-Mails</li>
-                    </ul>
-                </div>
-                
-                <a href="https://chatgpt.com/g/g-6894b36839dc81918fbd77eedd74415c-ki-super-mailer" 
-                   target="_blank" 
-                   rel="noopener noreferrer" 
-                   class="ki-mailer-btn">
-                    <i class="fas fa-external-link-alt"></i>
-                    Jetzt KI Super Mailer nutzen
-                </a>
-            </div>
-            
             <!-- Freebie Auswahl -->
             <?php if (!empty($freebies)): ?>
             <div class="freebie-selection-section">
@@ -1264,6 +1235,35 @@ if ($lead['user_id']) {
             <div class="header">
                 <h1>📝 Vorlagen & Templates</h1>
                 <p>Fertige Texte zum Kopieren und Verwenden</p>
+            </div>
+            
+            <!-- KI Super Mailer Box -->
+            <div class="ki-mailer-box">
+                <h2>
+                    <i class="fas fa-robot"></i>
+                    KI Super Mailer
+                </h2>
+                <p>
+                    Schreibt verkaufsstarke E-Mails im Stil von einem Profi Online Marketer.
+                </p>
+                
+                <div class="ki-mailer-features">
+                    <h3>Beispiel Funktionen:</h3>
+                    <ul>
+                        <li>Nimm diese E-Mail und erstelle eine neue konvertierende Version</li>
+                        <li>Erstelle 3 starke Betreff's und Call-to-Action für dieses Angebot</li>
+                        <li>Erstelle 3 aufeinander aufbauende E-Mails für folgendes Produkt</li>
+                        <li>Analysiere folgende URL und Erstelle 3 aufeinander aufbauende E-Mails</li>
+                    </ul>
+                </div>
+                
+                <a href="https://chatgpt.com/g/g-6894b36839dc81918fbd77eedd74415c-ki-super-mailer" 
+                   target="_blank" 
+                   rel="noopener noreferrer" 
+                   class="ki-mailer-btn">
+                    <i class="fas fa-external-link-alt"></i>
+                    Jetzt KI Super Mailer nutzen
+                </a>
             </div>
             
             <!-- E-Mail Vorlagen -->
