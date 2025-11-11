@@ -698,35 +698,241 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         }
         
         @media (max-width: 768px) {
+            /* Header mobile */
+            .page-header {
+                padding: 16px 0;
+            }
+            
+            .header-content {
+                padding: 0 16px;
+            }
+            
             .hero-headline {
-                font-size: 36px;
+                font-size: 28px;
+                margin: 12px 0;
             }
             
             .hero-subheadline {
-                font-size: 16px;
+                font-size: 15px;
+            }
+            
+            .success-badge {
+                font-size: 12px;
+                padding: 8px 16px;
+            }
+            
+            /* Warning Banner mobile */
+            .warning-banner {
+                padding: 12px 0;
+            }
+            
+            .warning-content {
+                padding: 0 16px;
+                gap: 8px;
+            }
+            
+            .warning-icon {
+                font-size: 20px;
+            }
+            
+            .warning-text {
+                font-size: 13px;
+            }
+            
+            /* Main Layout - Mobile zuerst Video */
+            .main-layout {
+                padding: 24px 16px;
+                gap: 24px;
+                display: flex;
+                flex-direction: column;
+            }
+            
+            /* Video ZUERST auf Mobile */
+            .video-sidebar {
+                order: -1;
+                max-width: 100%;
+                position: static !important;
+            }
+            
+            .video-wrapper {
+                border-radius: 16px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            }
+            
+            /* Content danach */
+            .content-area {
+                order: 1;
+                gap: 24px;
             }
             
             .content-box {
-                padding: 28px 20px;
+                padding: 24px 20px;
+                border-radius: 20px;
             }
             
+            .course-info {
+                padding: 20px 24px;
+                margin-bottom: 24px;
+            }
+            
+            .course-info-title {
+                font-size: 20px;
+            }
+            
+            .button-container {
+                gap: 12px;
+            }
+            
+            .cta-button,
+            .referral-button {
+                width: 100%;
+                font-size: 16px;
+                padding: 16px 32px;
+            }
+            
+            .access-info {
+                font-size: 12px;
+                flex-wrap: wrap;
+            }
+            
+            /* Mockup mobile */
+            .mockup-image {
+                max-width: 200px;
+            }
+            
+            .mockup-placeholder {
+                width: 200px;
+                font-size: 50px;
+            }
+            
+            /* Referral Promo mobile */
             .referral-promo {
-                padding: 28px 20px;
+                padding: 24px 20px;
+                border-radius: 20px;
             }
             
+            .referral-promo-title {
+                font-size: 24px;
+            }
+            
+            .referral-promo-subtitle {
+                font-size: 14px;
+            }
+            
+            .referral-benefits {
+                gap: 12px;
+                margin-bottom: 24px;
+            }
+            
+            .benefit-item {
+                padding: 16px;
+            }
+            
+            .benefit-icon {
+                font-size: 24px;
+            }
+            
+            .benefit-content h4 {
+                font-size: 15px;
+            }
+            
+            .benefit-content p {
+                font-size: 13px;
+            }
+            
+            .referral-cta-button {
+                width: 100%;
+                font-size: 16px;
+                padding: 16px 32px;
+            }
+            
+            /* Bookmark mobile */
             .bookmark-banner {
                 flex-direction: column;
                 text-align: center;
+                padding: 24px 20px;
+            }
+            
+            .bookmark-icon {
+                font-size: 36px;
+            }
+            
+            .bookmark-title {
+                font-size: 17px;
+            }
+            
+            .bookmark-text {
+                font-size: 13px;
+            }
+            
+            .bookmark-button {
+                width: 100%;
+            }
+            
+            /* Steps mobile */
+            .steps-title {
+                font-size: 22px;
+                margin-bottom: 20px;
             }
             
             .steps-grid {
                 gap: 16px;
             }
             
+            .step {
+                padding: 24px 20px;
+            }
+            
+            .step-number {
+                width: 60px;
+                height: 60px;
+                font-size: 30px;
+                margin-bottom: 16px;
+            }
+            
+            .step h3 {
+                font-size: 18px;
+                margin-bottom: 10px;
+            }
+            
+            .step p {
+                font-size: 14px;
+            }
+            
+            /* Footer mobile */
+            .footer {
+                padding: 24px 16px;
+            }
+            
+            .footer-text {
+                font-size: 13px;
+            }
+            
+            .footer-links {
+                gap: 16px;
+                font-size: 13px;
+            }
+        }
+        
+        /* Extra klein - sehr kleine Handys */
+        @media (max-width: 375px) {
+            .hero-headline {
+                font-size: 24px;
+            }
+            
+            .hero-subheadline {
+                font-size: 14px;
+            }
+            
+            .referral-promo-title {
+                font-size: 20px;
+            }
+            
             .cta-button,
-            .referral-button {
-                font-size: 16px;
-                padding: 16px 32px;
+            .referral-button,
+            .referral-cta-button {
+                font-size: 15px;
+                padding: 14px 28px;
             }
         }
     </style>
