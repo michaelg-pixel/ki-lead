@@ -1,7 +1,7 @@
 <?php
 /**
  * Course Player - Videokurs & PDF-Kurs Ansicht mit Multi-Video & Drip-Content Support
- * Features: Tabs für mehrere Videos, zeitbasierte Freischaltung, Fortschritt-Tracking, PDF-Anzeige
+ * Features: Tabs für mehrere Videos, zeitbasierte Freischaltung, Fortschritt-Tracking, PDF-Anzeige, CTA-Button
  * ÖFFENTLICHER ZUGANG: Wenn via Freebie-Link mit access_token zugegriffen wird
  */
 
@@ -647,6 +647,45 @@ if ($is_public_access) {
             cursor: default;
         }
 
+        /* NEU: CTA Button Styles */
+        .cta-button-container {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 2px solid var(--border);
+        }
+
+        .cta-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 16px 40px;
+            background: linear-gradient(135deg, #ec4899, #f59e0b);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 24px rgba(236, 72, 153, 0.4);
+            text-align: center;
+            width: 100%;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 32px rgba(236, 72, 153, 0.6);
+            background: linear-gradient(135deg, #db2777, #f59e0b);
+        }
+
+        .cta-button::after {
+            content: '→';
+            font-size: 20px;
+            font-weight: 700;
+        }
+
         /* Sidebar */
         .sidebar {
             width: 380px;
@@ -845,6 +884,11 @@ if ($is_public_access) {
                 flex-direction: column;
                 align-items: stretch;
             }
+
+            .cta-button {
+                padding: 14px 32px;
+                font-size: 15px;
+            }
         }
 
         /* Scrollbar */
@@ -1039,6 +1083,17 @@ if ($is_public_access) {
                         <?php echo $current_lesson['completed'] ? 'disabled' : ''; ?>>
                     <?php echo $current_lesson['completed'] ? '✅ Lektion abgeschlossen' : '✓ Als abgeschlossen markieren'; ?>
                 </button>
+                <?php endif; ?>
+                
+                <!-- NEU: CTA Button (nur wenn konfiguriert) -->
+                <?php if (!empty($course['button_text']) && !empty($course['button_url'])): ?>
+                <div class="cta-button-container">
+                    <a href="<?php echo htmlspecialchars($course['button_url']); ?>" 
+                       class="cta-button"
+                       <?php echo $course['button_new_window'] ? 'target="_blank" rel="noopener noreferrer"' : ''; ?>>
+                        <?php echo htmlspecialchars($course['button_text']); ?>
+                    </a>
+                </div>
                 <?php endif; ?>
             </div>
             <?php endif; ?>
