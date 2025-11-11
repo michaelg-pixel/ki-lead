@@ -278,7 +278,7 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <p>Du hast <strong><?php echo $customFreebiesCount; ?> / <?php echo $freebieLimit; ?></strong> eigene Freebies erstellt</p>
         </div>
         <?php if ($customFreebiesCount < $freebieLimit): ?>
-            <a href="/customer/edit-freebie.php" class="btn-create">✨ Eigenes Freebie erstellen</a>
+            <a href="/public/customer/edit-freebie.php" class="btn-create">✨ Eigenes Freebie erstellen</a>
         <?php else: ?>
             <button class="btn-create" disabled>🔒 Limit erreicht</button>
         <?php endif; ?>
@@ -350,7 +350,7 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     <?php echo $isUsed ? '✏️ Bearbeiten' : '✨ Nutzen'; ?>
                                 </a>
                                 <?php if ($hasCourse): ?>
-                                    <a href="/customer/edit-course.php?id=<?php echo $customerData['customer_freebie_id']; ?>" class="btn btn-course" title="Videokurs bearbeiten">🎓 Kurs</a>
+                                    <a href="/public/customer/edit-course.php?id=<?php echo $customerData['customer_freebie_id']; ?>" class="btn btn-course" title="Videokurs bearbeiten">🎓 Kurs</a>
                                 <?php endif; ?>
                             </div>
                             
@@ -402,7 +402,7 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <h3 class="empty-title">Noch keine eigenen Freebies</h3>
                 <p class="empty-text">Erstelle dein erstes eigenes Freebie!</p>
                 <?php if ($customFreebiesCount < $freebieLimit): ?>
-                    <a href="/customer/edit-freebie.php" class="btn-create" style="margin-top: 20px;">✨ Jetzt erstellen</a>
+                    <a href="/public/customer/edit-freebie.php" class="btn-create" style="margin-top: 20px;">✨ Jetzt erstellen</a>
                 <?php endif; ?>
             </div>
         <?php else: ?>
@@ -436,9 +436,9 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             
                             <div class="freebie-actions <?php echo $hasCourse ? 'has-course' : ''; ?>">
                                 <a href="/customer/freebie-preview.php?id=<?php echo $custom['id']; ?>" class="btn btn-preview">👁️ Vorschau</a>
-                                <a href="/customer/edit-freebie.php?id=<?php echo $custom['id']; ?>" class="btn btn-edit">✏️ Bearbeiten</a>
+                                <a href="/public/customer/edit-freebie.php?id=<?php echo $custom['id']; ?>" class="btn btn-edit">✏️ Bearbeiten</a>
                                 <?php if ($hasCourse): ?>
-                                    <a href="/customer/edit-course.php?id=<?php echo $custom['id']; ?>" class="btn btn-course" title="Videokurs bearbeiten">🎓 Kurs</a>
+                                    <a href="/public/customer/edit-course.php?id=<?php echo $custom['id']; ?>" class="btn btn-course" title="Videokurs bearbeiten">🎓 Kurs</a>
                                 <?php endif; ?>
                             </div>
                             
