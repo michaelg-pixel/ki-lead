@@ -1,6 +1,6 @@
 <?php
 /**
- * VERBESSERTE Freebies Section - Mit Mockups, Danke-Links und korrekten Pfaden
+ * VERBESSERTE Freebies Section - Mit korrekten Links und Videokurs-Zugang
  */
 
 global $pdo;
@@ -34,7 +34,7 @@ $templates = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Angepasste Templates laden
 $stmt = $pdo->prepare("
-    SELECT template_id, id as customer_freebie_id, unique_id, mockup_image_url
+    SELECT template_id, id as customer_freebie_id, unique_id, mockup_image_url, has_course
     FROM customer_freebies 
     WHERE customer_id = ? AND (freebie_type = 'template' OR freebie_type IS NULL)
 ");
@@ -173,6 +173,9 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
     gap: 12px;
     margin-bottom: 16px;
 }
+.freebie-actions.has-course {
+    grid-template-columns: 1fr 1fr 1fr;
+}
 .btn {
     padding: 12px 20px;
     border: none;
@@ -192,6 +195,8 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
 .btn-preview:hover { background: rgba(255, 255, 255, 0.2); }
 .btn-edit { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
 .btn-edit:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4); }
+.btn-course { background: rgba(251, 146, 60, 0.2); color: #fb923c; border: 1px solid rgba(251, 146, 60, 0.3); }
+.btn-course:hover { background: rgba(251, 146, 60, 0.3); }
 
 .link-section {
     margin-top: 16px;
@@ -256,6 +261,7 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
     .freebies-grid { grid-template-columns: 1fr; }
     .limit-banner { flex-direction: column; text-align: center; }
     .freebie-actions { grid-template-columns: 1fr; }
+    .freebie-actions.has-course { grid-template-columns: 1fr; }
 }
 </style>
 
@@ -272,7 +278,7 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <p>Du hast <strong><?php echo $customFreebiesCount; ?> / <?php echo $freebieLimit; ?></strong> eigene Freebies erstellt</p>
         </div>
         <?php if ($customFreebiesCount < $freebieLimit): ?>
-            <a href="/customer/custom-freebie-editor-tabs.php" class="btn-create">✨ Eigenes Freebie erstellen</a>
+            <a href="/public/customer/edit-freebie.php" class="btn-create">✨ Eigenes Freebie erstellen</a>
         <?php else: ?>
             <button class="btn-create" disabled>🔒 Limit erreicht</button>
         <?php endif; ?>
@@ -306,6 +312,7 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     
                     $bgColor = $template['background_color'] ?? '#667eea';
                     $primaryColor = $template['primary_color'] ?? '#667eea';
+                    $hasCourse = $isUsed && $customerData && !empty($customerData['has_course']);
                 ?>
                     <div class="freebie-card">
                         <div class="freebie-mockup" style="background: <?php echo htmlspecialchars($bgColor); ?>;">
@@ -333,15 +340,18 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <p class="freebie-subtitle"><?php echo htmlspecialchars($template['subheadline']); ?></p>
                             <?php endif; ?>
                             
-                            <div class="freebie-actions">
+                            <div class="freebie-actions <?php echo $hasCourse ? 'has-course' : ''; ?>">
                                 <?php if ($isUsed): ?>
-                                    <a href="/customer/freebie-preview.php?id=<?php echo $customerData['customer_freebie_id']; ?>" class="btn btn-preview">👁️ Meine Version</a>
+                                    <a href="/customer/freebie-preview.php?id=<?php echo $customerData['customer_freebie_id']; ?>" class="btn btn-preview">👁️ Vorschau</a>
                                 <?php else: ?>
                                     <a href="/template-preview.php?template_id=<?php echo $template['id']; ?>" class="btn btn-preview" target="_blank">👁️ Vorschau</a>
                                 <?php endif; ?>
                                 <a href="/customer/freebie-editor.php?template_id=<?php echo $template['id']; ?>" class="btn btn-edit">
                                     <?php echo $isUsed ? '✏️ Bearbeiten' : '✨ Nutzen'; ?>
                                 </a>
+                                <?php if ($hasCourse): ?>
+                                    <a href="/public/customer/edit-course.php?id=<?php echo $customerData['customer_freebie_id']; ?>" class="btn btn-course" title="Videokurs bearbeiten">🎓 Kurs</a>
+                                <?php endif; ?>
                             </div>
                             
                             <?php if ($isUsed && $customerData): ?>
@@ -392,7 +402,7 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <h3 class="empty-title">Noch keine eigenen Freebies</h3>
                 <p class="empty-text">Erstelle dein erstes eigenes Freebie!</p>
                 <?php if ($customFreebiesCount < $freebieLimit): ?>
-                    <a href="/customer/custom-freebie-editor-tabs.php" class="btn-create" style="margin-top: 20px;">✨ Jetzt erstellen</a>
+                    <a href="/public/customer/edit-freebie.php" class="btn-create" style="margin-top: 20px;">✨ Jetzt erstellen</a>
                 <?php endif; ?>
             </div>
         <?php else: ?>
@@ -400,6 +410,7 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <?php foreach ($customFreebies as $custom): 
                     $bgColor = $custom['background_color'] ?? '#667eea';
                     $primaryColor = $custom['primary_color'] ?? '#667eea';
+                    $hasCourse = !empty($custom['has_course']);
                 ?>
                     <div class="freebie-card">
                         <div class="freebie-mockup" style="background: <?php echo htmlspecialchars($bgColor); ?>;">
@@ -423,9 +434,12 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <p class="freebie-subtitle"><?php echo htmlspecialchars($custom['subheadline']); ?></p>
                             <?php endif; ?>
                             
-                            <div class="freebie-actions">
+                            <div class="freebie-actions <?php echo $hasCourse ? 'has-course' : ''; ?>">
                                 <a href="/customer/freebie-preview.php?id=<?php echo $custom['id']; ?>" class="btn btn-preview">👁️ Vorschau</a>
-                                <a href="/customer/custom-freebie-editor-tabs.php?id=<?php echo $custom['id']; ?>" class="btn btn-edit">✏️ Bearbeiten</a>
+                                <a href="/public/customer/edit-freebie.php?id=<?php echo $custom['id']; ?>" class="btn btn-edit">✏️ Bearbeiten</a>
+                                <?php if ($hasCourse): ?>
+                                    <a href="/public/customer/edit-course.php?id=<?php echo $custom['id']; ?>" class="btn btn-course" title="Videokurs bearbeiten">🎓 Kurs</a>
+                                <?php endif; ?>
                             </div>
                             
                             <div class="link-section">
