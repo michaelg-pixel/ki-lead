@@ -2,6 +2,7 @@
 /**
  * API: Kurs aktualisieren
  * POST /admin/api/courses/update.php
+ * ERWEITERT: Button-Felder (button_text, button_url, button_new_window)
  */
 
 session_start();
@@ -29,6 +30,11 @@ try {
     $mockup_url = $_POST['mockup_url'] ?? '';
     $is_freebie = isset($_POST['is_freebie']) ? 1 : 0;
     $digistore_product_id = $_POST['digistore_product_id'] ?? '';
+    
+    // NEU: Button-Felder
+    $button_text = $_POST['button_text'] ?? null;
+    $button_url = $_POST['button_url'] ?? null;
+    $button_new_window = isset($_POST['button_new_window']) ? 1 : 0;
     
     // File Upload: Mockup
     if (isset($_FILES['mockup_file']) && $_FILES['mockup_file']['error'] === UPLOAD_ERR_OK) {
@@ -63,14 +69,17 @@ try {
         }
     }
     
-    // Update Course
+    // Update Course - ERWEITERT mit Button-Feldern
     $sql = "UPDATE courses SET 
             title = :title,
             description = :description,
             additional_info = :additional_info,
             mockup_url = :mockup_url,
             is_freebie = :is_freebie,
-            digistore_product_id = :digistore_product_id";
+            digistore_product_id = :digistore_product_id,
+            button_text = :button_text,
+            button_url = :button_url,
+            button_new_window = :button_new_window";
     
     if ($pdf_file) {
         $sql .= ", pdf_file = :pdf_file";
@@ -86,6 +95,9 @@ try {
         'mockup_url' => $mockup_url,
         'is_freebie' => $is_freebie,
         'digistore_product_id' => $digistore_product_id,
+        'button_text' => $button_text,
+        'button_url' => $button_url,
+        'button_new_window' => $button_new_window,
         'course_id' => $course_id
     ];
     
