@@ -529,64 +529,95 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
             }
         }
         
-        /* Cookie Banner */
+        /* Cookie Banner - Professionelles Design */
         .cookie-banner {
             display: none;
             position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
+            bottom: 0;
+            left: 0;
+            right: 0;
             background: white;
-            padding: 20px 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-            max-width: 600px;
-            width: 90%;
+            box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.15);
             z-index: 9997;
             animation: slideUpCookie 0.5s ease;
+            border-top: 3px solid <?php echo $primary_color; ?>;
         }
         
         @keyframes slideUpCookie {
             from {
                 opacity: 0;
-                transform: translate(-50%, 100px);
+                transform: translateY(100%);
             }
             to {
                 opacity: 1;
-                transform: translate(-50%, 0);
+                transform: translateY(0);
             }
         }
         
         .cookie-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px 20px;
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 30px;
             flex-wrap: wrap;
         }
         
-        .cookie-text {
+        .cookie-icon {
+            font-size: 48px;
+            flex-shrink: 0;
+        }
+        
+        .cookie-text-section {
             flex: 1;
+            min-width: 300px;
+        }
+        
+        .cookie-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1F2937;
+            margin-bottom: 8px;
+            font-family: '<?php echo $font_heading; ?>', sans-serif;
+        }
+        
+        .cookie-description {
             font-size: 14px;
-            color: #374151;
-            line-height: 1.5;
-            min-width: 200px;
+            color: #6b7280;
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+        
+        .cookie-privacy-link {
+            color: <?php echo $primary_color; ?>;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            transition: opacity 0.2s;
+        }
+        
+        .cookie-privacy-link:hover {
+            opacity: 0.8;
+            text-decoration: underline;
         }
         
         .cookie-buttons {
             display: flex;
-            gap: 10px;
+            gap: 12px;
             flex-wrap: wrap;
         }
         
         .cookie-btn {
-            padding: 10px 20px;
+            padding: 14px 28px;
             border: none;
-            border-radius: 6px;
-            font-size: 14px;
+            border-radius: 8px;
+            font-size: 15px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s;
             white-space: nowrap;
+            font-family: '<?php echo $font_body; ?>', sans-serif;
         }
         
         .cookie-accept {
@@ -595,17 +626,213 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
         }
         
         .cookie-accept:hover {
-            opacity: 0.9;
-            transform: translateY(-1px);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px <?php echo $primary_color; ?>40;
+        }
+        
+        .cookie-settings {
+            background: #f3f4f6;
+            color: #374151;
+            border: 2px solid #e5e7eb;
+        }
+        
+        .cookie-settings:hover {
+            background: #e5e7eb;
+            border-color: #d1d5db;
         }
         
         .cookie-decline {
-            background: #f3f4f6;
+            background: white;
             color: #6b7280;
+            border: 2px solid #e5e7eb;
         }
         
         .cookie-decline:hover {
-            background: #e5e7eb;
+            background: #f9fafb;
+            border-color: #d1d5db;
+        }
+        
+        /* Cookie Settings Modal */
+        .cookie-settings-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 9998;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .cookie-settings-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 16px;
+            max-width: 700px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            z-index: 9999;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+        }
+        
+        .cookie-settings-header {
+            padding: 30px;
+            border-bottom: 2px solid #f3f4f6;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 1;
+        }
+        
+        .cookie-settings-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1F2937;
+            margin-bottom: 8px;
+            font-family: '<?php echo $font_heading; ?>', sans-serif;
+        }
+        
+        .cookie-settings-subtitle {
+            font-size: 14px;
+            color: #6b7280;
+            line-height: 1.6;
+        }
+        
+        .cookie-settings-close {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #9ca3af;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+        
+        .cookie-settings-close:hover {
+            color: #374151;
+        }
+        
+        .cookie-settings-body {
+            padding: 30px;
+        }
+        
+        .cookie-category {
+            margin-bottom: 24px;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 12px;
+            border: 2px solid #f3f4f6;
+        }
+        
+        .cookie-category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .cookie-category-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1F2937;
+            font-family: '<?php echo $font_body; ?>', sans-serif;
+        }
+        
+        .cookie-category-description {
+            font-size: 14px;
+            color: #6b7280;
+            line-height: 1.6;
+        }
+        
+        .cookie-toggle {
+            position: relative;
+            width: 52px;
+            height: 28px;
+            background: #d1d5db;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .cookie-toggle.active {
+            background: <?php echo $primary_color; ?>;
+        }
+        
+        .cookie-toggle.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .cookie-toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        
+        .cookie-toggle.active .cookie-toggle-slider {
+            transform: translateX(24px);
+        }
+        
+        .cookie-settings-footer {
+            padding: 20px 30px;
+            border-top: 2px solid #f3f4f6;
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            position: sticky;
+            bottom: 0;
+            background: white;
+        }
+        
+        .cookie-modal-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: '<?php echo $font_body; ?>', sans-serif;
+        }
+        
+        .cookie-save-btn {
+            background: <?php echo $primary_color; ?>;
+            color: white;
+        }
+        
+        .cookie-save-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px <?php echo $primary_color; ?>40;
+        }
+        
+        .cookie-accept-all-btn {
+            background: #10b981;
+            color: white;
+        }
+        
+        .cookie-accept-all-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
         }
         
         /* Footer */
@@ -666,15 +893,40 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
             .cookie-content {
                 flex-direction: column;
                 text-align: center;
+                padding: 24px 16px;
+                gap: 20px;
             }
             
             .cookie-buttons {
                 width: 100%;
-                justify-content: center;
+                flex-direction: column;
+            }
+            
+            .cookie-btn {
+                width: 100%;
             }
             
             .direct-form-container {
                 padding: 0 10px;
+            }
+            
+            .cookie-settings-modal {
+                width: 95%;
+                max-height: 95vh;
+            }
+            
+            .cookie-settings-header,
+            .cookie-settings-body,
+            .cookie-settings-footer {
+                padding: 20px;
+            }
+            
+            .cookie-settings-footer {
+                flex-direction: column;
+            }
+            
+            .cookie-modal-btn {
+                width: 100%;
             }
         }
     </style>
@@ -683,14 +935,78 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
     <!-- Cookie Banner -->
     <div id="cookieBanner" class="cookie-banner">
         <div class="cookie-content">
-            <div class="cookie-text">
-                <strong>🍪 Cookies</strong><br>
-                Wir nutzen Cookies, um deine Erfahrung zu verbessern. Mit der Nutzung unserer Seite stimmst du dem zu.
+            <div class="cookie-icon">🍪</div>
+            <div class="cookie-text-section">
+                <div class="cookie-title">Wir verwenden Cookies</div>
+                <div class="cookie-description">
+                    Diese Website nutzt Cookies und ähnliche Technologien. Mit der Nutzung der Website stimmst du der Verwendung von Cookies zu. 
+                    <a href="<?php echo $datenschutz_link; ?>" class="cookie-privacy-link">Mehr erfahren</a>
+                </div>
             </div>
             <div class="cookie-buttons">
-                <button class="cookie-btn cookie-accept" onclick="acceptCookies()">Akzeptieren</button>
-                <button class="cookie-btn cookie-decline" onclick="declineCookies()">Ablehnen</button>
+                <button class="cookie-btn cookie-accept" onclick="acceptAllCookies()">Alle akzeptieren</button>
+                <button class="cookie-btn cookie-settings" onclick="openCookieSettings()">Einstellungen</button>
+                <button class="cookie-btn cookie-decline" onclick="declineAllCookies()">Ablehnen</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Cookie Settings Modal -->
+    <div id="cookieSettingsOverlay" class="cookie-settings-overlay" onclick="closeCookieSettings()"></div>
+    <div id="cookieSettingsModal" class="cookie-settings-modal">
+        <div class="cookie-settings-header">
+            <button class="cookie-settings-close" onclick="closeCookieSettings()">&times;</button>
+            <div class="cookie-settings-title">Cookie-Einstellungen</div>
+            <div class="cookie-settings-subtitle">
+                Wir verwenden Cookies, um Inhalte und Anzeigen zu personalisieren und die Zugriffe auf unsere Website zu analysieren.
+                <a href="<?php echo $datenschutz_link; ?>" class="cookie-privacy-link">Datenschutzerklärung</a>
+            </div>
+        </div>
+        
+        <div class="cookie-settings-body">
+            <!-- Notwendige Cookies -->
+            <div class="cookie-category">
+                <div class="cookie-category-header">
+                    <div class="cookie-category-title">Notwendige Cookies</div>
+                    <div class="cookie-toggle active disabled" data-category="necessary">
+                        <div class="cookie-toggle-slider"></div>
+                    </div>
+                </div>
+                <div class="cookie-category-description">
+                    Diese Cookies sind für die Grundfunktionen der Website erforderlich und können nicht deaktiviert werden. Sie werden in der Regel nur als Reaktion auf von dir durchgeführte Aktionen gesetzt.
+                </div>
+            </div>
+            
+            <!-- Funktionale Cookies -->
+            <div class="cookie-category">
+                <div class="cookie-category-header">
+                    <div class="cookie-category-title">Funktionale Cookies</div>
+                    <div class="cookie-toggle" data-category="functional" onclick="toggleCookieCategory(this)">
+                        <div class="cookie-toggle-slider"></div>
+                    </div>
+                </div>
+                <div class="cookie-category-description">
+                    Diese Cookies ermöglichen erweiterte Funktionalität und Personalisierung. Sie können von uns oder von Drittanbietern gesetzt werden, deren Dienste wir auf unseren Seiten verwenden.
+                </div>
+            </div>
+            
+            <!-- Marketing Cookies -->
+            <div class="cookie-category">
+                <div class="cookie-category-header">
+                    <div class="cookie-category-title">Marketing & Analyse</div>
+                    <div class="cookie-toggle" data-category="marketing" onclick="toggleCookieCategory(this)">
+                        <div class="cookie-toggle-slider"></div>
+                    </div>
+                </div>
+                <div class="cookie-category-description">
+                    Diese Cookies werden verwendet, um Werbung relevanter für dich und deine Interessen zu machen. Sie helfen uns auch, die Effektivität unserer Marketingkampagnen zu messen.
+                </div>
+            </div>
+        </div>
+        
+        <div class="cookie-settings-footer">
+            <button class="cookie-modal-btn cookie-save-btn" onclick="saveCookieSettings()">Auswahl speichern</button>
+            <button class="cookie-modal-btn cookie-accept-all-btn" onclick="acceptAllCookiesFromModal()">Alle akzeptieren</button>
         </div>
     </div>
 
@@ -966,21 +1282,110 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
     </div>
 
     <script>
+        // Cookie Consent State
+        let cookieSettings = {
+            necessary: true,
+            functional: false,
+            marketing: false
+        };
+
         // Cookie Banner Logic
         function showCookieBanner() {
             const consent = localStorage.getItem('cookieConsent');
             if (!consent) {
                 document.getElementById('cookieBanner').style.display = 'block';
+            } else {
+                // Load saved settings
+                const saved = JSON.parse(consent);
+                cookieSettings = saved;
             }
         }
 
-        function acceptCookies() {
-            localStorage.setItem('cookieConsent', 'accepted');
+        function acceptAllCookies() {
+            cookieSettings = {
+                necessary: true,
+                functional: true,
+                marketing: true
+            };
+            saveCookieConsent();
             document.getElementById('cookieBanner').style.display = 'none';
         }
 
-        function declineCookies() {
-            localStorage.setItem('cookieConsent', 'declined');
+        function declineAllCookies() {
+            cookieSettings = {
+                necessary: true,
+                functional: false,
+                marketing: false
+            };
+            saveCookieConsent();
+            document.getElementById('cookieBanner').style.display = 'none';
+        }
+
+        function saveCookieConsent() {
+            localStorage.setItem('cookieConsent', JSON.stringify(cookieSettings));
+            // Hier können Sie zusätzliche Tracking-Skripte aktivieren/deaktivieren
+            if (cookieSettings.marketing) {
+                // Marketing-Cookies laden
+            }
+            if (cookieSettings.functional) {
+                // Funktionale Cookies laden
+            }
+        }
+
+        // Cookie Settings Modal
+        function openCookieSettings() {
+            const overlay = document.getElementById('cookieSettingsOverlay');
+            const modal = document.getElementById('cookieSettingsModal');
+            
+            // Load current settings into toggles
+            if (cookieSettings.functional) {
+                document.querySelector('[data-category="functional"]').classList.add('active');
+            }
+            if (cookieSettings.marketing) {
+                document.querySelector('[data-category="marketing"]').classList.add('active');
+            }
+            
+            overlay.style.display = 'block';
+            modal.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeCookieSettings() {
+            const overlay = document.getElementById('cookieSettingsOverlay');
+            const modal = document.getElementById('cookieSettingsModal');
+            overlay.style.display = 'none';
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        function toggleCookieCategory(element) {
+            if (element.classList.contains('disabled')) return;
+            element.classList.toggle('active');
+        }
+
+        function saveCookieSettings() {
+            cookieSettings.necessary = true; // Always true
+            cookieSettings.functional = document.querySelector('[data-category="functional"]').classList.contains('active');
+            cookieSettings.marketing = document.querySelector('[data-category="marketing"]').classList.contains('active');
+            
+            saveCookieConsent();
+            closeCookieSettings();
+            document.getElementById('cookieBanner').style.display = 'none';
+        }
+
+        function acceptAllCookiesFromModal() {
+            // Activate all toggles
+            document.querySelector('[data-category="functional"]').classList.add('active');
+            document.querySelector('[data-category="marketing"]').classList.add('active');
+            
+            cookieSettings = {
+                necessary: true,
+                functional: true,
+                marketing: true
+            };
+            
+            saveCookieConsent();
+            closeCookieSettings();
             document.getElementById('cookieBanner').style.display = 'none';
         }
 
@@ -1021,10 +1426,11 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
             showCookieBanner();
         });
 
-        // Close popup with ESC key
+        // Close modals with ESC key
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closePopup();
+                closeCookieSettings();
             }
         });
     </script>
