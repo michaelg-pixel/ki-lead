@@ -315,10 +315,78 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
         }
         
-        /* Direct Form Embedding */
+        /* Direct Form Embedding - SCHÖNE FORMATIERUNG */
         .direct-form-container {
             max-width: 500px;
             margin: 0 auto;
+            text-align: left;
+        }
+        
+        /* Style alle Form-Elemente im eingebetteten Formular */
+        .direct-form-container form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .direct-form-container label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 6px;
+            font-family: '<?php echo $font_body; ?>', sans-serif;
+        }
+        
+        .direct-form-container input[type="text"],
+        .direct-form-container input[type="email"],
+        .direct-form-container input[type="tel"],
+        .direct-form-container input[type="number"] {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: '<?php echo $font_body; ?>', sans-serif;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background: white;
+        }
+        
+        .direct-form-container input[type="text"]:focus,
+        .direct-form-container input[type="email"]:focus,
+        .direct-form-container input[type="tel"]:focus,
+        .direct-form-container input[type="number"]:focus {
+            outline: none;
+            border-color: <?php echo $primary_color; ?>;
+            box-shadow: 0 0 0 3px <?php echo $primary_color; ?>20;
+        }
+        
+        .direct-form-container input[type="submit"],
+        .direct-form-container button[type="submit"] {
+            width: 100%;
+            background: <?php echo $primary_color; ?>;
+            color: white;
+            padding: 16px 32px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 700;
+            font-family: '<?php echo $font_body; ?>', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 8px;
+        }
+        
+        .direct-form-container input[type="submit"]:hover,
+        .direct-form-container button[type="submit"]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px <?php echo $primary_color; ?>40;
+        }
+        
+        /* Für verschachtelte Divs in Formularen */
+        .direct-form-container > form > div,
+        .direct-form-container > form > p {
+            margin-bottom: 0;
         }
         
         /* Button Animations */
@@ -603,6 +671,10 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
             .cookie-buttons {
                 width: 100%;
                 justify-content: center;
+            }
+            
+            .direct-form-container {
+                padding: 0 10px;
             }
         }
     </style>
