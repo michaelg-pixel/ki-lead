@@ -293,34 +293,34 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         
         .hero-grid {
             display: grid;
-            grid-template-columns: 1fr 400px;
+            grid-template-columns: 1fr 320px;
             gap: 60px;
-            align-items: center;
+            align-items: start;
         }
         
         /* Hero Content - Links */
         .hero-content {
             display: flex;
             flex-direction: column;
-            gap: 32px;
+            gap: 28px;
         }
         
         .success-badge {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 12px 24px;
+            padding: 10px 20px;
             background: linear-gradient(135deg, #10b981, #059669);
             color: white;
             border-radius: 50px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 700;
             width: fit-content;
             box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
         }
         
         .hero-headline {
-            font-size: 56px;
+            font-size: 48px;
             font-family: '<?php echo $headline_font; ?>', sans-serif;
             font-weight: 900;
             color: #111827;
@@ -336,7 +336,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         }
         
         .hero-subheadline {
-            font-size: 20px;
+            font-size: 18px;
             color: #6b7280;
             line-height: 1.6;
             margin: 0;
@@ -345,29 +345,29 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         .course-info {
             background: linear-gradient(135deg, var(--primary-light), rgba(124, 58, 237, 0.05));
             border-left: 4px solid var(--primary);
-            padding: 24px 28px;
-            border-radius: 16px;
+            padding: 20px 24px;
+            border-radius: 14px;
         }
         
         .course-info-label {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 700;
             color: var(--primary);
             text-transform: uppercase;
             letter-spacing: 1px;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
         
         .course-info-title {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 800;
             color: #111827;
             line-height: 1.3;
         }
         
-        /* Mockup in Hero */
+        /* Mockup in Hero - OHNE SCHATTEN */
         .hero-mockup {
-            max-width: 250px;
+            max-width: 220px;
             margin: 0 0 8px 0;
             animation: fadeIn 0.8s ease-out 0.3s both;
         }
@@ -386,44 +386,44 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         .hero-mockup img {
             width: 100%;
             height: auto;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            /* SCHATTEN ENTFERNT */
         }
         
         .mockup-placeholder {
             width: 100%;
             aspect-ratio: 3/4;
             background: linear-gradient(135deg, var(--primary-light), var(--primary-light));
-            border-radius: 16px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 60px;
+            font-size: 50px;
         }
         
         /* Button Container */
         .button-container {
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 12px;
         }
         
-        /* Main CTA Button */
+        /* Main CTA Button - KOMPAKTER */
         .cta-button {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 12px;
+            gap: 10px;
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
-            padding: 22px 48px;
+            padding: 16px 36px;
             border: none;
-            border-radius: 16px;
-            font-size: 20px;
+            border-radius: 14px;
+            font-size: 17px;
             font-weight: 700;
             cursor: pointer;
             text-decoration: none;
-            box-shadow: 0 10px 30px var(--primary-light);
+            box-shadow: 0 8px 24px var(--primary-light);
             transition: all 0.3s;
             position: relative;
             overflow: hidden;
@@ -445,12 +445,12 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         }
         
         .cta-button:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 15px 40px var(--primary-light);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 32px var(--primary-light);
         }
         
         .cta-icon {
-            font-size: 28px;
+            font-size: 22px;
             animation: pulse 2s infinite;
         }
         
@@ -459,25 +459,25 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             50% { transform: scale(1.1); }
         }
         
-        /* Referral Button */
+        /* Referral Button - KOMPAKTER */
         .referral-button {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 12px;
+            gap: 10px;
             background: linear-gradient(135deg, #10b981, #059669);
             color: white;
-            padding: 20px 48px;
+            padding: 16px 36px;
             border: none;
-            border-radius: 16px;
-            font-size: 18px;
+            border-radius: 14px;
+            font-size: 17px;
             font-weight: 700;
             cursor: pointer;
             text-decoration: none;
             transition: all 0.3s;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+            box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
         }
         
         .referral-button::before {
@@ -496,8 +496,8 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         }
         
         .referral-button:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 30px rgba(16, 185, 129, 0.4);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 32px rgba(16, 185, 129, 0.4);
         }
         
         .access-info {
@@ -506,15 +506,16 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             justify-content: center;
             gap: 8px;
             color: #9ca3af;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 500;
         }
         
-        /* Hero Video - Rechts */
+        /* Hero Video - Rechts - STICKY */
         .hero-video {
-            position: relative;
+            position: sticky;
+            top: 24px;
             width: 100%;
-            max-width: 400px;
+            max-width: 320px;
             justify-self: center;
         }
         
@@ -522,10 +523,10 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             position: relative;
             width: 100%;
             aspect-ratio: 9/16;
-            border-radius: 24px;
+            border-radius: 20px;
             background: #000;
             overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
         }
         
         .video-wrapper iframe {
@@ -826,6 +827,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             }
             
             .hero-video {
+                position: static;
                 max-width: 350px;
                 margin: 0 auto;
             }
@@ -864,7 +866,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             }
             
             .hero-headline {
-                font-size: 36px;
+                font-size: 32px;
             }
             
             .hero-subheadline {
@@ -872,22 +874,22 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             }
             
             .course-info-title {
-                font-size: 20px;
+                font-size: 18px;
             }
             
             .hero-mockup {
-                max-width: 200px;
+                max-width: 180px;
             }
             
             .cta-button {
                 width: 100%;
-                padding: 20px 40px;
-                font-size: 18px;
+                padding: 16px 32px;
+                font-size: 16px;
             }
             
             .referral-button {
                 width: 100%;
-                padding: 18px 36px;
+                padding: 16px 32px;
                 font-size: 16px;
             }
             
@@ -901,7 +903,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             }
             
             .referral-promo-title {
-                font-size: 28px;
+                font-size: 24px;
             }
             
             .referral-benefits {
@@ -1024,7 +1026,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
                     </div>
                 </div>
                 
-                <!-- Rechts: Video -->
+                <!-- Rechts: Video - STICKY -->
                 <div class="hero-video">
                     <div class="video-wrapper">
                         <iframe src="<?php echo htmlspecialchars($video_embed_url); ?>?autoplay=1&loop=0&autopause=0" 
@@ -1084,7 +1086,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             <div class="referral-cta">
                 <a href="<?php echo htmlspecialchars($referral_url); ?>" class="referral-cta-button">
                     <span style="font-size: 24px;">🎁</span>
-                    <span>Zum Empfehlungsprogramm</span>
+                    <span>Zum Geschenk</span>
                 </a>
             </div>
         </div>
