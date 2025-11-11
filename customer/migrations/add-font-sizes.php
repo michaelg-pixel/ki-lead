@@ -3,7 +3,10 @@
  * Migration: Font-Größen Spalten zu customer_freebies hinzufügen
  */
 
-require_once __DIR__ . '/config/database.php';
+// Absoluter Pfad zur database.php
+require_once dirname(__DIR__, 2) . '/config/database.php';
+
+header('Content-Type: text/plain; charset=utf-8');
 
 try {
     $pdo = getDBConnection();
@@ -30,5 +33,8 @@ try {
     echo "\n✨ Migration erfolgreich abgeschlossen!\n";
     
 } catch (PDOException $e) {
+    http_response_code(500);
     echo "❌ Fehler: " . $e->getMessage() . "\n";
 }
+
+exit();
