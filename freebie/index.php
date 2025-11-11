@@ -194,7 +194,7 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
         .layout-hybrid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 60px;
+            gap: 30px;
             align-items: center;
         }
         
@@ -207,7 +207,7 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
         .layout-sidebar {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 60px;
+            gap: 30px;
             align-items: center;
         }
         
