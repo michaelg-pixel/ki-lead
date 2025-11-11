@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migration: Button-Felder für Kurse</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0a0a16, #1a1532);
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: rgba(26, 26, 46, 0.95);
+            border: 2px solid rgba(168, 85, 247, 0.3);
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+        h1 {
+            font-size: 28px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #a855f7, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .description {
+            color: #a0a0c0;
+            margin-bottom: 32px;
+            line-height: 1.6;
+        }
+        .info-box {
+            background: rgba(168, 85, 247, 0.1);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+        .info-box h3 {
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: #c084fc;
+        }
+        .info-box ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #e0e0e0;
+        }
+        .info-box li {
+            margin: 6px 0;
+        }
+        .btn-migrate {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #a855f7, #ec4899);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 8px 24px rgba(168, 85, 247, 0.4);
+        }
+        .btn-migrate:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(168, 85, 247, 0.6);
+        }
+        .btn-migrate:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 24px;
+            padding: 16px;
+            border-radius: 8px;
+            display: none;
+        }
+        .result.success {
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            color: #22c55e;
+        }
+        .result.error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #ef4444;
+        }
+        .result h3 {
+            margin: 0 0 8px 0;
+            font-size: 18px;
+        }
+        .result p {
+            margin: 0;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Datenbank-Migration</h1>
+        <p class="description">
+            Diese Migration fügt Button-Felder zur courses-Tabelle hinzu, damit du Call-to-Action Buttons in deinen Kursen anzeigen kannst.
+        </p>
+
+        <div class="info-box">
+            <h3>📋 Was wird geändert:</h3>
+            <ul>
+                <li><strong>button_text</strong> - Text des Buttons (z.B. "Jetzt kaufen")</li>
+                <li><strong>button_url</strong> - Link/URL des Buttons</li>
+                <li><strong>button_new_window</strong> - In neuem Fenster öffnen (Ja/Nein)</li>
+            </ul>
+        </div>
+
+        <button onclick="runMigration()" class="btn-migrate" id="migrateBtn">
+            ⚡ Migration ausführen
+        </button>
+
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        async function runMigration() {
+            const btn = document.getElementById('migrateBtn');
+            const result = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.textContent = '⏳ Migration läuft...';
+            result.style.display = 'none';
+
+            try {
+                const response = await fetch('migrate_course_buttons_process.php', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                result.style.display = 'block';
+                
+                if (data.success) {
+                    result.className = 'result success';
+                    result.innerHTML = `
+                        <h3>✅ Migration erfolgreich!</h3>
+                        <p>${data.message}</p>
+                    `;
+                    btn.textContent = '✅ Migration abgeschlossen';
+                } else {
+                    result.className = 'result error';
+                    result.innerHTML = `
+                        <h3>❌ Fehler bei der Migration</h3>
+                        <p>${data.error}</p>
+                    `;
+                    btn.disabled = false;
+                    btn.textContent = '🔄 Erneut versuchen';
+                }
+            } catch (error) {
+                result.style.display = 'block';
+                result.className = 'result error';
+                result.innerHTML = `
+                    <h3>❌ Verbindungsfehler</h3>
+                    <p>${error.message}</p>
+                `;
+                btn.disabled = false;
+                btn.textContent = '🔄 Erneut versuchen';
+            }
+        }
+    </script>
+</body>
+</html>
