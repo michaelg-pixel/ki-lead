@@ -610,7 +610,7 @@ foreach ($google_fonts as $name => $family) {
             font-weight: 800;
             line-height: 1.2;
             margin-bottom: 10px;
-            text-align: center !important;
+            text-align: center;
         }
         
         .preview-subheadline {
@@ -1749,18 +1749,19 @@ foreach ($google_fonts as $name => $family) {
                 </button>
             `;
             
-            // 🆕 ALLE LAYOUTS HABEN JETZT ZENTRIERTE ÜBERSCHRIFTEN
+            // 🆕 KORRIGIERTE LAYOUTS MIT ZENTRIERUNG UND RICHTIGER REIHENFOLGE
             let layoutHTML = '';
             
             if (layout === 'centered') {
+                // ✅ KORRIGIERT: Preheadline → Headline → Subheadline → Media → Bullets → CTA
                 layoutHTML = `
                     <div style="max-width: 800px; margin: 0 auto;">
-                        ${mediaElement}
                         ${preheadlineHTML}
-                        <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${fontSizeHeadline};">
+                        <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${fontSizeHeadline}; text-align: center;">
                             ${escapeHtml(headline || 'Deine Hauptüberschrift')}
                         </div>
                         ${subheadlineHTML}
+                        ${mediaElement}
                         ${bulletHTML}
                         <div class="preview-cta">
                             ${ctaButton}
@@ -1773,7 +1774,7 @@ foreach ($google_fonts as $name => $family) {
                         <div>${mediaElement}</div>
                         <div>
                             ${preheadlineHTML}
-                            <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${fontSizeHeadline};">
+                            <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${fontSizeHeadline}; text-align: center;">
                                 ${escapeHtml(headline || 'Deine Hauptüberschrift')}
                             </div>
                             ${subheadlineHTML}
@@ -1789,7 +1790,7 @@ foreach ($google_fonts as $name => $family) {
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
                         <div>
                             ${preheadlineHTML}
-                            <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${fontSizeHeadline};">
+                            <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${fontSizeHeadline}; text-align: center;">
                                 ${escapeHtml(headline || 'Deine Hauptüberschrift')}
                             </div>
                             ${subheadlineHTML}
