@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Datenbank Migration - Font Größen</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            color: #1a1a2e;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 32px;
+            font-size: 14px;
+        }
+        .btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .btn:hover { transform: translateY(-2px); }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        #result {
+            margin-top: 24px;
+            padding: 16px;
+            border-radius: 8px;
+            display: none;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .success {
+            background: #d1fae5;
+            border: 2px solid #10b981;
+            color: #065f46;
+        }
+        .error {
+            background: #fee2e2;
+            border: 2px solid #ef4444;
+            color: #991b1b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Datenbank Migration</h1>
+        <p class="subtitle">Font-Größen Spalten hinzufügen</p>
+        
+        <button id="migrateBtn" class="btn" onclick="runMigration()">
+            Migration starten
+        </button>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        async function runMigration() {
+            const btn = document.getElementById('migrateBtn');
+            const result = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.textContent = '⏳ Migration läuft...';
+            result.style.display = 'none';
+            
+            try {
+                const response = await fetch('/customer/migrations/add-font-sizes.php');
+                const text = await response.text();
+                
+                result.textContent = text;
+                result.className = response.ok ? 'success' : 'error';
+                result.style.display = 'block';
+                
+                btn.textContent = response.ok ? '✅ Erfolgreich abgeschlossen' : '❌ Fehler aufgetreten';
+                
+            } catch (error) {
+                result.textContent = '❌ Fehler: ' + error.message;
+                result.className = 'error';
+                result.style.display = 'block';
+                btn.textContent = '❌ Fehler aufgetreten';
+            }
+            
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.textContent = 'Migration erneut starten';
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
