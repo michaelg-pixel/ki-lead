@@ -61,10 +61,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
     $video_url = trim($_POST['video_url'] ?? '');
     $video_format = $_POST['video_format'] ?? 'widescreen';
     
-    // 🆕 FONT-FELDER
+    // 🆕 FONT-FELDER (jetzt mit Pixelwerten)
     $font_heading = $_POST['font_heading'] ?? 'Inter';
     $font_body = $_POST['font_body'] ?? 'Inter';
-    $font_size = $_POST['font_size'] ?? 'medium';
+    $font_size_headline = intval($_POST['font_size_headline'] ?? 28);
+    $font_size_subheadline = intval($_POST['font_size_subheadline'] ?? 16);
+    $font_size_bullet = intval($_POST['font_size_bullet'] ?? 14);
+    $font_size_preheadline = intval($_POST['font_size_preheadline'] ?? 12);
+    
+    // Font sizes als JSON speichern
+    $font_size = json_encode([
+        'headline' => $font_size_headline,
+        'subheadline' => $font_size_subheadline,
+        'bullet' => $font_size_bullet,
+        'preheadline' => $font_size_preheadline
+    ]);
     
     // POPUP-FELDER
     $optin_display_mode = $_POST['optin_display_mode'] ?? 'direct';
@@ -163,12 +174,27 @@ if ($freebie && !empty($freebie['raw_code'])) {
     $custom_tracking_code = isset($parts[1]) ? trim($parts[1]) : '';
 }
 
+// Font Sizes aus JSON laden oder Standardwerte
+$font_size_values = [
+    'headline' => 28,
+    'subheadline' => 16,
+    'bullet' => 14,
+    'preheadline' => 12
+];
+
+if ($freebie && !empty($freebie['font_size'])) {
+    $decoded = json_decode($freebie['font_size'], true);
+    if ($decoded) {
+        $font_size_values = array_merge($font_size_values, $decoded);
+    }
+}
+
 // Daten für Formular vorbereiten - MIT FONT-FELDERN
 $form_data = [
     'headline' => $freebie['headline'] ?? 'Sichere dir jetzt deinen kostenlosen Zugang',
     'subheadline' => $freebie['subheadline'] ?? '',
     'preheadline' => $freebie['preheadline'] ?? '',
-    'bullet_points' => $freebie['bullet_points'] ?? "✓ Sofortiger Zugang\n✓ Professionelle Inhalte\n✓ Schritt für Schritt Anleitung",
+    'bullet_points' => $freebie['bullet_points'] ?? "Sofortiger Zugang\nProfessionelle Inhalte\nSchritt für Schritt Anleitung",
     'bullet_icon_style' => $freebie['bullet_icon_style'] ?? 'standard',
     'cta_text' => $freebie['cta_text'] ?? 'JETZT KOSTENLOS SICHERN',
     'layout' => $freebie['layout'] ?? 'hybrid',
@@ -185,7 +211,10 @@ $form_data = [
     // 🆕 FONT-FELDER
     'font_heading' => $freebie['font_heading'] ?? 'Inter',
     'font_body' => $freebie['font_body'] ?? 'Inter',
-    'font_size' => $freebie['font_size'] ?? 'medium'
+    'font_size_headline' => $font_size_values['headline'],
+    'font_size_subheadline' => $font_size_values['subheadline'],
+    'font_size_bullet' => $font_size_values['bullet'],
+    'font_size_preheadline' => $font_size_values['preheadline']
 ];
 
 // 🆕 WEBFONTS UND GOOGLE FONTS
@@ -480,7 +509,7 @@ foreach ($google_fonts as $name => $family) {
         }
         
         .mockup-preview img {
-            width: 100%;
+            max-width: 400px;
             height: auto;
             display: block;
         }
@@ -570,7 +599,6 @@ foreach ($google_fonts as $name => $family) {
         }
         
         .preview-preheadline {
-            font-size: 9px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -579,7 +607,6 @@ foreach ($google_fonts as $name => $family) {
         }
         
         .preview-headline {
-            font-size: 22px;
             font-weight: 800;
             line-height: 1.2;
             margin-bottom: 10px;
@@ -587,7 +614,6 @@ foreach ($google_fonts as $name => $family) {
         }
         
         .preview-subheadline {
-            font-size: 13px;
             color: #6b7280;
             margin-bottom: 18px;
             text-align: center;
@@ -607,12 +633,10 @@ foreach ($google_fonts as $name => $family) {
         }
         
         .preview-bullet-icon {
-            font-size: 14px;
             flex-shrink: 0;
         }
         
         .preview-bullet-text {
-            font-size: 12px;
             color: #374151;
             line-height: 1.4;
         }
@@ -626,7 +650,6 @@ foreach ($google_fonts as $name => $family) {
             padding: 10px 30px;
             border: none;
             border-radius: 6px;
-            font-size: 12px;
             font-weight: 700;
             cursor: pointer;
             transition: transform 0.2s;
@@ -915,63 +938,52 @@ foreach ($google_fonts as $name => $family) {
             opacity: 1;
         }
         
-        /* 🆕 FONT-SIZE OPTIONS */
-        .font-size-options {
+        /* 🆕 PIXEL INPUT GRID */
+        .pixel-inputs-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            margin-top: 12px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-top: 16px;
         }
         
-        .font-size-option {
-            position: relative;
-            cursor: pointer;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 16px;
-            text-align: center;
-            transition: all 0.2s;
-        }
-        
-        .font-size-option:hover {
-            border-color: #8B5CF6;
-            background: rgba(139, 92, 246, 0.05);
-        }
-        
-        .font-size-option input {
-            position: absolute;
-            opacity: 0;
-        }
-        
-        .font-size-option.selected {
-            border-color: #8B5CF6;
-            background: rgba(139, 92, 246, 0.1);
-        }
-        
-        .font-size-label {
-            font-size: 13px;
-            font-weight: 600;
-        }
-        
-        .font-size-check {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 20px;
-            height: 20px;
-            background: #8B5CF6;
-            border-radius: 50%;
+        .pixel-input-group {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 12px;
-            opacity: 0;
-            transition: opacity 0.2s;
+            flex-direction: column;
+            gap: 6px;
         }
         
-        .font-size-option input:checked ~ .font-size-check {
-            opacity: 1;
+        .pixel-input-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6b7280;
+        }
+        
+        .pixel-input-wrapper {
+            position: relative;
+        }
+        
+        .pixel-input {
+            width: 100%;
+            padding: 10px 32px 10px 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        
+        .pixel-input:focus {
+            outline: none;
+            border-color: #8B5CF6;
+        }
+        
+        .pixel-suffix {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 12px;
+            font-weight: 600;
+            color: #9ca3af;
         }
         
         @media (max-width: 1200px) {
@@ -1182,7 +1194,7 @@ foreach ($google_fonts as $name => $family) {
                         </div>
                     </div>
                     
-                    <!-- 🆕 SCHRIFTARTEN & SCHRIFTGRÖSSE -->
+                    <!-- 🆕 SCHRIFTARTEN & SCHRIFTGRÖSSE MIT PIXEL-INPUTS -->
                     <div class="form-section">
                         <div class="section-title">✨ Schriftarten & Größe</div>
                         
@@ -1234,31 +1246,51 @@ foreach ($google_fonts as $name => $family) {
                         </div>
                         
                         <div class="form-group">
-                            <label class="form-label">Schriftgröße</label>
-                            <div class="font-size-options">
-                                <label class="font-size-option <?php echo $form_data['font_size'] === 'small' ? 'selected' : ''; ?>">
-                                    <input type="radio" name="font_size" value="small" 
-                                           <?php echo $form_data['font_size'] === 'small' ? 'checked' : ''; ?>
-                                           onchange="updatePreview(); updateFontSizeSelection(this)">
-                                    <div class="font-size-label" style="font-size: 11px;">Klein</div>
-                                    <div class="font-size-check">✓</div>
-                                </label>
+                            <label class="form-label">Schriftgrößen (in Pixel)</label>
+                            <div class="pixel-inputs-grid">
+                                <div class="pixel-input-group">
+                                    <label class="pixel-input-label">Headline</label>
+                                    <div class="pixel-input-wrapper">
+                                        <input type="number" name="font_size_headline" class="pixel-input" 
+                                               value="<?php echo $form_data['font_size_headline']; ?>" 
+                                               min="12" max="72" step="1"
+                                               oninput="updatePreview()">
+                                        <span class="pixel-suffix">px</span>
+                                    </div>
+                                </div>
                                 
-                                <label class="font-size-option <?php echo $form_data['font_size'] === 'medium' ? 'selected' : ''; ?>">
-                                    <input type="radio" name="font_size" value="medium"
-                                           <?php echo $form_data['font_size'] === 'medium' ? 'checked' : ''; ?>
-                                           onchange="updatePreview(); updateFontSizeSelection(this)">
-                                    <div class="font-size-label" style="font-size: 13px;">Mittel</div>
-                                    <div class="font-size-check">✓</div>
-                                </label>
+                                <div class="pixel-input-group">
+                                    <label class="pixel-input-label">Subheadline</label>
+                                    <div class="pixel-input-wrapper">
+                                        <input type="number" name="font_size_subheadline" class="pixel-input" 
+                                               value="<?php echo $form_data['font_size_subheadline']; ?>" 
+                                               min="10" max="32" step="1"
+                                               oninput="updatePreview()">
+                                        <span class="pixel-suffix">px</span>
+                                    </div>
+                                </div>
                                 
-                                <label class="font-size-option <?php echo $form_data['font_size'] === 'large' ? 'selected' : ''; ?>">
-                                    <input type="radio" name="font_size" value="large"
-                                           <?php echo $form_data['font_size'] === 'large' ? 'checked' : ''; ?>
-                                           onchange="updatePreview(); updateFontSizeSelection(this)">
-                                    <div class="font-size-label" style="font-size: 15px;">Groß</div>
-                                    <div class="font-size-check">✓</div>
-                                </label>
+                                <div class="pixel-input-group">
+                                    <label class="pixel-input-label">Preheadline</label>
+                                    <div class="pixel-input-wrapper">
+                                        <input type="number" name="font_size_preheadline" class="pixel-input" 
+                                               value="<?php echo $form_data['font_size_preheadline']; ?>" 
+                                               min="8" max="24" step="1"
+                                               oninput="updatePreview()">
+                                        <span class="pixel-suffix">px</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="pixel-input-group">
+                                    <label class="pixel-input-label">Bullet Points</label>
+                                    <div class="pixel-input-wrapper">
+                                        <input type="number" name="font_size_bullet" class="pixel-input" 
+                                               value="<?php echo $form_data['font_size_bullet']; ?>" 
+                                               min="10" max="24" step="1"
+                                               oninput="updatePreview()">
+                                        <span class="pixel-suffix">px</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1493,28 +1525,6 @@ foreach ($google_fonts as $name => $family) {
             'Merriweather': '"Merriweather", serif'
         };
         
-        // 🆕 FONT SIZE MAPPING
-        const fontSizes = {
-            'small': {
-                headline: '20px',
-                subheadline: '12px',
-                bullet: '11px',
-                preheadline: '8px'
-            },
-            'medium': {
-                headline: '22px',
-                subheadline: '13px',
-                bullet: '12px',
-                preheadline: '9px'
-            },
-            'large': {
-                headline: '26px',
-                subheadline: '15px',
-                bullet: '14px',
-                preheadline: '10px'
-            }
-        };
-        
         // POPUP-TOGGLE FUNKTION
         function togglePopupOptions(radio) {
             const popupOptions = document.getElementById('popupOptions');
@@ -1539,14 +1549,6 @@ foreach ($google_fonts as $name => $family) {
                 opt.classList.remove('selected');
             });
             radio.closest('.bullet-style-option').classList.add('selected');
-        }
-        
-        // 🆕 FONT SIZE SELECTION
-        function updateFontSizeSelection(radio) {
-            document.querySelectorAll('.font-size-option').forEach(opt => {
-                opt.classList.remove('selected');
-            });
-            radio.closest('.font-size-option').classList.add('selected');
         }
 
         function removeVideo() {
@@ -1638,17 +1640,17 @@ foreach ($google_fonts as $name => $family) {
             const videoUrl = document.getElementById('videoUrl').value;
             const videoFormat = document.querySelector('input[name="video_format"]:checked').value;
             
-            // 🆕 FONT-WERTE
+            // 🆕 FONT-WERTE (jetzt Pixel-Inputs)
             const fontHeading = document.querySelector('select[name="font_heading"]').value;
             const fontBody = document.querySelector('select[name="font_body"]').value;
-            const fontSize = document.querySelector('input[name="font_size"]:checked').value;
+            const fontSizeHeadline = document.querySelector('input[name="font_size_headline"]').value + 'px';
+            const fontSizeSubheadline = document.querySelector('input[name="font_size_subheadline"]').value + 'px';
+            const fontSizeBullet = document.querySelector('input[name="font_size_bullet"]').value + 'px';
+            const fontSizePreheadline = document.querySelector('input[name="font_size_preheadline"]').value + 'px';
             
             // Get font stacks
             const headingFontFamily = fontStacks[fontHeading] || fontStacks['Inter'];
             const bodyFontFamily = fontStacks[fontBody] || fontStacks['Inter'];
-            
-            // Get font sizes
-            const sizes = fontSizes[fontSize] || fontSizes['medium'];
             
             // POPUP-WERTE
             const ctaAnimation = document.querySelector('select[name="cta_animation"]').value;
@@ -1685,8 +1687,8 @@ foreach ($google_fonts as $name => $family) {
                     
                     return `
                         <div class="preview-bullet">
-                            <span class="preview-bullet-icon" style="color: ${iconColor}; font-size: ${sizes.bullet};">${icon}</span>
-                            <span class="preview-bullet-text" style="font-family: ${bodyFontFamily}; font-size: ${sizes.bullet};">${escapeHtml(text)}</span>
+                            <span class="preview-bullet-icon" style="color: ${iconColor}; font-size: ${fontSizeBullet};">${icon}</span>
+                            <span class="preview-bullet-text" style="font-family: ${bodyFontFamily}; font-size: ${fontSizeBullet};">${escapeHtml(text)}</span>
                         </div>
                     `;
                 }).join('');
@@ -1727,13 +1729,13 @@ foreach ($google_fonts as $name => $family) {
             }
             
             const preheadlineHTML = preheadline ? `
-                <div class="preview-preheadline" style="color: ${primaryColor}; font-family: ${bodyFontFamily}; font-size: ${sizes.preheadline};">
+                <div class="preview-preheadline" style="color: ${primaryColor}; font-family: ${bodyFontFamily}; font-size: ${fontSizePreheadline};">
                     ${escapeHtml(preheadline)}
                 </div>
             ` : '';
             
             const subheadlineHTML = subheadline ? `
-                <div class="preview-subheadline" style="font-family: ${bodyFontFamily}; font-size: ${sizes.subheadline};">${escapeHtml(subheadline)}</div>
+                <div class="preview-subheadline" style="font-family: ${bodyFontFamily}; font-size: ${fontSizeSubheadline};">${escapeHtml(subheadline)}</div>
             ` : '';
             
             // Priorität: Video > Mockup > Icon
@@ -1742,11 +1744,12 @@ foreach ($google_fonts as $name => $family) {
             // BUTTON MIT ANIMATION
             const animationClass = ctaAnimation !== 'none' ? `animate-${ctaAnimation}` : '';
             const ctaButton = `
-                <button class="preview-button ${animationClass}" style="background: ${primaryColor}; color: white; font-family: ${bodyFontFamily};">
+                <button class="preview-button ${animationClass}" style="background: ${primaryColor}; color: white; font-family: ${bodyFontFamily}; font-size: 12px;">
                     ${escapeHtml(ctaText || 'BUTTON TEXT')}
                 </button>
             `;
             
+            // 🆕 ALLE LAYOUTS HABEN JETZT ZENTRIERTE ÜBERSCHRIFTEN
             let layoutHTML = '';
             
             if (layout === 'centered') {
@@ -1754,7 +1757,7 @@ foreach ($google_fonts as $name => $family) {
                     <div style="max-width: 800px; margin: 0 auto;">
                         ${mediaElement}
                         ${preheadlineHTML}
-                        <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${sizes.headline};">
+                        <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${fontSizeHeadline};">
                             ${escapeHtml(headline || 'Deine Hauptüberschrift')}
                         </div>
                         ${subheadlineHTML}
@@ -1770,12 +1773,12 @@ foreach ($google_fonts as $name => $family) {
                         <div>${mediaElement}</div>
                         <div>
                             ${preheadlineHTML}
-                            <div class="preview-headline" style="color: ${primaryColor}; text-align: left; font-family: ${headingFontFamily}; font-size: ${sizes.headline};">
+                            <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${fontSizeHeadline};">
                                 ${escapeHtml(headline || 'Deine Hauptüberschrift')}
                             </div>
-                            ${subheadlineHTML ? `<div class="preview-subheadline" style="text-align: left; font-family: ${bodyFontFamily}; font-size: ${sizes.subheadline};">${escapeHtml(subheadline)}</div>` : ''}
+                            ${subheadlineHTML}
                             ${bulletHTML}
-                            <div class="preview-cta" style="text-align: left;">
+                            <div class="preview-cta">
                                 ${ctaButton}
                             </div>
                         </div>
@@ -1786,12 +1789,12 @@ foreach ($google_fonts as $name => $family) {
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
                         <div>
                             ${preheadlineHTML}
-                            <div class="preview-headline" style="color: ${primaryColor}; text-align: left; font-family: ${headingFontFamily}; font-size: ${sizes.headline};">
+                            <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${fontSizeHeadline};">
                                 ${escapeHtml(headline || 'Deine Hauptüberschrift')}
                             </div>
-                            ${subheadlineHTML ? `<div class="preview-subheadline" style="text-align: left; font-family: ${bodyFontFamily}; font-size: ${sizes.subheadline};">${escapeHtml(subheadline)}</div>` : ''}
+                            ${subheadlineHTML}
                             ${bulletHTML}
-                            <div class="preview-cta" style="text-align: left;">
+                            <div class="preview-cta">
                                 ${ctaButton}
                             </div>
                         </div>
