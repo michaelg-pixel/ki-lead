@@ -101,6 +101,10 @@
             margin: 0;
             line-height: 1.6;
         }
+        .status-list {
+            margin-top: 12px;
+            padding-left: 20px;
+        }
     </style>
 </head>
 <body>
@@ -136,8 +140,13 @@
             result.style.display = 'none';
 
             try {
-                const response = await fetch('migrate_course_buttons_process.php', {
-                    method: 'POST'
+                // Cache-Buster hinzufügen
+                const timestamp = new Date().getTime();
+                const response = await fetch('migrate_course_buttons_process.php?v=' + timestamp, {
+                    method: 'POST',
+                    headers: {
+                        'Cache-Control': 'no-cache'
+                    }
                 });
                 
                 const data = await response.json();
@@ -146,17 +155,37 @@
                 
                 if (data.success) {
                     result.className = 'result success';
-                    result.innerHTML = `
+                    let html = `
                         <h3>✅ Migration erfolgreich!</h3>
                         <p>${data.message}</p>
                     `;
+                    
+                    if (data.columns_status) {
+                        html += '<ul class="status-list">';
+                        for (let [col, status] of Object.entries(data.columns_status)) {
+                            html += `<li>${col}: ${status}</li>`;
+                        }
+                        html += '</ul>';
+                    }
+                    
+                    result.innerHTML = html;
                     btn.textContent = '✅ Migration abgeschlossen';
                 } else {
                     result.className = 'result error';
-                    result.innerHTML = `
+                    let html = `
                         <h3>❌ Fehler bei der Migration</h3>
                         <p>${data.error}</p>
                     `;
+                    
+                    if (data.columns_status) {
+                        html += '<ul class="status-list">';
+                        for (let [col, status] of Object.entries(data.columns_status)) {
+                            html += `<li>${col}: ${status}</li>`;
+                        }
+                        html += '</ul>';
+                    }
+                    
+                    result.innerHTML = html;
                     btn.disabled = false;
                     btn.textContent = '🔄 Erneut versuchen';
                 }
