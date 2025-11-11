@@ -64,6 +64,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
         'font_heading' => $_POST['font_heading'] ?? 'Inter',
         'font_body' => $_POST['font_body'] ?? 'Inter',
         'font_size' => $_POST['font_size'] ?? 'medium',
+        'heading_font_size' => intval($_POST['heading_font_size'] ?? 32),
+        'body_font_size' => intval($_POST['body_font_size'] ?? 16),
         'category_id' => !empty($_POST['category_id']) ? intval($_POST['category_id']) : null
     ];
     
@@ -160,13 +162,26 @@ $form = [
     'font_heading' => $freebie['font_heading'] ?? 'Inter',
     'font_body' => $freebie['font_body'] ?? 'Inter',
     'font_size' => $freebie['font_size'] ?? 'medium',
+    'heading_font_size' => $freebie['heading_font_size'] ?? 32,
+    'body_font_size' => $freebie['body_font_size'] ?? 16,
     'category_id' => $freebie['category_id'] ?? null
 ];
 
 // Fonts
 $google_fonts = [
-    'Inter', 'Roboto', 'Open Sans', 'Montserrat', 'Poppins', 
-    'Lato', 'Oswald', 'Raleway', 'Playfair Display', 'Merriweather'
+    'Inter' => 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap',
+    'Roboto' => 'https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap',
+    'Montserrat' => 'https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap',
+    'Poppins' => 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap',
+    'Playfair Display' => 'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&display=swap'
+];
+
+$websafe_fonts = [
+    'Arial',
+    'Helvetica',
+    'Georgia',
+    'Times New Roman',
+    'Verdana'
 ];
 ?>
 <!DOCTYPE html>
@@ -176,6 +191,9 @@ $google_fonts = [
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $editMode ? 'Freebie bearbeiten' : 'Neues Freebie'; ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <?php foreach ($google_fonts as $font => $url): ?>
+    <link href="<?php echo $url; ?>" rel="stylesheet">
+    <?php endforeach; ?>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -229,6 +247,7 @@ $google_fonts = [
             display: grid;
             grid-template-columns: 500px 1fr;
             gap: 24px;
+            align-items: start;
         }
         
         .panel {
@@ -236,6 +255,13 @@ $google_fonts = [
             border-radius: 16px;
             padding: 24px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .panel-sticky {
+            position: sticky;
+            top: 20px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
         }
         
         .panel-title {
@@ -275,6 +301,12 @@ $google_fonts = [
         .form-textarea {
             resize: vertical;
             min-height: 100px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
         }
         
         .layout-selector {
@@ -391,6 +423,77 @@ $google_fonts = [
             border-radius: 3px;
         }
         
+        /* Animation Selector */
+        .animation-selector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        .animation-option {
+            position: relative;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .animation-option input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+        }
+        .animation-option:hover {
+            border-color: #8B5CF6;
+        }
+        .animation-option input[type="radio"]:checked ~ label {
+            color: #8B5CF6;
+        }
+        .animation-option input[type="radio"]:checked ~ .animation-demo {
+            border-color: #8B5CF6;
+        }
+        .animation-demo {
+            width: 40px;
+            height: 40px;
+            margin: 8px auto;
+            background: #8B5CF6;
+            border-radius: 6px;
+            border: 2px solid transparent;
+        }
+        
+        /* Button Animations */
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .btn-pulse { animation: pulse 2s infinite; }
+        
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 5px rgba(139, 92, 246, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.8), 0 0 30px rgba(139, 92, 246, 0.6); }
+        }
+        .btn-glow { animation: glow 2s infinite; }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .btn-bounce { animation: bounce 2s infinite; }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        .btn-shake { animation: shake 3s infinite; }
+        
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .btn-rotate { animation: rotate 3s linear infinite; }
+        
         .btn-save {
             width: 100%;
             padding: 16px;
@@ -482,7 +585,6 @@ $google_fonts = [
         }
         
         .preview-headline {
-            font-size: 32px;
             font-weight: 800;
             line-height: 1.2;
             margin-bottom: 16px;
@@ -490,7 +592,6 @@ $google_fonts = [
         }
         
         .preview-subheadline {
-            font-size: 18px;
             color: #666;
             line-height: 1.5;
         }
@@ -511,7 +612,6 @@ $google_fonts = [
             align-items: flex-start;
             gap: 12px;
             margin-bottom: 16px;
-            font-size: 16px;
             line-height: 1.6;
             color: #374151;
         }
@@ -536,7 +636,6 @@ $google_fonts = [
             border-radius: 8px;
             color: white;
             font-weight: 700;
-            font-size: 16px;
             text-decoration: none;
             text-align: center;
             margin-top: 24px;
@@ -559,6 +658,11 @@ $google_fonts = [
         @media (max-width: 1200px) {
             .editor-grid { 
                 grid-template-columns: 1fr; 
+            }
+            .panel-sticky {
+                position: relative;
+                top: 0;
+                max-height: none;
             }
             .layout-preview-hybrid .grid,
             .layout-preview-sidebar .grid {
@@ -692,6 +796,7 @@ $google_fonts = [
                     <div class="form-group">
                         <label class="form-label">Bullet Icon Style</label>
                         <select name="bullet_icon_style" class="form-select" onchange="updatePreview()">
+                            <option value="none" <?php echo $form['bullet_icon_style'] === 'none' ? 'selected' : ''; ?>>Kein Icon</option>
                             <option value="checkmark" <?php echo $form['bullet_icon_style'] === 'checkmark' ? 'selected' : ''; ?>>✓ Checkmark</option>
                             <option value="standard" <?php echo $form['bullet_icon_style'] === 'standard' ? 'selected' : ''; ?>>→ Arrow</option>
                             <option value="star" <?php echo $form['bullet_icon_style'] === 'star' ? 'selected' : ''; ?>>★ Star</option>
@@ -706,18 +811,76 @@ $google_fonts = [
                 </div>
                 
                 <div class="form-section">
-                    <div class="section-title">🎨 Design</div>
+                    <div class="section-title">✏️ Schriftarten & Größen</div>
                     <div class="form-group">
-                        <label class="form-label">Hintergrundfarbe</label>
-                        <input type="color" name="background_color" class="form-input"
-                               value="<?php echo htmlspecialchars($form['background_color']); ?>"
+                        <label class="form-label">Überschrift Schriftart</label>
+                        <select name="font_heading" class="form-select" onchange="updatePreview()">
+                            <optgroup label="Google Fonts">
+                                <?php foreach (array_keys($google_fonts) as $font): ?>
+                                <option value="<?php echo $font; ?>" <?php echo $form['font_heading'] === $font ? 'selected' : ''; ?>>
+                                    <?php echo $font; ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </optgroup>
+                            <optgroup label="Websichere Fonts">
+                                <?php foreach ($websafe_fonts as $font): ?>
+                                <option value="<?php echo $font; ?>" <?php echo $form['font_heading'] === $font ? 'selected' : ''; ?>>
+                                    <?php echo $font; ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Überschrift Größe (px)</label>
+                        <input type="number" name="heading_font_size" class="form-input" 
+                               value="<?php echo $form['heading_font_size']; ?>"
+                               min="20" max="72" step="2"
                                onchange="updatePreview()">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Primärfarbe (CTA & Icons)</label>
-                        <input type="color" name="primary_color" class="form-input"
-                               value="<?php echo htmlspecialchars($form['primary_color']); ?>"
+                        <label class="form-label">Text Schriftart</label>
+                        <select name="font_body" class="form-select" onchange="updatePreview()">
+                            <optgroup label="Google Fonts">
+                                <?php foreach (array_keys($google_fonts) as $font): ?>
+                                <option value="<?php echo $font; ?>" <?php echo $form['font_body'] === $font ? 'selected' : ''; ?>>
+                                    <?php echo $font; ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </optgroup>
+                            <optgroup label="Websichere Fonts">
+                                <?php foreach ($websafe_fonts as $font): ?>
+                                <option value="<?php echo $font; ?>" <?php echo $form['font_body'] === $font ? 'selected' : ''; ?>>
+                                    <?php echo $font; ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Text Größe (px)</label>
+                        <input type="number" name="body_font_size" class="form-input" 
+                               value="<?php echo $form['body_font_size']; ?>"
+                               min="12" max="24" step="1"
                                onchange="updatePreview()">
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <div class="section-title">🎨 Design</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Hintergrundfarbe</label>
+                            <input type="color" name="background_color" class="form-input"
+                                   value="<?php echo htmlspecialchars($form['background_color']); ?>"
+                                   onchange="updatePreview()">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Primärfarbe (CTA & Icons)</label>
+                            <input type="color" name="primary_color" class="form-input"
+                                   value="<?php echo htmlspecialchars($form['primary_color']); ?>"
+                                   onchange="updatePreview()">
+                        </div>
                     </div>
                 </div>
                 
@@ -746,7 +909,7 @@ $google_fonts = [
                     <div class="section-title">📧 E-Mail Optin</div>
                     <div class="form-group">
                         <label class="form-label">Anzeige-Modus</label>
-                        <select name="optin_display_mode" class="form-select" onchange="updatePreview()">
+                        <select name="optin_display_mode" class="form-select" onchange="togglePopupFields(); updatePreview();">
                             <option value="direct" <?php echo $form['optin_display_mode'] === 'direct' ? 'selected' : ''; ?>>
                                 Direkt anzeigen
                             </option>
@@ -755,6 +918,57 @@ $google_fonts = [
                             </option>
                         </select>
                     </div>
+                    
+                    <div id="popupAnimationGroup" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">Button Animation</label>
+                            <div class="animation-selector">
+                                <label class="animation-option">
+                                    <input type="radio" name="cta_animation" value="none"
+                                           <?php echo $form['cta_animation'] === 'none' ? 'checked' : ''; ?>
+                                           onchange="updatePreview()">
+                                    <div class="animation-demo"></div>
+                                    <label>Keine</label>
+                                </label>
+                                <label class="animation-option">
+                                    <input type="radio" name="cta_animation" value="pulse"
+                                           <?php echo $form['cta_animation'] === 'pulse' ? 'checked' : ''; ?>
+                                           onchange="updatePreview()">
+                                    <div class="animation-demo btn-pulse"></div>
+                                    <label>Pulse</label>
+                                </label>
+                                <label class="animation-option">
+                                    <input type="radio" name="cta_animation" value="glow"
+                                           <?php echo $form['cta_animation'] === 'glow' ? 'checked' : ''; ?>
+                                           onchange="updatePreview()">
+                                    <div class="animation-demo btn-glow"></div>
+                                    <label>Glow</label>
+                                </label>
+                                <label class="animation-option">
+                                    <input type="radio" name="cta_animation" value="bounce"
+                                           <?php echo $form['cta_animation'] === 'bounce' ? 'checked' : ''; ?>
+                                           onchange="updatePreview()">
+                                    <div class="animation-demo btn-bounce"></div>
+                                    <label>Bounce</label>
+                                </label>
+                                <label class="animation-option">
+                                    <input type="radio" name="cta_animation" value="shake"
+                                           <?php echo $form['cta_animation'] === 'shake' ? 'checked' : ''; ?>
+                                           onchange="updatePreview()">
+                                    <div class="animation-demo btn-shake"></div>
+                                    <label>Shake</label>
+                                </label>
+                                <label class="animation-option">
+                                    <input type="radio" name="cta_animation" value="rotate"
+                                           <?php echo $form['cta_animation'] === 'rotate' ? 'checked' : ''; ?>
+                                           onchange="updatePreview()">
+                                    <div class="animation-demo btn-rotate"></div>
+                                    <label>Rotate</label>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="form-group">
                         <label class="form-label">HTML/JavaScript Code</label>
                         <textarea name="raw_code" class="form-textarea" rows="6"><?php echo htmlspecialchars($form['raw_code']); ?></textarea>
@@ -771,7 +985,7 @@ $google_fonts = [
                 </button>
             </div>
             
-            <div class="panel">
+            <div class="panel panel-sticky">
                 <h2 class="panel-title">👁️ Live Vorschau</h2>
                 <div class="preview-container" id="previewContainer">
                     <div class="preview-content" id="previewContent">
@@ -788,14 +1002,12 @@ $google_fonts = [
 document.addEventListener('DOMContentLoaded', function() {
     updatePreview();
     togglePopupFields();
-    
-    // Popup toggle
-    document.querySelector('select[name="optin_display_mode"]').addEventListener('change', togglePopupFields);
 });
 
 function togglePopupFields() {
     const mode = document.querySelector('select[name="optin_display_mode"]').value;
     document.getElementById('popupMessageGroup').style.display = mode === 'popup' ? 'block' : 'none';
+    document.getElementById('popupAnimationGroup').style.display = mode === 'popup' ? 'block' : 'none';
 }
 
 function updatePreview() {
@@ -811,17 +1023,26 @@ function updatePreview() {
     const primaryColor = form.querySelector('input[name="primary_color"]').value;
     const mockupUrl = form.querySelector('input[name="mockup_image_url"]').value;
     const optinMode = form.querySelector('select[name="optin_display_mode"]').value;
+    const ctaAnimation = form.querySelector('input[name="cta_animation"]:checked')?.value || 'none';
+    const fontHeading = form.querySelector('select[name="font_heading"]').value;
+    const fontBody = form.querySelector('select[name="font_body"]').value;
+    const headingFontSize = form.querySelector('input[name="heading_font_size"]').value;
+    const bodyFontSize = form.querySelector('input[name="body_font_size"]').value;
     
     // Parse bullet points
     const bullets = bulletPoints.split('\n').filter(b => b.trim());
     
     // Icon HTML
     const iconMap = {
+        'none': '',
         'checkmark': '✓',
         'standard': '→',
         'star': '★'
     };
     const icon = iconMap[bulletIconStyle] || '✓';
+    
+    // Animation class
+    const animationClass = ctaAnimation !== 'none' ? `btn-${ctaAnimation}` : '';
     
     // Build preview
     let html = '';
@@ -829,27 +1050,27 @@ function updatePreview() {
     if (layout === 'hybrid') {
         html = `
             <div class="layout-preview-hybrid">
-                <div class="headlines">
+                <div class="headlines" style="font-family: '${fontHeading}', sans-serif;">
                     ${preheadline ? `<div class="preview-preheadline" style="color: ${primaryColor}">${preheadline}</div>` : ''}
-                    <h1 class="preview-headline">${headline}</h1>
-                    ${subheadline ? `<p class="preview-subheadline">${subheadline}</p>` : ''}
+                    <h1 class="preview-headline" style="font-size: ${headingFontSize}px;">${headline}</h1>
+                    ${subheadline ? `<p class="preview-subheadline" style="font-size: ${bodyFontSize}px; font-family: '${fontBody}', sans-serif;">${subheadline}</p>` : ''}
                 </div>
                 <div class="grid">
                     <div>
                         ${mockupUrl ? `<img src="${mockupUrl}" class="preview-mockup" alt="Mockup">` : '<div style="background: #f3f4f6; border-radius: 8px; height: 300px; display: flex; align-items: center; justify-content: center; color: #999;">Mockup Bild</div>'}
                     </div>
                     <div>
-                        <ul class="preview-bullets">
+                        <ul class="preview-bullets" style="font-family: '${fontBody}', sans-serif;">
                             ${bullets.map(b => `
-                                <li class="preview-bullet">
-                                    <span class="preview-bullet-icon" style="background: ${primaryColor}">${icon}</span>
+                                <li class="preview-bullet" style="font-size: ${bodyFontSize}px;">
+                                    ${bulletIconStyle !== 'none' ? `<span class="preview-bullet-icon" style="background: ${primaryColor}">${icon}</span>` : ''}
                                     <span>${b}</span>
                                 </li>
                             `).join('')}
                         </ul>
                         ${optinMode === 'direct' 
                             ? '<div class="optin-placeholder">📧 E-Mail Optin wird hier angezeigt</div>'
-                            : `<a href="#" class="preview-cta" style="background: ${primaryColor}">${ctaText}</a>`
+                            : `<a href="#" class="preview-cta ${animationClass}" style="background: ${primaryColor}; font-size: ${bodyFontSize}px; font-family: '${fontBody}', sans-serif;">${ctaText}</a>`
                         }
                     </div>
                 </div>
@@ -858,26 +1079,26 @@ function updatePreview() {
     } else if (layout === 'centered') {
         html = `
             <div class="layout-preview-centered">
-                <div class="headlines">
+                <div class="headlines" style="font-family: '${fontHeading}', sans-serif;">
                     ${preheadline ? `<div class="preview-preheadline" style="color: ${primaryColor}">${preheadline}</div>` : ''}
-                    <h1 class="preview-headline">${headline}</h1>
-                    ${subheadline ? `<p class="preview-subheadline">${subheadline}</p>` : ''}
+                    <h1 class="preview-headline" style="font-size: ${headingFontSize}px;">${headline}</h1>
+                    ${subheadline ? `<p class="preview-subheadline" style="font-size: ${bodyFontSize}px; font-family: '${fontBody}', sans-serif;">${subheadline}</p>` : ''}
                 </div>
                 <div class="mockup">
                     ${mockupUrl ? `<img src="${mockupUrl}" class="preview-mockup" alt="Mockup" style="margin: 0 auto; display: block;">` : '<div style="background: #f3f4f6; border-radius: 8px; height: 300px; max-width: 400px; margin: 0 auto; display: flex; align-items: center; justify-content: center; color: #999;">Mockup Bild</div>'}
                 </div>
                 <div class="bullets">
-                    <ul class="preview-bullets">
+                    <ul class="preview-bullets" style="font-family: '${fontBody}', sans-serif;">
                         ${bullets.map(b => `
-                            <li class="preview-bullet">
-                                <span class="preview-bullet-icon" style="background: ${primaryColor}">${icon}</span>
+                            <li class="preview-bullet" style="font-size: ${bodyFontSize}px;">
+                                ${bulletIconStyle !== 'none' ? `<span class="preview-bullet-icon" style="background: ${primaryColor}">${icon}</span>` : ''}
                                 <span>${b}</span>
                             </li>
                         `).join('')}
                     </ul>
                     ${optinMode === 'direct' 
                         ? '<div class="optin-placeholder">📧 E-Mail Optin wird hier angezeigt</div>'
-                        : `<a href="#" class="preview-cta" style="background: ${primaryColor}">${ctaText}</a>`
+                        : `<a href="#" class="preview-cta ${animationClass}" style="background: ${primaryColor}; font-size: ${bodyFontSize}px; font-family: '${fontBody}', sans-serif;">${ctaText}</a>`
                     }
                 </div>
             </div>
@@ -885,24 +1106,24 @@ function updatePreview() {
     } else if (layout === 'sidebar') {
         html = `
             <div class="layout-preview-sidebar">
-                <div class="headlines">
+                <div class="headlines" style="font-family: '${fontHeading}', sans-serif;">
                     ${preheadline ? `<div class="preview-preheadline" style="color: ${primaryColor}">${preheadline}</div>` : ''}
-                    <h1 class="preview-headline">${headline}</h1>
-                    ${subheadline ? `<p class="preview-subheadline">${subheadline}</p>` : ''}
+                    <h1 class="preview-headline" style="font-size: ${headingFontSize}px;">${headline}</h1>
+                    ${subheadline ? `<p class="preview-subheadline" style="font-size: ${bodyFontSize}px; font-family: '${fontBody}', sans-serif;">${subheadline}</p>` : ''}
                 </div>
                 <div class="grid">
                     <div>
-                        <ul class="preview-bullets">
+                        <ul class="preview-bullets" style="font-family: '${fontBody}', sans-serif;">
                             ${bullets.map(b => `
-                                <li class="preview-bullet">
-                                    <span class="preview-bullet-icon" style="background: ${primaryColor}">${icon}</span>
+                                <li class="preview-bullet" style="font-size: ${bodyFontSize}px;">
+                                    ${bulletIconStyle !== 'none' ? `<span class="preview-bullet-icon" style="background: ${primaryColor}">${icon}</span>` : ''}
                                     <span>${b}</span>
                                 </li>
                             `).join('')}
                         </ul>
                         ${optinMode === 'direct' 
                             ? '<div class="optin-placeholder">📧 E-Mail Optin wird hier angezeigt</div>'
-                            : `<a href="#" class="preview-cta" style="background: ${primaryColor}">${ctaText}</a>`
+                            : `<a href="#" class="preview-cta ${animationClass}" style="background: ${primaryColor}; font-size: ${bodyFontSize}px; font-family: '${fontBody}', sans-serif;">${ctaText}</a>`
                         }
                     </div>
                     <div>
