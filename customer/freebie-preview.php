@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-// Login-Check (gleiche Logik wie dashboard.php)
+// Login-Check
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
     header('Location: ../public/login.php');
     exit;
@@ -9,9 +9,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
 
 require_once '../config/database.php';
 $pdo = getDBConnection();
-
-// Font-Konfiguration laden
-$fontConfig = require __DIR__ . '/../config/fonts.php';
 
 $customer_id = $_SESSION['user_id'];
 $freebie_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
@@ -21,18 +18,13 @@ if (!$freebie_id) {
     exit;
 }
 
-// Customer Freebie laden MIT VIDEO-FELDERN
+// Customer Freebie laden
 try {
     $stmt = $pdo->prepare("
         SELECT cf.*, 
-               f.name as template_name, 
-               f.mockup_image_url,
-               f.video_url as template_video_url,
-               f.video_format as template_video_format,
-               c.title as course_title
+               f.name as template_name
         FROM customer_freebies cf
         LEFT JOIN freebies f ON cf.template_id = f.id
-        LEFT JOIN courses c ON f.course_id = c.id
         WHERE cf.id = ? AND cf.customer_id = ?
     ");
     $stmt->execute([$freebie_id, $customer_id]);
@@ -50,7 +42,7 @@ try {
 function getVideoEmbedUrl($url) {
     if (empty($url)) return null;
     
-    // YouTube (watch, youtu.be, shorts)
+    // YouTube
     if (preg_match('/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/', $url, $matches)) {
         return 'https://www.youtube.com/embed/' . $matches[1];
     }
@@ -63,23 +55,30 @@ function getVideoEmbedUrl($url) {
     return null;
 }
 
-// Video-Einstellungen mit Fallback
-$videoUrl = $freebie['video_url'] ?? $freebie['template_video_url'] ?? '';
-$videoFormat = $freebie['video_format'] ?? $freebie['template_video_format'] ?? 'widescreen';
+// Defaults
+$layout = $freebie['layout'] ?? 'hybrid';
+$bulletIconStyle = $freebie['bullet_icon_style'] ?? 'checkmark';
+$primaryColor = $freebie['primary_color'] ?? '#5B8DEF';
+$backgroundColor = $freebie['background_color'] ?? '#F8F9FC';
+$fontHeading = $freebie['font_heading'] ?? 'Inter';
+$fontBody = $freebie['font_body'] ?? 'Inter';
+$headingFontSize = $freebie['heading_font_size'] ?? 32;
+$bodyFontSize = $freebie['body_font_size'] ?? 16;
+$ctaAnimation = $freebie['cta_animation'] ?? 'none';
+$optinDisplayMode = $freebie['optin_display_mode'] ?? 'direct';
+
+$videoUrl = $freebie['video_url'] ?? '';
+$videoFormat = $freebie['video_format'] ?? 'widescreen';
 $videoEmbedUrl = getVideoEmbedUrl($videoUrl);
 
-// Font-Einstellungen aus DB mit Fallback auf Defaults
-$preheadlineFont = $freebie['preheadline_font'] ?? $fontConfig['defaults']['preheadline_font'];
-$preheadlineSize = $freebie['preheadline_size'] ?? $fontConfig['defaults']['preheadline_size'];
-$headlineFont = $freebie['headline_font'] ?? $fontConfig['defaults']['headline_font'];
-$headlineSize = $freebie['headline_size'] ?? $fontConfig['defaults']['headline_size'];
-$subheadlineFont = $freebie['subheadline_font'] ?? $fontConfig['defaults']['subheadline_font'];
-$subheadlineSize = $freebie['subheadline_size'] ?? $fontConfig['defaults']['subheadline_size'];
-$bulletpointsFont = $freebie['bulletpoints_font'] ?? $fontConfig['defaults']['bulletpoints_font'];
-$bulletpointsSize = $freebie['bulletpoints_size'] ?? $fontConfig['defaults']['bulletpoints_size'];
-
-// 🆕 BULLET ICON STYLE (mit Fallback auf Standard)
-$bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
+// Google Fonts
+$googleFonts = [
+    'Inter' => 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap',
+    'Roboto' => 'https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap',
+    'Montserrat' => 'https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap',
+    'Poppins' => 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap',
+    'Playfair Display' => 'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&display=swap'
+];
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -88,8 +87,10 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Freebie Vorschau - <?php echo htmlspecialchars($freebie['headline'] ?? 'Freebie'); ?></title>
     
-    <!-- Google Fonts laden - alle verfügbaren Schriftarten -->
-    <link href="<?php echo $fontConfig['google_fonts_url']; ?>" rel="stylesheet">
+    <!-- Google Fonts -->
+    <?php foreach ($googleFonts as $font => $url): ?>
+    <link href="<?php echo $url; ?>" rel="stylesheet">
+    <?php endforeach; ?>
     
     <style>
         * {
@@ -185,7 +186,7 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
         }
         
         .freebie-content {
-            background: <?php echo htmlspecialchars($freebie['background_color'] ?? '#FFFFFF'); ?>;
+            background: <?php echo htmlspecialchars($backgroundColor); ?>;
             border-radius: 12px;
             padding: 80px 60px;
             min-height: 600px;
@@ -202,7 +203,7 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
         }
         
         .video-container.shorts {
-            padding-bottom: 177.78%; /* 9:16 ratio for Shorts */
+            padding-bottom: 177.78%;
             max-width: 400px;
             margin: 0 auto 40px;
         }
@@ -215,160 +216,173 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
             height: 100%;
         }
         
-        .freebie-mockup {
+        /* Headlines - Immer zentriert */
+        .headlines {
             text-align: center;
             margin-bottom: 40px;
         }
         
-        .freebie-mockup img {
-            max-width: 100%;
-            height: auto;
-            max-width: 380px;
-            border-radius: 12px;
-        }
-        
-        /* HEADLINES IMMER ZENTRIERT */
         .freebie-preheadline {
-            color: <?php echo htmlspecialchars($freebie['primary_color'] ?? '#667eea'); ?>;
-            font-size: <?php echo (int)$preheadlineSize; ?>px;
-            font-family: '<?php echo htmlspecialchars($preheadlineFont); ?>', sans-serif;
+            color: <?php echo htmlspecialchars($primaryColor); ?>;
+            font-size: 14px;
+            font-family: '<?php echo htmlspecialchars($fontHeading); ?>', sans-serif;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1px;
-            margin-bottom: 20px;
-            text-align: center;
+            margin-bottom: 16px;
         }
         
         .freebie-headline {
-            color: <?php echo htmlspecialchars($freebie['primary_color'] ?? '#667eea'); ?>;
-            font-size: <?php echo (int)$headlineSize; ?>px;
-            font-family: '<?php echo htmlspecialchars($headlineFont); ?>', sans-serif;
+            color: #1a1a2e;
+            font-size: <?php echo (int)$headingFontSize; ?>px;
+            font-family: '<?php echo htmlspecialchars($fontHeading); ?>', sans-serif;
             font-weight: 800;
             line-height: 1.2;
-            margin-bottom: 24px;
-            text-align: center;
+            margin-bottom: 16px;
         }
         
         .freebie-subheadline {
-            color: #6b7280;
-            font-size: <?php echo (int)$subheadlineSize; ?>px;
-            font-family: '<?php echo htmlspecialchars($subheadlineFont); ?>', sans-serif;
-            margin-bottom: 40px;
-            text-align: center;
+            color: #666;
+            font-size: <?php echo (int)$bodyFontSize; ?>px;
+            font-family: '<?php echo htmlspecialchars($fontBody); ?>', sans-serif;
             line-height: 1.6;
         }
         
+        /* Mockup */
+        .freebie-mockup img {
+            max-width: 100%;
+            width: 100%;
+            max-width: 400px;
+            height: auto;
+            border-radius: 8px;
+        }
+        
+        /* Bullets */
         .freebie-bullets {
-            margin-bottom: 40px;
+            list-style: none;
         }
         
         .freebie-bullet {
             display: flex;
-            align-items: start;
-            gap: 16px;
-            margin-bottom: 20px;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 16px;
+            font-size: <?php echo (int)$bodyFontSize; ?>px;
+            font-family: '<?php echo htmlspecialchars($fontBody); ?>', sans-serif;
+            line-height: 1.6;
+            color: #374151;
         }
         
         .bullet-icon {
-            color: <?php echo htmlspecialchars($freebie['primary_color'] ?? '#667eea'); ?>;
-            font-size: 24px;
             flex-shrink: 0;
-        }
-        
-        .bullet-text {
-            color: #374151;
-            font-size: <?php echo (int)$bulletpointsSize; ?>px;
-            font-family: '<?php echo htmlspecialchars($bulletpointsFont); ?>', sans-serif;
-            line-height: 1.6;
-        }
-        
-        .freebie-form {
-            background: rgba(0, 0, 0, 0.03);
-            border-radius: 12px;
-            padding: 32px;
-            margin-bottom: 32px;
-        }
-        
-        .freebie-form form {
-            max-width: 500px;
-            margin: 0 auto;
-        }
-        
-        .freebie-form input[type="text"],
-        .freebie-form input[type="email"] {
-            width: 100%;
-            padding: 14px 18px;
-            margin-bottom: 12px;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            font-size: 16px;
-            font-family: inherit;
-        }
-        
-        .freebie-form button,
-        .freebie-form input[type="submit"] {
-            width: 100%;
-            padding: 14px 18px;
-            background: <?php echo htmlspecialchars($freebie['primary_color'] ?? '#667eea'); ?>;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: <?php echo htmlspecialchars($primaryColor); ?>;
             color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s;
+            font-size: 14px;
+            font-weight: 700;
+            margin-top: 2px;
         }
         
-        .freebie-form button:hover,
-        .freebie-form input[type="submit"]:hover {
-            transform: translateY(-2px);
+        /* Form / CTA */
+        .freebie-form {
+            margin-top: 24px;
         }
         
         .freebie-cta {
-            text-align: center;
-        }
-        
-        .freebie-button {
-            background: <?php echo htmlspecialchars($freebie['primary_color'] ?? '#667eea'); ?>;
-            color: white;
-            padding: 20px 60px;
-            border: none;
-            border-radius: 8px;
-            font-size: 20px;
-            font-weight: 700;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            transition: transform 0.2s;
             display: inline-block;
+            padding: 18px 40px;
+            border-radius: 8px;
+            background: <?php echo htmlspecialchars($primaryColor); ?>;
+            color: white;
+            font-weight: 700;
+            font-size: <?php echo (int)$bodyFontSize; ?>px;
+            font-family: '<?php echo htmlspecialchars($fontBody); ?>', sans-serif;
+            text-decoration: none;
+            text-align: center;
+            transition: transform 0.2s;
+            cursor: pointer;
         }
         
-        .freebie-button:hover {
+        .freebie-cta:hover {
             transform: translateY(-2px);
         }
         
-        /* Layout-Styles */
-        .layout-centered {
-            max-width: 900px;
-            margin: 0 auto;
+        /* Button Animations */
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
         }
+        .btn-pulse { animation: pulse 2s infinite; }
         
-        .layout-hybrid {
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 5px rgba(91, 141, 239, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(91, 141, 239, 0.8), 0 0 30px rgba(91, 141, 239, 0.6); }
+        }
+        .btn-glow { animation: glow 2s infinite; }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .btn-bounce { animation: bounce 2s infinite; }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        .btn-shake { animation: shake 3s infinite; }
+        
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .btn-rotate { animation: rotate 3s linear infinite; }
+        
+        /* Layout: Hybrid */
+        .layout-hybrid .grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 60px;
+            gap: 40px;
             align-items: start;
         }
         
-        .layout-sidebar {
+        /* Layout: Centered */
+        .layout-centered {
+            max-width: 900px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        
+        .layout-centered .freebie-mockup {
+            margin: 40px auto;
+        }
+        
+        .layout-centered .freebie-bullets {
+            max-width: 600px;
+            margin: 40px auto;
+        }
+        
+        .layout-centered .freebie-bullet {
+            text-align: left;
+        }
+        
+        /* Layout: Sidebar */
+        .layout-sidebar .grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 60px;
+            gap: 40px;
             align-items: start;
         }
         
         @media (max-width: 1024px) {
-            .layout-hybrid,
-            .layout-sidebar {
+            .layout-hybrid .grid,
+            .layout-sidebar .grid {
                 grid-template-columns: 1fr;
             }
             
@@ -392,15 +406,7 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
             }
             
             .freebie-headline {
-                font-size: <?php echo max(24, (int)$headlineSize - 10); ?>px;
-            }
-            
-            .freebie-subheadline {
-                font-size: <?php echo max(14, (int)$subheadlineSize - 2); ?>px;
-            }
-            
-            .bullet-text {
-                font-size: <?php echo max(14, (int)$bulletpointsSize - 2); ?>px;
+                font-size: <?php echo max(24, (int)$headingFontSize - 8); ?>px;
             }
             
             .action-bar {
@@ -421,10 +427,10 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
                 ← Zurück zur Übersicht
             </a>
             <h1>👁️ Freebie Vorschau</h1>
-            <p>Template: <?php echo htmlspecialchars($freebie['template_name'] ?? 'Unbekannt'); ?></p>
+            <p>Template: <?php echo htmlspecialchars($freebie['template_name'] ?? 'Custom'); ?></p>
             
             <div class="action-bar">
-                <a href="freebie-editor.php?template_id=<?php echo $freebie['template_id']; ?>" class="action-button action-primary">
+                <a href="edit-freebie.php?id=<?php echo $freebie['id']; ?>" class="action-button action-primary">
                     ✏️ Bearbeiten
                 </a>
             </div>
@@ -433,154 +439,109 @@ $bulletIconStyle = $freebie['bullet_icon_style'] ?? 'standard';
         <div class="preview-wrapper">
             <div class="freebie-content">
                 <?php
-                $layout = $freebie['layout'] ?? 'hybrid';
+                // Build content parts
+                $preheadline_html = !empty($freebie['preheadline']) ? 
+                    '<div class="freebie-preheadline">' . htmlspecialchars($freebie['preheadline']) . '</div>' : '';
                 
-                // HEADLINES - IMMER ZENTRIERT, IMMER OBEN
-                // Preheadline HTML
-                $preheadline_html = '';
-                if (!empty($freebie['preheadline'])) {
-                    $preheadline_html = '<div class="freebie-preheadline">' . htmlspecialchars($freebie['preheadline']) . '</div>';
-                }
+                $headline_html = '<div class="freebie-headline">' . 
+                    htmlspecialchars($freebie['headline'] ?? 'Freebie Headline') . '</div>';
                 
-                // Headline - IMMER ZENTRIERT
-                $headline_html = '<div class="freebie-headline">' . htmlspecialchars($freebie['headline'] ?? 'Freebie Headline') . '</div>';
+                $subheadline_html = !empty($freebie['subheadline']) ? 
+                    '<div class="freebie-subheadline">' . htmlspecialchars($freebie['subheadline']) . '</div>' : '';
                 
-                // Subheadline HTML - IMMER ZENTRIERT
-                $subheadline_html = '';
-                if (!empty($freebie['subheadline'])) {
-                    $subheadline_html = '<div class="freebie-subheadline">' . htmlspecialchars($freebie['subheadline']) . '</div>';
-                }
-                
-                // Video HTML - VOR MOCKUP
+                // Video
                 $video_html = '';
                 if (!empty($videoEmbedUrl)) {
-                    $video_html = '
-                        <div class="video-container ' . ($videoFormat === 'shorts' ? 'shorts' : '') . '">
-                            <iframe 
-                                src="' . htmlspecialchars($videoEmbedUrl) . '" 
-                                frameborder="0" 
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                                allowfullscreen>
-                            </iframe>
-                        </div>
-                    ';
+                    $video_html = '<div class="video-container ' . ($videoFormat === 'shorts' ? 'shorts' : '') . '">
+                        <iframe src="' . htmlspecialchars($videoEmbedUrl) . '" frameborder="0" 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                            allowfullscreen></iframe>
+                    </div>';
                 }
                 
-                // Mockup HTML - NACH VIDEO
+                // Mockup
                 $mockup_html = '';
-                $mockup_url = $freebie['mockup_image_url'] ?? '';
-                if (!empty($mockup_url)) {
-                    $mockup_html = '
-                        <div class="freebie-mockup">
-                            <img src="' . htmlspecialchars($mockup_url) . '" alt="Mockup">
-                        </div>
-                    ';
+                if (!empty($freebie['mockup_image_url'])) {
+                    $mockup_html = '<div class="freebie-mockup">
+                        <img src="' . htmlspecialchars($freebie['mockup_image_url']) . '" alt="Mockup">
+                    </div>';
                 }
                 
-                // 🆕 BULLET POINTS MIT BULLET ICON STYLE LOGIK
+                // Bullets
                 $bullets_html = '';
                 if (!empty($freebie['bullet_points'])) {
-                    $bullets = array_filter(explode("\n", $freebie['bullet_points']), function($b) { return trim($b) !== ''; });
+                    $bullets = array_filter(explode("\n", $freebie['bullet_points']), function($b) { 
+                        return trim($b) !== ''; 
+                    });
+                    
                     if (!empty($bullets)) {
-                        $bullets_html = '<div class="freebie-bullets">';
+                        $iconMap = [
+                            'none' => '',
+                            'checkmark' => '✓',
+                            'standard' => '→',
+                            'star' => '★'
+                        ];
+                        $icon = $iconMap[$bulletIconStyle] ?? '✓';
                         
+                        $bullets_html = '<ul class="freebie-bullets">';
                         foreach ($bullets as $bullet) {
-                            $bullet = trim($bullet);
-                            $icon = '✓';
-                            $text = $bullet;
-                            $iconColor = htmlspecialchars($freebie['primary_color'] ?? '#667eea');
-                            
-                            // 🆕 LOGIK FÜR BULLET ICON STYLE
-                            if ($bulletIconStyle === 'custom') {
-                                // Versuche Emoji/Icon am Anfang zu extrahieren
-                                if (preg_match('/^([\x{1F300}-\x{1F9FF}]|[\x{2600}-\x{26FF}]|[\x{2700}-\x{27BF}])/u', $bullet, $matches)) {
-                                    $icon = $matches[1];
-                                    $text = trim(substr($bullet, strlen($icon)));
-                                    $iconColor = 'inherit';
-                                } else {
-                                    // Fallback: erstes Zeichen prüfen
-                                    $firstChar = mb_substr($bullet, 0, 1);
-                                    if ($firstChar && !preg_match('/[a-zA-Z0-9\s]/', $firstChar)) {
-                                        $icon = $firstChar;
-                                        $text = trim(mb_substr($bullet, 1));
-                                        $iconColor = 'inherit';
-                                    }
-                                }
-                            } else {
-                                // Standard: Text bereinigen und grünen Haken nutzen
-                                $text = preg_replace('/^[✓✔︎•-]\s*/', '', $bullet);
+                            $bullets_html .= '<li class="freebie-bullet">';
+                            if ($bulletIconStyle !== 'none') {
+                                $bullets_html .= '<span class="bullet-icon">' . $icon . '</span>';
                             }
-                            
-                            $bullets_html .= '
-                                <div class="freebie-bullet">
-                                    <div class="bullet-icon" style="color: ' . $iconColor . ';">' . htmlspecialchars($icon) . '</div>
-                                    <div class="bullet-text">' . htmlspecialchars($text) . '</div>
-                                </div>
-                            ';
+                            $bullets_html .= '<span>' . htmlspecialchars(trim($bullet)) . '</span>';
+                            $bullets_html .= '</li>';
                         }
-                        $bullets_html .= '</div>';
+                        $bullets_html .= '</ul>';
                     }
                 }
                 
-                // Form HTML (Raw Code richtig einbinden)
-                $form_html = '';
-                if (!empty($freebie['raw_code'])) {
-                    $form_html = '<div class="freebie-form">' . $freebie['raw_code'] . '</div>';
-                }
-                
-                // CTA Button (nur wenn KEIN raw_code vorhanden)
+                // Form/CTA
                 $cta_html = '';
-                if (empty($freebie['raw_code'])) {
-                    $cta_text = $freebie['cta_text'] ?? 'JETZT KOSTENLOS SICHERN';
-                    $cta_html = '
-                        <div class="freebie-cta">
-                            <a href="#" class="freebie-button">' . htmlspecialchars($cta_text) . '</a>
-                        </div>
-                    ';
+                $animationClass = $ctaAnimation !== 'none' ? 'btn-' . $ctaAnimation : '';
+                
+                if ($optinDisplayMode === 'direct' && !empty($freebie['raw_code'])) {
+                    $cta_html = '<div class="freebie-form">' . $freebie['raw_code'] . '</div>';
+                } else {
+                    $ctaText = $freebie['cta_text'] ?? 'JETZT KOSTENLOS SICHERN';
+                    $cta_html = '<div style="margin-top: 24px;">
+                        <a href="#" class="freebie-cta ' . $animationClass . '">' . 
+                        htmlspecialchars($ctaText) . '</a>
+                    </div>';
                 }
                 
-                // Layout rendern - HEADLINES IMMER ZENTRIERT OBEN
+                // Render layout
                 if ($layout === 'centered') {
-                    // CENTERED: Alles zentriert untereinander
                     echo '<div class="layout-centered">';
-                    echo $preheadline_html;
-                    echo $headline_html;
-                    echo $subheadline_html;
+                    echo '<div class="headlines">';
+                    echo $preheadline_html . $headline_html . $subheadline_html;
+                    echo '</div>';
                     echo $video_html;
                     echo $mockup_html;
                     echo $bullets_html;
-                    echo $form_html;
                     echo $cta_html;
                     echo '</div>';
                     
                 } elseif ($layout === 'hybrid') {
-                    // HYBRID: Headlines oben zentriert, dann Video/Mockup LINKS, Bullets RECHTS
-                    echo $preheadline_html;
-                    echo $headline_html;
-                    echo $subheadline_html;
-                    
                     echo '<div class="layout-hybrid">';
+                    echo '<div class="headlines">';
+                    echo $preheadline_html . $headline_html . $subheadline_html;
+                    echo '</div>';
+                    echo '<div class="grid">';
                     echo '<div>' . $video_html . $mockup_html . '</div>';
-                    echo '<div>';
-                    echo $bullets_html;
-                    echo $form_html;
-                    echo $cta_html;
+                    echo '<div>' . $bullets_html . $cta_html . '</div>';
                     echo '</div>';
                     echo '</div>';
                     
                 } else { // sidebar
-                    // SIDEBAR: Headlines oben zentriert, dann Bullets LINKS, Video/Mockup RECHTS
-                    echo $preheadline_html;
-                    echo $headline_html;
-                    echo $subheadline_html;
-                    
                     echo '<div class="layout-sidebar">';
-                    echo '<div>';
-                    echo $bullets_html;
-                    echo $form_html;
-                    echo $cta_html;
+                    echo '<div class="headlines">';
+                    echo $preheadline_html . $headline_html . $subheadline_html;
                     echo '</div>';
+                    echo '<div class="grid">';
+                    echo '<div>' . $bullets_html . $cta_html . '</div>';
                     echo '<div>' . $video_html . $mockup_html . '</div>';
+                    echo '</div>';
                     echo '</div>';
                 }
                 ?>
