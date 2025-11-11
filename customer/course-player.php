@@ -248,7 +248,7 @@ if ($is_public_access) {
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title><?php echo htmlspecialchars($course['title']); ?> - KI Leadsystem</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -806,15 +806,36 @@ if ($is_public_access) {
             font-size: 18px;
         }
 
-        /* Mobile */
+        /* Mobile Optimierungen */
         @media (max-width: 1024px) {
+            body {
+                overflow: auto;
+                overflow-x: hidden;
+            }
+
+            .player-container {
+                height: auto;
+                min-height: 100vh;
+                flex-direction: column;
+            }
+
+            .video-area {
+                height: auto;
+            }
+
+            .video-container {
+                min-height: 300px;
+                height: auto;
+            }
+
             .sidebar {
                 position: fixed;
-                right: -380px;
+                right: -100%;
                 top: 0;
                 height: 100vh;
+                width: 100%;
                 z-index: 1000;
-                transition: right 0.3s;
+                transition: right 0.3s ease;
             }
 
             .sidebar.open {
@@ -822,7 +843,7 @@ if ($is_public_access) {
             }
 
             .mobile-toggle {
-                display: block;
+                display: block !important;
                 position: fixed;
                 bottom: 24px;
                 right: 24px;
@@ -841,30 +862,74 @@ if ($is_public_access) {
 
         @media (max-width: 768px) {
             .player-header {
-                padding: 16px;
+                padding: 12px 16px;
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+
+            .header-left {
+                gap: 12px;
+                flex-wrap: wrap;
+            }
+
+            .back-button {
+                padding: 8px 16px;
+                font-size: 13px;
             }
 
             .course-info h1 {
                 font-size: 18px;
             }
 
-            .lesson-info {
-                padding: 20px 16px;
+            .course-info p {
+                font-size: 13px;
             }
 
-            .sidebar {
-                width: 100%;
-                right: -100%;
+            .progress-badge {
+                font-size: 12px;
+                padding: 8px 14px;
             }
 
             .video-tabs {
-                padding: 16px;
+                padding: 12px;
                 gap: 8px;
             }
 
             .video-tab {
-                padding: 12px 20px;
+                padding: 10px 16px;
                 font-size: 14px;
+            }
+
+            .lesson-info {
+                padding: 20px 16px;
+            }
+
+            .lesson-info h2 {
+                font-size: 18px;
+            }
+
+            .lesson-meta {
+                gap: 12px;
+                font-size: 13px;
+            }
+
+            .lesson-description {
+                font-size: 14px;
+            }
+
+            .complete-button {
+                width: 100%;
+                padding: 14px;
+                font-size: 14px;
+            }
+
+            .cta-button {
+                padding: 14px 32px;
+                font-size: 15px;
+            }
+
+            .pdf-download-area {
+                padding: 40px 20px;
             }
 
             .pdf-icon {
@@ -885,9 +950,25 @@ if ($is_public_access) {
                 align-items: stretch;
             }
 
-            .cta-button {
-                padding: 14px 32px;
-                font-size: 15px;
+            .locked-icon {
+                font-size: 80px;
+                margin-bottom: 20px;
+            }
+
+            .locked-title {
+                font-size: 24px;
+                padding: 0 20px;
+            }
+
+            .locked-text {
+                font-size: 16px;
+                padding: 0 20px;
+            }
+
+            .unlock-countdown {
+                font-size: 16px;
+                padding: 12px 24px;
+                margin: 0 20px;
             }
         }
 
