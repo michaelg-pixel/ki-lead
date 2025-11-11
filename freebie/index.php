@@ -388,7 +388,7 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             text-decoration: underline;
         }
         
-        /* Popup */
+        /* Popup Overlay & Content */
         .popup-overlay {
             display: none;
             position: fixed;
@@ -412,12 +412,14 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             max-width: 600px;
             width: 100%;
             position: relative;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
         
         .popup-header {
             padding: 32px;
             text-align: center;
             border-bottom: 1px solid #e5e7eb;
+            position: relative;
         }
         
         .popup-close {
@@ -432,6 +434,7 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             color: #999;
             cursor: pointer;
             line-height: 1;
+            transition: color 0.2s;
         }
         
         .popup-close:hover {
@@ -442,8 +445,211 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             padding: 32px;
         }
         
+        .popup-body input[type="email"],
+        .popup-body input[type="text"] {
+            width: 100%;
+            padding: 14px 18px;
+            margin-bottom: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        .popup-body button,
+        .popup-body input[type="submit"] {
+            width: 100%;
+            padding: 14px 18px;
+            background: <?= htmlspecialchars($primaryColor) ?>;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .popup-body button:hover,
+        .popup-body input[type="submit"]:hover {
+            transform: translateY(-2px);
+        }
+        
         body.popup-open {
             overflow: hidden;
+        }
+        
+        /* Cookie Banner Styles */
+        .cookie-banner {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 10000;
+            border-top: 3px solid #667eea;
+        }
+        
+        .cookie-banner.hidden {
+            display: none;
+        }
+        
+        .cookie-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .cookie-text {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .cookie-text h3 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #1a1a2e;
+        }
+        
+        .cookie-text p {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.5;
+        }
+        
+        .cookie-text a {
+            color: #667eea;
+            text-decoration: underline;
+        }
+        
+        .cookie-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .cookie-btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            white-space: nowrap;
+        }
+        
+        .cookie-btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .cookie-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .cookie-btn-secondary {
+            background: transparent;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        
+        .cookie-btn-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .cookie-settings {
+            max-width: 1200px;
+            margin: 20px auto 0;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .cookie-settings.hidden {
+            display: none;
+        }
+        
+        .cookie-category {
+            margin-bottom: 16px;
+        }
+        
+        .cookie-category-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        
+        .cookie-category h4 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+        
+        .cookie-category p {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.4;
+            margin-left: 32px;
+        }
+        
+        .cookie-toggle {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+        
+        .cookie-toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .cookie-toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.3s;
+            border-radius: 24px;
+        }
+        
+        .cookie-toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+        
+        .cookie-toggle input:checked + .cookie-toggle-slider {
+            background-color: #667eea;
+        }
+        
+        .cookie-toggle input:checked + .cookie-toggle-slider:before {
+            transform: translateX(20px);
+        }
+        
+        .cookie-toggle input:disabled + .cookie-toggle-slider {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
         
         @media (max-width: 768px) {
@@ -462,6 +668,19 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             
             .optin-form {
                 padding: 20px;
+            }
+            
+            .cookie-content {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .cookie-buttons {
+                justify-content: stretch;
+            }
+            
+            .cookie-btn {
+                flex: 1;
             }
         }
     </style>
@@ -609,10 +828,8 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
                     <?= $freebie['raw_code'] ?>
                 <?php else: ?>
                     <form>
-                        <input type="email" name="email" placeholder="E-Mail-Adresse" required
-                               style="width: 100%; padding: 14px; margin-bottom: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 16px;">
-                        <button type="submit" 
-                                style="width: 100%; padding: 14px; background: <?= htmlspecialchars($primaryColor) ?>; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
+                        <input type="email" name="email" placeholder="E-Mail-Adresse" required>
+                        <button type="submit">
                             <?= htmlspecialchars($freebie['cta_text'] ?? 'Jetzt anmelden') ?>
                         </button>
                     </form>
