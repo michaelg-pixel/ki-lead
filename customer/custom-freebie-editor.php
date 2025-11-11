@@ -1728,14 +1728,15 @@ foreach ($google_fonts as $name => $family) {
                 `;
             }
             
+            // ✅ INLINE TEXT-ALIGN: CENTER FÜR ALLE ÜBERSCHRIFTEN
             const preheadlineHTML = preheadline ? `
-                <div class="preview-preheadline" style="color: ${primaryColor}; font-family: ${bodyFontFamily}; font-size: ${fontSizePreheadline};">
+                <div class="preview-preheadline" style="color: ${primaryColor}; font-family: ${bodyFontFamily}; font-size: ${fontSizePreheadline}; text-align: center;">
                     ${escapeHtml(preheadline)}
                 </div>
             ` : '';
             
             const subheadlineHTML = subheadline ? `
-                <div class="preview-subheadline" style="font-family: ${bodyFontFamily}; font-size: ${fontSizeSubheadline};">${escapeHtml(subheadline)}</div>
+                <div class="preview-subheadline" style="font-family: ${bodyFontFamily}; font-size: ${fontSizeSubheadline}; text-align: center;">${escapeHtml(subheadline)}</div>
             ` : '';
             
             // Priorität: Video > Mockup > Icon
@@ -1749,11 +1750,11 @@ foreach ($google_fonts as $name => $family) {
                 </button>
             `;
             
-            // 🆕 KORRIGIERTE LAYOUTS MIT ZENTRIERUNG UND RICHTIGER REIHENFOLGE
+            // LAYOUTS MIT ZENTRIERUNG UND RICHTIGER REIHENFOLGE
             let layoutHTML = '';
             
             if (layout === 'centered') {
-                // ✅ KORRIGIERT: Preheadline → Headline → Subheadline → Media → Bullets → CTA
+                // Preheadline → Headline → Subheadline → Media → Bullets → CTA
                 layoutHTML = `
                     <div style="max-width: 800px; margin: 0 auto;">
                         ${preheadlineHTML}
