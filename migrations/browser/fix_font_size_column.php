@@ -9,18 +9,36 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 
 $success = false;
 $error = null;
+$steps = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['execute'])) {
     try {
         $pdo = getDBConnection();
         
-        // Spalte zu TEXT ändern
-        $pdo->exec("ALTER TABLE customer_freebies MODIFY COLUMN font_size TEXT");
+        // Schritt 1: Prüfe, ob Index existiert
+        $steps[] = "🔍 Prüfe Indizes auf font_size Spalte...";
+        $stmt = $pdo->query("SHOW INDEX FROM customer_freebies WHERE Column_name = 'font_size'");
+        $indexes = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
+        // Schritt 2: Entferne alle Indizes auf font_size
+        foreach ($indexes as $index) {
+            $indexName = $index['Key_name'];
+            if ($indexName !== 'PRIMARY') {
+                $steps[] = "🗑️ Entferne Index: {$indexName}";
+                $pdo->exec("ALTER TABLE customer_freebies DROP INDEX `{$indexName}`");
+            }
+        }
+        
+        // Schritt 3: Ändere Spalte zu TEXT
+        $steps[] = "🔧 Ändere font_size Spalte zu TEXT...";
+        $pdo->exec("ALTER TABLE customer_freebies MODIFY COLUMN font_size TEXT NULL");
+        
+        $steps[] = "✅ Migration erfolgreich abgeschlossen!";
         $success = true;
         
     } catch (PDOException $e) {
         $error = $e->getMessage();
+        $steps[] = "❌ Fehler: " . $e->getMessage();
     }
 }
 ?>
@@ -99,6 +117,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['execute'])) {
             overflow-x: auto;
         }
         
+        .steps-box {
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .step {
+            padding: 8px 0;
+            font-size: 14px;
+            color: #374151;
+        }
+        
         .btn {
             width: 100%;
             padding: 16px;
@@ -160,6 +192,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['execute'])) {
         <h1>🔧 Font Size Column Migration</h1>
         <p class="subtitle">Datenbank-Update für Pixel-basierte Schriftgrößen</p>
         
+        <?php if (!empty($steps)): ?>
+            <div class="steps-box">
+                <h3 style="margin-bottom: 12px; color: #1a1a2e;">Migrations-Schritte:</h3>
+                <?php foreach ($steps as $step): ?>
+                    <div class="step"><?php echo $step; ?></div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+        
         <?php if ($success): ?>
             <div class="alert alert-success">
                 ✅ <strong>Migration erfolgreich!</strong><br>
@@ -170,18 +211,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['execute'])) {
             <div class="alert alert-error">
                 ❌ <strong>Fehler:</strong> <?php echo htmlspecialchars($error); ?>
             </div>
+            <form method="POST">
+                <button type="submit" name="execute" class="btn btn-primary">
+                    🔄 Erneut versuchen
+                </button>
+            </form>
         <?php else: ?>
             <div class="info-box">
                 <h3>ℹ️ Was macht diese Migration?</h3>
                 <p>
                     Diese Migration ändert die <code>font_size</code> Spalte in der <code>customer_freebies</code> Tabelle 
-                    von einem kleinen VARCHAR zu TEXT, um JSON-Daten für die individuellen Pixel-Werte zu speichern.
+                    von VARCHAR zu TEXT. Falls ein Index auf dieser Spalte existiert, wird dieser automatisch entfernt.
                 </p>
             </div>
             
             <div class="code-box">
-                ALTER TABLE customer_freebies<br>
-                MODIFY COLUMN font_size TEXT;
+                -- Schritt 1: Prüfe Indizes<br>
+                SHOW INDEX FROM customer_freebies WHERE Column_name = 'font_size';<br>
+                <br>
+                -- Schritt 2: Entferne Indizes (falls vorhanden)<br>
+                ALTER TABLE customer_freebies DROP INDEX index_name;<br>
+                <br>
+                -- Schritt 3: Ändere Spaltentyp<br>
+                ALTER TABLE customer_freebies MODIFY COLUMN font_size TEXT NULL;
             </div>
             
             <form method="POST">
