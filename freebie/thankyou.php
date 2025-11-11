@@ -197,133 +197,86 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         
         body {
             font-family: '<?php echo $body_font; ?>', sans-serif;
-            background: #FFFFFF;
+            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
             color: #1F2937;
             line-height: 1.6;
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
         }
         
-        .container {
-            flex: 1;
-            max-width: 900px;
-            margin: 40px auto;
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-        }
-        
-        /* NEUE Rote Warning Box */
-        .warning-box {
-            background: linear-gradient(135deg, #dc2626, #b91c1c);
-            border: 4px solid #7f1d1d;
-            border-radius: 20px;
-            padding: 24px 32px;
-            color: white;
-            text-align: center;
-            box-shadow: 0 10px 30px rgba(220, 38, 38, 0.4);
-            animation: pulse-warning 2s ease-in-out infinite;
+        /* Header Banner - Modernes Design */
+        .header-banner {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 50%, #991b1b 100%);
+            padding: 16px 24px;
+            box-shadow: 0 4px 20px rgba(220, 38, 38, 0.3);
             position: relative;
             overflow: hidden;
         }
         
-        @keyframes pulse-warning {
-            0%, 100% {
-                transform: scale(1);
-                box-shadow: 0 10px 30px rgba(220, 38, 38, 0.4);
-            }
-            50% {
-                transform: scale(1.02);
-                box-shadow: 0 15px 40px rgba(220, 38, 38, 0.6);
-            }
-        }
-        
-        .warning-box::before {
-            content: '⚠️';
+        .header-banner::before {
+            content: '';
             position: absolute;
-            top: -30px;
-            left: -30px;
-            font-size: 120px;
-            opacity: 0.1;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
         }
         
-        .warning-box::after {
-            content: '⚠️';
-            position: absolute;
-            bottom: -30px;
-            right: -30px;
-            font-size: 120px;
-            opacity: 0.1;
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
         
-        .warning-icon {
-            font-size: 48px;
-            margin-bottom: 12px;
-            display: block;
-            animation: shake 0.8s ease-in-out infinite;
-        }
-        
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
-        }
-        
-        .warning-title {
-            font-size: 28px;
-            font-weight: 900;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        
-        .warning-text {
-            font-size: 18px;
-            font-weight: 600;
-            line-height: 1.5;
-        }
-        
-        /* Video Container - OPTIMIERT für Hochformat */
-        .video-container {
-            background: white;
-            border-radius: 20px;
-            padding: 32px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
-            animation: slideUp 0.6s ease-out;
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
             display: flex;
-            justify-content: center;
             align-items: center;
-        }
-        
-        .video-wrapper {
+            justify-content: center;
+            gap: 16px;
             position: relative;
-            width: 100%;
-            max-width: 500px; /* Maximale Breite für Hochformat-Video */
-            aspect-ratio: 9/16; /* Hochformat-Verhältnis */
-            border-radius: 16px;
-            background: #000;
-            overflow: hidden;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            z-index: 1;
         }
         
-        .video-wrapper iframe {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            border: none;
+        .header-icon {
+            font-size: 32px;
+            animation: pulse-icon 2s ease-in-out infinite;
         }
         
-        /* Success Card */
-        .success-card {
-            background: white;
-            border-radius: 24px;
-            padding: 50px 40px;
+        @keyframes pulse-icon {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .header-text {
+            color: white;
+            font-size: 18px;
+            font-weight: 700;
             text-align: center;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            line-height: 1.4;
+        }
+        
+        .header-text strong {
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 60px 24px;
+        }
+        
+        /* Hero Section - 2 Spalten Grid */
+        .hero-section {
+            background: white;
+            border-radius: 32px;
+            padding: 60px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            margin-bottom: 40px;
             animation: slideUp 0.6s ease-out;
         }
         
@@ -338,39 +291,84 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             }
         }
         
-        .headline {
-            font-size: 48px;
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 60px;
+            align-items: center;
+        }
+        
+        /* Hero Content - Links */
+        .hero-content {
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+        
+        .success-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 700;
+            width: fit-content;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+        
+        .hero-headline {
+            font-size: 56px;
             font-family: '<?php echo $headline_font; ?>', sans-serif;
             font-weight: 900;
             color: #111827;
-            margin-bottom: 12px;
-            line-height: 1.2;
+            line-height: 1.1;
+            margin: 0;
         }
         
-        .subheadline {
-            font-size: 20px;
-            color: #6b7280;
-            margin-bottom: 40px;
-            font-weight: 500;
-        }
-        
-        .course-title {
-            font-size: 32px;
-            font-family: '<?php echo $headline_font; ?>', sans-serif;
-            font-weight: 800;
-            color: #111827;
-            margin-bottom: 32px;
-            line-height: 1.3;
+        .hero-highlight {
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
         
-        /* Mockup Image - KLEINER */
-        .mockup-container {
-            max-width: 350px;
-            margin: 0 auto 40px;
+        .hero-subheadline {
+            font-size: 20px;
+            color: #6b7280;
+            line-height: 1.6;
+            margin: 0;
+        }
+        
+        .course-info {
+            background: linear-gradient(135deg, var(--primary-light), rgba(124, 58, 237, 0.05));
+            border-left: 4px solid var(--primary);
+            padding: 24px 28px;
+            border-radius: 16px;
+        }
+        
+        .course-info-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        
+        .course-info-title {
+            font-size: 24px;
+            font-weight: 800;
+            color: #111827;
+            line-height: 1.3;
+        }
+        
+        /* Mockup in Hero */
+        .hero-mockup {
+            max-width: 250px;
+            margin: 0 0 8px 0;
             animation: fadeIn 0.8s ease-out 0.3s both;
         }
         
@@ -385,7 +383,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             }
         }
         
-        .mockup-container img {
+        .hero-mockup img {
             width: 100%;
             height: auto;
             border-radius: 16px;
@@ -400,7 +398,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 80px;
+            font-size: 60px;
         }
         
         /* Button Container */
@@ -408,9 +406,6 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             display: flex;
             flex-direction: column;
             gap: 16px;
-            max-width: 600px;
-            margin: 0 auto;
-            width: 100%;
         }
         
         /* Main CTA Button */
@@ -421,10 +416,10 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             gap: 12px;
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
-            padding: 24px 60px;
+            padding: 22px 48px;
             border: none;
             border-radius: 16px;
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 700;
             cursor: pointer;
             text-decoration: none;
@@ -464,7 +459,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             50% { transform: scale(1.1); }
         }
         
-        /* Referral Button mit Shine Effekt */
+        /* Referral Button */
         .referral-button {
             display: inline-flex;
             align-items: center;
@@ -506,22 +501,53 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         }
         
         .access-info {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
             color: #9ca3af;
             font-size: 14px;
             font-weight: 500;
-            margin-top: 12px;
         }
         
-        /* Referral Promo Box - NEU */
+        /* Hero Video - Rechts */
+        .hero-video {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            justify-self: center;
+        }
+        
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 9/16;
+            border-radius: 24px;
+            background: #000;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        .video-wrapper iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        
+        /* Referral Promo Box */
         .referral-promo {
             background: linear-gradient(135deg, #fef3c7, #fde68a);
             border: 3px solid #f59e0b;
-            border-radius: 20px;
-            padding: 32px;
+            border-radius: 32px;
+            padding: 48px;
             box-shadow: 0 10px 30px rgba(245, 158, 11, 0.3);
             animation: slideUp 0.6s ease-out 0.2s both;
             position: relative;
             overflow: hidden;
+            margin-bottom: 40px;
         }
         
         .referral-promo::before {
@@ -529,92 +555,123 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             position: absolute;
             top: -20px;
             right: -20px;
-            font-size: 150px;
-            opacity: 0.15;
+            font-size: 180px;
+            opacity: 0.1;
         }
         
         .referral-promo-header {
             text-align: center;
-            margin-bottom: 24px;
+            margin-bottom: 40px;
         }
         
         .referral-promo-badge {
             display: inline-block;
             background: #f59e0b;
             color: white;
-            padding: 8px 20px;
+            padding: 10px 24px;
             border-radius: 50px;
             font-size: 14px;
             font-weight: 700;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
         
         .referral-promo-title {
-            font-size: 28px;
+            font-size: 36px;
             font-weight: 900;
             color: #92400e;
-            margin-bottom: 12px;
+            margin-bottom: 16px;
             line-height: 1.2;
         }
         
         .referral-promo-subtitle {
-            font-size: 16px;
+            font-size: 18px;
             color: #78350f;
             font-weight: 600;
         }
         
         .referral-benefits {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
         }
         
         .benefit-item {
             background: white;
-            padding: 20px;
-            border-radius: 12px;
+            padding: 28px;
+            border-radius: 20px;
             display: flex;
             align-items: flex-start;
-            gap: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            gap: 16px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+        }
+        
+        .benefit-item:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
         }
         
         .benefit-icon {
-            font-size: 28px;
+            font-size: 32px;
             flex-shrink: 0;
         }
         
         .benefit-content h4 {
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 700;
             color: #1F2937;
-            margin-bottom: 4px;
+            margin-bottom: 8px;
         }
         
         .benefit-content p {
-            font-size: 14px;
+            font-size: 15px;
             color: #6b7280;
-            line-height: 1.5;
+            line-height: 1.6;
+        }
+        
+        .referral-cta {
+            text-align: center;
+        }
+        
+        .referral-cta-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 20px 48px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            text-decoration: none;
+            border-radius: 16px;
+            font-size: 20px;
+            font-weight: 700;
+            box-shadow: 0 10px 30px rgba(245, 158, 11, 0.4);
+            transition: all 0.3s;
+        }
+        
+        .referral-cta-button:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 15px 40px rgba(245, 158, 11, 0.5);
         }
         
         /* Bookmark Banner */
         .bookmark-banner {
-            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
-            border: 2px solid #3b82f6;
-            border-radius: 16px;
-            padding: 24px 32px;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 24px;
+            padding: 32px;
             display: flex;
             align-items: center;
-            gap: 20px;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+            gap: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
             animation: slideUp 0.6s ease-out 0.4s both;
+            margin-bottom: 40px;
         }
         
         .bookmark-icon {
-            font-size: 40px;
+            font-size: 48px;
             flex-shrink: 0;
         }
         
@@ -623,114 +680,114 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         }
         
         .bookmark-title {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 700;
-            color: #1e40af;
-            margin-bottom: 6px;
+            color: #111827;
+            margin-bottom: 8px;
         }
         
         .bookmark-text {
-            font-size: 14px;
-            color: #1e3a8a;
-            margin-bottom: 12px;
+            font-size: 15px;
+            color: #6b7280;
+            margin-bottom: 16px;
+            line-height: 1.6;
         }
         
         .bookmark-button {
-            padding: 10px 20px;
-            background: #3b82f6;
+            padding: 12px 28px;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
-            font-size: 14px;
+            transition: all 0.3s;
+            font-size: 15px;
         }
         
         .bookmark-button:hover {
-            background: #2563eb;
             transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
         }
         
-        /* Info Steps - NUR 2 SCHRITTE */
+        /* Info Steps */
         .info-steps {
             background: white;
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border-radius: 32px;
+            padding: 60px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
             animation: slideUp 0.6s ease-out 0.5s both;
+            margin-bottom: 60px;
         }
         
         .steps-title {
-            font-size: 24px;
-            font-weight: 700;
+            font-size: 32px;
+            font-weight: 800;
             color: #111827;
             text-align: center;
-            margin-bottom: 32px;
+            margin-bottom: 48px;
         }
         
         .steps-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 24px;
+            gap: 32px;
         }
         
         .step {
             text-align: center;
-            padding: 32px 24px;
+            padding: 40px 32px;
             background: linear-gradient(135deg, #f9fafb, #f3f4f6);
-            border-radius: 16px;
+            border-radius: 24px;
             border: 2px solid #e5e7eb;
             transition: all 0.3s;
         }
         
         .step:hover {
-            transform: translateY(-4px);
+            transform: translateY(-8px);
             border-color: var(--primary);
-            box-shadow: 0 8px 24px var(--primary-light);
+            box-shadow: 0 12px 30px var(--primary-light);
         }
         
         .step-number {
-            width: 64px;
-            height: 64px;
-            margin: 0 auto 20px;
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 32px;
+            font-size: 40px;
             font-weight: 900;
-            box-shadow: 0 6px 20px var(--primary-light);
+            box-shadow: 0 8px 24px var(--primary-light);
         }
         
         .step h3 {
-            font-size: 20px;
+            font-size: 22px;
             font-weight: 700;
             color: #1F2937;
-            margin-bottom: 12px;
+            margin-bottom: 16px;
         }
         
         .step p {
-            font-size: 15px;
+            font-size: 16px;
             color: #6b7280;
             line-height: 1.7;
         }
         
         /* Footer */
         .footer {
-            margin-top: auto;
-            padding: 32px 20px;
+            padding: 40px 24px;
             text-align: center;
         }
         
         .footer-content {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            padding: 24px;
-            max-width: 900px;
+            background: white;
+            border-radius: 24px;
+            padding: 32px;
+            max-width: 1400px;
             margin: 0 auto;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         }
@@ -738,7 +795,8 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         .footer-text {
             color: #6b7280;
             font-size: 14px;
-            margin-bottom: 12px;
+            margin-bottom: 16px;
+            font-weight: 500;
         }
         
         .footer-links {
@@ -752,7 +810,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             color: #4b5563;
             text-decoration: none;
             font-size: 14px;
-            font-weight: 500;
+            font-weight: 600;
             transition: color 0.2s;
         }
         
@@ -761,71 +819,64 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         }
         
         /* Responsive */
+        @media (max-width: 1024px) {
+            .hero-grid {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+            
+            .hero-video {
+                max-width: 350px;
+                margin: 0 auto;
+            }
+            
+            .hero-content {
+                text-align: center;
+            }
+            
+            .success-badge,
+            .hero-mockup {
+                margin-left: auto;
+                margin-right: auto;
+            }
+        }
+        
         @media (max-width: 768px) {
-            body {
-                padding: 10px;
+            .header-banner {
+                padding: 12px 16px;
             }
             
-            .container {
-                margin: 20px auto;
-                gap: 16px;
+            .header-text {
+                font-size: 14px;
             }
             
-            /* Warning Box - RESPONSIVE */
-            .warning-box {
-                padding: 20px 16px;
-                border-radius: 16px;
-                border-width: 3px;
-            }
-            
-            .warning-box::before,
-            .warning-box::after {
-                font-size: 80px;
-                opacity: 0.08;
-            }
-            
-            .warning-icon {
-                font-size: 36px;
-                margin-bottom: 10px;
-            }
-            
-            .warning-title {
-                font-size: 20px;
-                letter-spacing: 0.5px;
-                margin-bottom: 6px;
-            }
-            
-            .warning-text {
-                font-size: 15px;
-                line-height: 1.4;
-            }
-            
-            .video-container {
-                padding: 20px;
-            }
-            
-            .video-wrapper {
-                max-width: 100%;
-            }
-            
-            .success-card {
-                padding: 40px 24px;
-            }
-            
-            .headline {
-                font-size: 32px;
-            }
-            
-            .subheadline {
-                font-size: 16px;
-            }
-            
-            .course-title {
+            .header-icon {
                 font-size: 24px;
             }
             
-            .mockup-container {
-                max-width: 280px;
+            .container {
+                padding: 32px 16px;
+            }
+            
+            .hero-section {
+                padding: 32px 24px;
+                border-radius: 24px;
+            }
+            
+            .hero-headline {
+                font-size: 36px;
+            }
+            
+            .hero-subheadline {
+                font-size: 16px;
+            }
+            
+            .course-info-title {
+                font-size: 20px;
+            }
+            
+            .hero-mockup {
+                max-width: 200px;
             }
             
             .cta-button {
@@ -840,110 +891,154 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
                 font-size: 16px;
             }
             
+            .hero-video {
+                max-width: 100%;
+            }
+            
             .referral-promo {
-                padding: 24px;
+                padding: 32px 24px;
+                border-radius: 24px;
             }
             
             .referral-promo-title {
-                font-size: 22px;
+                font-size: 28px;
             }
             
             .referral-benefits {
                 grid-template-columns: 1fr;
+                gap: 16px;
             }
             
             .bookmark-banner {
                 flex-direction: column;
                 text-align: center;
-                padding: 20px;
+                padding: 24px;
             }
             
             .info-steps {
-                padding: 24px 20px;
+                padding: 32px 24px;
+            }
+            
+            .steps-title {
+                font-size: 24px;
             }
             
             .steps-grid {
                 grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .step {
+                padding: 32px 24px;
             }
         }
     </style>
 </head>
 <body>
+    <?php if ($referral_enabled == 1): ?>
+    <!-- Header Banner - nur wenn Empfehlungsprogramm aktiv -->
+    <div class="header-banner">
+        <div class="header-content">
+            <span class="header-icon">🛑</span>
+            <div class="header-text">
+                <strong>Wichtig:</strong> Bitte schließe diese Seite nicht, bevor du das komplette Video gesehen hast!
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+    
     <div class="container">
         
-        <?php if ($referral_enabled == 1): ?>
-        <!-- NEUE Rote Warning Box - nur wenn Empfehlungsprogramm aktiv -->
-        <div class="warning-box">
-            <span class="warning-icon">🛑</span>
-            <div class="warning-title">STOP - Nicht schließen!</div>
-            <div class="warning-text">Wichtig: Bitte schließe diese Seite nicht, bevor du das komplette Video gesehen hast!</div>
-        </div>
-        <?php endif; ?>
-        
-        <!-- Video Container - OPTIMIERT für Hochformat -->
-        <div class="video-container">
-            <div class="video-wrapper">
-                <iframe src="<?php echo htmlspecialchars($video_embed_url); ?>?autoplay=1&loop=0&autopause=0" 
-                        frameborder="0" 
-                        allow="autoplay; fullscreen; picture-in-picture" 
-                        allowfullscreen>
-                </iframe>
+        <!-- Hero Section - 2 Spalten Grid -->
+        <div class="hero-section">
+            <div class="hero-grid">
+                
+                <!-- Links: Content & Buttons -->
+                <div class="hero-content">
+                    <div class="success-badge">
+                        <span>✓</span>
+                        <span>Erfolgreich angemeldet</span>
+                    </div>
+                    
+                    <div>
+                        <h1 class="hero-headline">
+                            Vielen Dank!<br>
+                            <span class="hero-highlight">Dein Zugang ist freigeschaltet</span>
+                        </h1>
+                        <p class="hero-subheadline">
+                            Du hast jetzt sofortigen Zugang zu deinem exklusiven Freebie. Klicke auf den Button unten, um direkt zu starten.
+                        </p>
+                    </div>
+                    
+                    <?php if (!empty($freebie['course_title'])): ?>
+                    <div class="course-info">
+                        <div class="course-info-label">Dein Freebie</div>
+                        <div class="course-info-title"><?php echo htmlspecialchars($freebie['course_title']); ?></div>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <!-- Mockup Image -->
+                    <?php if (!empty($mockup_image)): ?>
+                        <div class="hero-mockup">
+                            <img src="<?php echo htmlspecialchars($mockup_image); ?>" 
+                                 alt="<?php echo htmlspecialchars($freebie['course_title'] ?? $freebie['name'] ?? 'Freebie'); ?>">
+                        </div>
+                    <?php else: ?>
+                        <div class="hero-mockup">
+                            <div class="mockup-placeholder">
+                                🎓
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <!-- Button Container -->
+                    <div class="button-container">
+                        <?php if (!empty($video_course_url)): ?>
+                            <a href="<?php echo htmlspecialchars($video_course_url); ?>" class="cta-button">
+                                <span class="cta-icon">🚀</span>
+                                <span><?php echo htmlspecialchars($video_button_text); ?></span>
+                            </a>
+                        <?php else: ?>
+                            <!-- DEBUG: Button anzeigen auch wenn URL fehlt -->
+                            <div style="padding: 20px; background: #fef3c7; border: 2px solid #f59e0b; border-radius: 12px; text-align: center;">
+                                <p style="color: #92400e; font-weight: 600; margin-bottom: 8px;">⚠️ Kein Videokurs konfiguriert</p>
+                                <p style="color: #78350f; font-size: 14px;">Bitte fügen Sie einen Kurs im Dashboard hinzu.</p>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <?php if (!empty($referral_url)): ?>
+                            <a href="<?php echo htmlspecialchars($referral_url); ?>" class="referral-button">
+                                <span class="cta-icon">🎁</span>
+                                <span>Zum Geschenk</span>
+                            </a>
+                        <?php endif; ?>
+                        
+                        <div class="access-info">
+                            <span>⚡</span>
+                            <span>Sofortiger Zugang</span>
+                            <span>•</span>
+                            <span>Keine Wartezeit</span>
+                            <span>•</span>
+                            <span>Direkt loslegen</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Rechts: Video -->
+                <div class="hero-video">
+                    <div class="video-wrapper">
+                        <iframe src="<?php echo htmlspecialchars($video_embed_url); ?>?autoplay=1&loop=0&autopause=0" 
+                                frameborder="0" 
+                                allow="autoplay; fullscreen; picture-in-picture" 
+                                allowfullscreen>
+                        </iframe>
+                    </div>
+                </div>
+                
             </div>
         </div>
         
-        <!-- Button Container - Zeige Button auch wenn video_course_url leer ist -->
-        <div class="button-container">
-            <?php if (!empty($video_course_url)): ?>
-                <a href="<?php echo htmlspecialchars($video_course_url); ?>" class="cta-button">
-                    <span class="cta-icon">🚀</span>
-                    <span><?php echo htmlspecialchars($video_button_text); ?></span>
-                </a>
-            <?php else: ?>
-                <!-- DEBUG: Button anzeigen auch wenn URL fehlt -->
-                <div style="padding: 20px; background: #fef3c7; border: 2px solid #f59e0b; border-radius: 12px; text-align: center;">
-                    <p style="color: #92400e; font-weight: 600; margin-bottom: 8px;">⚠️ Kein Videokurs konfiguriert</p>
-                    <p style="color: #78350f; font-size: 14px;">Bitte fügen Sie einen Kurs im Dashboard hinzu.</p>
-                    <p style="color: #78350f; font-size: 12px; margin-top: 8px;">Debug: Freebie ID = <?php echo $freebie_id; ?>, Course ID = <?php echo $freebie['course_id'] ?? 'none'; ?>, Freebie Course ID = <?php echo $freebie_course_id ?? 'none'; ?></p>
-                </div>
-            <?php endif; ?>
-            
-            <?php if (!empty($referral_url)): ?>
-                <a href="<?php echo htmlspecialchars($referral_url); ?>" class="referral-button">
-                    <span class="cta-icon">🎁</span>
-                    <span>Zum Geschenk</span>
-                </a>
-            <?php endif; ?>
-        </div>
-        
-        <!-- Success Card mit Kurs -->
-        <div class="success-card">
-            <h1 class="headline">Vielen Dank!</h1>
-            <p class="subheadline">Du hast jetzt sofortigen Zugang zu deinem Freebie!</p>
-            
-            <?php if (!empty($freebie['course_title'])): ?>
-                <h2 class="course-title"><?php echo htmlspecialchars($freebie['course_title']); ?></h2>
-            <?php endif; ?>
-            
-            <!-- Mockup Image - KLEINER -->
-            <?php if (!empty($mockup_image)): ?>
-                <div class="mockup-container">
-                    <img src="<?php echo htmlspecialchars($mockup_image); ?>" 
-                         alt="<?php echo htmlspecialchars($freebie['course_title'] ?? $freebie['name'] ?? 'Freebie'); ?>">
-                </div>
-            <?php else: ?>
-                <div class="mockup-container">
-                    <div class="mockup-placeholder">
-                        🎓
-                    </div>
-                </div>
-            <?php endif; ?>
-            
-            <p class="access-info">
-                ⚡ Sofortiger Zugang • Keine Wartezeit • Direkt loslegen
-            </p>
-        </div>
-        
-        <!-- Referral Promo Box - NEU -->
+        <!-- Referral Promo Box -->
         <?php if (!empty($referral_url)): ?>
         <div class="referral-promo">
             <div class="referral-promo-header">
@@ -986,9 +1081,8 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
                 </div>
             </div>
             
-            <div style="text-align: center;">
-                <a href="<?php echo htmlspecialchars($referral_url); ?>" 
-                   style="display: inline-flex; align-items: center; gap: 12px; padding: 18px 48px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; text-decoration: none; border-radius: 12px; font-size: 18px; font-weight: 700; box-shadow: 0 8px 20px rgba(245, 158, 11, 0.4); transition: all 0.3s;">
+            <div class="referral-cta">
+                <a href="<?php echo htmlspecialchars($referral_url); ?>" class="referral-cta-button">
                     <span style="font-size: 24px;">🎁</span>
                     <span>Zum Empfehlungsprogramm</span>
                 </a>
@@ -1010,7 +1104,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             </div>
         </div>
         
-        <!-- Info Steps - NUR 2 SCHRITTE -->
+        <!-- Info Steps -->
         <div class="info-steps">
             <h2 class="steps-title">So geht's weiter 👇</h2>
             <div class="steps-grid">
@@ -1029,7 +1123,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         </div>
     </div>
     
-    <!-- Footer mit kundenspezifischen Links -->
+    <!-- Footer -->
     <div class="footer">
         <div class="footer-content">
             <p class="footer-text">&copy; <?php echo date('Y'); ?> - Alle Rechte vorbehalten</p>
