@@ -394,7 +394,7 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <?php endif; ?>
     </div>
     
-    <!-- Tab 2: Custom Freebies -->
+    <!-- Tab 2: Custom Freebies - IMMER mit Kurs-Button -->
     <div id="tab-custom" class="tab-content">
         <?php if (empty($customFreebies)): ?>
             <div class="empty-state">
@@ -410,7 +410,6 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <?php foreach ($customFreebies as $custom): 
                     $bgColor = $custom['background_color'] ?? '#667eea';
                     $primaryColor = $custom['primary_color'] ?? '#667eea';
-                    $hasCourse = !empty($custom['has_course']);
                 ?>
                     <div class="freebie-card">
                         <div class="freebie-mockup" style="background: <?php echo htmlspecialchars($bgColor); ?>;">
@@ -434,12 +433,11 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <p class="freebie-subtitle"><?php echo htmlspecialchars($custom['subheadline']); ?></p>
                             <?php endif; ?>
                             
-                            <div class="freebie-actions <?php echo $hasCourse ? 'has-course' : ''; ?>">
+                            <!-- IMMER 3 Buttons: Vorschau, Bearbeiten, Kurs -->
+                            <div class="freebie-actions has-course">
                                 <a href="/customer/freebie-preview.php?id=<?php echo $custom['id']; ?>" class="btn btn-preview">👁️ Vorschau</a>
                                 <a href="/customer/edit-freebie.php?id=<?php echo $custom['id']; ?>" class="btn btn-edit">✏️ Bearbeiten</a>
-                                <?php if ($hasCourse): ?>
-                                    <a href="/customer/edit-course.php?id=<?php echo $custom['id']; ?>" class="btn btn-course" title="Videokurs bearbeiten">🎓 Kurs</a>
-                                <?php endif; ?>
+                                <a href="/customer/edit-course.php?id=<?php echo $custom['id']; ?>" class="btn btn-course" title="Videokurs bearbeiten">🎓 Kurs</a>
                             </div>
                             
                             <div class="link-section">
