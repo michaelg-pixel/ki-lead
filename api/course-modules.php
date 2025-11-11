@@ -5,7 +5,7 @@ header('Content-Type: application/json');
 // Login-Check
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
     http_response_code(401);
-    echo json_encode(['success' => false, 'error' => 'Nicht autorisiert']);
+    echo json_encode(['success' => false, 'message' => 'Nicht autorisiert']);
     exit;
 }
 
@@ -13,57 +13,14 @@ require_once __DIR__ . '/../config/database.php';
 $pdo = getDBConnection();
 
 $customer_id = $_SESSION['user_id'];
-$method = $_SERVER['REQUEST_METHOD'];
-
-// Module ID aus URL extrahieren (falls vorhanden)
-$uri = $_SERVER['REQUEST_URI'];
-preg_match('/\/api\/course-modules\/(\d+)/', $uri, $matches);
-$module_id = $matches[1] ?? null;
+$input = json_decode(file_get_contents('php://input'), true);
+$action = $input['action'] ?? '';
 
 try {
-    switch ($method) {
-        case 'GET':
-            // Liste aller Module eines Kurses
-            $course_id = $_GET['course_id'] ?? null;
-            if (!$course_id) {
-                throw new Exception('Course-ID fehlt');
-            }
-            
-            // Prüfen ob Kurs dem Kunden gehört
-            $stmt = $pdo->prepare("
-                SELECT fc.id FROM freebie_courses fc
-                INNER JOIN customer_freebies cf ON fc.freebie_id = cf.id
-                WHERE fc.id = ? AND cf.customer_id = ?
-            ");
-            $stmt->execute([$course_id, $customer_id]);
-            if (!$stmt->fetch()) {
-                throw new Exception('Kurs nicht gefunden oder keine Berechtigung');
-            }
-            
-            // Module abrufen
-            $stmt = $pdo->prepare("
-                SELECT m.*, 
-                       COUNT(l.id) as lesson_count
-                FROM freebie_course_modules m
-                LEFT JOIN freebie_course_lessons l ON m.id = l.module_id
-                WHERE m.course_id = ?
-                GROUP BY m.id
-                ORDER BY m.sort_order ASC
-            ");
-            $stmt->execute([$course_id]);
-            $modules = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            echo json_encode([
-                'success' => true,
-                'modules' => $modules
-            ]);
-            break;
-            
-        case 'POST':
+    switch ($action) {
+        case 'create':
             // Neues Modul erstellen
-            $input = json_decode(file_get_contents('php://input'), true);
-            
-            if (!$input || empty($input['course_id']) || empty($input['title'])) {
+            if (empty($input['course_id']) || empty($input['title'])) {
                 throw new Exception('Course-ID und Titel sind erforderlich');
             }
             
@@ -108,18 +65,13 @@ try {
             ]);
             break;
             
-        case 'PUT':
+        case 'update':
             // Modul aktualisieren
-            if (!$module_id) {
-                throw new Exception('Modul-ID fehlt');
+            if (empty($input['id']) || empty($input['title'])) {
+                throw new Exception('ID und Titel sind erforderlich');
             }
             
-            $input = json_decode(file_get_contents('php://input'), true);
-            
-            if (!$input || empty($input['title'])) {
-                throw new Exception('Titel ist erforderlich');
-            }
-            
+            $module_id = $input['id'];
             $title = trim($input['title']);
             $description = trim($input['description'] ?? '');
             
@@ -149,11 +101,13 @@ try {
             ]);
             break;
             
-        case 'DELETE':
+        case 'delete':
             // Modul löschen
-            if (!$module_id) {
-                throw new Exception('Modul-ID fehlt');
+            if (empty($input['id'])) {
+                throw new Exception('ID ist erforderlich');
             }
+            
+            $module_id = $input['id'];
             
             // Prüfen ob Modul dem Kunden gehört
             $stmt = $pdo->prepare("
@@ -186,18 +140,16 @@ try {
             break;
             
         default:
-            http_response_code(405);
-            echo json_encode(['success' => false, 'error' => 'Methode nicht erlaubt']);
-            break;
+            throw new Exception('Ungültige Aktion: ' . $action);
     }
     
 } catch (Exception $e) {
-    if ($pdo->inTransaction()) {
+    if (isset($pdo) && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'error' => $e->getMessage()
+        'message' => $e->getMessage()
     ]);
 }
