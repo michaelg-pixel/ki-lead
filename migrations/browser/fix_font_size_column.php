@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../../config/database.php';
 
 // Nur für Admins
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
