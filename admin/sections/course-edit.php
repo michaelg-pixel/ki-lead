@@ -1,7 +1,7 @@
 <?php
 /**
  * Kurs bearbeiten - Mit Modulen & Lektionen
- * ERWEITERT: Drip Content & Multi-Video Support
+ * ERWEITERT: Drip Content & Multi-Video Support & CTA-Button
  */
 
 $course_id = $_GET['id'] ?? null;
@@ -171,6 +171,36 @@ if (isset($_GET['debug'])) {
                                value="<?php echo htmlspecialchars($course['digistore_product_id'] ?? ''); ?>"
                                placeholder="z.B. 12345">
                         <small>Für automatische Freischaltung</small>
+                    </div>
+                    
+                    <!-- NEU: CTA-Button Felder -->
+                    <div style="border-top: 2px solid rgba(168, 85, 247, 0.2); margin: 24px 0; padding-top: 24px;">
+                        <h4 style="font-size: 15px; color: #c084fc; margin-bottom: 16px; font-weight: 700;">🔘 Call-to-Action Button (Optional)</h4>
+                        
+                        <div class="form-group">
+                            <label>Button-Text</label>
+                            <input type="text" name="button_text" 
+                                   value="<?php echo htmlspecialchars($course['button_text'] ?? ''); ?>"
+                                   placeholder="z.B. Jetzt kaufen, Mehr erfahren"
+                                   maxlength="100">
+                            <small>Wird im Course-Player als Button angezeigt</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Button-Link (URL)</label>
+                            <input type="url" name="button_url" 
+                                   value="<?php echo htmlspecialchars($course['button_url'] ?? ''); ?>"
+                                   placeholder="https://...">
+                            <small>Wohin soll der Button verlinken?</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" name="button_new_window" 
+                                       <?php echo (!isset($course['button_new_window']) || $course['button_new_window']) ? 'checked' : ''; ?>>
+                                🔗 Link in neuem Fenster öffnen
+                            </label>
+                        </div>
                     </div>
                 </form>
             </div>
