@@ -197,112 +197,23 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         
         body {
             font-family: '<?php echo $body_font; ?>', sans-serif;
-            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+            background: #f9fafb;
             color: #1F2937;
             line-height: 1.6;
             min-height: 100vh;
         }
         
-        /* Header Banner - Modernes Design */
-        .header-banner {
-            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 50%, #991b1b 100%);
-            padding: 16px 24px;
-            box-shadow: 0 4px 20px rgba(220, 38, 38, 0.3);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .header-banner::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-            animation: rotate 20s linear infinite;
-        }
-        
-        @keyframes rotate {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        /* Vollbreiter Header */
+        .page-header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            padding: 20px 0;
+            box-shadow: 0 4px 20px var(--primary-light);
         }
         
         .header-content {
             max-width: 1400px;
             margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 16px;
-            position: relative;
-            z-index: 1;
-        }
-        
-        .header-icon {
-            font-size: 32px;
-            animation: pulse-icon 2s ease-in-out infinite;
-        }
-        
-        @keyframes pulse-icon {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-        
-        .header-text {
-            color: white;
-            font-size: 18px;
-            font-weight: 700;
-            text-align: center;
-            line-height: 1.4;
-        }
-        
-        .header-text strong {
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        /* Container */
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 60px 24px;
-        }
-        
-        /* Hero Section - 2 Spalten Grid */
-        .hero-section {
-            background: white;
-            border-radius: 32px;
-            padding: 60px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
-            margin-bottom: 40px;
-            animation: slideUp 0.6s ease-out;
-        }
-        
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .hero-grid {
-            display: grid;
-            grid-template-columns: 1fr 320px;
-            gap: 60px;
-            align-items: start;
-        }
-        
-        /* Hero Content - Links */
-        .hero-content {
-            display: flex;
-            flex-direction: column;
-            gap: 28px;
+            padding: 0 24px;
         }
         
         .success-badge {
@@ -310,189 +221,147 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             align-items: center;
             gap: 8px;
             padding: 10px 20px;
-            background: linear-gradient(135deg, #10b981, #059669);
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
             color: white;
             border-radius: 50px;
             font-size: 13px;
             font-weight: 700;
-            width: fit-content;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.3);
         }
         
         .hero-headline {
-            font-size: 48px;
+            font-size: 52px;
             font-family: '<?php echo $headline_font; ?>', sans-serif;
             font-weight: 900;
-            color: #111827;
+            color: white;
             line-height: 1.1;
-            margin: 0;
-        }
-        
-        .hero-highlight {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            margin: 16px 0;
         }
         
         .hero-subheadline {
             font-size: 18px;
-            color: #6b7280;
+            color: rgba(255, 255, 255, 0.9);
             line-height: 1.6;
-            margin: 0;
+            max-width: 700px;
+        }
+        
+        /* Warning Banner */
+        .warning-banner {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            padding: 16px 0;
+            box-shadow: 0 4px 20px rgba(220, 38, 38, 0.3);
+        }
+        
+        .warning-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+        
+        .warning-icon {
+            font-size: 24px;
+        }
+        
+        .warning-text {
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+        }
+        
+        /* Main Layout - 2 Spalten über gesamte Seite */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 40px;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 24px;
+            align-items: start;
+        }
+        
+        /* Content Area - Links */
+        .content-area {
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+        
+        .content-box {
+            background: white;
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         }
         
         .course-info {
             background: linear-gradient(135deg, var(--primary-light), rgba(124, 58, 237, 0.05));
             border-left: 4px solid var(--primary);
-            padding: 20px 24px;
-            border-radius: 14px;
+            padding: 24px 28px;
+            border-radius: 16px;
+            margin-bottom: 32px;
         }
         
         .course-info-label {
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 700;
             color: var(--primary);
             text-transform: uppercase;
             letter-spacing: 1px;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
         }
         
         .course-info-title {
-            font-size: 22px;
+            font-size: 24px;
             font-weight: 800;
             color: #111827;
             line-height: 1.3;
-        }
-        
-        /* Mockup in Hero - OHNE SCHATTEN */
-        .hero-mockup {
-            max-width: 220px;
-            margin: 0 0 8px 0;
-            animation: fadeIn 0.8s ease-out 0.3s both;
-        }
-        
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: scale(0.95);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-        
-        .hero-mockup img {
-            width: 100%;
-            height: auto;
-            border-radius: 12px;
-            /* SCHATTEN ENTFERNT */
-        }
-        
-        .mockup-placeholder {
-            width: 100%;
-            aspect-ratio: 3/4;
-            background: linear-gradient(135deg, var(--primary-light), var(--primary-light));
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 50px;
         }
         
         /* Button Container */
         .button-container {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 14px;
         }
         
-        /* Main CTA Button - KOMPAKTER */
-        .cta-button {
+        /* Buttons */
+        .cta-button, .referral-button {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: white;
-            padding: 16px 36px;
+            padding: 18px 40px;
             border: none;
             border-radius: 14px;
             font-size: 17px;
             font-weight: 700;
             cursor: pointer;
             text-decoration: none;
-            box-shadow: 0 8px 24px var(--primary-light);
             transition: all 0.3s;
             position: relative;
             overflow: hidden;
         }
         
-        .cta-button::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-            transition: left 0.5s;
-        }
-        
-        .cta-button:hover::before {
-            left: 100%;
+        .cta-button {
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+            color: white;
+            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.3);
         }
         
         .cta-button:hover {
             transform: translateY(-3px);
-            box-shadow: 0 12px 32px var(--primary-light);
+            box-shadow: 0 12px 32px rgba(139, 92, 246, 0.4);
         }
         
-        .cta-icon {
-            font-size: 22px;
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-        
-        /* Referral Button - KOMPAKTER */
         .referral-button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
             background: linear-gradient(135deg, #10b981, #059669);
             color: white;
-            padding: 16px 36px;
-            border: none;
-            border-radius: 14px;
-            font-size: 17px;
-            font-weight: 700;
-            cursor: pointer;
-            text-decoration: none;
-            transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
             box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
-        }
-        
-        .referral-button::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-            transition: left 0.5s;
-        }
-        
-        .referral-button:hover::before {
-            left: 100%;
         }
         
         .referral-button:hover {
@@ -508,15 +377,143 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             color: #9ca3af;
             font-size: 13px;
             font-weight: 500;
+            padding-top: 8px;
         }
         
-        /* Hero Video - Rechts - STICKY */
-        .hero-video {
+        /* Mockup Box - WEITER UNTEN */
+        .mockup-box {
+            text-align: center;
+        }
+        
+        .mockup-image {
+            max-width: 280px;
+            margin: 0 auto;
+        }
+        
+        .mockup-image img {
+            width: 100%;
+            height: auto;
+            border-radius: 12px;
+        }
+        
+        .mockup-placeholder {
+            width: 280px;
+            aspect-ratio: 3/4;
+            margin: 0 auto;
+            background: linear-gradient(135deg, var(--primary-light), var(--primary-light));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+        }
+        
+        /* Referral Promo */
+        .referral-promo {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border: 3px solid #f59e0b;
+            border-radius: 24px;
+            padding: 40px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .referral-promo::before {
+            content: '🎁';
+            position: absolute;
+            top: -30px;
+            right: -30px;
+            font-size: 160px;
+            opacity: 0.1;
+        }
+        
+        .referral-promo-badge {
+            display: inline-block;
+            background: #f59e0b;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .referral-promo-title {
+            font-size: 32px;
+            font-weight: 900;
+            color: #92400e;
+            margin-bottom: 12px;
+            line-height: 1.2;
+        }
+        
+        .referral-promo-subtitle {
+            font-size: 16px;
+            color: #78350f;
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
+        
+        .referral-benefits {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+        
+        .benefit-item {
+            background: white;
+            padding: 20px;
+            border-radius: 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        
+        .benefit-icon {
+            font-size: 28px;
+            flex-shrink: 0;
+        }
+        
+        .benefit-content h4 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1F2937;
+            margin-bottom: 6px;
+        }
+        
+        .benefit-content p {
+            font-size: 14px;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+        
+        .referral-cta-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 40px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            text-decoration: none;
+            border-radius: 14px;
+            font-size: 18px;
+            font-weight: 700;
+            box-shadow: 0 8px 24px rgba(245, 158, 11, 0.4);
+            transition: all 0.3s;
+        }
+        
+        .referral-cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 32px rgba(245, 158, 11, 0.5);
+        }
+        
+        /* Video Sidebar - STICKY über gesamte Seite */
+        .video-sidebar {
             position: sticky;
             top: 24px;
-            width: 100%;
-            max-width: 320px;
-            justify-self: center;
+            align-self: start;
         }
         
         .video-wrapper {
@@ -526,7 +523,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             border-radius: 20px;
             background: #000;
             overflow: hidden;
-            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
         }
         
         .video-wrapper iframe {
@@ -538,141 +535,15 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             border: none;
         }
         
-        /* Referral Promo Box */
-        .referral-promo {
-            background: linear-gradient(135deg, #fef3c7, #fde68a);
-            border: 3px solid #f59e0b;
-            border-radius: 32px;
-            padding: 48px;
-            box-shadow: 0 10px 30px rgba(245, 158, 11, 0.3);
-            animation: slideUp 0.6s ease-out 0.2s both;
-            position: relative;
-            overflow: hidden;
-            margin-bottom: 40px;
-        }
-        
-        .referral-promo::before {
-            content: '🎁';
-            position: absolute;
-            top: -20px;
-            right: -20px;
-            font-size: 180px;
-            opacity: 0.1;
-        }
-        
-        .referral-promo-header {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-        
-        .referral-promo-badge {
-            display: inline-block;
-            background: #f59e0b;
-            color: white;
-            padding: 10px 24px;
-            border-radius: 50px;
-            font-size: 14px;
-            font-weight: 700;
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        
-        .referral-promo-title {
-            font-size: 36px;
-            font-weight: 900;
-            color: #92400e;
-            margin-bottom: 16px;
-            line-height: 1.2;
-        }
-        
-        .referral-promo-subtitle {
-            font-size: 18px;
-            color: #78350f;
-            font-weight: 600;
-        }
-        
-        .referral-benefits {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px;
-            margin-bottom: 40px;
-        }
-        
-        .benefit-item {
-            background: white;
-            padding: 28px;
-            border-radius: 20px;
-            display: flex;
-            align-items: flex-start;
-            gap: 16px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s;
-        }
-        
-        .benefit-item:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
-        }
-        
-        .benefit-icon {
-            font-size: 32px;
-            flex-shrink: 0;
-        }
-        
-        .benefit-content h4 {
-            font-size: 18px;
-            font-weight: 700;
-            color: #1F2937;
-            margin-bottom: 8px;
-        }
-        
-        .benefit-content p {
-            font-size: 15px;
-            color: #6b7280;
-            line-height: 1.6;
-        }
-        
-        .referral-cta {
-            text-align: center;
-        }
-        
-        .referral-cta-button {
-            display: inline-flex;
-            align-items: center;
-            gap: 12px;
-            padding: 20px 48px;
-            background: linear-gradient(135deg, #f59e0b, #d97706);
-            color: white;
-            text-decoration: none;
-            border-radius: 16px;
-            font-size: 20px;
-            font-weight: 700;
-            box-shadow: 0 10px 30px rgba(245, 158, 11, 0.4);
-            transition: all 0.3s;
-        }
-        
-        .referral-cta-button:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 15px 40px rgba(245, 158, 11, 0.5);
-        }
-        
         /* Bookmark Banner */
         .bookmark-banner {
-            background: white;
-            border: 2px solid #e5e7eb;
-            border-radius: 24px;
-            padding: 32px;
             display: flex;
             align-items: center;
-            gap: 24px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-            animation: slideUp 0.6s ease-out 0.4s both;
-            margin-bottom: 40px;
+            gap: 20px;
         }
         
         .bookmark-icon {
-            font-size: 48px;
+            font-size: 40px;
             flex-shrink: 0;
         }
         
@@ -681,21 +552,21 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         }
         
         .bookmark-title {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
             color: #111827;
             margin-bottom: 8px;
         }
         
         .bookmark-text {
-            font-size: 15px;
+            font-size: 14px;
             color: #6b7280;
-            margin-bottom: 16px;
+            margin-bottom: 14px;
             line-height: 1.6;
         }
         
         .bookmark-button {
-            padding: 12px 28px;
+            padding: 12px 24px;
             background: linear-gradient(135deg, #3b82f6, #2563eb);
             color: white;
             border: none;
@@ -703,7 +574,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
-            font-size: 15px;
+            font-size: 14px;
         }
         
         .bookmark-button:hover {
@@ -711,99 +582,87 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
         }
         
-        /* Info Steps */
-        .info-steps {
-            background: white;
-            border-radius: 32px;
-            padding: 60px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-            animation: slideUp 0.6s ease-out 0.5s both;
-            margin-bottom: 60px;
-        }
-        
+        /* Steps */
         .steps-title {
-            font-size: 32px;
+            font-size: 28px;
             font-weight: 800;
             color: #111827;
-            text-align: center;
-            margin-bottom: 48px;
+            margin-bottom: 28px;
         }
         
         .steps-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 32px;
+            gap: 24px;
         }
         
         .step {
             text-align: center;
-            padding: 40px 32px;
+            padding: 32px 24px;
             background: linear-gradient(135deg, #f9fafb, #f3f4f6);
-            border-radius: 24px;
+            border-radius: 20px;
             border: 2px solid #e5e7eb;
             transition: all 0.3s;
         }
         
         .step:hover {
-            transform: translateY(-8px);
+            transform: translateY(-6px);
             border-color: var(--primary);
-            box-shadow: 0 12px 30px var(--primary-light);
+            box-shadow: 0 10px 24px var(--primary-light);
         }
         
         .step-number {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 24px;
+            width: 70px;
+            height: 70px;
+            margin: 0 auto 20px;
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 40px;
+            font-size: 36px;
             font-weight: 900;
-            box-shadow: 0 8px 24px var(--primary-light);
+            box-shadow: 0 6px 20px var(--primary-light);
         }
         
         .step h3 {
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 700;
             color: #1F2937;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
         
         .step p {
-            font-size: 16px;
+            font-size: 15px;
             color: #6b7280;
-            line-height: 1.7;
+            line-height: 1.6;
         }
         
         /* Footer */
         .footer {
-            padding: 40px 24px;
+            background: white;
+            padding: 32px 24px;
             text-align: center;
+            border-top: 1px solid #e5e7eb;
+            margin-top: 40px;
         }
         
         .footer-content {
-            background: white;
-            border-radius: 24px;
-            padding: 32px;
             max-width: 1400px;
             margin: 0 auto;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         }
         
         .footer-text {
             color: #6b7280;
             font-size: 14px;
-            margin-bottom: 16px;
-            font-weight: 500;
+            margin-bottom: 12px;
         }
         
         .footer-links {
             display: flex;
             justify-content: center;
-            gap: 24px;
+            gap: 20px;
             flex-wrap: wrap;
         }
         
@@ -821,308 +680,245 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         
         /* Responsive */
         @media (max-width: 1024px) {
-            .hero-grid {
+            .main-layout {
                 grid-template-columns: 1fr;
-                gap: 40px;
+                gap: 32px;
             }
             
-            .hero-video {
+            .video-sidebar {
                 position: static;
-                max-width: 350px;
+                max-width: 400px;
                 margin: 0 auto;
             }
             
-            .hero-content {
-                text-align: center;
-            }
-            
-            .success-badge,
-            .hero-mockup {
-                margin-left: auto;
-                margin-right: auto;
+            .steps-grid,
+            .referral-benefits {
+                grid-template-columns: 1fr;
             }
         }
         
         @media (max-width: 768px) {
-            .header-banner {
-                padding: 12px 16px;
-            }
-            
-            .header-text {
-                font-size: 14px;
-            }
-            
-            .header-icon {
-                font-size: 24px;
-            }
-            
-            .container {
-                padding: 32px 16px;
-            }
-            
-            .hero-section {
-                padding: 32px 24px;
-                border-radius: 24px;
-            }
-            
             .hero-headline {
-                font-size: 32px;
+                font-size: 36px;
             }
             
             .hero-subheadline {
                 font-size: 16px;
             }
             
-            .course-info-title {
-                font-size: 18px;
-            }
-            
-            .hero-mockup {
-                max-width: 180px;
-            }
-            
-            .cta-button {
-                width: 100%;
-                padding: 16px 32px;
-                font-size: 16px;
-            }
-            
-            .referral-button {
-                width: 100%;
-                padding: 16px 32px;
-                font-size: 16px;
-            }
-            
-            .hero-video {
-                max-width: 100%;
+            .content-box {
+                padding: 28px 20px;
             }
             
             .referral-promo {
-                padding: 32px 24px;
-                border-radius: 24px;
-            }
-            
-            .referral-promo-title {
-                font-size: 24px;
-            }
-            
-            .referral-benefits {
-                grid-template-columns: 1fr;
-                gap: 16px;
+                padding: 28px 20px;
             }
             
             .bookmark-banner {
                 flex-direction: column;
                 text-align: center;
-                padding: 24px;
-            }
-            
-            .info-steps {
-                padding: 32px 24px;
-            }
-            
-            .steps-title {
-                font-size: 24px;
             }
             
             .steps-grid {
-                grid-template-columns: 1fr;
-                gap: 20px;
+                gap: 16px;
             }
             
-            .step {
-                padding: 32px 24px;
+            .cta-button,
+            .referral-button {
+                font-size: 16px;
+                padding: 16px 32px;
             }
         }
     </style>
 </head>
 <body>
     <?php if ($referral_enabled == 1): ?>
-    <!-- Header Banner - nur wenn Empfehlungsprogramm aktiv -->
-    <div class="header-banner">
-        <div class="header-content">
-            <span class="header-icon">🛑</span>
-            <div class="header-text">
-                <strong>Wichtig:</strong> Bitte schließe diese Seite nicht, bevor du das komplette Video gesehen hast!
+    <!-- Warning Banner - nur wenn Empfehlungsprogramm aktiv -->
+    <div class="warning-banner">
+        <div class="warning-content">
+            <span class="warning-icon">🛑</span>
+            <div class="warning-text">
+                <strong>WICHTIG:</strong> Bitte schließe diese Seite nicht, bevor du das komplette Video gesehen hast!
             </div>
         </div>
     </div>
     <?php endif; ?>
     
-    <div class="container">
-        
-        <!-- Hero Section - 2 Spalten Grid -->
-        <div class="hero-section">
-            <div class="hero-grid">
-                
-                <!-- Links: Content & Buttons -->
-                <div class="hero-content">
-                    <div class="success-badge">
-                        <span>✓</span>
-                        <span>Erfolgreich angemeldet</span>
-                    </div>
-                    
-                    <div>
-                        <h1 class="hero-headline">
-                            Vielen Dank!<br>
-                            <span class="hero-highlight">Dein Zugang ist freigeschaltet</span>
-                        </h1>
-                        <p class="hero-subheadline">
-                            Du hast jetzt sofortigen Zugang zu deinem exklusiven Freebie. Klicke auf den Button unten, um direkt zu starten.
-                        </p>
-                    </div>
-                    
-                    <?php if (!empty($freebie['course_title'])): ?>
-                    <div class="course-info">
-                        <div class="course-info-label">Dein Freebie</div>
-                        <div class="course-info-title"><?php echo htmlspecialchars($freebie['course_title']); ?></div>
-                    </div>
-                    <?php endif; ?>
-                    
-                    <!-- Mockup Image -->
-                    <?php if (!empty($mockup_image)): ?>
-                        <div class="hero-mockup">
-                            <img src="<?php echo htmlspecialchars($mockup_image); ?>" 
-                                 alt="<?php echo htmlspecialchars($freebie['course_title'] ?? $freebie['name'] ?? 'Freebie'); ?>">
-                        </div>
-                    <?php else: ?>
-                        <div class="hero-mockup">
-                            <div class="mockup-placeholder">
-                                🎓
-                            </div>
-                        </div>
-                    <?php endif; ?>
-                    
-                    <!-- Button Container -->
-                    <div class="button-container">
-                        <?php if (!empty($video_course_url)): ?>
-                            <a href="<?php echo htmlspecialchars($video_course_url); ?>" class="cta-button">
-                                <span class="cta-icon">🚀</span>
-                                <span><?php echo htmlspecialchars($video_button_text); ?></span>
-                            </a>
-                        <?php else: ?>
-                            <!-- DEBUG: Button anzeigen auch wenn URL fehlt -->
-                            <div style="padding: 20px; background: #fef3c7; border: 2px solid #f59e0b; border-radius: 12px; text-align: center;">
-                                <p style="color: #92400e; font-weight: 600; margin-bottom: 8px;">⚠️ Kein Videokurs konfiguriert</p>
-                                <p style="color: #78350f; font-size: 14px;">Bitte fügen Sie einen Kurs im Dashboard hinzu.</p>
-                            </div>
-                        <?php endif; ?>
-                        
-                        <?php if (!empty($referral_url)): ?>
-                            <a href="<?php echo htmlspecialchars($referral_url); ?>" class="referral-button">
-                                <span class="cta-icon">🎁</span>
-                                <span>Zum Geschenk</span>
-                            </a>
-                        <?php endif; ?>
-                        
-                        <div class="access-info">
-                            <span>⚡</span>
-                            <span>Sofortiger Zugang</span>
-                            <span>•</span>
-                            <span>Keine Wartezeit</span>
-                            <span>•</span>
-                            <span>Direkt loslegen</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Rechts: Video - STICKY -->
-                <div class="hero-video">
-                    <div class="video-wrapper">
-                        <iframe src="<?php echo htmlspecialchars($video_embed_url); ?>?autoplay=1&loop=0&autopause=0" 
-                                frameborder="0" 
-                                allow="autoplay; fullscreen; picture-in-picture" 
-                                allowfullscreen>
-                        </iframe>
-                    </div>
-                </div>
-                
+    <!-- Vollbreiter Header -->
+    <div class="page-header">
+        <div class="header-content">
+            <div class="success-badge">
+                <span>✓</span>
+                <span>Erfolgreich angemeldet</span>
             </div>
+            
+            <h1 class="hero-headline">
+                Vielen Dank!<br>
+                Dein Zugang ist freigeschaltet
+            </h1>
+            
+            <p class="hero-subheadline">
+                Du hast jetzt sofortigen Zugang zu deinem exklusiven Freebie. Klicke auf den Button unten, um direkt zu starten.
+            </p>
         </div>
+    </div>
+    
+    <!-- Main Layout - 2 Spalten über gesamte Seite -->
+    <div class="main-layout">
         
-        <!-- Referral Promo Box -->
-        <?php if (!empty($referral_url)): ?>
-        <div class="referral-promo">
-            <div class="referral-promo-header">
+        <!-- Content Area - Links -->
+        <div class="content-area">
+            
+            <!-- Action Box -->
+            <div class="content-box">
+                <?php if (!empty($freebie['course_title'])): ?>
+                <div class="course-info">
+                    <div class="course-info-label">Dein Freebie</div>
+                    <div class="course-info-title"><?php echo htmlspecialchars($freebie['course_title']); ?></div>
+                </div>
+                <?php endif; ?>
+                
+                <!-- Button Container -->
+                <div class="button-container">
+                    <?php if (!empty($video_course_url)): ?>
+                        <a href="<?php echo htmlspecialchars($video_course_url); ?>" class="cta-button">
+                            <span style="font-size: 22px;">🚀</span>
+                            <span><?php echo htmlspecialchars($video_button_text); ?></span>
+                        </a>
+                    <?php else: ?>
+                        <div style="padding: 20px; background: #fef3c7; border: 2px solid #f59e0b; border-radius: 12px; text-align: center;">
+                            <p style="color: #92400e; font-weight: 600; margin-bottom: 8px;">⚠️ Kein Videokurs konfiguriert</p>
+                            <p style="color: #78350f; font-size: 14px;">Bitte fügen Sie einen Kurs im Dashboard hinzu.</p>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <?php if (!empty($referral_url)): ?>
+                        <a href="<?php echo htmlspecialchars($referral_url); ?>" class="referral-button">
+                            <span style="font-size: 22px;">🎁</span>
+                            <span>Zum Geschenk</span>
+                        </a>
+                    <?php endif; ?>
+                    
+                    <div class="access-info">
+                        <span>⚡</span>
+                        <span>Sofortiger Zugang</span>
+                        <span>•</span>
+                        <span>Keine Wartezeit</span>
+                        <span>•</span>
+                        <span>Direkt loslegen</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Mockup Box - WEITER UNTEN -->
+            <div class="content-box mockup-box">
+                <?php if (!empty($mockup_image)): ?>
+                    <div class="mockup-image">
+                        <img src="<?php echo htmlspecialchars($mockup_image); ?>" 
+                             alt="<?php echo htmlspecialchars($freebie['course_title'] ?? $freebie['name'] ?? 'Freebie'); ?>">
+                    </div>
+                <?php else: ?>
+                    <div class="mockup-placeholder">
+                        🎓
+                    </div>
+                <?php endif; ?>
+            </div>
+            
+            <!-- Referral Promo -->
+            <?php if (!empty($referral_url)): ?>
+            <div class="content-box referral-promo">
                 <div class="referral-promo-badge">🎁 Exklusives Angebot</div>
                 <h2 class="referral-promo-title">Verdiene attraktive Belohnungen!</h2>
                 <p class="referral-promo-subtitle">Teile dieses Freebie mit Freunden und erhalte tolle Prämien</p>
+                
+                <div class="referral-benefits">
+                    <div class="benefit-item">
+                        <div class="benefit-icon">🎯</div>
+                        <div class="benefit-content">
+                            <h4>Einfach & Schnell</h4>
+                            <p>Erhalte deinen persönlichen Empfehlungslink</p>
+                        </div>
+                    </div>
+                    
+                    <div class="benefit-item">
+                        <div class="benefit-icon">💎</div>
+                        <div class="benefit-content">
+                            <h4>Attraktive Belohnungen</h4>
+                            <p>Verdiene wertvolle Prämien für jeden Lead</p>
+                        </div>
+                    </div>
+                    
+                    <div class="benefit-item">
+                        <div class="benefit-icon">📊</div>
+                        <div class="benefit-content">
+                            <h4>Live Tracking</h4>
+                            <p>Behalte alle Conversions in Echtzeit im Blick</p>
+                        </div>
+                    </div>
+                    
+                    <div class="benefit-item">
+                        <div class="benefit-icon">🏆</div>
+                        <div class="benefit-content">
+                            <h4>Bonus-System</h4>
+                            <p>Je mehr Leads, desto höher deine Prämien</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="text-align: center;">
+                    <a href="<?php echo htmlspecialchars($referral_url); ?>" class="referral-cta-button">
+                        <span style="font-size: 20px;">🎁</span>
+                        <span>Zum Empfehlungsprogramm</span>
+                    </a>
+                </div>
+            </div>
+            <?php endif; ?>
+            
+            <!-- Bookmark Banner -->
+            <div class="content-box bookmark-banner">
+                <div class="bookmark-icon">🔖</div>
+                <div class="bookmark-content">
+                    <div class="bookmark-title">💡 Wichtig: Speichere diese Seite!</div>
+                    <div class="bookmark-text">
+                        Sichere dir dauerhaften Zugang zu deinem Freebie. Speichere diese Seite als Lesezeichen in deinem Browser.
+                    </div>
+                    <button onclick="bookmarkPage()" class="bookmark-button">
+                        ⭐ Seite als Lesezeichen speichern
+                    </button>
+                </div>
             </div>
             
-            <div class="referral-benefits">
-                <div class="benefit-item">
-                    <div class="benefit-icon">🎯</div>
-                    <div class="benefit-content">
-                        <h4>Einfach & Schnell</h4>
-                        <p>Erhalte deinen persönlichen Empfehlungslink und teile ihn mit deinem Netzwerk</p>
+            <!-- Steps -->
+            <div class="content-box">
+                <h2 class="steps-title">So geht's weiter 👇</h2>
+                <div class="steps-grid">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <h3>Seite speichern</h3>
+                        <p>Speichere diese Seite als Lesezeichen, um jederzeit Zugriff auf dein Freebie zu haben</p>
                     </div>
-                </div>
-                
-                <div class="benefit-item">
-                    <div class="benefit-icon">💎</div>
-                    <div class="benefit-content">
-                        <h4>Attraktive Belohnungen</h4>
-                        <p>Verdiene wertvolle Prämien für jeden Lead, den du uns bringst</p>
-                    </div>
-                </div>
-                
-                <div class="benefit-item">
-                    <div class="benefit-icon">📊</div>
-                    <div class="benefit-content">
-                        <h4>Live Tracking</h4>
-                        <p>Behalte alle Klicks und Conversions in Echtzeit im Blick</p>
-                    </div>
-                </div>
-                
-                <div class="benefit-item">
-                    <div class="benefit-icon">🏆</div>
-                    <div class="benefit-content">
-                        <h4>Bonus-System</h4>
-                        <p>Je mehr Leads, desto höher deine Belohnungsstufe und Prämien</p>
+                    
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <h3>Freebie abrufen</h3>
+                        <p>Klicke auf den Button oben und erhalte sofortigen Zugang zu deinem exklusiven Videokurs</p>
                     </div>
                 </div>
             </div>
             
-            <div class="referral-cta">
-                <a href="<?php echo htmlspecialchars($referral_url); ?>" class="referral-cta-button">
-                    <span style="font-size: 24px;">🎁</span>
-                    <span>Zum Geschenk</span>
-                </a>
-            </div>
         </div>
-        <?php endif; ?>
         
-        <!-- Bookmark Banner -->
-        <div class="bookmark-banner">
-            <div class="bookmark-icon">🔖</div>
-            <div class="bookmark-content">
-                <div class="bookmark-title">💡 Wichtig: Speichere diese Seite!</div>
-                <div class="bookmark-text">
-                    Sichere dir dauerhaften Zugang zu deinem Freebie. Speichere diese Seite als Lesezeichen in deinem Browser.
-                </div>
-                <button onclick="bookmarkPage()" class="bookmark-button">
-                    ⭐ Seite als Lesezeichen speichern
-                </button>
+        <!-- Video Sidebar - STICKY über gesamte Seite -->
+        <div class="video-sidebar">
+            <div class="video-wrapper">
+                <iframe src="<?php echo htmlspecialchars($video_embed_url); ?>?autoplay=1&loop=0&autopause=0" 
+                        frameborder="0" 
+                        allow="autoplay; fullscreen; picture-in-picture" 
+                        allowfullscreen>
+                </iframe>
             </div>
         </div>
         
-        <!-- Info Steps -->
-        <div class="info-steps">
-            <h2 class="steps-title">So geht's weiter 👇</h2>
-            <div class="steps-grid">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <h3>Seite speichern</h3>
-                    <p>Speichere diese Seite als Lesezeichen, um jederzeit Zugriff auf dein Freebie zu haben</p>
-                </div>
-                
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <h3>Freebie abrufen</h3>
-                    <p>Klicke auf den Button oben und erhalte sofortigen Zugang zu deinem exklusiven Videokurs</p>
-                </div>
-            </div>
-        </div>
     </div>
     
     <!-- Footer -->
@@ -1148,23 +944,18 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             
             // Moderne Browser
             if (window.sidebar && window.sidebar.addPanel) {
-                // Firefox
                 window.sidebar.addPanel(pageTitle, pageURL, '');
             } else if (window.external && ('AddFavorite' in window.external)) {
-                // IE
                 window.external.AddFavorite(pageURL, pageTitle);
             } else if (window.opera && window.print) {
-                // Opera
                 const elem = document.createElement('a');
                 elem.setAttribute('href', pageURL);
                 elem.setAttribute('title', pageTitle);
                 elem.setAttribute('rel', 'sidebar');
                 elem.click();
             } else {
-                // Für moderne Browser (Chrome, Safari, Edge)
                 const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
                 const shortcut = isMac ? 'Cmd+D' : 'Ctrl+D';
-                
                 alert(`✨ Drücke ${shortcut} um diese Seite als Lesezeichen zu speichern!\n\nSo hast du jederzeit Zugriff auf dein Freebie.`);
             }
         }
