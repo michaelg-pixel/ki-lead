@@ -25,11 +25,8 @@ try {
         die('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Nicht gefunden</title></head><body style="font-family:Arial;padding:50px;text-align:center;"><h1>❌ Freebie nicht gefunden</h1><p>Dieses Freebie existiert nicht oder wurde gelöscht.</p></body></html>');
     }
     
-    // Customer-Daten laden für Footer-Links
+    // Customer-ID für Footer-Links
     $customer_id = $freebie['customer_id'];
-    $stmt = $pdo->prepare("SELECT * FROM customers WHERE id = ?");
-    $stmt->execute([$customer_id]);
-    $customer = $stmt->fetch(PDO::FETCH_ASSOC);
     
 } catch (PDOException $e) {
     http_response_code(500);
