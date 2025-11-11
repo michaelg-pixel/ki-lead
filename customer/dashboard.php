@@ -22,7 +22,7 @@ $page = $_GET['page'] ?? 'overview';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KI Leadsystem - Kunden Portal</title>
+    <title>Opt in Pilot - Kunden Portal</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
     <?php if ($page === 'empfehlungsprogramm'): ?>
@@ -316,7 +316,7 @@ $page = $_GET['page'] ?? 'overview';
     <div class="mobile-header">
         <div class="mobile-logo">
             <div class="mobile-logo-icon">🌟</div>
-            <div class="mobile-logo-text">KI Leadsystem</div>
+            <div class="mobile-logo-text">Opt in Pilot</div>
         </div>
         <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
     </div>
@@ -329,7 +329,7 @@ $page = $_GET['page'] ?? 'overview';
         <div class="logo">
             <div class="logo-icon">🌟</div>
             <div class="logo-text">
-                <h1>KI Leadsystem</h1>
+                <h1>Opt in Pilot</h1>
                 <p>Kunden Portal</p>
             </div>
         </div>
