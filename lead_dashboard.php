@@ -334,6 +334,95 @@ if ($lead['user_id']) {
             font-weight: bold;
             color: #667eea;
         }
+        
+        /* KI Super Mailer Box */
+        .ki-mailer-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+            color: white;
+        }
+        
+        .ki-mailer-box h2 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .ki-mailer-box h2 i {
+            font-size: 28px;
+        }
+        
+        .ki-mailer-box p {
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            opacity: 0.95;
+        }
+        
+        .ki-mailer-features {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+        }
+        
+        .ki-mailer-features h3 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        
+        .ki-mailer-features ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .ki-mailer-features li {
+            padding: 8px 0;
+            padding-left: 30px;
+            position: relative;
+            line-height: 1.6;
+        }
+        
+        .ki-mailer-features li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+            font-size: 18px;
+            color: #28a745;
+        }
+        
+        .ki-mailer-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px 30px;
+            background: white;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .ki-mailer-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+            background: #f8f9fa;
+        }
+        
+        .ki-mailer-btn i {
+            font-size: 20px;
+        }
+        
         .freebie-selection-section {
             background: white;
             padding: 30px;
@@ -871,6 +960,35 @@ if ($lead['user_id']) {
                     <div class="label">Eingelöste Belohnungen</div>
                     <div class="value"><?php echo count($claimed_rewards); ?></div>
                 </div>
+            </div>
+            
+            <!-- KI Super Mailer Box -->
+            <div class="ki-mailer-box">
+                <h2>
+                    <i class="fas fa-robot"></i>
+                    KI Super Mailer
+                </h2>
+                <p>
+                    Schreibt verkaufsstarke E-Mails im Stil von einem Profi Online Marketer.
+                </p>
+                
+                <div class="ki-mailer-features">
+                    <h3>Beispiel Funktionen:</h3>
+                    <ul>
+                        <li>Nimm diese E-Mail und erstelle eine neue konvertierende Version</li>
+                        <li>Erstelle 3 starke Betreff's und Call-to-Action für dieses Angebot</li>
+                        <li>Erstelle 3 aufeinander aufbauende E-Mails für folgendes Produkt</li>
+                        <li>Analysiere folgende URL und Erstelle 3 aufeinander aufbauende E-Mails</li>
+                    </ul>
+                </div>
+                
+                <a href="https://chatgpt.com/g/g-6894b36839dc81918fbd77eedd74415c-ki-super-mailer" 
+                   target="_blank" 
+                   rel="noopener noreferrer" 
+                   class="ki-mailer-btn">
+                    <i class="fas fa-external-link-alt"></i>
+                    Jetzt KI Super Mailer nutzen
+                </a>
             </div>
             
             <!-- Freebie Auswahl -->
