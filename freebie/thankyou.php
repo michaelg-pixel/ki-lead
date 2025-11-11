@@ -868,7 +868,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
                 <div style="text-align: center;">
                     <a href="<?php echo htmlspecialchars($referral_url); ?>" class="referral-cta-button">
                         <span style="font-size: 20px;">🎁</span>
-                        <span>Zum Empfehlungsprogramm</span>
+                        <span>Zum Geschenk</span>
                     </a>
                 </div>
             </div>
