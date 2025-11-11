@@ -192,14 +192,9 @@ $form_data = [
 $webfonts = [
     'System UI' => '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
     'Arial' => 'Arial, "Helvetica Neue", Helvetica, sans-serif',
-    'Helvetica' => '"Helvetica Neue", Helvetica, Arial, sans-serif',
-    'Verdana' => 'Verdana, Geneva, sans-serif',
-    'Trebuchet MS' => '"Trebuchet MS", "Lucida Grande", sans-serif',
     'Georgia' => 'Georgia, "Times New Roman", serif',
-    'Times New Roman' => '"Times New Roman", Times, Georgia, serif',
-    'Courier New' => '"Courier New", Courier, monospace',
-    'Tahoma' => 'Tahoma, Geneva, sans-serif',
-    'Comic Sans MS' => '"Comic Sans MS", "Comic Sans", cursive'
+    'Verdana' => 'Verdana, Geneva, sans-serif',
+    'Helvetica' => '"Helvetica Neue", Helvetica, Arial, sans-serif'
 ];
 
 $google_fonts = [
@@ -207,12 +202,7 @@ $google_fonts = [
     'Roboto' => 'Roboto:wght@400;500;700;900',
     'Open Sans' => 'Open+Sans:wght@400;600;700;800',
     'Montserrat' => 'Montserrat:wght@400;600;700;800',
-    'Poppins' => 'Poppins:wght@400;600;700;800',
-    'Lato' => 'Lato:wght@400;700;900',
-    'Oswald' => 'Oswald:wght@400;600;700',
-    'Raleway' => 'Raleway:wght@400;600;700;800',
-    'Playfair Display' => 'Playfair+Display:wght@400;700;900',
-    'Merriweather' => 'Merriweather:wght@400;700;900'
+    'Poppins' => 'Poppins:wght@400;600;700;800'
 ];
 
 // Google Fonts URLs generieren
@@ -593,7 +583,7 @@ foreach ($google_fonts as $name => $family) {
             font-weight: 800;
             line-height: 1.2;
             margin-bottom: 10px;
-            text-align: center;
+            text-align: center !important;
         }
         
         .preview-subheadline {
@@ -1293,7 +1283,7 @@ foreach ($google_fonts as $name => $family) {
                                        <?php echo $form_data['layout'] === 'centered' ? 'checked' : ''; ?>
                                        onchange="updatePreview(); updateLayoutSelection(this)">
                                 <div class="layout-content">
-                                    <div class="layout-icon">🎯</div>
+                                    <div class="layout-icon">◉</div>
                                     <div class="layout-name">Zentriert</div>
                                 </div>
                                 <div class="layout-check">✓</div>
@@ -1304,7 +1294,7 @@ foreach ($google_fonts as $name => $family) {
                                        <?php echo $form_data['layout'] === 'sidebar' ? 'checked' : ''; ?>
                                        onchange="updatePreview(); updateLayoutSelection(this)">
                                 <div class="layout-content">
-                                    <div class="layout-icon">📱</div>
+                                    <div class="layout-icon">▭</div>
                                     <div class="layout-name">Sidebar</div>
                                 </div>
                                 <div class="layout-check">✓</div>
