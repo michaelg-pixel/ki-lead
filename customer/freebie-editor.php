@@ -149,17 +149,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
     }
 }
 
-// Rest of the PHP code stays the same...
+// FIX: Bullet Points und CTA mit Fallback-Spalten
+$template_bullet_points = $template['bullet_points'] ?? $template['bulletpoints'] ?? '';
+$template_cta_text = $template['cta_text'] ?? $template['cta_button_text'] ?? '';
+
+// Form data mit korrekten Fallbacks
 $form_data = [
     'headline' => $customer_freebie['headline'] ?? $template['headline'] ?? 'Sichere dir jetzt deinen kostenlosen Kurs',
     'subheadline' => $customer_freebie['subheadline'] ?? $template['subheadline'] ?? '',
     'preheadline' => $customer_freebie['preheadline'] ?? $template['preheadline'] ?? '',
-    'bullet_points' => $customer_freebie['bullet_points'] ?? $template['bullet_points'] ?? "✓ Sofortiger Zugang\n✓ Professionelle Inhalte\n✓ Schritt für Schritt Anleitung",
-    'cta_text' => $customer_freebie['cta_text'] ?? $template['cta_text'] ?? 'JETZT KOSTENLOS SICHERN',
+    'bullet_points' => $customer_freebie['bullet_points'] ?? $template_bullet_points ?: "✓ Sofortiger Zugang\n✓ Professionelle Inhalte\n✓ Schritt für Schritt Anleitung",
+    'cta_text' => $customer_freebie['cta_text'] ?? $template_cta_text ?: 'JETZT KOSTENLOS SICHERN',
     'layout' => $customer_freebie['layout'] ?? $template['layout'] ?? 'hybrid',
     'background_color' => $customer_freebie['background_color'] ?? $template['background_color'] ?? '#FFFFFF',
     'primary_color' => $customer_freebie['primary_color'] ?? $template['primary_color'] ?? '#8B5CF6',
-    'raw_code' => $customer_freebie['raw_code'] ?? $template['raw_code'] ?? '',
+    'raw_code' => $customer_freebie['raw_code'] ?? $template['raw_code'] ?? $template['custom_raw_code'] ?? '',
     'mockup_image_url' => $customer_freebie['mockup_image_url'] ?? $template['mockup_image_url'] ?? ''
 ];
 ?>
@@ -171,7 +175,6 @@ $form_data = [
     <title>Freebie Editor - <?php echo htmlspecialchars($template['name']); ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* All the CSS stays exactly the same - no changes needed */
         * {
             margin: 0;
             padding: 0;
