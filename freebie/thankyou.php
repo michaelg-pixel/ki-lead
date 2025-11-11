@@ -190,15 +190,20 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         }
         
         :root {
-            --primary: <?php echo $primary_color; ?>;
-            --primary-light: <?php echo $primary_color; ?>20;
-            --primary-dark: <?php echo $primary_color; ?>dd;
+            --primary: #2563eb;
+            --primary-light: #dbeafe;
+            --primary-dark: #1e40af;
+            --text-dark: #374151;
+            --text-light: #6b7280;
+            --background: #f9fafb;
+            --white: #ffffff;
+            --border: #e5e7eb;
         }
         
         body {
             font-family: '<?php echo $body_font; ?>', sans-serif;
-            background: #f9fafb;
-            color: #1F2937;
+            background: var(--background);
+            color: var(--text-dark);
             line-height: 1.6;
             min-height: 100vh;
         }
@@ -248,9 +253,9 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         
         /* Warning Banner */
         .warning-banner {
-            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            background: linear-gradient(135deg, var(--text-dark), #1f2937);
             padding: 16px 0;
-            box-shadow: 0 4px 20px rgba(220, 38, 38, 0.3);
+            box-shadow: 0 4px 20px rgba(55, 65, 81, 0.3);
         }
         
         .warning-content {
@@ -292,14 +297,14 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         }
         
         .content-box {
-            background: white;
+            background: var(--white);
             border-radius: 24px;
             padding: 40px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         }
         
         .course-info {
-            background: linear-gradient(135deg, var(--primary-light), rgba(124, 58, 237, 0.05));
+            background: var(--primary-light);
             border-left: 4px solid var(--primary);
             padding: 24px 28px;
             border-radius: 16px;
@@ -318,7 +323,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         .course-info-title {
             font-size: 24px;
             font-weight: 800;
-            color: #111827;
+            color: var(--text-dark);
             line-height: 1.3;
         }
         
@@ -345,28 +350,14 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             transition: all 0.3s;
             position: relative;
             overflow: hidden;
-        }
-        
-        .cta-button {
-            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
-            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.3);
+            box-shadow: 0 8px 24px var(--primary-light);
         }
         
-        .cta-button:hover {
+        .cta-button:hover, .referral-button:hover {
             transform: translateY(-3px);
-            box-shadow: 0 12px 32px rgba(139, 92, 246, 0.4);
-        }
-        
-        .referral-button {
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
-            box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
-        }
-        
-        .referral-button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 32px rgba(16, 185, 129, 0.4);
+            box-shadow: 0 12px 32px var(--primary-light);
         }
         
         .access-info {
@@ -374,7 +365,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             align-items: center;
             justify-content: center;
             gap: 8px;
-            color: #9ca3af;
+            color: var(--text-light);
             font-size: 13px;
             font-weight: 500;
             padding-top: 8px;
@@ -400,7 +391,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             width: 280px;
             aspect-ratio: 3/4;
             margin: 0 auto;
-            background: linear-gradient(135deg, var(--primary-light), var(--primary-light));
+            background: var(--primary-light);
             border-radius: 12px;
             display: flex;
             align-items: center;
@@ -410,8 +401,8 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         
         /* Referral Promo */
         .referral-promo {
-            background: linear-gradient(135deg, #fef3c7, #fde68a);
-            border: 3px solid #f59e0b;
+            background: var(--primary-light);
+            border: 3px solid var(--primary);
             border-radius: 24px;
             padding: 40px;
             position: relative;
@@ -429,7 +420,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         
         .referral-promo-badge {
             display: inline-block;
-            background: #f59e0b;
+            background: var(--primary);
             color: white;
             padding: 8px 20px;
             border-radius: 50px;
@@ -443,14 +434,14 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         .referral-promo-title {
             font-size: 32px;
             font-weight: 900;
-            color: #92400e;
+            color: var(--text-dark);
             margin-bottom: 12px;
             line-height: 1.2;
         }
         
         .referral-promo-subtitle {
             font-size: 16px;
-            color: #78350f;
+            color: var(--text-dark);
             font-weight: 600;
             margin-bottom: 24px;
         }
@@ -469,6 +460,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             display: flex;
             align-items: flex-start;
             gap: 12px;
+            border: 1px solid var(--border);
         }
         
         .benefit-icon {
@@ -479,13 +471,13 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         .benefit-content h4 {
             font-size: 16px;
             font-weight: 700;
-            color: #1F2937;
+            color: var(--text-dark);
             margin-bottom: 6px;
         }
         
         .benefit-content p {
             font-size: 14px;
-            color: #6b7280;
+            color: var(--text-light);
             line-height: 1.5;
         }
         
@@ -494,19 +486,19 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
             align-items: center;
             gap: 10px;
             padding: 16px 40px;
-            background: linear-gradient(135deg, #f59e0b, #d97706);
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
             text-decoration: none;
             border-radius: 14px;
             font-size: 18px;
             font-weight: 700;
-            box-shadow: 0 8px 24px rgba(245, 158, 11, 0.4);
+            box-shadow: 0 8px 24px var(--primary-light);
             transition: all 0.3s;
         }
         
         .referral-cta-button:hover {
             transform: translateY(-3px);
-            box-shadow: 0 12px 32px rgba(245, 158, 11, 0.5);
+            box-shadow: 0 12px 32px var(--primary-light);
         }
         
         /* Video Sidebar - STICKY über gesamte Seite */
@@ -554,20 +546,20 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         .bookmark-title {
             font-size: 18px;
             font-weight: 700;
-            color: #111827;
+            color: var(--text-dark);
             margin-bottom: 8px;
         }
         
         .bookmark-text {
             font-size: 14px;
-            color: #6b7280;
+            color: var(--text-light);
             margin-bottom: 14px;
             line-height: 1.6;
         }
         
         .bookmark-button {
             padding: 12px 24px;
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
             border: none;
             border-radius: 12px;
@@ -579,14 +571,14 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         
         .bookmark-button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+            box-shadow: 0 8px 20px var(--primary-light);
         }
         
         /* Steps */
         .steps-title {
             font-size: 28px;
             font-weight: 800;
-            color: #111827;
+            color: var(--text-dark);
             margin-bottom: 28px;
         }
         
@@ -599,9 +591,9 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         .step {
             text-align: center;
             padding: 32px 24px;
-            background: linear-gradient(135deg, #f9fafb, #f3f4f6);
+            background: var(--background);
             border-radius: 20px;
-            border: 2px solid #e5e7eb;
+            border: 2px solid var(--border);
             transition: all 0.3s;
         }
         
@@ -629,22 +621,22 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         .step h3 {
             font-size: 20px;
             font-weight: 700;
-            color: #1F2937;
+            color: var(--text-dark);
             margin-bottom: 12px;
         }
         
         .step p {
             font-size: 15px;
-            color: #6b7280;
+            color: var(--text-light);
             line-height: 1.6;
         }
         
         /* Footer */
         .footer {
-            background: white;
+            background: var(--white);
             padding: 32px 24px;
             text-align: center;
-            border-top: 1px solid #e5e7eb;
+            border-top: 1px solid var(--border);
             margin-top: 40px;
         }
         
@@ -654,7 +646,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         }
         
         .footer-text {
-            color: #6b7280;
+            color: var(--text-light);
             font-size: 14px;
             margin-bottom: 12px;
         }
@@ -667,7 +659,7 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         }
         
         .footer-links a {
-            color: #4b5563;
+            color: var(--text-dark);
             text-decoration: none;
             font-size: 14px;
             font-weight: 600;
@@ -676,6 +668,26 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
         
         .footer-links a:hover {
             color: var(--primary);
+        }
+        
+        /* Warning Box Styling */
+        .warning-box {
+            padding: 20px; 
+            background: var(--primary-light); 
+            border: 2px solid var(--primary); 
+            border-radius: 12px; 
+            text-align: center;
+        }
+        
+        .warning-box-title {
+            color: var(--text-dark); 
+            font-weight: 600; 
+            margin-bottom: 8px;
+        }
+        
+        .warning-box-text {
+            color: var(--text-dark); 
+            font-size: 14px;
         }
         
         /* Responsive */
@@ -992,9 +1004,9 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
                             <span><?php echo htmlspecialchars($video_button_text); ?></span>
                         </a>
                     <?php else: ?>
-                        <div style="padding: 20px; background: #fef3c7; border: 2px solid #f59e0b; border-radius: 12px; text-align: center;">
-                            <p style="color: #92400e; font-weight: 600; margin-bottom: 8px;">⚠️ Kein Videokurs konfiguriert</p>
-                            <p style="color: #78350f; font-size: 14px;">Bitte fügen Sie einen Kurs im Dashboard hinzu.</p>
+                        <div class="warning-box">
+                            <p class="warning-box-title">⚠️ Kein Videokurs konfiguriert</p>
+                            <p class="warning-box-text">Bitte fügen Sie einen Kurs im Dashboard hinzu.</p>
                         </div>
                     <?php endif; ?>
                     
