@@ -1,7 +1,7 @@
 <?php
 /**
- * Course Player - Videokurs Ansicht mit Multi-Video & Drip-Content Support
- * Features: Tabs für mehrere Videos, zeitbasierte Freischaltung, Fortschritt-Tracking
+ * Course Player - Videokurs & PDF-Kurs Ansicht mit Multi-Video & Drip-Content Support
+ * Features: Tabs für mehrere Videos, zeitbasierte Freischaltung, Fortschritt-Tracking, PDF-Anzeige
  * ÖFFENTLICHER ZUGANG: Wenn via Freebie-Link mit access_token zugegriffen wird
  */
 
@@ -93,143 +93,146 @@ if (!$is_public_access) {
     $days_enrolled = $now->diff($enrolled_at)->days;
 }
 
-// Module mit Lektionen laden
-$stmt = $pdo->prepare("
-    SELECT 
-        cm.*,
-        (SELECT COUNT(*) FROM course_lessons WHERE module_id = cm.id) as lesson_count
-    FROM course_modules cm
-    WHERE cm.course_id = ?
-    ORDER BY cm.sort_order ASC
-");
-$stmt->execute([$course_id]);
-$modules = $stmt->fetchAll();
-
-// Alle Lektionen mit Fortschritt, Drip-Status und Videos laden
+// Module mit Lektionen laden (nur für Video-Kurse)
+$modules = [];
 $lessons = [];
-foreach ($modules as $module) {
-    if (!$is_public_access) {
-        $stmt = $pdo->prepare("
-            SELECT 
-                cl.*,
-                cp.completed,
-                cp.completed_at,
-                CASE 
-                    WHEN cl.unlock_after_days IS NULL THEN 1
-                    WHEN cl.unlock_after_days <= ? THEN 1
-                    ELSE 0
-                END as is_unlocked,
-                CASE 
-                    WHEN cl.unlock_after_days IS NOT NULL AND cl.unlock_after_days > ?
-                    THEN (cl.unlock_after_days - ?)
-                    ELSE 0
-                END as days_until_unlock
-            FROM course_lessons cl
-            LEFT JOIN course_progress cp ON cl.id = cp.lesson_id AND cp.user_id = ?
-            WHERE cl.module_id = ?
-            ORDER BY cl.sort_order ASC
-        ");
-        $stmt->execute([$days_enrolled, $days_enrolled, $days_enrolled, $customer_id, $module['id']]);
-    } else {
-        // Öffentlicher Zugang: Alle Lektionen freischalten, kein Fortschritt
-        $stmt = $pdo->prepare("
-            SELECT 
-                cl.*,
-                0 as completed,
-                NULL as completed_at,
-                1 as is_unlocked,
-                0 as days_until_unlock
-            FROM course_lessons cl
-            WHERE cl.module_id = ?
-            ORDER BY cl.sort_order ASC
-        ");
-        $stmt->execute([$module['id']]);
-    }
-    $lessons[$module['id']] = $stmt->fetchAll();
-}
+if ($course['type'] === 'video') {
+    $stmt = $pdo->prepare("
+        SELECT 
+            cm.*,
+            (SELECT COUNT(*) FROM course_lessons WHERE module_id = cm.id) as lesson_count
+        FROM course_modules cm
+        WHERE cm.course_id = ?
+        ORDER BY cm.sort_order ASC
+    ");
+    $stmt->execute([$course_id]);
+    $modules = $stmt->fetchAll();
 
-// Erste verfügbare Lektion finden
-$selected_lesson_id = isset($_GET['lesson']) ? (int)$_GET['lesson'] : null;
-if (!$selected_lesson_id) {
+    // Alle Lektionen mit Fortschritt, Drip-Status und Videos laden
     foreach ($modules as $module) {
-        if (!empty($lessons[$module['id']])) {
-            foreach ($lessons[$module['id']] as $lesson) {
-                if ($lesson['is_unlocked']) {
-                    $selected_lesson_id = $lesson['id'];
-                    break 2;
+        if (!$is_public_access) {
+            $stmt = $pdo->prepare("
+                SELECT 
+                    cl.*,
+                    cp.completed,
+                    cp.completed_at,
+                    CASE 
+                        WHEN cl.unlock_after_days IS NULL THEN 1
+                        WHEN cl.unlock_after_days <= ? THEN 1
+                        ELSE 0
+                    END as is_unlocked,
+                    CASE 
+                        WHEN cl.unlock_after_days IS NOT NULL AND cl.unlock_after_days > ?
+                        THEN (cl.unlock_after_days - ?)
+                        ELSE 0
+                    END as days_until_unlock
+                FROM course_lessons cl
+                LEFT JOIN course_progress cp ON cl.id = cp.lesson_id AND cp.user_id = ?
+                WHERE cl.module_id = ?
+                ORDER BY cl.sort_order ASC
+            ");
+            $stmt->execute([$days_enrolled, $days_enrolled, $days_enrolled, $customer_id, $module['id']]);
+        } else {
+            // Öffentlicher Zugang: Alle Lektionen freischalten, kein Fortschritt
+            $stmt = $pdo->prepare("
+                SELECT 
+                    cl.*,
+                    0 as completed,
+                    NULL as completed_at,
+                    1 as is_unlocked,
+                    0 as days_until_unlock
+                FROM course_lessons cl
+                WHERE cl.module_id = ?
+                ORDER BY cl.sort_order ASC
+            ");
+            $stmt->execute([$module['id']]);
+        }
+        $lessons[$module['id']] = $stmt->fetchAll();
+    }
+
+    // Erste verfügbare Lektion finden
+    $selected_lesson_id = isset($_GET['lesson']) ? (int)$_GET['lesson'] : null;
+    if (!$selected_lesson_id) {
+        foreach ($modules as $module) {
+            if (!empty($lessons[$module['id']])) {
+                foreach ($lessons[$module['id']] as $lesson) {
+                    if ($lesson['is_unlocked']) {
+                        $selected_lesson_id = $lesson['id'];
+                        break 2;
+                    }
                 }
             }
         }
     }
-}
 
-// Aktuelle Lektion laden
-$current_lesson = null;
-$current_videos = [];
-if ($selected_lesson_id) {
-    if (!$is_public_access) {
-        $stmt = $pdo->prepare("
-            SELECT 
-                cl.*,
-                cm.title as module_title,
-                cp.completed,
-                CASE 
-                    WHEN cl.unlock_after_days IS NULL THEN 1
-                    WHEN cl.unlock_after_days <= ? THEN 1
-                    ELSE 0
-                END as is_unlocked,
-                CASE 
-                    WHEN cl.unlock_after_days IS NOT NULL AND cl.unlock_after_days > ?
-                    THEN (cl.unlock_after_days - ?)
-                    ELSE 0
-                END as days_until_unlock
-            FROM course_lessons cl
-            JOIN course_modules cm ON cl.module_id = cm.id
-            LEFT JOIN course_progress cp ON cl.id = cp.lesson_id AND cp.user_id = ?
-            WHERE cl.id = ?
-        ");
-        $stmt->execute([$days_enrolled, $days_enrolled, $days_enrolled, $customer_id, $selected_lesson_id]);
-    } else {
-        // Öffentlicher Zugang
-        $stmt = $pdo->prepare("
-            SELECT 
-                cl.*,
-                cm.title as module_title,
-                0 as completed,
-                1 as is_unlocked,
-                0 as days_until_unlock
-            FROM course_lessons cl
-            JOIN course_modules cm ON cl.module_id = cm.id
-            WHERE cl.id = ?
-        ");
-        $stmt->execute([$selected_lesson_id]);
-    }
-    $current_lesson = $stmt->fetch();
-    
-    // Videos für diese Lektion laden - KOMBINIERE Hauptvideo und zusätzliche Videos
-    if ($current_lesson) {
-        // 1. Hauptvideo aus course_lessons.video_url hinzufügen
-        if (!empty($current_lesson['video_url'])) {
-            $current_videos[] = [
-                'id' => 0,
-                'video_title' => 'Hauptvideo',
-                'video_url' => $current_lesson['video_url'],
-                'sort_order' => 0
-            ];
+    // Aktuelle Lektion laden
+    $current_lesson = null;
+    $current_videos = [];
+    if ($selected_lesson_id) {
+        if (!$is_public_access) {
+            $stmt = $pdo->prepare("
+                SELECT 
+                    cl.*,
+                    cm.title as module_title,
+                    cp.completed,
+                    CASE 
+                        WHEN cl.unlock_after_days IS NULL THEN 1
+                        WHEN cl.unlock_after_days <= ? THEN 1
+                        ELSE 0
+                    END as is_unlocked,
+                    CASE 
+                        WHEN cl.unlock_after_days IS NOT NULL AND cl.unlock_after_days > ?
+                        THEN (cl.unlock_after_days - ?)
+                        ELSE 0
+                    END as days_until_unlock
+                FROM course_lessons cl
+                JOIN course_modules cm ON cl.module_id = cm.id
+                LEFT JOIN course_progress cp ON cl.id = cp.lesson_id AND cp.user_id = ?
+                WHERE cl.id = ?
+            ");
+            $stmt->execute([$days_enrolled, $days_enrolled, $days_enrolled, $customer_id, $selected_lesson_id]);
+        } else {
+            // Öffentlicher Zugang
+            $stmt = $pdo->prepare("
+                SELECT 
+                    cl.*,
+                    cm.title as module_title,
+                    0 as completed,
+                    1 as is_unlocked,
+                    0 as days_until_unlock
+                FROM course_lessons cl
+                JOIN course_modules cm ON cl.module_id = cm.id
+                WHERE cl.id = ?
+            ");
+            $stmt->execute([$selected_lesson_id]);
         }
+        $current_lesson = $stmt->fetch();
         
-        // 2. Zusätzliche Videos aus lesson_videos Tabelle hinzufügen
-        $stmt = $pdo->prepare("
-            SELECT * FROM lesson_videos 
-            WHERE lesson_id = ? 
-            ORDER BY sort_order ASC
-        ");
-        $stmt->execute([$selected_lesson_id]);
-        $additional_videos = $stmt->fetchAll();
-        
-        if (!empty($additional_videos)) {
-            foreach ($additional_videos as $video) {
-                $current_videos[] = $video;
+        // Videos für diese Lektion laden - KOMBINIERE Hauptvideo und zusätzliche Videos
+        if ($current_lesson) {
+            // 1. Hauptvideo aus course_lessons.video_url hinzufügen
+            if (!empty($current_lesson['video_url'])) {
+                $current_videos[] = [
+                    'id' => 0,
+                    'video_title' => 'Hauptvideo',
+                    'video_url' => $current_lesson['video_url'],
+                    'sort_order' => 0
+                ];
+            }
+            
+            // 2. Zusätzliche Videos aus lesson_videos Tabelle hinzufügen
+            $stmt = $pdo->prepare("
+                SELECT * FROM lesson_videos 
+                WHERE lesson_id = ? 
+                ORDER BY sort_order ASC
+            ");
+            $stmt->execute([$selected_lesson_id]);
+            $additional_videos = $stmt->fetchAll();
+            
+            if (!empty($additional_videos)) {
+                foreach ($additional_videos as $video) {
+                    $current_videos[] = $video;
+                }
             }
         }
     }
@@ -419,6 +422,107 @@ if ($is_public_access) {
             width: 100%;
             height: 100%;
             border: none;
+        }
+
+        /* PDF Container */
+        .pdf-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #1a1a2e;
+            padding: 20px;
+        }
+
+        .pdf-viewer {
+            width: 100%;
+            height: 100%;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            background: white;
+        }
+
+        .pdf-download-area {
+            text-align: center;
+            padding: 60px 40px;
+        }
+
+        .pdf-icon {
+            font-size: 120px;
+            margin-bottom: 32px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .pdf-title {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #a855f7, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .pdf-description {
+            font-size: 18px;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            line-height: 1.6;
+        }
+
+        .pdf-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-download {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 32px;
+            background: linear-gradient(135deg, var(--accent), #9333ea);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 8px 24px rgba(168, 85, 247, 0.4);
+        }
+
+        .btn-download:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 32px rgba(168, 85, 247, 0.6);
+        }
+
+        .btn-view {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 32px;
+            background: rgba(59, 130, 246, 0.2);
+            border: 2px solid rgba(59, 130, 246, 0.4);
+            border-radius: 12px;
+            color: #60a5fa;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-view:hover {
+            background: rgba(59, 130, 246, 0.3);
+            border-color: rgba(59, 130, 246, 0.6);
+            transform: translateY(-4px);
         }
 
         .video-placeholder {
@@ -723,6 +827,24 @@ if ($is_public_access) {
                 padding: 12px 20px;
                 font-size: 14px;
             }
+
+            .pdf-icon {
+                font-size: 80px;
+                margin-bottom: 24px;
+            }
+
+            .pdf-title {
+                font-size: 24px;
+            }
+
+            .pdf-description {
+                font-size: 16px;
+            }
+
+            .pdf-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
         }
 
         /* Scrollbar */
@@ -751,7 +873,7 @@ if ($is_public_access) {
 </head>
 <body>
     <div class="player-container">
-        <!-- Video Area -->
+        <!-- Video/PDF Area -->
         <div class="video-area">
             <!-- Header -->
             <div class="player-header">
@@ -763,10 +885,16 @@ if ($is_public_access) {
                     <?php endif; ?>
                     <div class="course-info">
                         <h1><?php echo htmlspecialchars($course['title']); ?></h1>
-                        <p><?php echo htmlspecialchars($current_lesson['module_title'] ?? 'Wähle eine Lektion'); ?></p>
+                        <p>
+                            <?php if ($course['type'] === 'pdf'): ?>
+                                📄 PDF-Kurs
+                            <?php else: ?>
+                                <?php echo htmlspecialchars($current_lesson['module_title'] ?? 'Wähle eine Lektion'); ?>
+                            <?php endif; ?>
+                        </p>
                     </div>
                 </div>
-                <?php if (!$is_public_access): ?>
+                <?php if (!$is_public_access && $course['type'] === 'video'): ?>
                 <div class="header-right">
                     <?php
                     $total_lessons = 0;
@@ -786,9 +914,44 @@ if ($is_public_access) {
                 <?php endif; ?>
             </div>
 
-            <!-- Video Container -->
+            <!-- Video/PDF Container -->
             <div class="video-container">
-                <?php if ($current_lesson && $current_lesson['is_unlocked']): ?>
+                <?php if ($course['type'] === 'pdf'): ?>
+                    <!-- PDF-Kurs Anzeige -->
+                    <div class="pdf-container">
+                        <?php if (!empty($course['pdf_file'])): ?>
+                            <div class="pdf-download-area">
+                                <div class="pdf-icon">📄</div>
+                                <h2 class="pdf-title"><?php echo htmlspecialchars($course['title']); ?></h2>
+                                <p class="pdf-description">
+                                    <?php echo htmlspecialchars($course['description'] ?? 'Dein PDF-Kurs ist bereit zum Download'); ?>
+                                </p>
+                                <div class="pdf-actions">
+                                    <a href="<?php echo htmlspecialchars($course['pdf_file']); ?>" 
+                                       target="_blank" 
+                                       class="btn-view">
+                                        <span>👁️</span>
+                                        <span>PDF im Browser öffnen</span>
+                                    </a>
+                                    <a href="<?php echo htmlspecialchars($course['pdf_file']); ?>" 
+                                       download 
+                                       class="btn-download">
+                                        <span>⬇️</span>
+                                        <span>PDF herunterladen</span>
+                                    </a>
+                                </div>
+                            </div>
+                        <?php else: ?>
+                            <div style="text-align: center; padding: 60px 40px;">
+                                <div style="font-size: 80px; margin-bottom: 24px; opacity: 0.3;">📄</div>
+                                <p style="color: var(--text-secondary); font-size: 18px;">
+                                    Kein PDF verfügbar
+                                </p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    
+                <?php elseif ($current_lesson && $current_lesson['is_unlocked']): ?>
                     <!-- Video Tabs -->
                     <?php if (count($current_videos) > 1): ?>
                         <div class="video-tabs">
@@ -850,8 +1013,8 @@ if ($is_public_access) {
                 <?php endif; ?>
             </div>
 
-            <!-- Lesson Info -->
-            <?php if ($current_lesson && $current_lesson['is_unlocked']): ?>
+            <!-- Lesson Info (nur für Video-Kurse) -->
+            <?php if ($course['type'] === 'video' && $current_lesson && $current_lesson['is_unlocked']): ?>
             <div class="lesson-info">
                 <h2><?php echo htmlspecialchars($current_lesson['title']); ?></h2>
                 <div class="lesson-meta">
@@ -881,7 +1044,8 @@ if ($is_public_access) {
             <?php endif; ?>
         </div>
 
-        <!-- Sidebar -->
+        <!-- Sidebar (nur für Video-Kurse) -->
+        <?php if ($course['type'] === 'video'): ?>
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h3>📚 Kursinhalt</h3>
@@ -925,11 +1089,14 @@ if ($is_public_access) {
                 <?php endforeach; ?>
             </div>
         </div>
+        <?php endif; ?>
     </div>
 
+    <?php if ($course['type'] === 'video'): ?>
     <button class="mobile-toggle" onclick="toggleSidebar()" style="display: none;">
         📚
     </button>
+    <?php endif; ?>
 
     <script>
         // Video Tab Switching
@@ -951,7 +1118,7 @@ if ($is_public_access) {
             document.getElementById('sidebar').classList.toggle('open');
         }
 
-        <?php if (!$is_public_access): ?>
+        <?php if (!$is_public_access && $course['type'] === 'video'): ?>
         function markAsComplete(lessonId) {
             fetch('/api/mark-lesson-complete.php', {
                 method: 'POST',
@@ -972,11 +1139,14 @@ if ($is_public_access) {
 
         function checkMobile() {
             const mobileToggle = document.querySelector('.mobile-toggle');
-            if (window.innerWidth <= 1024) {
-                mobileToggle.style.display = 'block';
-            } else {
-                mobileToggle.style.display = 'none';
-                document.getElementById('sidebar').classList.remove('open');
+            const sidebar = document.getElementById('sidebar');
+            if (mobileToggle && sidebar) {
+                if (window.innerWidth <= 1024) {
+                    mobileToggle.style.display = 'block';
+                } else {
+                    mobileToggle.style.display = 'none';
+                    sidebar.classList.remove('open');
+                }
             }
         }
 
