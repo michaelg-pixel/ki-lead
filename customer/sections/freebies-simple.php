@@ -1,7 +1,6 @@
 <?php
 /**
- * VEREINFACHTE Freebies Section - Garantiert funktionierend
- * Zeigt alle Freebies ohne komplexe Filter
+ * VERBESSERTE Freebies Section - Mit Mockups, Danke-Links und korrekten Pfaden
  */
 
 global $pdo;
@@ -35,7 +34,7 @@ $templates = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Angepasste Templates laden
 $stmt = $pdo->prepare("
-    SELECT template_id, id as customer_freebie_id, unique_id 
+    SELECT template_id, id as customer_freebie_id, unique_id, mockup_image_url
     FROM customer_freebies 
     WHERE customer_id = ? AND (freebie_type = 'template' OR freebie_type IS NULL)
 ");
@@ -58,87 +57,327 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <style>
-.simple-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }
-.simple-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; }
-.simple-card h3 { color: white; margin-bottom: 10px; }
-.simple-card p { color: #aaa; font-size: 14px; margin-bottom: 15px; }
-.simple-btn { display: inline-block; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; margin-right: 10px; font-size: 14px; }
-.simple-btn:hover { background: #5568d3; }
-.simple-header { background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; margin-bottom: 20px; }
-.tab-header { display: flex; gap: 10px; margin: 20px 0; }
-.tab-header button { padding: 12px 24px; background: rgba(255,255,255,0.1); color: white; border: none; border-radius: 8px; cursor: pointer; }
-.tab-header button.active { background: #667eea; }
+.freebies-container { padding: 32px; }
+.freebies-header { margin-bottom: 32px; }
+.freebies-title { font-size: 36px; font-weight: 700; color: white; margin-bottom: 12px; }
+.freebies-subtitle { font-size: 18px; color: #888; }
+
+.limit-banner {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 32px;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+.limit-info h3 { font-size: 20px; margin-bottom: 8px; }
+.limit-info p { font-size: 14px; opacity: 0.9; }
+.btn-create {
+    background: white;
+    color: #667eea;
+    padding: 14px 28px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+.btn-create:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); }
+.btn-create:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.tab-header { display: flex; gap: 8px; margin-bottom: 32px; border-bottom: 2px solid rgba(255, 255, 255, 0.1); }
+.tab-btn {
+    padding: 12px 24px;
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+}
+.tab-btn:hover { color: #667eea; }
+.tab-btn.active { color: white; border-bottom-color: #667eea; }
 .tab-content { display: none; }
 .tab-content.active { display: block; }
+
+.freebies-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 24px; }
+.freebie-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+.freebie-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    border-color: rgba(102, 126, 234, 0.5);
+}
+
+.freebie-mockup {
+    height: 200px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+.freebie-mockup img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+}
+.mockup-placeholder {
+    font-size: 64px;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.freebie-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(34, 197, 94, 0.95);
+    color: white;
+}
+
+.freebie-content { padding: 24px; }
+.freebie-title { font-size: 20px; font-weight: 700; color: white; margin-bottom: 8px; line-height: 1.3; }
+.freebie-subtitle { font-size: 14px; color: #aaa; margin-bottom: 16px; line-height: 1.5; }
+
+.freebie-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.btn-preview { background: rgba(255, 255, 255, 0.1); color: white; }
+.btn-preview:hover { background: rgba(255, 255, 255, 0.2); }
+.btn-edit { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+.btn-edit:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4); }
+
+.link-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.link-box {
+    background: rgba(102, 126, 234, 0.08);
+    border: 1px solid rgba(102, 126, 234, 0.2);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+}
+.link-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #667eea;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.link-input-wrapper { display: flex; gap: 8px; }
+.link-input {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    color: white;
+    padding: 8px 12px;
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+}
+.btn-copy {
+    padding: 8px 12px;
+    background: rgba(102, 126, 234, 0.3);
+    border: 1px solid #667eea;
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+    white-space: nowrap;
+    border: none;
+}
+.btn-copy:hover { background: rgba(102, 126, 234, 0.5); }
+
+.empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.empty-icon { font-size: 64px; margin-bottom: 20px; }
+.empty-title { font-size: 24px; color: white; margin-bottom: 12px; }
+.empty-text { font-size: 16px; color: #888; }
+
+@media (max-width: 768px) {
+    .freebies-grid { grid-template-columns: 1fr; }
+    .limit-banner { flex-direction: column; text-align: center; }
+    .freebie-actions { grid-template-columns: 1fr; }
+}
 </style>
 
-<div style="padding: 32px;">
-    <h1 style="font-size: 32px; color: white; margin-bottom: 20px;">🎁 Lead-Magneten</h1>
+<div class="freebies-container">
+    <div class="freebies-header">
+        <h1 class="freebies-title">🎁 Lead-Magneten</h1>
+        <p class="freebies-subtitle">Nutze Templates oder erstelle eigene Freebie-Seiten</p>
+    </div>
     
     <!-- Limit Banner -->
-    <div class="simple-header">
-        <h3 style="color: white; margin-bottom: 8px;">📦 <?php echo htmlspecialchars($packageName); ?></h3>
-        <p style="color: #aaa;">
-            Du hast <strong><?php echo $customFreebiesCount; ?> / <?php echo $freebieLimit; ?></strong> eigene Freebies erstellt
-        </p>
+    <div class="limit-banner">
+        <div class="limit-info">
+            <h3>📦 <?php echo htmlspecialchars($packageName); ?></h3>
+            <p>Du hast <strong><?php echo $customFreebiesCount; ?> / <?php echo $freebieLimit; ?></strong> eigene Freebies erstellt</p>
+        </div>
         <?php if ($customFreebiesCount < $freebieLimit): ?>
-            <a href="/public/customer/edit-freebie.php" class="simple-btn">✨ Eigenes Freebie erstellen</a>
+            <a href="/customer/custom-freebie-editor-tabs.php" class="btn-create">✨ Eigenes Freebie erstellen</a>
         <?php else: ?>
-            <button class="simple-btn" disabled style="opacity: 0.5;">🔒 Limit erreicht</button>
+            <button class="btn-create" disabled>🔒 Limit erreicht</button>
         <?php endif; ?>
     </div>
     
     <!-- Tabs -->
     <div class="tab-header">
-        <button class="active" onclick="showTab('templates')">📚 Templates (<?php echo count($templates); ?>)</button>
-        <button onclick="showTab('custom')">✨ Meine Freebies (<?php echo count($customFreebies); ?>)</button>
+        <button class="tab-btn active" onclick="showTab('templates')">📚 Templates (<?php echo count($templates); ?>)</button>
+        <button class="tab-btn" onclick="showTab('custom')">✨ Meine Freebies (<?php echo count($customFreebies); ?>)</button>
     </div>
     
     <!-- Tab 1: Templates -->
     <div id="tab-templates" class="tab-content active">
-        <h2 style="color: white; margin-bottom: 20px;">📚 Verfügbare Templates</h2>
-        
         <?php if (empty($templates)): ?>
-            <div class="simple-card">
-                <p style="text-align: center; padding: 40px;">Noch keine Templates vorhanden</p>
+            <div class="empty-state">
+                <div class="empty-icon">📦</div>
+                <h3 class="empty-title">Noch keine Templates verfügbar</h3>
+                <p class="empty-text">Schau bald wieder vorbei!</p>
             </div>
         <?php else: ?>
-            <div class="simple-grid">
+            <div class="freebies-grid">
                 <?php foreach ($templates as $template): 
                     $isUsed = isset($customer_templates[$template['id']]);
                     $customerData = $customer_templates[$template['id']] ?? null;
+                    
+                    // Mockup URL - Customer-Version bevorzugen
+                    $mockupUrl = $template['mockup_image_url'] ?? '';
+                    if ($isUsed && $customerData && !empty($customerData['mockup_image_url'])) {
+                        $mockupUrl = $customerData['mockup_image_url'];
+                    }
+                    
+                    $bgColor = $template['background_color'] ?? '#667eea';
+                    $primaryColor = $template['primary_color'] ?? '#667eea';
                 ?>
-                    <div class="simple-card">
-                        <h3><?php echo htmlspecialchars($template['headline'] ?: $template['name']); ?></h3>
-                        <p><?php echo htmlspecialchars($template['subheadline'] ?? ''); ?></p>
-                        
-                        <?php if ($isUsed): ?>
-                            <span style="display: inline-block; padding: 4px 12px; background: rgba(34, 197, 94, 0.2); color: #22c55e; border-radius: 12px; font-size: 12px; margin-bottom: 10px;">✓ In Verwendung</span>
-                        <?php endif; ?>
-                        
-                        <div>
+                    <div class="freebie-card">
+                        <div class="freebie-mockup" style="background: <?php echo htmlspecialchars($bgColor); ?>;">
                             <?php if ($isUsed): ?>
-                                <a href="/customer/freebie-preview.php?id=<?php echo $customerData['customer_freebie_id']; ?>" 
-                                   class="simple-btn">👁️ Meine Version</a>
-                                <a href="/customer/freebie-editor.php?template_id=<?php echo $template['id']; ?>" 
-                                   class="simple-btn">✏️ Bearbeiten</a>
+                                <span class="freebie-badge">✓ In Verwendung</span>
+                            <?php endif; ?>
+                            
+                            <?php if (!empty($mockupUrl)): ?>
+                                <img src="<?php echo htmlspecialchars($mockupUrl); ?>" 
+                                     alt="<?php echo htmlspecialchars($template['name']); ?>"
+                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                <div class="mockup-placeholder" style="display: none; color: <?php echo htmlspecialchars($primaryColor); ?>;">
+                                    🎁
+                                </div>
                             <?php else: ?>
-                                <a href="/template-preview.php?template_id=<?php echo $template['id']; ?>" 
-                                   class="simple-btn" target="_blank">👁️ Vorschau</a>
-                                <a href="/customer/freebie-editor.php?template_id=<?php echo $template['id']; ?>" 
-                                   class="simple-btn">✨ Nutzen</a>
+                                <div class="mockup-placeholder" style="color: <?php echo htmlspecialchars($primaryColor); ?>;">
+                                    🎁
+                                </div>
                             <?php endif; ?>
                         </div>
                         
-                        <?php if ($isUsed && $customerData): ?>
-                            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
-                                <p style="font-size: 12px; color: #888; margin-bottom: 5px;">🔗 Freebie-Link:</p>
-                                <input type="text" readonly 
-                                       value="<?php echo $protocol . '://' . $domain . '/freebie/index.php?id=' . $customerData['unique_id']; ?>"
-                                       style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: white; font-size: 11px;"
-                                       onclick="this.select();">
+                        <div class="freebie-content">
+                            <h3 class="freebie-title"><?php echo htmlspecialchars($template['headline'] ?: $template['name']); ?></h3>
+                            <?php if (!empty($template['subheadline'])): ?>
+                                <p class="freebie-subtitle"><?php echo htmlspecialchars($template['subheadline']); ?></p>
+                            <?php endif; ?>
+                            
+                            <div class="freebie-actions">
+                                <?php if ($isUsed): ?>
+                                    <a href="/customer/freebie-preview.php?id=<?php echo $customerData['customer_freebie_id']; ?>" class="btn btn-preview">👁️ Meine Version</a>
+                                <?php else: ?>
+                                    <a href="/template-preview.php?template_id=<?php echo $template['id']; ?>" class="btn btn-preview" target="_blank">👁️ Vorschau</a>
+                                <?php endif; ?>
+                                <a href="/customer/freebie-editor.php?template_id=<?php echo $template['id']; ?>" class="btn btn-edit">
+                                    <?php echo $isUsed ? '✏️ Bearbeiten' : '✨ Nutzen'; ?>
+                                </a>
                             </div>
-                        <?php endif; ?>
+                            
+                            <?php if ($isUsed && $customerData): ?>
+                                <div class="link-section">
+                                    <!-- Freebie Link -->
+                                    <div class="link-box">
+                                        <div class="link-label">
+                                            <span>🔗</span>
+                                            <span>Freebie-Link</span>
+                                        </div>
+                                        <div class="link-input-wrapper">
+                                            <input type="text" readonly 
+                                                   value="<?php echo $protocol . '://' . $domain . '/freebie/index.php?id=' . $customerData['unique_id']; ?>"
+                                                   class="link-input"
+                                                   id="freebie-<?php echo $template['id']; ?>">
+                                            <button onclick="copyLink('freebie-<?php echo $template['id']; ?>')" class="btn-copy">📋</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Danke-Seiten Link -->
+                                    <div class="link-box">
+                                        <div class="link-label">
+                                            <span>🎉</span>
+                                            <span>Danke-Seite</span>
+                                        </div>
+                                        <div class="link-input-wrapper">
+                                            <input type="text" readonly 
+                                                   value="<?php echo $protocol . '://' . $domain . '/freebie/thankyou.php?id=' . $customerData['customer_freebie_id'] . '&customer=' . $customer_id; ?>"
+                                                   class="link-input"
+                                                   id="thankyou-<?php echo $template['id']; ?>">
+                                            <button onclick="copyLink('thankyou-<?php echo $template['id']; ?>')" class="btn-copy">📋</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 <?php endforeach; ?>
             </div>
@@ -147,35 +386,79 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     <!-- Tab 2: Custom Freebies -->
     <div id="tab-custom" class="tab-content">
-        <h2 style="color: white; margin-bottom: 20px;">✨ Deine eigenen Freebies</h2>
-        
         <?php if (empty($customFreebies)): ?>
-            <div class="simple-card">
-                <p style="text-align: center; padding: 40px;">
-                    Noch keine eigenen Freebies erstellt<br>
-                    <a href="/public/customer/edit-freebie.php" class="simple-btn" style="margin-top: 20px;">✨ Jetzt erstellen</a>
-                </p>
+            <div class="empty-state">
+                <div class="empty-icon">✨</div>
+                <h3 class="empty-title">Noch keine eigenen Freebies</h3>
+                <p class="empty-text">Erstelle dein erstes eigenes Freebie!</p>
+                <?php if ($customFreebiesCount < $freebieLimit): ?>
+                    <a href="/customer/custom-freebie-editor-tabs.php" class="btn-create" style="margin-top: 20px;">✨ Jetzt erstellen</a>
+                <?php endif; ?>
             </div>
         <?php else: ?>
-            <div class="simple-grid">
-                <?php foreach ($customFreebies as $custom): ?>
-                    <div class="simple-card">
-                        <h3><?php echo htmlspecialchars($custom['headline']); ?></h3>
-                        <p><?php echo htmlspecialchars($custom['subheadline'] ?? ''); ?></p>
-                        
-                        <div>
-                            <a href="/customer/freebie-preview.php?id=<?php echo $custom['id']; ?>" 
-                               class="simple-btn">👁️ Vorschau</a>
-                            <a href="/public/customer/edit-freebie.php?id=<?php echo $custom['id']; ?>" 
-                               class="simple-btn">✏️ Bearbeiten</a>
+            <div class="freebies-grid">
+                <?php foreach ($customFreebies as $custom): 
+                    $bgColor = $custom['background_color'] ?? '#667eea';
+                    $primaryColor = $custom['primary_color'] ?? '#667eea';
+                ?>
+                    <div class="freebie-card">
+                        <div class="freebie-mockup" style="background: <?php echo htmlspecialchars($bgColor); ?>;">
+                            <?php if (!empty($custom['mockup_image_url'])): ?>
+                                <img src="<?php echo htmlspecialchars($custom['mockup_image_url']); ?>" 
+                                     alt="<?php echo htmlspecialchars($custom['headline']); ?>"
+                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                <div class="mockup-placeholder" style="display: none; color: <?php echo htmlspecialchars($primaryColor); ?>;">
+                                    🎁
+                                </div>
+                            <?php else: ?>
+                                <div class="mockup-placeholder" style="color: <?php echo htmlspecialchars($primaryColor); ?>;">
+                                    🎁
+                                </div>
+                            <?php endif; ?>
                         </div>
                         
-                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
-                            <p style="font-size: 12px; color: #888; margin-bottom: 5px;">🔗 Freebie-Link:</p>
-                            <input type="text" readonly 
-                                   value="<?php echo $protocol . '://' . $domain . '/freebie/index.php?id=' . $custom['unique_id']; ?>"
-                                   style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: white; font-size: 11px;"
-                                   onclick="this.select();">
+                        <div class="freebie-content">
+                            <h3 class="freebie-title"><?php echo htmlspecialchars($custom['headline']); ?></h3>
+                            <?php if (!empty($custom['subheadline'])): ?>
+                                <p class="freebie-subtitle"><?php echo htmlspecialchars($custom['subheadline']); ?></p>
+                            <?php endif; ?>
+                            
+                            <div class="freebie-actions">
+                                <a href="/customer/freebie-preview.php?id=<?php echo $custom['id']; ?>" class="btn btn-preview">👁️ Vorschau</a>
+                                <a href="/customer/custom-freebie-editor-tabs.php?id=<?php echo $custom['id']; ?>" class="btn btn-edit">✏️ Bearbeiten</a>
+                            </div>
+                            
+                            <div class="link-section">
+                                <!-- Freebie Link -->
+                                <div class="link-box">
+                                    <div class="link-label">
+                                        <span>🔗</span>
+                                        <span>Freebie-Link</span>
+                                    </div>
+                                    <div class="link-input-wrapper">
+                                        <input type="text" readonly 
+                                               value="<?php echo $protocol . '://' . $domain . '/freebie/index.php?id=' . $custom['unique_id']; ?>"
+                                               class="link-input"
+                                               id="custom-freebie-<?php echo $custom['id']; ?>">
+                                        <button onclick="copyLink('custom-freebie-<?php echo $custom['id']; ?>')" class="btn-copy">📋</button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Danke-Seiten Link -->
+                                <div class="link-box">
+                                    <div class="link-label">
+                                        <span>🎉</span>
+                                        <span>Danke-Seite</span>
+                                    </div>
+                                    <div class="link-input-wrapper">
+                                        <input type="text" readonly 
+                                               value="<?php echo $protocol . '://' . $domain . '/freebie/thankyou.php?id=' . $custom['id'] . '&customer=' . $customer_id; ?>"
+                                               class="link-input"
+                                               id="custom-thankyou-<?php echo $custom['id']; ?>">
+                                        <button onclick="copyLink('custom-thankyou-<?php echo $custom['id']; ?>')" class="btn-copy">📋</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -186,12 +469,41 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 <script>
 function showTab(tabName) {
-    // Hide all
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.tab-header button').forEach(el => el.classList.remove('active'));
-    
-    // Show selected
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById('tab-' + tabName).classList.add('active');
     event.target.classList.add('active');
+}
+
+function copyLink(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    
+    input.select();
+    input.setSelectionRange(0, 99999);
+    
+    try {
+        document.execCommand('copy');
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(input.value);
+        }
+        
+        const button = input.nextElementSibling;
+        if (button) {
+            const originalHTML = button.innerHTML;
+            button.innerHTML = '✓';
+            button.style.background = 'rgba(34, 197, 94, 0.5)';
+            button.style.borderColor = '#22c55e';
+            
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+                button.style.background = '';
+                button.style.borderColor = '';
+            }, 2000);
+        }
+    } catch (err) {
+        console.error('Kopieren fehlgeschlagen:', err);
+        alert('Bitte manuell kopieren: Strg+C');
+    }
 }
 </script>
