@@ -23,7 +23,7 @@ if (!isset($_GET['id'])) {
 
 $stmt = $pdo->prepare("
     SELECT * FROM customer_freebies 
-    WHERE id = ? AND customer_id = ? AND freebie_type = 'custom'
+    WHERE id = ? AND customer_id = ?
 ");
 $stmt->execute([$_GET['id'], $customer_id]);
 $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -40,11 +40,12 @@ $course = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$course) {
     $stmt = $pdo->prepare("
-        INSERT INTO freebie_courses (freebie_id, title, description, created_at) 
-        VALUES (?, ?, ?, NOW())
+        INSERT INTO freebie_courses (freebie_id, customer_id, title, description, created_at) 
+        VALUES (?, ?, ?, ?, NOW())
     ");
     $stmt->execute([
-        $freebie['id'], 
+        $freebie['id'],
+        $customer_id,
         $freebie['headline'] . ' - Videokurs',
         'Videokurs für ' . $freebie['headline']
     ]);
