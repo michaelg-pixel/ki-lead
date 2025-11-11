@@ -83,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
     
     try {
         if ($customer_freebie) {
-            // Update existing customer_freebies - INKLUSIVE Font-Felder!
+            // Update existing customer_freebies
             $stmt = $pdo->prepare("
                 UPDATE customer_freebies SET
                     headline = ?, subheadline = ?, preheadline = ?,
@@ -112,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
             
             $success_message = "✅ Freebie erfolgreich aktualisiert!";
         } else {
-            // Create new in customer_freebies - MIT Font-Feldern
+            // Create new in customer_freebies
             $stmt = $pdo->prepare("
                 INSERT INTO customer_freebies (
                     customer_id, template_id, headline, subheadline, preheadline,
@@ -149,22 +149,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
     }
 }
 
-// FIX: Bullet Points und CTA mit Fallback-Spalten
-$template_bullet_points = $template['bullet_points'] ?? $template['bulletpoints'] ?? '';
-$template_cta_text = $template['cta_text'] ?? $template['cta_button_text'] ?? '';
-
-// Form data mit korrekten Fallbacks
+// Form data zusammenstellen - VERBESSERT: !empty() statt ?? für bessere Erkennung leerer Strings
 $form_data = [
-    'headline' => $customer_freebie['headline'] ?? $template['headline'] ?? 'Sichere dir jetzt deinen kostenlosen Kurs',
-    'subheadline' => $customer_freebie['subheadline'] ?? $template['subheadline'] ?? '',
-    'preheadline' => $customer_freebie['preheadline'] ?? $template['preheadline'] ?? '',
-    'bullet_points' => $customer_freebie['bullet_points'] ?? $template_bullet_points ?: "✓ Sofortiger Zugang\n✓ Professionelle Inhalte\n✓ Schritt für Schritt Anleitung",
-    'cta_text' => $customer_freebie['cta_text'] ?? $template_cta_text ?: 'JETZT KOSTENLOS SICHERN',
-    'layout' => $customer_freebie['layout'] ?? $template['layout'] ?? 'hybrid',
-    'background_color' => $customer_freebie['background_color'] ?? $template['background_color'] ?? '#FFFFFF',
-    'primary_color' => $customer_freebie['primary_color'] ?? $template['primary_color'] ?? '#8B5CF6',
-    'raw_code' => $customer_freebie['raw_code'] ?? $template['raw_code'] ?? $template['custom_raw_code'] ?? '',
-    'mockup_image_url' => $customer_freebie['mockup_image_url'] ?? $template['mockup_image_url'] ?? ''
+    'headline' => !empty($customer_freebie['headline']) ? $customer_freebie['headline'] : (!empty($template['headline']) ? $template['headline'] : 'Sichere dir jetzt deinen kostenlosen Kurs'),
+    'subheadline' => !empty($customer_freebie['subheadline']) ? $customer_freebie['subheadline'] : (!empty($template['subheadline']) ? $template['subheadline'] : ''),
+    'preheadline' => !empty($customer_freebie['preheadline']) ? $customer_freebie['preheadline'] : (!empty($template['preheadline']) ? $template['preheadline'] : ''),
+    'bullet_points' => !empty($customer_freebie['bullet_points']) ? $customer_freebie['bullet_points'] : (!empty($template['bullet_points']) ? $template['bullet_points'] : "✓ Sofortiger Zugang\n✓ Professionelle Inhalte\n✓ Schritt für Schritt Anleitung"),
+    'cta_text' => !empty($customer_freebie['cta_text']) ? $customer_freebie['cta_text'] : (!empty($template['cta_text']) ? $template['cta_text'] : 'JETZT KOSTENLOS SICHERN'),
+    'layout' => !empty($customer_freebie['layout']) ? $customer_freebie['layout'] : (!empty($template['layout']) ? $template['layout'] : 'hybrid'),
+    'background_color' => !empty($customer_freebie['background_color']) ? $customer_freebie['background_color'] : (!empty($template['background_color']) ? $template['background_color'] : '#FFFFFF'),
+    'primary_color' => !empty($customer_freebie['primary_color']) ? $customer_freebie['primary_color'] : (!empty($template['primary_color']) ? $template['primary_color'] : '#8B5CF6'),
+    'raw_code' => !empty($customer_freebie['raw_code']) ? $customer_freebie['raw_code'] : (!empty($template['raw_code']) ? $template['raw_code'] : (!empty($template['custom_raw_code']) ? $template['custom_raw_code'] : '')),
+    'mockup_image_url' => !empty($customer_freebie['mockup_image_url']) ? $customer_freebie['mockup_image_url'] : (!empty($template['mockup_image_url']) ? $template['mockup_image_url'] : '')
 ];
 ?>
 <!DOCTYPE html>
@@ -172,7 +168,7 @@ $form_data = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Freebie Editor - <?php echo htmlspecialchars($template['name']); ?></title>
+    <title>Freebie Editor - <?php echo htmlspecialchars($template['name'] ?? 'Template'); ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * {
@@ -639,7 +635,7 @@ $form_data = [
                 ← Zurück zur Übersicht
             </a>
             <h1>🎁 Freebie bearbeiten</h1>
-            <p>Template: <?php echo htmlspecialchars($template['name']); ?></p>
+            <p>Template: <?php echo htmlspecialchars($template['name'] ?? 'Unbenannt'); ?></p>
         </div>
         
         <?php if (isset($success_message)): ?>
