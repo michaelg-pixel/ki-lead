@@ -1,7 +1,7 @@
 <?php
 /**
  * Freebie Course Player für Leads
- * Videokurs-Player ohne Login-Erfordernis
+ * Videokurs-Player ohne Login-Erfordernis mit DRIP-CONTENT
  * Fortschritt wird per E-Mail getrackt
  */
 
@@ -60,7 +60,43 @@ try {
     die('Fehler beim Laden des Kurses: ' . $e->getMessage());
 }
 
-// Module und Lektionen laden - MIT Button-Feldern!
+// 🔥 DRIP-CONTENT: Registrierungszeitpunkt ermitteln
+$days_since_registration = 0;
+$registration_date = null;
+
+if (!empty($lead_email)) {
+    try {
+        // Prüfe wann Lead Zugriff erhalten hat
+        $stmt = $pdo->prepare("
+            SELECT access_granted_at 
+            FROM freebie_course_lead_access 
+            WHERE course_id = ? AND lead_email = ?
+        ");
+        $stmt->execute([$course_id, $lead_email]);
+        $access = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$access) {
+            // Ersten Zugriff registrieren
+            $stmt = $pdo->prepare("
+                INSERT INTO freebie_course_lead_access (course_id, lead_email, access_granted_at) 
+                VALUES (?, ?, NOW())
+            ");
+            $stmt->execute([$course_id, $lead_email]);
+            $days_since_registration = 0;
+            $registration_date = date('Y-m-d H:i:s');
+        } else {
+            $registration_date = $access['access_granted_at'];
+            $reg_time = strtotime($registration_date);
+            $now = time();
+            $days_since_registration = floor(($now - $reg_time) / 86400);
+        }
+    } catch (PDOException $e) {
+        // Bei Fehler: Kein Drip-Content (alles freigeschaltet)
+        $days_since_registration = 9999;
+    }
+}
+
+// Module und Lektionen laden - MIT Unlock-Status!
 try {
     $stmt = $pdo->prepare("
         SELECT 
@@ -98,6 +134,10 @@ try {
             ];
         }
         if ($row['lesson_id']) {
+            $unlock_days = intval($row['unlock_after_days']);
+            $is_unlocked = ($unlock_days <= $days_since_registration);
+            $days_until_unlock = max(0, $unlock_days - $days_since_registration);
+            
             $modules[$mid]['lessons'][] = [
                 'id' => $row['lesson_id'],
                 'title' => $row['lesson_title'],
@@ -106,7 +146,9 @@ try {
                 'pdf_url' => $row['pdf_url'],
                 'button_text' => $row['button_text'],
                 'button_url' => $row['button_url'],
-                'unlock_after_days' => $row['unlock_after_days']
+                'unlock_after_days' => $unlock_days,
+                'is_unlocked' => $is_unlocked,
+                'days_until_unlock' => $days_until_unlock
             ];
         }
     }
@@ -131,13 +173,14 @@ if (!empty($lead_email)) {
     }
 }
 
-// Erste unvollständige Lektion oder übergebene Lektion finden
+// 🔥 DRIP-CONTENT: Erste FREIGESCHALTETE Lektion finden
 $current_lesson = null;
+
+// Wenn spezifische Lektion übergeben wurde
 if ($lesson_id > 0) {
-    // Spezifische Lektion wurde übergeben
     foreach ($modules as $module) {
         foreach ($module['lessons'] as $lesson) {
-            if ($lesson['id'] == $lesson_id) {
+            if ($lesson['id'] == $lesson_id && $lesson['is_unlocked']) {
                 $current_lesson = $lesson;
                 break 2;
             }
@@ -145,11 +188,11 @@ if ($lesson_id > 0) {
     }
 }
 
-// Fallback: Erste unvollständige Lektion
+// Fallback: Erste unvollständige UND freigeschaltete Lektion
 if (!$current_lesson && !empty($lead_email)) {
     foreach ($modules as $module) {
         foreach ($module['lessons'] as $lesson) {
-            if (!in_array($lesson['id'], $completed_lessons)) {
+            if (!in_array($lesson['id'], $completed_lessons) && $lesson['is_unlocked']) {
                 $current_lesson = $lesson;
                 break 2;
             }
@@ -157,16 +200,20 @@ if (!$current_lesson && !empty($lead_email)) {
     }
 }
 
-// Fallback: Erste Lektion überhaupt
+// Fallback: Erste freigeschaltete Lektion überhaupt
 if (!$current_lesson && !empty($modules)) {
-    $first_module = reset($modules);
-    if (!empty($first_module['lessons'])) {
-        $current_lesson = $first_module['lessons'][0];
+    foreach ($modules as $module) {
+        foreach ($module['lessons'] as $lesson) {
+            if ($lesson['is_unlocked']) {
+                $current_lesson = $lesson;
+                break 2;
+            }
+        }
     }
 }
 
 if (!$current_lesson) {
-    die('Keine Lektionen in diesem Kurs verfügbar');
+    die('Keine Lektionen in diesem Kurs verfügbar oder noch nicht freigeschaltet');
 }
 
 // Video URL für Embedding vorbereiten
@@ -191,9 +238,13 @@ $current_video_embed = getEmbedUrl($current_lesson['video_url']);
 
 // Gesamtfortschritt berechnen
 $total_lessons = 0;
+$unlocked_lessons = 0;
 $completed_count = count($completed_lessons);
 foreach ($modules as $module) {
-    $total_lessons += count($module['lessons']);
+    foreach ($module['lessons'] as $lesson) {
+        $total_lessons++;
+        if ($lesson['is_unlocked']) $unlocked_lessons++;
+    }
 }
 $progress_percent = $total_lessons > 0 ? round(($completed_count / $total_lessons) * 100) : 0;
 
@@ -822,10 +873,16 @@ $show_referral_cta = ($referral_enabled == 0);
             gap: 10px;
             transition: background 0.2s;
             font-size: 14px;
+            position: relative;
         }
         
-        .lesson-item:hover {
+        .lesson-item:hover:not(.locked) {
             background: rgba(139, 92, 246, 0.1);
+        }
+        
+        .lesson-item.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
         
         .lesson-item.completed {
@@ -845,6 +902,17 @@ $show_referral_cta = ($referral_enabled == 0);
         
         .lesson-name {
             flex: 1;
+        }
+        
+        /* 🔥 LOCK BADGE für gesperrte Lektionen */
+        .lesson-lock-badge {
+            background: rgba(255, 152, 0, 0.2);
+            color: #ffa726;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
         }
         
         /* Mobile Sidebar Toggle */
@@ -1016,6 +1084,11 @@ $show_referral_cta = ($referral_enabled == 0);
             </div>
             <div class="progress-text">
                 <?php echo $completed_count; ?> von <?php echo $total_lessons; ?> Lektionen abgeschlossen (<?php echo $progress_percent; ?>%)
+                <?php if ($unlocked_lessons < $total_lessons): ?>
+                    <span style="color: #ffa726; margin-left: 8px;">
+                        • <?php echo $unlocked_lessons; ?> von <?php echo $total_lessons; ?> freigeschaltet
+                    </span>
+                <?php endif; ?>
             </div>
             <?php endif; ?>
         </div>
@@ -1056,7 +1129,7 @@ $show_referral_cta = ($referral_enabled == 0);
                         <a href="https://app.mehr-infos-jetzt.de/lead_login.php" class="referral-cta-button">
                             <span class="referral-cta-button-icon">✨</span>
                             <span>Jetzt aktivieren</span>
-                            <span class="referral-cta-button-arrow">→</span>
+            <span class="referral-cta-button-arrow">→</span>
                         </a>
                         <div class="referral-cta-features">
                             <div class="referral-cta-feature">
@@ -1134,9 +1207,11 @@ $show_referral_cta = ($referral_enabled == 0);
                         <?php foreach ($module['lessons'] as $lesson): 
                             $is_completed = in_array($lesson['id'], $completed_lessons);
                             $is_current = $lesson['id'] == $current_lesson['id'];
+                            $is_locked = !$lesson['is_unlocked'];
                             $class = '';
                             if ($is_completed) $class .= ' completed';
                             if ($is_current) $class .= ' current';
+                            if ($is_locked) $class .= ' locked';
                         ?>
                             <div class="lesson-item<?php echo $class; ?>" 
                                  data-lesson-id="<?php echo $lesson['id']; ?>"
@@ -1146,9 +1221,12 @@ $show_referral_cta = ($referral_enabled == 0);
                                  data-pdf-url="<?php echo htmlspecialchars($lesson['pdf_url'] ?? ''); ?>"
                                  data-button-text="<?php echo htmlspecialchars($lesson['button_text'] ?? ''); ?>"
                                  data-button-url="<?php echo htmlspecialchars($lesson['button_url'] ?? ''); ?>"
-                                 onclick="loadLesson(<?php echo $lesson['id']; ?>)">
+                                 data-unlocked="<?php echo $lesson['is_unlocked'] ? '1' : '0'; ?>"
+                                 onclick="<?php echo $is_locked ? 'return false;' : 'loadLesson(' . $lesson['id'] . ')'; ?>">
                                 <span class="lesson-icon">
-                                    <?php if ($is_completed): ?>
+                                    <?php if ($is_locked): ?>
+                                        🔒
+                                    <?php elseif ($is_completed): ?>
                                         ✓
                                     <?php elseif ($is_current): ?>
                                         ▶️
@@ -1157,6 +1235,11 @@ $show_referral_cta = ($referral_enabled == 0);
                                     <?php endif; ?>
                                 </span>
                                 <span class="lesson-name"><?php echo htmlspecialchars($lesson['title']); ?></span>
+                                <?php if ($is_locked && $lesson['days_until_unlock'] > 0): ?>
+                                    <span class="lesson-lock-badge">
+                                        In <?php echo $lesson['days_until_unlock']; ?> Tag<?php echo $lesson['days_until_unlock'] > 1 ? 'en' : ''; ?>
+                                    </span>
+                                <?php endif; ?>
                             </div>
                         <?php endforeach; ?>
                     </div>
@@ -1186,10 +1269,15 @@ $show_referral_cta = ($referral_enabled == 0);
             document.getElementById('sidebar').classList.toggle('open');
         }
         
-        // Lektion laden
+        // Lektion laden (nur wenn nicht gesperrt)
         function loadLesson(lessonId) {
             const lessonItem = document.querySelector(`[data-lesson-id="${lessonId}"]`);
             if (!lessonItem) return;
+            
+            // Prüfe ob gesperrt
+            if (lessonItem.dataset.unlocked !== '1') {
+                return; // Gesperrte Lektionen können nicht geladen werden
+            }
             
             currentLessonId = lessonId;
             
@@ -1282,7 +1370,7 @@ $show_referral_cta = ($referral_enabled == 0);
             const newStatus = !isCompleted;
             
             try {
-                const response = await fetch('/customer/api/freebie-course-api.php', {
+                const response = await fetch('/customer/api/freebie-course-public-api.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1338,13 +1426,18 @@ $show_referral_cta = ($referral_enabled == 0);
                 const lessonId = parseInt(item.dataset.lessonId);
                 const isCompleted = completedLessons.includes(lessonId);
                 const isCurrent = lessonId === currentLessonId;
+                const isLocked = item.dataset.unlocked !== '1';
                 
+                // Klassen neu setzen
                 item.className = 'lesson-item';
                 if (isCompleted) item.classList.add('completed');
                 if (isCurrent) item.classList.add('current');
+                if (isLocked) item.classList.add('locked');
                 
                 const icon = item.querySelector('.lesson-icon');
-                if (isCompleted) {
+                if (isLocked) {
+                    icon.textContent = '🔒';
+                } else if (isCompleted) {
                     icon.textContent = '✓';
                 } else if (isCurrent) {
                     icon.textContent = '▶️';
@@ -1365,7 +1458,17 @@ $show_referral_cta = ($referral_enabled == 0);
             
             if (progressBar) progressBar.style.width = percent + '%';
             if (progressText) {
-                progressText.textContent = `${completed} von ${total} Lektionen abgeschlossen (${percent}%)`;
+                // Zähle freigeschaltete Lektionen
+                let unlocked = 0;
+                allLessons.forEach(item => {
+                    if (item.dataset.unlocked === '1') unlocked++;
+                });
+                
+                let text = `${completed} von ${total} Lektionen abgeschlossen (${percent}%)`;
+                if (unlocked < total) {
+                    text += ` <span style="color: #ffa726; margin-left: 8px;">• ${unlocked} von ${total} freigeschaltet</span>`;
+                }
+                progressText.innerHTML = text;
             }
         }
         
