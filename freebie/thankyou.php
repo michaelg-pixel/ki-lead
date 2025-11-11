@@ -759,16 +759,9 @@ $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https"
                 flex-direction: column;
             }
             
-            /* Video ZUERST auf Mobile */
+            /* Video DEAKTIVIERT auf Mobile - komplett ausgeblendet */
             .video-sidebar {
-                order: -1;
-                max-width: 100%;
-                position: static !important;
-            }
-            
-            .video-wrapper {
-                border-radius: 16px;
-                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+                display: none !important;
             }
             
             /* Content danach */
