@@ -197,6 +197,8 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
 .btn-edit:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4); }
 .btn-course { background: rgba(251, 146, 60, 0.2); color: #fb923c; border: 1px solid rgba(251, 146, 60, 0.3); }
 .btn-course:hover { background: rgba(251, 146, 60, 0.3); }
+.btn-delete { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
+.btn-delete:hover { background: rgba(239, 68, 68, 0.3); transform: translateY(-2px); }
 
 .link-section {
     margin-top: 16px;
@@ -394,7 +396,7 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <?php endif; ?>
     </div>
     
-    <!-- Tab 2: Custom Freebies - IMMER mit Kurs-Button -->
+    <!-- Tab 2: Custom Freebies - MIT LÖSCHEN-BUTTON -->
     <div id="tab-custom" class="tab-content">
         <?php if (empty($customFreebies)): ?>
             <div class="empty-state">
@@ -411,7 +413,7 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     $bgColor = $custom['background_color'] ?? '#667eea';
                     $primaryColor = $custom['primary_color'] ?? '#667eea';
                 ?>
-                    <div class="freebie-card">
+                    <div class="freebie-card" data-freebie-id="<?php echo $custom['id']; ?>">
                         <div class="freebie-mockup" style="background: <?php echo htmlspecialchars($bgColor); ?>;">
                             <?php if (!empty($custom['mockup_image_url'])): ?>
                                 <img src="<?php echo htmlspecialchars($custom['mockup_image_url']); ?>" 
@@ -433,9 +435,9 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <p class="freebie-subtitle"><?php echo htmlspecialchars($custom['subheadline']); ?></p>
                             <?php endif; ?>
                             
-                            <!-- IMMER 3 Buttons: Vorschau, Bearbeiten, Kurs -->
+                            <!-- 3 Buttons: Löschen, Bearbeiten, Kurs -->
                             <div class="freebie-actions has-course">
-                                <a href="/customer/freebie-preview.php?id=<?php echo $custom['id']; ?>" class="btn btn-preview">👁️ Vorschau</a>
+                                <button onclick="deleteFreebie(<?php echo $custom['id']; ?>)" class="btn btn-delete" title="Freebie löschen">🗑️ Löschen</button>
                                 <a href="/customer/edit-freebie.php?id=<?php echo $custom['id']; ?>" class="btn btn-edit">✏️ Bearbeiten</a>
                                 <a href="/customer/edit-course.php?id=<?php echo $custom['id']; ?>" class="btn btn-course" title="Videokurs bearbeiten">🎓 Kurs</a>
                             </div>
@@ -516,6 +518,56 @@ function copyLink(inputId) {
     } catch (err) {
         console.error('Kopieren fehlgeschlagen:', err);
         alert('Bitte manuell kopieren: Strg+C');
+    }
+}
+
+async function deleteFreebie(freebieId) {
+    // Bestätigung abfragen
+    const confirmed = confirm('Möchtest du dieses Freebie wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.');
+    
+    if (!confirmed) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/customer/api/delete-freebie.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                freebie_id: freebieId
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Karte mit Animation entfernen
+            const card = document.querySelector(`[data-freebie-id="${freebieId}"]`);
+            if (card) {
+                card.style.opacity = '0';
+                card.style.transform = 'scale(0.9)';
+                setTimeout(() => {
+                    card.remove();
+                    
+                    // Prüfen ob noch Freebies vorhanden sind
+                    const remainingCards = document.querySelectorAll('#tab-custom .freebie-card').length;
+                    if (remainingCards === 0) {
+                        // Seite neu laden um Empty State anzuzeigen
+                        location.reload();
+                    }
+                }, 300);
+            }
+            
+            // Optional: Success-Nachricht anzeigen
+            alert('✓ Freebie erfolgreich gelöscht!');
+        } else {
+            alert('❌ Fehler beim Löschen: ' + (data.message || 'Unbekannter Fehler'));
+        }
+    } catch (error) {
+        console.error('Fehler beim Löschen:', error);
+        alert('❌ Fehler beim Löschen des Freebies. Bitte versuche es erneut.');
     }
 }
 </script>
