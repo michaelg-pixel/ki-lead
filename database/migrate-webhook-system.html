@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webhook-System Migration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #1f2937;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        
+        .info-box {
+            background: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        
+        .info-box h3 {
+            color: #1e40af;
+            margin-bottom: 12px;
+            font-size: 18px;
+        }
+        
+        .info-box ul {
+            color: #1e40af;
+            padding-left: 20px;
+            line-height: 1.8;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        
+        .warning-box p {
+            color: #856404;
+            line-height: 1.6;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s;
+            margin-bottom: 15px;
+        }
+        
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #4b5563;
+        }
+        
+        .btn-secondary:hover:not(:disabled) {
+            background: #e5e7eb;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        #log {
+            background: #1f2937;
+            color: #10b981;
+            padding: 20px;
+            border-radius: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+            line-height: 1.6;
+            display: none;
+        }
+        
+        #log.visible {
+            display: block;
+        }
+        
+        .log-entry {
+            margin-bottom: 8px;
+        }
+        
+        .log-success { color: #10b981; }
+        .log-error { color: #ef4444; }
+        .log-info { color: #3b82f6; }
+        .log-warning { color: #f59e0b; }
+        
+        .progress {
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .progress.visible {
+            display: block;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .success-message {
+            background: #d1fae5;
+            border-left: 4px solid #10b981;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .success-message.visible {
+            display: block;
+        }
+        
+        .success-message h3 {
+            color: #065f46;
+            margin-bottom: 10px;
+        }
+        
+        .success-message p {
+            color: #047857;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Webhook-System Migration</h1>
+        <p class="subtitle">Flexibles Multi-Webhook-System mit Upsell-Support</p>
+        
+        <div class="info-box">
+            <h3>📋 Was wird erstellt:</h3>
+            <ul>
+                <li><strong>webhook_configurations</strong> - Haupttabelle für Webhooks</li>
+                <li><strong>webhook_product_ids</strong> - Mehrere Produkt-IDs pro Webhook</li>
+                <li><strong>webhook_course_access</strong> - Flexible Kurszuweisungen</li>
+                <li><strong>webhook_ready_freebies</strong> - Spezifische Freebie-Templates</li>
+                <li><strong>webhook_activity_log</strong> - Aktivitäts-Tracking</li>
+            </ul>
+        </div>
+        
+        <div class="warning-box">
+            <p><strong>⚠️ Wichtig:</strong> Die bestehenden <code>digistore_products</code> Webhooks bleiben vollständig erhalten und funktionieren weiterhin! Das neue System erweitert nur die Möglichkeiten.</p>
+        </div>
+        
+        <div class="progress" id="progress">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        
+        <button class="btn" id="migrateBtn" onclick="startMigration()">
+            ✨ Migration starten
+        </button>
+        
+        <button class="btn btn-secondary" onclick="checkStatus()" style="display: none;" id="checkBtn">
+            🔍 Status prüfen
+        </button>
+        
+        <div id="log"></div>
+        
+        <div class="success-message" id="successMessage">
+            <h3>✅ Migration erfolgreich!</h3>
+            <p>Das Webhook-System wurde erfolgreich installiert. Du kannst jetzt neue Webhooks im Admin-Bereich erstellen.</p>
+        </div>
+    </div>
+
+    <script>
+        const log = document.getElementById('log');
+        const progressBar = document.getElementById('progressBar');
+        const progress = document.getElementById('progress');
+        const migrateBtn = document.getElementById('migrateBtn');
+        const checkBtn = document.getElementById('checkBtn');
+        const successMessage = document.getElementById('successMessage');
+        
+        function addLog(message, type = 'info') {
+            log.classList.add('visible');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        function updateProgress(percent) {
+            progress.classList.add('visible');
+            progressBar.style.width = percent + '%';
+        }
+        
+        async function executeSQLFile(path) {
+            try {
+                const response = await fetch(path);
+                const sql = await response.text();
+                
+                return await executeSQLStatements(sql);
+            } catch (error) {
+                throw new Error(`Fehler beim Laden der SQL-Datei: ${error.message}`);
+            }
+        }
+        
+        async function executeSQLStatements(sql) {
+            const statements = sql
+                .split(';')
+                .map(s => s.trim())
+                .filter(s => s.length > 0 && !s.startsWith('--'));
+            
+            const results = [];
+            
+            for (const statement of statements) {
+                try {
+                    const formData = new FormData();
+                    formData.append('sql', statement);
+                    
+                    const response = await fetch('/api/execute-migration.php', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    results.push(result);
+                    
+                    if (!result.success) {
+                        // Ignoriere "Table already exists" Fehler
+                        if (!result.error.includes('already exists')) {
+                            throw new Error(result.error);
+                        }
+                    }
+                } catch (error) {
+                    // Ignoriere harmlose Fehler
+                    if (!error.message.includes('already exists')) {
+                        throw error;
+                    }
+                }
+            }
+            
+            return results;
+        }
+        
+        async function checkStatus() {
+            addLog('🔍 Prüfe Tabellen-Status...', 'info');
+            
+            const tables = [
+                'webhook_configurations',
+                'webhook_product_ids',
+                'webhook_course_access',
+                'webhook_ready_freebies',
+                'webhook_activity_log'
+            ];
+            
+            let allExist = true;
+            
+            for (const table of tables) {
+                const formData = new FormData();
+                formData.append('sql', `SHOW TABLES LIKE '${table}'`);
+                
+                try {
+                    const response = await fetch('/api/execute-migration.php', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success && result.data && result.data.length > 0) {
+                        addLog(`✅ ${table} existiert`, 'success');
+                    } else {
+                        addLog(`❌ ${table} fehlt`, 'error');
+                        allExist = false;
+                    }
+                } catch (error) {
+                    addLog(`❌ Fehler bei ${table}: ${error.message}`, 'error');
+                    allExist = false;
+                }
+            }
+            
+            if (allExist) {
+                addLog('✨ Alle Tabellen sind vorhanden!', 'success');
+                successMessage.classList.add('visible');
+            } else {
+                addLog('⚠️ Einige Tabellen fehlen. Bitte Migration ausführen.', 'warning');
+            }
+        }
+        
+        async function startMigration() {
+            migrateBtn.disabled = true;
+            migrateBtn.textContent = '⏳ Migration läuft...';
+            log.innerHTML = '';
+            successMessage.classList.remove('visible');
+            
+            try {
+                addLog('🚀 Starte Webhook-System Migration...', 'info');
+                updateProgress(20);
+                
+                addLog('📦 Erstelle Tabellen...', 'info');
+                await executeSQLFile('/database/migrations/2025-11-12_create_webhook_system.sql');
+                updateProgress(60);
+                addLog('✅ Tabellen erfolgreich erstellt', 'success');
+                
+                addLog('🔍 Verifiziere Installation...', 'info');
+                await checkStatus();
+                updateProgress(100);
+                
+                addLog('', 'success');
+                addLog('✨ Migration erfolgreich abgeschlossen!', 'success');
+                addLog('', 'success');
+                addLog('👉 Gehe zu Admin > Digistore24 um Webhooks zu verwalten', 'info');
+                
+                successMessage.classList.add('visible');
+                checkBtn.style.display = 'block';
+                migrateBtn.textContent = '✅ Migration abgeschlossen';
+                
+            } catch (error) {
+                addLog(`❌ Fehler: ${error.message}`, 'error');
+                migrateBtn.disabled = false;
+                migrateBtn.textContent = '🔄 Migration erneut versuchen';
+                updateProgress(0);
+            }
+        }
+    </script>
+</body>
+</html>
