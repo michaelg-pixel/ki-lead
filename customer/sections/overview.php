@@ -1,7 +1,7 @@
 <?php
 /**
  * Customer Dashboard - Overview Section
- * KORRIGIERT: Verwendet richtige Spaltennamen (template_id, user_id)
+ * KORRIGIERT: Verwendet customer_id (nicht user_id) - die Migration wurde noch nicht durchgeführt
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -11,86 +11,152 @@ if (!isset($customer_id)) {
 
 // ===== ECHTE STATISTIKEN ABRUFEN =====
 try {
-    // 1. Freigeschaltete Freebies - KORRIGIERT: template_id und user_id
+    // 1. Freigeschaltete Freebies - KORRIGIERT: Jetzt mit customer_id
     $stmt_freebies = $pdo->prepare("
         SELECT COUNT(*) 
         FROM customer_freebies cf
         INNER JOIN freebies f ON cf.template_id = f.id
-        WHERE cf.user_id = ?
+        WHERE cf.customer_id = ?
     ");
     $stmt_freebies->execute([$customer_id]);
     $freebies_unlocked = $stmt_freebies->fetchColumn();
     
-    // 2. Videokurse
-    $stmt_courses = $pdo->prepare("
-        SELECT COUNT(*) FROM course_access 
-        WHERE user_id = ?
-    ");
-    $stmt_courses->execute([$customer_id]);
-    $courses_count = $stmt_courses->fetchColumn();
-    
-    // 3. ECHTE KLICKS - KORRIGIERT: user_id statt customer_id
+    // 2. Videokurse - course_access könnte noch user_id haben, daher try-catch
     try {
+        // Versuche zuerst mit customer_id
+        $stmt_courses = $pdo->prepare("
+            SELECT COUNT(*) FROM course_access 
+            WHERE customer_id = ?
+        ");
+        $stmt_courses->execute([$customer_id]);
+        $courses_count = $stmt_courses->fetchColumn();
+    } catch (PDOException $e) {
+        // Fallback zu user_id falls customer_id nicht existiert
+        try {
+            $stmt_courses = $pdo->prepare("
+                SELECT COUNT(*) FROM course_access 
+                WHERE user_id = ?
+            ");
+            $stmt_courses->execute([$customer_id]);
+            $courses_count = $stmt_courses->fetchColumn();
+        } catch (PDOException $e2) {
+            $courses_count = 0;
+        }
+    }
+    
+    // 3. ECHTE KLICKS - KORRIGIERT: customer_id
+    try {
+        // Versuche zuerst mit customer_id
         $stmt_clicks = $pdo->prepare("
             SELECT COALESCE(SUM(click_count), 0) 
             FROM freebie_click_analytics 
-            WHERE user_id = ?
+            WHERE customer_id = ?
             AND click_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
         ");
         $stmt_clicks->execute([$customer_id]);
         $total_clicks = $stmt_clicks->fetchColumn();
     } catch (PDOException $e) {
-        // Fallback wenn Tabelle nicht existiert
-        $total_clicks = 0;
+        // Fallback zu user_id
+        try {
+            $stmt_clicks = $pdo->prepare("
+                SELECT COALESCE(SUM(click_count), 0) 
+                FROM freebie_click_analytics 
+                WHERE user_id = ?
+                AND click_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            ");
+            $stmt_clicks->execute([$customer_id]);
+            $total_clicks = $stmt_clicks->fetchColumn();
+        } catch (PDOException $e2) {
+            $total_clicks = 0;
+        }
     }
     
     // 4. Seitenaufrufe (optional - nur wenn Tabelle existiert)
     try {
+        // Versuche zuerst mit customer_id
         $stmt_page_views = $pdo->prepare("
             SELECT COUNT(*) FROM customer_tracking 
-            WHERE user_id = ? 
+            WHERE customer_id = ? 
             AND type = 'page_view'
             AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
         ");
         $stmt_page_views->execute([$customer_id]);
         $total_page_views = $stmt_page_views->fetchColumn();
     } catch (PDOException $e) {
-        $total_page_views = 0;
+        // Fallback zu user_id
+        try {
+            $stmt_page_views = $pdo->prepare("
+                SELECT COUNT(*) FROM customer_tracking 
+                WHERE user_id = ? 
+                AND type = 'page_view'
+                AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            ");
+            $stmt_page_views->execute([$customer_id]);
+            $total_page_views = $stmt_page_views->fetchColumn();
+        } catch (PDOException $e2) {
+            $total_page_views = 0;
+        }
     }
     
     // 5. Verweildauer (optional)
     try {
+        // Versuche zuerst mit customer_id
         $stmt_avg_time = $pdo->prepare("
             SELECT AVG(duration) FROM customer_tracking 
-            WHERE user_id = ? 
+            WHERE customer_id = ? 
             AND type = 'time_spent'
             AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
         ");
         $stmt_avg_time->execute([$customer_id]);
         $avg_time_spent = round($stmt_avg_time->fetchColumn() ?? 0);
     } catch (PDOException $e) {
-        $avg_time_spent = 0;
+        // Fallback zu user_id
+        try {
+            $stmt_avg_time = $pdo->prepare("
+                SELECT AVG(duration) FROM customer_tracking 
+                WHERE user_id = ? 
+                AND type = 'time_spent'
+                AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            ");
+            $stmt_avg_time->execute([$customer_id]);
+            $avg_time_spent = round($stmt_avg_time->fetchColumn() ?? 0);
+        } catch (PDOException $e2) {
+            $avg_time_spent = 0;
+        }
     }
     
     // 6. Heute's Aktivitäten (optional)
     try {
+        // Versuche zuerst mit customer_id
         $stmt_today = $pdo->prepare("
             SELECT COUNT(*) FROM customer_tracking 
-            WHERE user_id = ? 
+            WHERE customer_id = ? 
             AND DATE(created_at) = CURDATE()
         ");
         $stmt_today->execute([$customer_id]);
         $today_activities = $stmt_today->fetchColumn();
     } catch (PDOException $e) {
-        $today_activities = 0;
+        // Fallback zu user_id
+        try {
+            $stmt_today = $pdo->prepare("
+                SELECT COUNT(*) FROM customer_tracking 
+                WHERE user_id = ? 
+                AND DATE(created_at) = CURDATE()
+            ");
+            $stmt_today->execute([$customer_id]);
+            $today_activities = $stmt_today->fetchColumn();
+        } catch (PDOException $e2) {
+            $today_activities = 0;
+        }
     }
     
     // 7. Top 5 meistbesuchte Seiten (optional)
     try {
+        // Versuche zuerst mit customer_id
         $stmt_top_pages = $pdo->prepare("
             SELECT page, COUNT(*) as visits 
             FROM customer_tracking 
-            WHERE user_id = ? 
+            WHERE customer_id = ? 
             AND type = 'page_view'
             AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
             GROUP BY page 
@@ -100,15 +166,32 @@ try {
         $stmt_top_pages->execute([$customer_id]);
         $top_pages = $stmt_top_pages->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
-        $top_pages = [];
+        // Fallback zu user_id
+        try {
+            $stmt_top_pages = $pdo->prepare("
+                SELECT page, COUNT(*) as visits 
+                FROM customer_tracking 
+                WHERE user_id = ? 
+                AND type = 'page_view'
+                AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                GROUP BY page 
+                ORDER BY visits DESC 
+                LIMIT 5
+            ");
+            $stmt_top_pages->execute([$customer_id]);
+            $top_pages = $stmt_top_pages->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e2) {
+            $top_pages = [];
+        }
     }
     
     // 8. Aktivitätsverlauf (optional)
     try {
+        // Versuche zuerst mit customer_id
         $stmt_activity_chart = $pdo->prepare("
             SELECT DATE(created_at) as date, COUNT(*) as count
             FROM customer_tracking 
-            WHERE user_id = ? 
+            WHERE customer_id = ? 
             AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
             GROUP BY DATE(created_at)
             ORDER BY date ASC
@@ -116,22 +199,57 @@ try {
         $stmt_activity_chart->execute([$customer_id]);
         $activity_chart_data = $stmt_activity_chart->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
-        $activity_chart_data = [];
+        // Fallback zu user_id
+        try {
+            $stmt_activity_chart = $pdo->prepare("
+                SELECT DATE(created_at) as date, COUNT(*) as count
+                FROM customer_tracking 
+                WHERE user_id = ? 
+                AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                GROUP BY DATE(created_at)
+                ORDER BY date ASC
+            ");
+            $stmt_activity_chart->execute([$customer_id]);
+            $activity_chart_data = $stmt_activity_chart->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e2) {
+            $activity_chart_data = [];
+        }
     }
     
     // 9. Neue Kurse
-    $stmt_new_courses = $pdo->prepare("
-        SELECT c.id, c.title, c.description, c.thumbnail, c.is_premium 
-        FROM courses c
-        LEFT JOIN course_access ca ON c.id = ca.course_id AND ca.user_id = ?
-        WHERE c.is_active = 1 
-        AND c.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-        AND ca.user_id IS NULL
-        ORDER BY c.created_at DESC
-        LIMIT 3
-    ");
-    $stmt_new_courses->execute([$customer_id]);
-    $new_courses = $stmt_new_courses->fetchAll(PDO::FETCH_ASSOC);
+    try {
+        // Versuche zuerst mit customer_id
+        $stmt_new_courses = $pdo->prepare("
+            SELECT c.id, c.title, c.description, c.thumbnail, c.is_premium 
+            FROM courses c
+            LEFT JOIN course_access ca ON c.id = ca.course_id AND ca.customer_id = ?
+            WHERE c.is_active = 1 
+            AND c.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            AND ca.customer_id IS NULL
+            ORDER BY c.created_at DESC
+            LIMIT 3
+        ");
+        $stmt_new_courses->execute([$customer_id]);
+        $new_courses = $stmt_new_courses->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        // Fallback zu user_id
+        try {
+            $stmt_new_courses = $pdo->prepare("
+                SELECT c.id, c.title, c.description, c.thumbnail, c.is_premium 
+                FROM courses c
+                LEFT JOIN course_access ca ON c.id = ca.course_id AND ca.user_id = ?
+                WHERE c.is_active = 1 
+                AND c.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                AND ca.user_id IS NULL
+                ORDER BY c.created_at DESC
+                LIMIT 3
+            ");
+            $stmt_new_courses->execute([$customer_id]);
+            $new_courses = $stmt_new_courses->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e2) {
+            $new_courses = [];
+        }
+    }
     
 } catch (PDOException $e) {
     error_log("Dashboard Stats Error: " . $e->getMessage());
