@@ -149,18 +149,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
     }
 }
 
-// Form data zusammenstellen - VERBESSERT: !empty() statt ?? für bessere Erkennung leerer Strings
+// Form data zusammenstellen - FIX: isset() statt !empty() für korrekte Anzeige von leeren Strings
 $form_data = [
-    'headline' => !empty($customer_freebie['headline']) ? $customer_freebie['headline'] : (!empty($template['headline']) ? $template['headline'] : 'Sichere dir jetzt deinen kostenlosen Kurs'),
-    'subheadline' => !empty($customer_freebie['subheadline']) ? $customer_freebie['subheadline'] : (!empty($template['subheadline']) ? $template['subheadline'] : ''),
-    'preheadline' => !empty($customer_freebie['preheadline']) ? $customer_freebie['preheadline'] : (!empty($template['preheadline']) ? $template['preheadline'] : ''),
-    'bullet_points' => !empty($customer_freebie['bullet_points']) ? $customer_freebie['bullet_points'] : (!empty($template['bullet_points']) ? $template['bullet_points'] : "✓ Sofortiger Zugang\n✓ Professionelle Inhalte\n✓ Schritt für Schritt Anleitung"),
-    'cta_text' => !empty($customer_freebie['cta_text']) ? $customer_freebie['cta_text'] : (!empty($template['cta_text']) ? $template['cta_text'] : 'JETZT KOSTENLOS SICHERN'),
-    'layout' => !empty($customer_freebie['layout']) ? $customer_freebie['layout'] : (!empty($template['layout']) ? $template['layout'] : 'hybrid'),
-    'background_color' => !empty($customer_freebie['background_color']) ? $customer_freebie['background_color'] : (!empty($template['background_color']) ? $template['background_color'] : '#FFFFFF'),
-    'primary_color' => !empty($customer_freebie['primary_color']) ? $customer_freebie['primary_color'] : (!empty($template['primary_color']) ? $template['primary_color'] : '#8B5CF6'),
-    'raw_code' => !empty($customer_freebie['raw_code']) ? $customer_freebie['raw_code'] : (!empty($template['raw_code']) ? $template['raw_code'] : (!empty($template['custom_raw_code']) ? $template['custom_raw_code'] : '')),
-    'mockup_image_url' => !empty($customer_freebie['mockup_image_url']) ? $customer_freebie['mockup_image_url'] : (!empty($template['mockup_image_url']) ? $template['mockup_image_url'] : '')
+    'headline' => ($customer_freebie && isset($customer_freebie['headline'])) ? $customer_freebie['headline'] : ($template['headline'] ?? 'Sichere dir jetzt deinen kostenlosen Kurs'),
+    'subheadline' => ($customer_freebie && isset($customer_freebie['subheadline'])) ? $customer_freebie['subheadline'] : ($template['subheadline'] ?? ''),
+    'preheadline' => ($customer_freebie && isset($customer_freebie['preheadline'])) ? $customer_freebie['preheadline'] : ($template['preheadline'] ?? ''),
+    'bullet_points' => ($customer_freebie && isset($customer_freebie['bullet_points'])) ? $customer_freebie['bullet_points'] : ($template['bullet_points'] ?? "✓ Sofortiger Zugang\n✓ Professionelle Inhalte\n✓ Schritt für Schritt Anleitung"),
+    'cta_text' => ($customer_freebie && isset($customer_freebie['cta_text'])) ? $customer_freebie['cta_text'] : ($template['cta_text'] ?? 'JETZT KOSTENLOS SICHERN'),
+    'layout' => ($customer_freebie && isset($customer_freebie['layout'])) ? $customer_freebie['layout'] : ($template['layout'] ?? 'hybrid'),
+    'background_color' => ($customer_freebie && isset($customer_freebie['background_color'])) ? $customer_freebie['background_color'] : ($template['background_color'] ?? '#FFFFFF'),
+    'primary_color' => ($customer_freebie && isset($customer_freebie['primary_color'])) ? $customer_freebie['primary_color'] : ($template['primary_color'] ?? '#8B5CF6'),
+    'raw_code' => ($customer_freebie && isset($customer_freebie['raw_code'])) ? $customer_freebie['raw_code'] : ($template['raw_code'] ?? ($template['custom_raw_code'] ?? '')),
+    'mockup_image_url' => ($customer_freebie && isset($customer_freebie['mockup_image_url'])) ? $customer_freebie['mockup_image_url'] : ($template['mockup_image_url'] ?? '')
 ];
 ?>
 <!DOCTYPE html>
