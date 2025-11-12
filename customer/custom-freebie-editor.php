@@ -121,7 +121,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
                 $freebie['id']
             ]);
             
-            $success_message = "✅ Freebie erfolgreich aktualisiert!";
+            $_SESSION['freebie_success'] = "✅ Freebie erfolgreich aktualisiert!";
+            
+            // Redirect zur gleichen Seite um doppeltes Speichern zu verhindern
+            header("Location: /customer/custom-freebie-editor.php?id=" . $freebie['id']);
+            exit;
+            
         } else {
             // Create new - MIT FONT-FELDERN
             $stmt = $pdo->prepare("
@@ -145,24 +150,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
             
             $freebie_id = $pdo->lastInsertId();
             
-            $success_message = "✅ Freebie erfolgreich erstellt!";
-        }
-        
-        // Reload freebie
-        if ($editMode) {
-            $stmt = $pdo->prepare("SELECT * FROM customer_freebies WHERE id = ?");
-            $stmt->execute([$freebie['id']]);
-            $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
-        } else {
-            $stmt = $pdo->prepare("SELECT * FROM customer_freebies WHERE id = ?");
-            $stmt->execute([$freebie_id]);
-            $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
-            $editMode = true;
+            $_SESSION['freebie_success'] = "✅ Freebie erfolgreich erstellt!";
+            
+            // 🔥 REDIRECT ZUR EDIT-SEITE MIT ID
+            header("Location: /customer/custom-freebie-editor.php?id=" . $freebie_id);
+            exit;
         }
         
     } catch (PDOException $e) {
         $error_message = "❌ Fehler: " . $e->getMessage();
     }
+}
+
+// Success Message aus Session holen (falls vorhanden)
+$success_message = null;
+if (isset($_SESSION['freebie_success'])) {
+    $success_message = $_SESSION['freebie_success'];
+    unset($_SESSION['freebie_success']);
 }
 
 // Custom Code aus raw_code extrahieren (wenn vorhanden)
@@ -1485,11 +1489,30 @@ foreach ($google_fonts as $name => $family) {
                 <div class="preview-panel">
                     <div class="editor-panel">
                         <h2 class="panel-title">👁️ Live-Vorschau</h2>
-                        <div class="preview-box">
-                            <div class="preview-content" id="previewContent">
-                                <!-- Wird durch JavaScript gefüllt -->
+                        
+                        <?php if ($freebie && !empty($freebie['unique_id'])): ?>
+                            <div class="preview-box" style="padding: 0; background: #f9fafb; overflow: hidden; min-height: 700px;">
+                                <iframe 
+                                    id="livePreview"
+                                    src="https://app.mehr-infos-jetzt.de/freebie/index.php?id=<?php echo $freebie['unique_id']; ?>&preview=1" 
+                                    style="width: 125%; height: 1000px; border: 2px dashed #d1d5db; border-radius: 12px; background: white; transform: scale(0.8); transform-origin: top left;"
+                                    frameborder="0">
+                                </iframe>
                             </div>
-                        </div>
+                            <div style="text-align: center; margin-top: 12px; color: #6b7280; font-size: 13px;">
+                                💡 Die Vorschau wird nach dem Speichern automatisch aktualisiert
+                            </div>
+                        <?php else: ?>
+                            <div class="preview-box" style="display: flex; align-items: center; justify-content: center; min-height: 400px; text-align: center;">
+                                <div>
+                                    <div style="font-size: 64px; margin-bottom: 16px;">👀</div>
+                                    <h3 style="color: #374151; margin-bottom: 8px;">Vorschau nicht verfügbar</h3>
+                                    <p style="color: #6b7280; font-size: 14px;">
+                                        Speichere dein Freebie einmal ab, um die Live-Vorschau zu sehen
+                                    </p>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -1581,230 +1604,20 @@ foreach ($google_fonts as $name => $family) {
             radio.closest('.layout-option').classList.add('selected');
         }
         
-        function getVideoEmbedUrl(url) {
-            if (!url) return null;
-            
-            // YouTube
-            let youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
-            if (youtubeMatch) {
-                return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
-            }
-            
-            // Vimeo
-            let vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
-            if (vimeoMatch) {
-                return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
-            }
-            
-            return null;
-        }
-        
-        // FUNKTION ZUM EXTRAHIEREN VON EMOJIS/ICONS
-        function extractIconFromBullet(bullet) {
-            // Regex um Emojis am Anfang zu erkennen
-            const emojiRegex = /^([\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}])/u;
-            const match = bullet.match(emojiRegex);
-            
-            if (match) {
-                return {
-                    icon: match[1],
-                    text: bullet.substring(match[1].length).trim()
-                };
-            }
-            
-            // Fallback: erstes Zeichen prüfen (könnte ein Icon sein)
-            const firstChar = bullet.charAt(0);
-            if (firstChar && !/[a-zA-Z0-9\s]/.test(firstChar)) {
-                return {
-                    icon: firstChar,
-                    text: bullet.substring(1).trim()
-                };
-            }
-            
-            return null;
-        }
-        
-        function updatePreview() {
-            const preheadline = document.querySelector('input[name="preheadline"]').value;
-            const headline = document.querySelector('input[name="headline"]').value;
-            const subheadline = document.querySelector('input[name="subheadline"]').value;
-            const bulletPoints = document.querySelector('textarea[name="bullet_points"]').value;
-            const bulletIconStyle = document.querySelector('input[name="bullet_icon_style"]:checked').value;
-            const ctaText = document.querySelector('input[name="cta_text"]').value;
-            const layout = document.querySelector('input[name="layout"]:checked').value;
-            const primaryColor = document.getElementById('primary_color').value;
-            const backgroundColor = document.getElementById('background_color').value;
-            const mockupImageUrl = document.getElementById('mockupImageUrl').value;
-            const videoUrl = document.getElementById('videoUrl').value;
-            const videoFormat = document.querySelector('input[name="video_format"]:checked').value;
-            
-            // 🆕 FONT-WERTE (jetzt Pixel-Inputs)
-            const fontHeading = document.querySelector('select[name="font_heading"]').value;
-            const fontBody = document.querySelector('select[name="font_body"]').value;
-            const fontSizeHeadline = document.querySelector('input[name="font_size_headline"]').value + 'px';
-            const fontSizeSubheadline = document.querySelector('input[name="font_size_subheadline"]').value + 'px';
-            const fontSizeBullet = document.querySelector('input[name="font_size_bullet"]').value + 'px';
-            const fontSizePreheadline = document.querySelector('input[name="font_size_preheadline"]').value + 'px';
-            
-            // Get font stacks
-            const headingFontFamily = fontStacks[fontHeading] || fontStacks['Inter'];
-            const bodyFontFamily = fontStacks[fontBody] || fontStacks['Inter'];
-            
-            // POPUP-WERTE
-            const ctaAnimation = document.querySelector('select[name="cta_animation"]').value;
-            
-            const previewContent = document.getElementById('previewContent');
-            previewContent.style.background = backgroundColor;
-            previewContent.style.fontFamily = bodyFontFamily;
-            
-            let bulletHTML = '';
-            if (bulletPoints.trim()) {
-                const bullets = bulletPoints.split('\n').filter(b => b.trim());
-                
-                bulletHTML = bullets.map(bullet => {
-                    let icon = '✓';
-                    let text = bullet;
-                    
-                    // LOGIK FÜR BULLET ICON STYLE
-                    if (bulletIconStyle === 'custom') {
-                        // Versuche Icon aus dem Text zu extrahieren
-                        const extracted = extractIconFromBullet(bullet);
-                        if (extracted) {
-                            icon = extracted.icon;
-                            text = extracted.text;
-                        } else {
-                            // Kein Icon gefunden, nutze den vollständigen Text
-                            text = bullet;
-                        }
-                    } else {
-                        // Standard: Text bereinigen und grünen Haken nutzen
-                        text = bullet.replace(/^[✓✔︎•-]\s*/, '').trim();
-                    }
-                    
-                    const iconColor = bulletIconStyle === 'standard' ? primaryColor : 'inherit';
-                    
-                    return `
-                        <div class="preview-bullet">
-                            <span class="preview-bullet-icon" style="color: ${iconColor}; font-size: ${fontSizeBullet};">${icon}</span>
-                            <span class="preview-bullet-text" style="font-family: ${bodyFontFamily}; font-size: ${fontSizeBullet};">${escapeHtml(text)}</span>
-                        </div>
-                    `;
-                }).join('');
-                
-                bulletHTML = `<div class="preview-bullets">${bulletHTML}</div>`;
-            }
-            
-            let mockupHTML = '';
-            if (mockupImageUrl) {
-                mockupHTML = `
-                    <div class="preview-mockup">
-                        <img src="${escapeHtml(mockupImageUrl)}" alt="Mockup" style="max-width: 180px;">
-                    </div>
-                `;
-            }
-            
-            let videoHTML = '';
-            const embedUrl = getVideoEmbedUrl(videoUrl);
-            if (embedUrl) {
-                const isPortrait = videoFormat === 'portrait';
-                const videoWidth = isPortrait ? '315px' : '100%';
-                const videoHeight = isPortrait ? '560px' : '315px';
-                const videoMaxWidth = isPortrait ? '315px' : '560px';
-                
-                videoHTML = `
-                    <div class="preview-video" style="max-width: ${videoMaxWidth}; margin: 0 auto;">
-                        <iframe 
-                            width="${videoWidth}" 
-                            height="${videoHeight}" 
-                            src="${embedUrl}" 
-                            frameborder="0" 
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                            allowfullscreen
-                            style="display: block; margin: 0 auto;">
-                        </iframe>
-                    </div>
-                `;
-            }
-            
-            // Priorität: Video > Mockup > Icon
-            const mediaElement = videoHTML || mockupHTML || `<div style="text-align: center; color: ${primaryColor}; font-size: 50px;">🎁</div>`;
-            
-            // BUTTON MIT ANIMATION
-            const animationClass = ctaAnimation !== 'none' ? `animate-${ctaAnimation}` : '';
-            const ctaButton = `
-                <button class="preview-button ${animationClass}" style="background: ${primaryColor}; color: white; font-family: ${bodyFontFamily}; font-size: 12px;">
-                    ${escapeHtml(ctaText || 'BUTTON TEXT')}
-                </button>
-            `;
-            
-            // 🔥 KOMPLETT ÜBERARBEITETES LAYOUT-HTML - ALLE STYLES INLINE!
-            let layoutHTML = '';
-            
-            if (layout === 'centered') {
-                // Preheadline → Headline → Subheadline → Media → Bullets → CTA
-                layoutHTML = `
-                    <div style="max-width: 800px; margin: 0 auto;">
-                        ${preheadline ? `<div class="preview-preheadline" style="color: ${primaryColor}; font-family: ${bodyFontFamily}; font-size: ${fontSizePreheadline}; text-align: center !important;">${escapeHtml(preheadline)}</div>` : ''}
-                        <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${fontSizeHeadline}; text-align: center !important;">
-                            ${escapeHtml(headline || 'Deine Hauptüberschrift')}
-                        </div>
-                        ${subheadline ? `<div class="preview-subheadline" style="font-family: ${bodyFontFamily}; font-size: ${fontSizeSubheadline}; color: #6b7280; text-align: center !important;">${escapeHtml(subheadline)}</div>` : ''}
-                        ${mediaElement}
-                        ${bulletHTML}
-                        <div class="preview-cta">
-                            ${ctaButton}
-                        </div>
-                    </div>
-                `;
-            } else if (layout === 'hybrid') {
-                layoutHTML = `
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
-                        <div>${mediaElement}</div>
-                        <div style="text-align: center;">
-                            ${preheadline ? `<div class="preview-preheadline" style="color: ${primaryColor}; font-family: ${bodyFontFamily}; font-size: ${fontSizePreheadline}; text-align: center !important;">${escapeHtml(preheadline)}</div>` : ''}
-                            <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${fontSizeHeadline}; text-align: center !important;">
-                                ${escapeHtml(headline || 'Deine Hauptüberschrift')}
-                            </div>
-                            ${subheadline ? `<div class="preview-subheadline" style="font-family: ${bodyFontFamily}; font-size: ${fontSizeSubheadline}; color: #6b7280; text-align: center !important;">${escapeHtml(subheadline)}</div>` : ''}
-                            ${bulletHTML}
-                            <div class="preview-cta">
-                                ${ctaButton}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else { // sidebar
-                layoutHTML = `
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
-                        <div style="text-align: center;">
-                            ${preheadline ? `<div class="preview-preheadline" style="color: ${primaryColor}; font-family: ${bodyFontFamily}; font-size: ${fontSizePreheadline}; text-align: center !important;">${escapeHtml(preheadline)}</div>` : ''}
-                            <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${fontSizeHeadline}; text-align: center !important;">
-                                ${escapeHtml(headline || 'Deine Hauptüberschrift')}
-                            </div>
-                            ${subheadline ? `<div class="preview-subheadline" style="font-family: ${bodyFontFamily}; font-size: ${fontSizeSubheadline}; color: #6b7280; text-align: center !important;">${escapeHtml(subheadline)}</div>` : ''}
-                            ${bulletHTML}
-                            <div class="preview-cta">
-                                ${ctaButton}
-                            </div>
-                        </div>
-                        <div>${mediaElement}</div>
-                    </div>
-                `;
-            }
-            
-            previewContent.innerHTML = layoutHTML;
-        }
-        
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-        
-        // Initial preview
+        // iFrame Reload nach Speichern
+        <?php if (isset($success_message) && $freebie): ?>
         document.addEventListener('DOMContentLoaded', function() {
-            updatePreview();
+            const iframe = document.getElementById('livePreview');
+            if (iframe) {
+                const currentSrc = iframe.src.split('&t=')[0];
+                iframe.src = currentSrc + '&t=' + Date.now();
+                
+                setTimeout(function() {
+                    iframe.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 500);
+            }
         });
+        <?php endif; ?>
     </script>
 </body>
 </html>
