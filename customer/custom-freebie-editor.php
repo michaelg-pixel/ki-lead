@@ -598,25 +598,23 @@ foreach ($google_fonts as $name => $family) {
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         
+        /* KEINE text-align Regeln mehr in den CSS-Klassen - wird komplett per inline-style gesteuert */
         .preview-preheadline {
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-bottom: 10px;
-            text-align: center;
         }
         
         .preview-headline {
             font-weight: 800;
             line-height: 1.2;
             margin-bottom: 10px;
-            text-align: center;
         }
         
         .preview-subheadline {
             color: #6b7280;
             margin-bottom: 18px;
-            text-align: center;
             line-height: 1.5;
         }
         
@@ -1728,17 +1726,6 @@ foreach ($google_fonts as $name => $family) {
                 `;
             }
             
-            // ✅ INLINE TEXT-ALIGN: CENTER FÜR ALLE ÜBERSCHRIFTEN
-            const preheadlineHTML = preheadline ? `
-                <div class="preview-preheadline" style="color: ${primaryColor}; font-family: ${bodyFontFamily}; font-size: ${fontSizePreheadline}; text-align: center;">
-                    ${escapeHtml(preheadline)}
-                </div>
-            ` : '';
-            
-            const subheadlineHTML = subheadline ? `
-                <div class="preview-subheadline" style="font-family: ${bodyFontFamily}; font-size: ${fontSizeSubheadline}; text-align: center;">${escapeHtml(subheadline)}</div>
-            ` : '';
-            
             // Priorität: Video > Mockup > Icon
             const mediaElement = videoHTML || mockupHTML || `<div style="text-align: center; color: ${primaryColor}; font-size: 50px;">🎁</div>`;
             
@@ -1750,18 +1737,18 @@ foreach ($google_fonts as $name => $family) {
                 </button>
             `;
             
-            // LAYOUTS MIT ZENTRIERUNG UND RICHTIGER REIHENFOLGE
+            // 🔥 KOMPLETT ÜBERARBEITETES LAYOUT-HTML - ALLE STYLES INLINE!
             let layoutHTML = '';
             
             if (layout === 'centered') {
                 // Preheadline → Headline → Subheadline → Media → Bullets → CTA
                 layoutHTML = `
                     <div style="max-width: 800px; margin: 0 auto;">
-                        ${preheadlineHTML}
-                        <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${fontSizeHeadline}; text-align: center;">
+                        ${preheadline ? `<div class="preview-preheadline" style="color: ${primaryColor}; font-family: ${bodyFontFamily}; font-size: ${fontSizePreheadline}; text-align: center !important;">${escapeHtml(preheadline)}</div>` : ''}
+                        <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${fontSizeHeadline}; text-align: center !important;">
                             ${escapeHtml(headline || 'Deine Hauptüberschrift')}
                         </div>
-                        ${subheadlineHTML}
+                        ${subheadline ? `<div class="preview-subheadline" style="font-family: ${bodyFontFamily}; font-size: ${fontSizeSubheadline}; color: #6b7280; text-align: center !important;">${escapeHtml(subheadline)}</div>` : ''}
                         ${mediaElement}
                         ${bulletHTML}
                         <div class="preview-cta">
@@ -1774,11 +1761,11 @@ foreach ($google_fonts as $name => $family) {
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
                         <div>${mediaElement}</div>
                         <div style="text-align: center;">
-                            ${preheadlineHTML}
-                            <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${fontSizeHeadline}; text-align: center;">
+                            ${preheadline ? `<div class="preview-preheadline" style="color: ${primaryColor}; font-family: ${bodyFontFamily}; font-size: ${fontSizePreheadline}; text-align: center !important;">${escapeHtml(preheadline)}</div>` : ''}
+                            <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${fontSizeHeadline}; text-align: center !important;">
                                 ${escapeHtml(headline || 'Deine Hauptüberschrift')}
                             </div>
-                            ${subheadlineHTML}
+                            ${subheadline ? `<div class="preview-subheadline" style="font-family: ${bodyFontFamily}; font-size: ${fontSizeSubheadline}; color: #6b7280; text-align: center !important;">${escapeHtml(subheadline)}</div>` : ''}
                             ${bulletHTML}
                             <div class="preview-cta">
                                 ${ctaButton}
@@ -1790,11 +1777,11 @@ foreach ($google_fonts as $name => $family) {
                 layoutHTML = `
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
                         <div style="text-align: center;">
-                            ${preheadlineHTML}
-                            <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${fontSizeHeadline}; text-align: center;">
+                            ${preheadline ? `<div class="preview-preheadline" style="color: ${primaryColor}; font-family: ${bodyFontFamily}; font-size: ${fontSizePreheadline}; text-align: center !important;">${escapeHtml(preheadline)}</div>` : ''}
+                            <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${fontSizeHeadline}; text-align: center !important;">
                                 ${escapeHtml(headline || 'Deine Hauptüberschrift')}
                             </div>
-                            ${subheadlineHTML}
+                            ${subheadline ? `<div class="preview-subheadline" style="font-family: ${bodyFontFamily}; font-size: ${fontSizeSubheadline}; color: #6b7280; text-align: center !important;">${escapeHtml(subheadline)}</div>` : ''}
                             ${bulletHTML}
                             <div class="preview-cta">
                                 ${ctaButton}
