@@ -297,6 +297,14 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
             text-align: center;
         }
         
+        /* Button Zentrierung für hybrid und sidebar Layouts */
+        .layout-hybrid .cta-button,
+        .layout-sidebar .cta-button {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
         /* CTA Button */
         .cta-button {
             background: <?php echo $primary_color; ?>;
