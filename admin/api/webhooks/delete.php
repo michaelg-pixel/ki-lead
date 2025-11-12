@@ -7,10 +7,16 @@
 require_once '../../../config/database.php';
 session_start();
 
-header('Content-Type: application/json');
+// Für AJAX-Requests JSON zurückgeben
+$isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest';
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    echo json_encode(['success' => false, 'error' => 'Keine Berechtigung']);
+    if ($isAjax) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Keine Berechtigung']);
+    } else {
+        header('Location: /admin/dashboard.php?page=webhooks&error=' . urlencode('Keine Berechtigung'));
+    }
     exit;
 }
 
@@ -31,14 +37,26 @@ try {
         throw new Exception('Webhook nicht gefunden');
     }
     
-    echo json_encode([
-        'success' => true,
-        'message' => 'Webhook erfolgreich gelöscht'
-    ]);
+    if ($isAjax) {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => true,
+            'message' => 'Webhook erfolgreich gelöscht'
+        ]);
+    } else {
+        header('Location: /admin/dashboard.php?page=webhooks&success=' . urlencode('Webhook erfolgreich gelöscht'));
+    }
+    exit;
     
 } catch (Exception $e) {
-    echo json_encode([
-        'success' => false,
-        'error' => $e->getMessage()
-    ]);
+    if ($isAjax) {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage()
+        ]);
+    } else {
+        header('Location: /admin/dashboard.php?page=webhooks&error=' . urlencode($e->getMessage()));
+    }
+    exit;
 }
