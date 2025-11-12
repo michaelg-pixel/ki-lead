@@ -14,18 +14,19 @@ $customer_id = $_SESSION['user_id'];
 // Nischen-Filter
 $selected_niche = $_GET['niche'] ?? 'all';
 
-// Kurse laden (nur aktive + kostenlose ODER gekaufte Premium-Kurse)
+// Kurse laden mit course_access (Webhook-System)
+// Zeigt ALLE Kurse an, mit Status ob Zugriff besteht oder nicht
 $sql = "
     SELECT c.*, 
            (SELECT COUNT(*) FROM modules WHERE course_id = c.id) as module_count,
            (SELECT COUNT(*) FROM lessons l 
             JOIN modules m ON l.module_id = m.id 
             WHERE m.course_id = c.id) as lesson_count,
-           cp.id as has_access
+           ca.id as has_access,
+           ca.access_source
     FROM courses c
-    LEFT JOIN customer_purchases cp ON c.id = cp.course_id AND cp.customer_id = ?
-    WHERE c.is_active = 1 
-    AND (c.is_premium = 0 OR cp.id IS NOT NULL)
+    LEFT JOIN course_access ca ON c.id = ca.course_id AND ca.user_id = ?
+    WHERE c.is_active = 1
 ";
 
 $params = [$customer_id];
@@ -35,7 +36,11 @@ if ($selected_niche !== 'all') {
     $params[] = $selected_niche;
 }
 
-$sql .= " ORDER BY c.created_at DESC";
+$sql .= " ORDER BY 
+    CASE WHEN ca.id IS NOT NULL THEN 0 ELSE 1 END,
+    c.is_premium ASC,
+    c.created_at DESC
+";
 
 $stmt = $conn->prepare($sql);
 $stmt->execute($params);
@@ -134,17 +139,39 @@ $niches = [
         <?php else: ?>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <?php foreach ($courses as $course): ?>
-                    <div class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition">
+                    <?php
+                    // Zugriffsstatus prüfen
+                    $hasAccess = !empty($course['has_access']) || !$course['is_premium'];
+                    $isPremiumLocked = $course['is_premium'] && empty($course['has_access']);
+                    ?>
+                    
+                    <div class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition <?= $isPremiumLocked ? 'opacity-75' : '' ?>">
                         <!-- Thumbnail -->
-                        <?php if ($course['thumbnail']): ?>
-                            <img src="../uploads/thumbnails/<?= htmlspecialchars($course['thumbnail']) ?>" 
-                                 alt="<?= htmlspecialchars($course['title']) ?>" 
-                                 class="w-full h-48 object-cover">
-                        <?php else: ?>
-                            <div class="w-full h-48 bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center">
-                                <i class="fas fa-graduation-cap text-6xl text-white opacity-50"></i>
-                            </div>
-                        <?php endif; ?>
+                        <div class="relative">
+                            <?php if ($course['thumbnail']): ?>
+                                <img src="../uploads/thumbnails/<?= htmlspecialchars($course['thumbnail']) ?>" 
+                                     alt="<?= htmlspecialchars($course['title']) ?>" 
+                                     class="w-full h-48 object-cover">
+                            <?php else: ?>
+                                <div class="w-full h-48 bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center">
+                                    <i class="fas fa-graduation-cap text-6xl text-white opacity-50"></i>
+                                </div>
+                            <?php endif; ?>
+                            
+                            <!-- Lock Overlay für gesperrte Premium-Kurse -->
+                            <?php if ($isPremiumLocked): ?>
+                                <div class="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
+                                    <i class="fas fa-lock text-white text-5xl"></i>
+                                </div>
+                            <?php endif; ?>
+                            
+                            <!-- Access Badge -->
+                            <?php if ($hasAccess && $course['is_premium']): ?>
+                                <div class="absolute top-3 right-3 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                                    <i class="fas fa-check-circle"></i> Freigeschaltet
+                                </div>
+                            <?php endif; ?>
+                        </div>
                         
                         <div class="p-6">
                             <div class="flex justify-between items-start mb-3">
@@ -154,6 +181,10 @@ $niches = [
                                 <?php if ($course['is_premium']): ?>
                                     <span class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">
                                         <i class="fas fa-crown"></i> Premium
+                                    </span>
+                                <?php else: ?>
+                                    <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
+                                        <i class="fas fa-gift"></i> Kostenlos
                                     </span>
                                 <?php endif; ?>
                             </div>
@@ -171,15 +202,58 @@ $niches = [
                                 </div>
                             </div>
                             
+                            <!-- Zugriffsquelle anzeigen -->
+                            <?php if ($hasAccess && !empty($course['access_source'])): ?>
+                                <div class="mb-4 text-xs text-gray-500 flex items-center gap-1">
+                                    <i class="fas fa-info-circle"></i>
+                                    Zugriff über: 
+                                    <?php 
+                                    switch($course['access_source']) {
+                                        case 'webhook_v4':
+                                            echo 'Dein Paket';
+                                            break;
+                                        case 'webhook_v4_upsell':
+                                            echo 'Dein Upgrade';
+                                            break;
+                                        case 'manual':
+                                            echo 'Manuell gewährt';
+                                            break;
+                                        default:
+                                            echo 'Digistore24-Kauf';
+                                    }
+                                    ?>
+                                </div>
+                            <?php endif; ?>
+                            
                             <div class="flex gap-2">
-                                <button onclick="previewCourse(<?= $course['id'] ?>)" 
-                                        class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-lg font-semibold">
-                                    <i class="fas fa-eye mr-2"></i> Vorschau
-                                </button>
-                                <a href="freebie-editor.php?course_id=<?= $course['id'] ?>" 
-                                   class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg font-semibold text-center">
-                                    <i class="fas fa-magic mr-2"></i> Im Editor
-                                </a>
+                                <?php if ($hasAccess): ?>
+                                    <!-- Kunde hat Zugriff -->
+                                    <button onclick="previewCourse(<?= $course['id'] ?>)" 
+                                            class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-lg font-semibold">
+                                        <i class="fas fa-eye mr-2"></i> Vorschau
+                                    </button>
+                                    <a href="freebie-editor.php?course_id=<?= $course['id'] ?>" 
+                                       class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg font-semibold text-center">
+                                        <i class="fas fa-magic mr-2"></i> Im Editor
+                                    </a>
+                                <?php elseif ($isPremiumLocked): ?>
+                                    <!-- Premium-Kurs ohne Zugriff -->
+                                    <?php if (!empty($course['digistore_product_id'])): ?>
+                                        <a href="https://www.digistore24.com/product/<?= htmlspecialchars($course['digistore_product_id']) ?>" 
+                                           target="_blank"
+                                           class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-3 rounded-lg font-semibold text-center">
+                                            <i class="fas fa-shopping-cart mr-2"></i> Jetzt kaufen
+                                        </a>
+                                        <button onclick="previewCourse(<?= $course['id'] ?>)" 
+                                                class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-lg font-semibold">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    <?php else: ?>
+                                        <div class="flex-1 bg-gray-200 text-gray-500 px-4 py-3 rounded-lg font-semibold text-center cursor-not-allowed">
+                                            <i class="fas fa-lock mr-2"></i> Gesperrt
+                                        </div>
+                                    <?php endif; ?>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
