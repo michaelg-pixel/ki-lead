@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webhook System Migration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        .content {
+            padding: 30px;
+        }
+        .warning-box {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .warning-box h3 {
+            color: #856404;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .warning-box ul {
+            margin-left: 20px;
+            color: #856404;
+        }
+        .warning-box li {
+            margin: 5px 0;
+        }
+        .step {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .step h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .step-status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status-pending {
+            background: #e9ecef;
+            color: #6c757d;
+        }
+        .status-running {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .log-box {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border-radius: 10px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid transparent;
+        }
+        .log-info {
+            border-left-color: #3b82f6;
+        }
+        .log-success {
+            border-left-color: #10b981;
+            color: #10b981;
+        }
+        .log-error {
+            border-left-color: #ef4444;
+            color: #ef4444;
+        }
+        .log-warning {
+            border-left-color: #f59e0b;
+            color: #f59e0b;
+        }
+        .button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+            margin-top: 20px;
+        }
+        .button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .progress-bar {
+            background: #e9ecef;
+            border-radius: 10px;
+            height: 30px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+        .progress-fill {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔄 Webhook System Migration</h1>
+            <p>Flexible Webhook-Verwaltung für Digistore24 Produkte</p>
+        </div>
+        
+        <div class="content">
+            <div class="warning-box">
+                <h3>⚠️ KRITISCH - Sicherheitshinweise</h3>
+                <ul>
+                    <li><strong>🔒 Admin-Login erforderlich:</strong> Du musst im Admin-Bereich eingeloggt sein!</li>
+                    <li><strong>⏰ 24h Limit:</strong> Script deaktiviert sich nach 24 Stunden automatisch</li>
+                    <li><strong>🗑️ SOFORT LÖSCHEN:</strong> Nach Migration Script + API-Datei SOFORT löschen!</li>
+                    <li><strong>💾 Backup erstellen:</strong> Erstelle ein Backup deiner Datenbank!</li>
+                    <li><strong>🧪 Test-Umgebung:</strong> Teste erst in einer Entwicklungsumgebung</li>
+                </ul>
+            </div>
+            
+            <div class="warning-box">
+                <h3>ℹ️ Was passiert bei der Migration</h3>
+                <ul>
+                    <li><strong>Bestehende Webhooks:</strong> Werden automatisch migriert</li>
+                    <li><strong>Keine Daten gehen verloren:</strong> Alle Einstellungen bleiben erhalten</li>
+                    <li><strong>Sichere Transaktion:</strong> Bei Fehler automatischer Rollback</li>
+                </ul>
+            </div>
+
+            <div class="step" id="step1">
+                <h3>
+                    Schritt 1: Neue Tabellen erstellen
+                    <span class="step-status status-pending" id="status1">Ausstehend</span>
+                </h3>
+                <p>Erstellt die Tabellen 'webhooks' und 'webhook_resources'</p>
+            </div>
+
+            <div class="step" id="step2">
+                <h3>
+                    Schritt 2: Bestehende Webhooks migrieren
+                    <span class="step-status status-pending" id="status2">Ausstehend</span>
+                </h3>
+                <p>Migriert die Webhook-Konfiguration aus 'webhook_config'</p>
+            </div>
+
+            <div class="step" id="step3">
+                <h3>
+                    Schritt 3: Validierung
+                    <span class="step-status status-pending" id="status3">Ausstehend</span>
+                </h3>
+                <p>Überprüft, ob alle Daten korrekt migriert wurden</p>
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress">0%</div>
+            </div>
+
+            <div class="log-box" id="logBox"></div>
+
+            <button class="button" id="startBtn" onclick="startMigration()">
+                Migration starten
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://app.mehr-infos-jetzt.de/admin/api';
+        let logBox = document.getElementById('logBox');
+        
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            const timestamp = new Date().toLocaleTimeString('de-DE');
+            entry.textContent = `[${timestamp}] ${message}`;
+            logBox.appendChild(entry);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        function updateStatus(step, status) {
+            const statusEl = document.getElementById(`status${step}`);
+            statusEl.className = `step-status status-${status}`;
+            statusEl.textContent = {
+                'pending': 'Ausstehend',
+                'running': 'Läuft...',
+                'success': '✓ Erfolgreich',
+                'error': '✗ Fehler'
+            }[status];
+        }
+
+        function updateProgress(percent) {
+            const progressEl = document.getElementById('progress');
+            progressEl.style.width = percent + '%';
+            progressEl.textContent = percent + '%';
+        }
+
+        async function apiCall(endpoint, data) {
+            const response = await fetch(`${API_BASE}/${endpoint}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            return await response.json();
+        }
+
+        async function startMigration() {
+            const startBtn = document.getElementById('startBtn');
+            startBtn.disabled = true;
+            startBtn.textContent = 'Migration läuft...';
+            
+            try {
+                log('Starte Migration...', 'info');
+                updateStatus(1, 'running');
+                updateProgress(10);
+                
+                const step1Result = await apiCall('webhook_migrate.php', {
+                    action: 'create_tables'
+                });
+                
+                if (step1Result.success) {
+                    log('✓ Tabellen erfolgreich erstellt', 'success');
+                    updateStatus(1, 'success');
+                    updateProgress(40);
+                } else {
+                    throw new Error(step1Result.error || 'Fehler beim Erstellen der Tabellen');
+                }
+                
+                await new Promise(resolve => setTimeout(resolve, 500));
+                updateStatus(2, 'running');
+                log('Migriere bestehende Webhooks...', 'info');
+                
+                const step2Result = await apiCall('webhook_migrate.php', {
+                    action: 'migrate_webhooks'
+                });
+                
+                if (step2Result.success) {
+                    log(`✓ ${step2Result.migrated || 0} Webhooks migriert`, 'success');
+                    updateStatus(2, 'success');
+                    updateProgress(70);
+                } else {
+                    throw new Error(step2Result.error || 'Fehler bei der Webhook-Migration');
+                }
+                
+                await new Promise(resolve => setTimeout(resolve, 500));
+                updateStatus(3, 'running');
+                log('Validiere Daten...', 'info');
+                
+                const step3Result = await apiCall('webhook_migrate.php', {
+                    action: 'validate'
+                });
+                
+                if (step3Result.success) {
+                    log('✓ Alle Daten erfolgreich validiert', 'success');
+                    log(`  - ${step3Result.webhooks || 0} Webhooks`, 'info');
+                    log(`  - ${step3Result.resources || 0} Ressourcen`, 'info');
+                    updateStatus(3, 'success');
+                    updateProgress(100);
+                    
+                    startBtn.textContent = '✓ Migration erfolgreich!';
+                    startBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                    
+                    log('=================================', 'success');
+                    log('Migration abgeschlossen!', 'success');
+                    log('WICHTIG: Lösche diese Dateien SOFORT:', 'warning');
+                    log('- migrate_webhooks.html', 'warning');
+                    log('- admin/api/webhook_migrate.php', 'warning');
+                    log('', 'info');
+                    log('Webhook-Verwaltung:', 'info');
+                    log('https://app.mehr-infos-jetzt.de/admin/dashboard.php?page=webhooks', 'info');
+                } else {
+                    throw new Error(step3Result.error || 'Validierung fehlgeschlagen');
+                }
+                
+            } catch (error) {
+                log(`✗ FEHLER: ${error.message}`, 'error');
+                log('Migration abgebrochen!', 'error');
+                updateStatus(1, 'error');
+                updateStatus(2, 'error');
+                updateStatus(3, 'error');
+                startBtn.textContent = 'Fehler - Bitte Logs prüfen';
+                startBtn.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+            }
+        }
+    </script>
+</body>
+</html>
