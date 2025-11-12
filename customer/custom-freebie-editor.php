@@ -1773,7 +1773,7 @@ foreach ($google_fonts as $name => $family) {
                 layoutHTML = `
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
                         <div>${mediaElement}</div>
-                        <div>
+                        <div style="text-align: center;">
                             ${preheadlineHTML}
                             <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${fontSizeHeadline}; text-align: center;">
                                 ${escapeHtml(headline || 'Deine Hauptüberschrift')}
@@ -1789,7 +1789,7 @@ foreach ($google_fonts as $name => $family) {
             } else { // sidebar
                 layoutHTML = `
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
-                        <div>
+                        <div style="text-align: center;">
                             ${preheadlineHTML}
                             <div class="preview-headline" style="color: ${primaryColor}; font-family: ${headingFontFamily}; font-size: ${fontSizeHeadline}; text-align: center;">
                                 ${escapeHtml(headline || 'Deine Hauptüberschrift')}
