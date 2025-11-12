@@ -139,7 +139,7 @@ $locked_courses = $stmt->fetchAll();
     .course-thumbnail img {
         width: 100%;
         height: 100%;
-        object-fit: contain; /* GEÄNDERT von cover zu contain */
+        object-fit: contain;
         object-position: center;
     }
     
@@ -162,6 +162,7 @@ $locked_courses = $stmt->fetchAll();
         font-size: 12px;
         font-weight: 600;
         backdrop-filter: blur(10px);
+        z-index: 10;
     }
     
     .badge-freebie {
@@ -185,6 +186,7 @@ $locked_courses = $stmt->fetchAll();
         background: rgba(0, 0, 0, 0.7);
         backdrop-filter: blur(10px);
         color: white;
+        z-index: 10;
     }
     
     /* Content */
@@ -364,13 +366,18 @@ $locked_courses = $stmt->fetchAll();
         }
     }
     
+    /* MOBILE OPTIMIERUNGEN */
     @media (max-width: 768px) {
         .courses-container {
-            padding: 24px 16px;
+            padding: 20px 16px;
+        }
+        
+        .page-header {
+            margin-bottom: 28px;
         }
         
         .page-title {
-            font-size: 26px;
+            font-size: 24px;
         }
         
         .page-subtitle {
@@ -379,16 +386,43 @@ $locked_courses = $stmt->fetchAll();
         
         .section-title {
             font-size: 18px;
+            margin-bottom: 16px;
+        }
+        
+        .section-divider {
+            margin: 32px 0;
         }
         
         .courses-grid {
             grid-template-columns: 1fr;
-            gap: 16px;
+            gap: 20px;
+        }
+        
+        .course-card {
+            border-radius: 12px;
         }
         
         .course-thumbnail {
-            height: 180px;
+            height: 200px;
             padding: 12px;
+        }
+        
+        .course-placeholder {
+            font-size: 56px;
+        }
+        
+        .course-badge {
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            font-size: 11px;
+        }
+        
+        .badge-type {
+            top: 10px;
+            left: 10px;
+            padding: 5px 10px;
+            font-size: 11px;
         }
         
         .course-content {
@@ -397,6 +431,42 @@ $locked_courses = $stmt->fetchAll();
         
         .course-title {
             font-size: 18px;
+            margin-bottom: 10px;
+        }
+        
+        .course-description {
+            font-size: 13px;
+            margin-bottom: 14px;
+            line-height: 1.5;
+        }
+        
+        .course-stats {
+            font-size: 12px;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        
+        .course-progress {
+            margin-bottom: 14px;
+        }
+        
+        /* MOBILE BUTTONS - VIEL GRÖSSER UND BESSER SICHTBAR */
+        .course-action {
+            padding: 16px 20px;
+            font-size: 15px;
+            font-weight: 700;
+            border-radius: 12px;
+            min-height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            letter-spacing: 0.3px;
+        }
+        
+        /* Touch-Feedback für Mobile */
+        .course-action:active {
+            transform: scale(0.97);
         }
         
         .empty-state {
@@ -410,15 +480,28 @@ $locked_courses = $stmt->fetchAll();
         .empty-title {
             font-size: 20px;
         }
+        
+        .empty-text {
+            font-size: 14px;
+        }
     }
     
+    /* EXTRA KLEINE BILDSCHIRME */
     @media (max-width: 480px) {
         .courses-container {
             padding: 16px 12px;
         }
         
+        .page-header {
+            margin-bottom: 24px;
+        }
+        
         .page-title {
             font-size: 22px;
+        }
+        
+        .page-subtitle {
+            font-size: 13px;
         }
         
         .section-title {
@@ -426,8 +509,11 @@ $locked_courses = $stmt->fetchAll();
         }
         
         .course-thumbnail {
-            height: 160px;
-            padding: 10px;
+            height: 180px;
+        }
+        
+        .course-placeholder {
+            font-size: 48px;
         }
         
         .course-content {
@@ -435,15 +521,37 @@ $locked_courses = $stmt->fetchAll();
         }
         
         .course-title {
-            font-size: 16px;
+            font-size: 17px;
         }
         
         .course-description {
-            font-size: 13px;
+            font-size: 12px;
+            line-height: 1.4;
         }
         
         .course-stats {
-            font-size: 12px;
+            font-size: 11px;
+            gap: 10px;
+        }
+        
+        /* BUTTONS NOCH PROMINENTER */
+        .course-action {
+            padding: 18px 20px;
+            font-size: 16px;
+            font-weight: 700;
+            min-height: 56px;
+        }
+    }
+    
+    /* Touch-Geräte */
+    @media (hover: none) and (pointer: coarse) {
+        .course-card:hover {
+            transform: none;
+        }
+        
+        .course-action:active {
+            opacity: 0.8;
+            transform: scale(0.98);
         }
     }
 </style>
@@ -540,9 +648,11 @@ $locked_courses = $stmt->fetchAll();
                         <a href="/customer/course-player.php?id=<?php echo $course['id']; ?>" 
                            class="course-action <?php echo $progress > 0 ? 'btn-continue' : 'btn-start'; ?>">
                             <?php if ($progress > 0): ?>
-                                ▶️ Weiter lernen (<?php echo $progress; ?>%)
+                                <span>▶️</span>
+                                <span>Weiter lernen (<?php echo $progress; ?>%)</span>
                             <?php else: ?>
-                                🚀 Kurs starten
+                                <span>🚀</span>
+                                <span>Kurs starten</span>
                             <?php endif; ?>
                         </a>
                     </div>
@@ -616,11 +726,13 @@ $locked_courses = $stmt->fetchAll();
                             <a href="https://www.digistore24.com/product/<?php echo htmlspecialchars($course['digistore_product_id']); ?>" 
                                target="_blank"
                                class="course-action btn-buy">
-                                🛒 Jetzt kaufen
+                                <span>🛒</span>
+                                <span>Jetzt freischalten</span>
                             </a>
                         <?php else: ?>
                             <button class="course-action btn-buy" disabled style="opacity: 0.5; cursor: not-allowed;">
-                                🔒 Nicht verfügbar
+                                <span>🔒</span>
+                                <span>Nicht verfügbar</span>
                             </button>
                         <?php endif; ?>
                     </div>
