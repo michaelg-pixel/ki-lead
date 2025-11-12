@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Template Sync Tool</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #1f2937;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 30px;
+        }
+        
+        .warning {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            color: #92400e;
+        }
+        
+        .warning strong {
+            display: block;
+            margin-bottom: 8px;
+        }
+        
+        .info-box {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+        
+        .info-box h3 {
+            color: #1e40af;
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+        
+        .info-box ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #1e3a8a;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+        }
+        
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .result {
+            margin-top: 24px;
+            padding: 16px;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .result.success {
+            background: #d1fae5;
+            border: 2px solid #10b981;
+            color: #065f46;
+        }
+        
+        .result.error {
+            background: #fee2e2;
+            border: 2px solid #ef4444;
+            color: #991b1b;
+        }
+        
+        .result-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 18px;
+        }
+        
+        .result-message {
+            margin: 0;
+            line-height: 1.6;
+        }
+        
+        pre {
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 13px;
+            margin-top: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Template Sync Tool</h1>
+        <p class="subtitle">Template-Daten in Customer Freebies synchronisieren</p>
+        
+        <div class="warning">
+            <strong>⚠️ Wichtiger Hinweis:</strong>
+            Dieses Tool kopiert die Daten aus der freebies-Tabelle (Admin Template) 
+            in die customer_freebies-Tabelle. Bestehende Customer-Anpassungen werden überschrieben!
+        </div>
+        
+        <div class="info-box">
+            <h3>📋 Was macht dieses Tool?</h3>
+            <ul>
+                <li>Lädt die Original-Daten aus dem Template (freebies-Tabelle)</li>
+                <li>Kopiert alle Texte, Farben, Fonts und Mockup-URL</li>
+                <li>Aktualisiert das Customer Freebie (customer_freebies-Tabelle)</li>
+                <li>Behält Layout-Einstellungen und unique_id bei</li>
+            </ul>
+        </div>
+        
+        <form id="syncForm" onsubmit="return false;">
+            <div class="form-group">
+                <label class="form-label" for="template_id">Template ID</label>
+                <input type="number" 
+                       id="template_id" 
+                       class="form-input" 
+                       value="22" 
+                       min="1" 
+                       required
+                       placeholder="z.B. 22">
+            </div>
+            
+            <button type="button" class="btn" onclick="syncTemplate()">
+                🔄 Template synchronisieren
+            </button>
+        </form>
+        
+        <div id="result" class="result"></div>
+    </div>
+    
+    <script>
+        async function syncTemplate() {
+            const btn = event.target;
+            const result = document.getElementById('result');
+            const templateId = document.getElementById('template_id').value;
+            
+            if (!templateId || templateId < 1) {
+                alert('Bitte gültige Template ID eingeben!');
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.textContent = '⏳ Synchronisiere...';
+            result.style.display = 'none';
+            
+            try {
+                const response = await fetch('sync_template_to_customer.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ template_id: parseInt(templateId) })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    result.className = 'result success';
+                    result.innerHTML = `
+                        <div class="result-title">✅ Synchronisation erfolgreich!</div>
+                        <div class="result-message">
+                            ${data.message}
+                            ${data.details ? `<pre>${data.details}</pre>` : ''}
+                            <p style="margin-top: 16px;">
+                                <strong>Nächster Schritt:</strong> Öffne jetzt den Customer Editor und prüfe, ob alle Inhalte sichtbar sind.
+                            </p>
+                        </div>
+                    `;
+                } else {
+                    result.className = 'result error';
+                    result.innerHTML = `
+                        <div class="result-title">❌ Synchronisation fehlgeschlagen</div>
+                        <div class="result-message">
+                            ${data.error}
+                            ${data.details ? `<pre>${data.details}</pre>` : ''}
+                        </div>
+                    `;
+                }
+                
+                result.style.display = 'block';
+                btn.textContent = '🔄 Template erneut synchronisieren';
+                btn.disabled = false;
+                
+            } catch (error) {
+                result.className = 'result error';
+                result.innerHTML = `
+                    <div class="result-title">❌ Fehler</div>
+                    <div class="result-message">
+                        ${error.message}
+                    </div>
+                `;
+                result.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = '🔄 Erneut versuchen';
+            }
+        }
+    </script>
+</body>
+</html>
