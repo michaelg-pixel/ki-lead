@@ -59,6 +59,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
     $primary_color = $_POST['primary_color'] ?? '#8B5CF6';
     $raw_code = trim($_POST['raw_code'] ?? '');
     
+    // 🆕 POPUP-FELDER
+    $optin_display_mode = $_POST['optin_display_mode'] ?? 'direct';
+    $popup_message = trim($_POST['popup_message'] ?? 'Trage dich jetzt unverbindlich ein und erhalte sofortigen Zugang!');
+    $cta_animation = $_POST['cta_animation'] ?? 'none';
+    
     // Unique ID für die Freebie-Seite
     if (!$customer_freebie) {
         $unique_id = bin2hex(random_bytes(16));
@@ -94,6 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
                     headline_font = ?, headline_size = ?,
                     subheadline_font = ?, subheadline_size = ?,
                     bulletpoints_font = ?, bulletpoints_size = ?,
+                    optin_display_mode = ?, popup_message = ?, cta_animation = ?,
                     updated_at = NOW()
                 WHERE id = ?
             ");
@@ -106,6 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
                 $headline_font, $headline_size,
                 $subheadline_font, $subheadline_size,
                 $bulletpoints_font, $bulletpoints_size,
+                $optin_display_mode, $popup_message, $cta_animation,
                 $customer_freebie['id']
             ]);
             $customer_freebie_id = $customer_freebie['id'];
@@ -122,8 +129,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
                     headline_font, headline_size,
                     subheadline_font, subheadline_size,
                     bulletpoints_font, bulletpoints_size,
+                    optin_display_mode, popup_message, cta_animation,
                     freebie_type, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'template', NOW())
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'template', NOW())
             ");
             $stmt->execute([
                 $customer_id, $template_id, $headline, $subheadline, $preheadline,
@@ -132,7 +140,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_freebie'])) {
                 $preheadline_font, $preheadline_size,
                 $headline_font, $headline_size,
                 $subheadline_font, $subheadline_size,
-                $bulletpoints_font, $bulletpoints_size
+                $bulletpoints_font, $bulletpoints_size,
+                $optin_display_mode, $popup_message, $cta_animation
             ]);
             $customer_freebie_id = $pdo->lastInsertId();
             
@@ -161,7 +170,11 @@ $form_data = [
     'background_color' => ($customer_freebie && array_key_exists('background_color', $customer_freebie)) ? $customer_freebie['background_color'] : ($template['background_color'] ?? '#FFFFFF'),
     'primary_color' => ($customer_freebie && array_key_exists('primary_color', $customer_freebie)) ? $customer_freebie['primary_color'] : ($template['primary_color'] ?? '#8B5CF6'),
     'raw_code' => ($customer_freebie && array_key_exists('raw_code', $customer_freebie)) ? $customer_freebie['raw_code'] : ($template['raw_code'] ?? ($template['custom_raw_code'] ?? '')),
-    'mockup_image_url' => ($customer_freebie && array_key_exists('mockup_image_url', $customer_freebie)) ? $customer_freebie['mockup_image_url'] : ($template['mockup_image_url'] ?? '')
+    'mockup_image_url' => ($customer_freebie && array_key_exists('mockup_image_url', $customer_freebie)) ? $customer_freebie['mockup_image_url'] : ($template['mockup_image_url'] ?? ''),
+    // 🆕 POPUP-FELDER
+    'optin_display_mode' => ($customer_freebie && array_key_exists('optin_display_mode', $customer_freebie)) ? $customer_freebie['optin_display_mode'] : 'direct',
+    'popup_message' => ($customer_freebie && array_key_exists('popup_message', $customer_freebie)) ? $customer_freebie['popup_message'] : 'Trage dich jetzt unverbindlich ein und erhalte sofortigen Zugang!',
+    'cta_animation' => ($customer_freebie && array_key_exists('cta_animation', $customer_freebie)) ? $customer_freebie['cta_animation'] : 'none'
 ];
 ?>
 <!DOCTYPE html>
@@ -281,7 +294,8 @@ $form_data = [
         }
         
         .form-input,
-        .form-textarea {
+        .form-textarea,
+        .form-select {
             width: 100%;
             padding: 12px 16px;
             border: 2px solid #e5e7eb;
@@ -293,7 +307,8 @@ $form_data = [
         }
         
         .form-input:focus,
-        .form-textarea:focus {
+        .form-textarea:focus,
+        .form-select:focus {
             outline: none;
             border-color: #8B5CF6;
         }
@@ -465,97 +480,6 @@ $form_data = [
             min-height: 400px;
         }
         
-        .preview-content {
-            background: white;
-            border-radius: 8px;
-            padding: 30px 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            transform: scale(0.65);
-            transform-origin: top center;
-        }
-        
-        .preview-mockup {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        
-        .preview-mockup img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 8px;
-        }
-        
-        .preview-preheadline {
-            font-size: 9px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 10px;
-        }
-        
-        .preview-headline {
-            font-size: 22px;
-            font-weight: 800;
-            line-height: 1.2;
-            margin-bottom: 10px;
-        }
-        
-        .preview-subheadline {
-            font-size: 13px;
-            color: #6b7280;
-            margin-bottom: 18px;
-            line-height: 1.5;
-        }
-        
-        .preview-bullets {
-            margin-bottom: 18px;
-            text-align: left;
-        }
-        
-        .preview-bullet {
-            display: flex;
-            align-items: start;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-        
-        .preview-bullet-icon {
-            font-size: 14px;
-            flex-shrink: 0;
-        }
-        
-        .preview-bullet-text {
-            font-size: 12px;
-            color: #374151;
-            line-height: 1.4;
-        }
-        
-        .preview-form {
-            background: rgba(0, 0, 0, 0.02);
-            border-radius: 6px;
-            padding: 12px;
-            margin-bottom: 15px;
-        }
-        
-        .preview-cta {
-            text-align: center;
-        }
-        
-        .preview-button {
-            display: inline-block;
-            padding: 10px 30px;
-            border: none;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        
-        .preview-button:hover {
-            transform: translateY(-1px);
-        }
-        
         .save-button {
             width: 100%;
             padding: 16px;
@@ -615,6 +539,63 @@ $form_data = [
             font-size: 13px;
             opacity: 0.95;
             line-height: 1.6;
+        }
+        
+        /* POPUP-STYLES */
+        .popup-toggle-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .toggle-option {
+            position: relative;
+            cursor: pointer;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .toggle-option:hover {
+            border-color: #8B5CF6;
+            background: rgba(139, 92, 246, 0.05);
+        }
+
+        .toggle-option input {
+            position: absolute;
+            opacity: 0;
+        }
+
+        .toggle-option.selected {
+            border-color: #8B5CF6;
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .toggle-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .toggle-name {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .conditional-field {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+
+        .conditional-field.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
         @media (max-width: 1200px) {
@@ -685,38 +666,33 @@ $form_data = [
                             <label class="form-label">Vorüberschrift (optional)</label>
                             <input type="text" name="preheadline" class="form-input" 
                                    value="<?php echo htmlspecialchars($form_data['preheadline']); ?>"
-                                   placeholder="NUR FÜR KURZE ZEIT"
-                                   oninput="updatePreview()">
+                                   placeholder="NUR FÜR KURZE ZEIT">
                         </div>
                         
                         <div class="form-group">
                             <label class="form-label">Hauptüberschrift *</label>
                             <input type="text" name="headline" class="form-input" required
                                    value="<?php echo htmlspecialchars($form_data['headline']); ?>"
-                                   placeholder="Sichere dir jetzt deinen kostenlosen Kurs"
-                                   oninput="updatePreview()">
+                                   placeholder="Sichere dir jetzt deinen kostenlosen Kurs">
                         </div>
                         
                         <div class="form-group">
                             <label class="form-label">Unterüberschrift (optional)</label>
                             <input type="text" name="subheadline" class="form-input"
                                    value="<?php echo htmlspecialchars($form_data['subheadline']); ?>"
-                                   placeholder="Starte noch heute und lerne die besten Strategien"
-                                   oninput="updatePreview()">
+                                   placeholder="Starte noch heute und lerne die besten Strategien">
                         </div>
                         
                         <div class="form-group">
                             <label class="form-label">Bullet Points (eine pro Zeile)</label>
-                            <textarea name="bullet_points" class="form-textarea" style="font-family: inherit;"
-                                      oninput="updatePreview()"><?php echo htmlspecialchars($form_data['bullet_points']); ?></textarea>
+                            <textarea name="bullet_points" class="form-textarea" style="font-family: inherit;"><?php echo htmlspecialchars($form_data['bullet_points']); ?></textarea>
                         </div>
                         
                         <div class="form-group">
                             <label class="form-label">Button Text *</label>
                             <input type="text" name="cta_text" class="form-input" required
                                    value="<?php echo htmlspecialchars($form_data['cta_text']); ?>"
-                                   placeholder="JETZT KOSTENLOS SICHERN"
-                                   oninput="updatePreview()">
+                                   placeholder="JETZT KOSTENLOS SICHERN">
                         </div>
                     </div>
                     
@@ -727,7 +703,7 @@ $form_data = [
                             <label class="layout-option <?php echo $form_data['layout'] === 'hybrid' ? 'selected' : ''; ?>">
                                 <input type="radio" name="layout" value="hybrid" 
                                        <?php echo $form_data['layout'] === 'hybrid' ? 'checked' : ''; ?>
-                                       onchange="updatePreview(); updateLayoutSelection(this)">
+                                       onchange="updateLayoutSelection(this)">
                                 <div class="layout-content">
                                     <div class="layout-icon">⚡</div>
                                     <div class="layout-name">Hybrid</div>
@@ -738,7 +714,7 @@ $form_data = [
                             <label class="layout-option <?php echo $form_data['layout'] === 'centered' ? 'selected' : ''; ?>">
                                 <input type="radio" name="layout" value="centered"
                                        <?php echo $form_data['layout'] === 'centered' ? 'checked' : ''; ?>
-                                       onchange="updatePreview(); updateLayoutSelection(this)">
+                                       onchange="updateLayoutSelection(this)">
                                 <div class="layout-content">
                                     <div class="layout-icon">🎯</div>
                                     <div class="layout-name">Zentriert</div>
@@ -749,7 +725,7 @@ $form_data = [
                             <label class="layout-option <?php echo $form_data['layout'] === 'sidebar' ? 'selected' : ''; ?>">
                                 <input type="radio" name="layout" value="sidebar"
                                        <?php echo $form_data['layout'] === 'sidebar' ? 'checked' : ''; ?>
-                                       onchange="updatePreview(); updateLayoutSelection(this)">
+                                       onchange="updateLayoutSelection(this)">
                                 <div class="layout-content">
                                     <div class="layout-icon">📱</div>
                                     <div class="layout-name">Sidebar</div>
@@ -769,11 +745,11 @@ $form_data = [
                                     <input type="color" id="primary_color_picker" 
                                            value="<?php echo htmlspecialchars($form_data['primary_color']); ?>"
                                            class="color-preview"
-                                           onchange="document.getElementById('primary_color').value = this.value; updatePreview()">
+                                           onchange="document.getElementById('primary_color').value = this.value">
                                     <input type="text" name="primary_color" id="primary_color" 
                                            class="form-input color-input"
                                            value="<?php echo htmlspecialchars($form_data['primary_color']); ?>"
-                                           oninput="document.getElementById('primary_color_picker').value = this.value; updatePreview()">
+                                           oninput="document.getElementById('primary_color_picker').value = this.value">
                                 </div>
                             </div>
                             
@@ -783,12 +759,80 @@ $form_data = [
                                     <input type="color" id="background_color_picker"
                                            value="<?php echo htmlspecialchars($form_data['background_color']); ?>"
                                            class="color-preview"
-                                           onchange="document.getElementById('background_color').value = this.value; updatePreview()">
+                                           onchange="document.getElementById('background_color').value = this.value">
                                     <input type="text" name="background_color" id="background_color"
                                            class="form-input color-input"
                                            value="<?php echo htmlspecialchars($form_data['background_color']); ?>"
-                                           oninput="document.getElementById('background_color_picker').value = this.value; updatePreview()">
+                                           oninput="document.getElementById('background_color_picker').value = this.value">
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- E-MAIL OPTIN ANZEIGE-MODUS -->
+                    <div class="form-section">
+                        <div class="section-title">🎯 E-Mail Optin Anzeige</div>
+                        <div class="info-box">
+                            <div class="info-box-title">💡 Wähle, wie dein E-Mail Optin angezeigt wird</div>
+                            <div class="info-box-text">
+                                <strong>Direkt:</strong> Das Formular wird direkt auf der Seite angezeigt<br>
+                                <strong>Popup:</strong> Ein Button öffnet ein stylisches Popup mit dem Formular
+                            </div>
+                        </div>
+                        
+                        <div class="popup-toggle-options">
+                            <label class="toggle-option <?php echo $form_data['optin_display_mode'] === 'direct' ? 'selected' : ''; ?>">
+                                <input type="radio" name="optin_display_mode" value="direct" 
+                                       <?php echo $form_data['optin_display_mode'] === 'direct' ? 'checked' : ''; ?>
+                                       onchange="togglePopupOptions(this)">
+                                <div class="toggle-content">
+                                    <div class="toggle-icon">📄</div>
+                                    <div class="toggle-name">Direkt anzeigen</div>
+                                </div>
+                            </label>
+                            
+                            <label class="toggle-option <?php echo $form_data['optin_display_mode'] === 'popup' ? 'selected' : ''; ?>">
+                                <input type="radio" name="optin_display_mode" value="popup"
+                                       <?php echo $form_data['optin_display_mode'] === 'popup' ? 'checked' : ''; ?>
+                                       onchange="togglePopupOptions(this)">
+                                <div class="toggle-content">
+                                    <div class="toggle-icon">✨</div>
+                                    <div class="toggle-name">Als Popup</div>
+                                </div>
+                            </label>
+                        </div>
+                        
+                        <!-- Popup-spezifische Optionen -->
+                        <div id="popupOptions" class="conditional-field <?php echo $form_data['optin_display_mode'] === 'popup' ? 'active' : ''; ?>">
+                            <div class="form-group">
+                                <label class="form-label">Popup-Nachricht</label>
+                                <input type="text" name="popup_message" class="form-input"
+                                       value="<?php echo htmlspecialchars($form_data['popup_message']); ?>"
+                                       placeholder="Trage dich jetzt unverbindlich ein!">
+                                <small style="color: #6b7280; font-size: 12px; display: block; margin-top: 4px;">
+                                    Diese Nachricht wird im Popup über dem Formular angezeigt
+                                </small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Button-Animation</label>
+                                <select name="cta_animation" class="form-select">
+                                    <option value="none" <?php echo $form_data['cta_animation'] === 'none' ? 'selected' : ''; ?>>
+                                        Keine Animation
+                                    </option>
+                                    <option value="pulse" <?php echo $form_data['cta_animation'] === 'pulse' ? 'selected' : ''; ?>>
+                                        Pulse (sanft pulsierend) ⭐
+                                    </option>
+                                    <option value="shake" <?php echo $form_data['cta_animation'] === 'shake' ? 'selected' : ''; ?>>
+                                        Shake (wackelnd)
+                                    </option>
+                                    <option value="bounce" <?php echo $form_data['cta_animation'] === 'bounce' ? 'selected' : ''; ?>>
+                                        Bounce (hüpfend)
+                                    </option>
+                                    <option value="glow" <?php echo $form_data['cta_animation'] === 'glow' ? 'selected' : ''; ?>>
+                                        Glow (leuchtend)
+                                    </option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -819,11 +863,30 @@ $form_data = [
                 <div class="preview-panel">
                     <div class="editor-panel">
                         <h2 class="panel-title">👁️ Live-Vorschau</h2>
-                        <div class="preview-box">
-                            <div class="preview-content" id="previewContent">
-                                <!-- Wird durch JavaScript gefüllt -->
+                        
+                        <?php if ($customer_freebie && !empty($customer_freebie['unique_id'])): ?>
+                            <div class="preview-box" style="padding: 0; background: #f9fafb; overflow: hidden; min-height: 700px;">
+                                <iframe 
+                                    id="livePreview"
+                                    src="https://app.mehr-infos-jetzt.de/freebie/index.php?id=<?php echo $customer_freebie['unique_id']; ?>&preview=1" 
+                                    style="width: 125%; height: 1000px; border: 2px dashed #d1d5db; border-radius: 12px; background: white; transform: scale(0.8); transform-origin: top left;"
+                                    frameborder="0">
+                                </iframe>
                             </div>
-                        </div>
+                            <div style="text-align: center; margin-top: 12px; color: #6b7280; font-size: 13px;">
+                                💡 Die Vorschau wird nach dem Speichern automatisch aktualisiert
+                            </div>
+                        <?php else: ?>
+                            <div class="preview-box" style="display: flex; align-items: center; justify-content: center; min-height: 400px; text-align: center;">
+                                <div>
+                                    <div style="font-size: 64px; margin-bottom: 16px;">👀</div>
+                                    <h3 style="color: #374151; margin-bottom: 8px;">Vorschau nicht verfügbar</h3>
+                                    <p style="color: #6b7280; font-size: 14px;">
+                                        Speichere dein Freebie einmal ab, um die Live-Vorschau zu sehen
+                                    </p>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -831,7 +894,23 @@ $form_data = [
     </div>
     
     <script>
-        const mockupUrl = <?php echo json_encode($form_data['mockup_image_url']); ?>;
+        // POPUP-TOGGLE FUNKTION
+        function togglePopupOptions(radio) {
+            const popupOptions = document.getElementById('popupOptions');
+            const isPopup = radio.value === 'popup';
+            
+            if (isPopup) {
+                popupOptions.classList.add('active');
+            } else {
+                popupOptions.classList.remove('active');
+            }
+            
+            // Toggle-Option visuell markieren
+            document.querySelectorAll('.toggle-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            radio.closest('.toggle-option').classList.add('selected');
+        }
         
         function updateLayoutSelection(radio) {
             document.querySelectorAll('.layout-option').forEach(opt => {
@@ -840,127 +919,22 @@ $form_data = [
             radio.closest('.layout-option').classList.add('selected');
         }
         
-        function updatePreview() {
-            const preheadline = document.querySelector('input[name="preheadline"]').value;
-            const headline = document.querySelector('input[name="headline"]').value;
-            const subheadline = document.querySelector('input[name="subheadline"]').value;
-            const bulletPoints = document.querySelector('textarea[name="bullet_points"]').value;
-            const ctaText = document.querySelector('input[name="cta_text"]').value;
-            const layout = document.querySelector('input[name="layout"]:checked').value;
-            const primaryColor = document.getElementById('primary_color').value;
-            const backgroundColor = document.getElementById('background_color').value;
-            
-            const previewContent = document.getElementById('previewContent');
-            previewContent.style.background = backgroundColor;
-            
-            const textAlign = (layout === 'centered') ? 'center' : 'center';
-            
-            let bulletHTML = '';
-            if (bulletPoints.trim()) {
-                const bullets = bulletPoints.split('\n').filter(b => b.trim());
-                bulletHTML = bullets.map(bullet => {
-                    const cleanBullet = bullet.replace(/^[✓✔︎•-]\s*/, '');
-                    return `
-                        <div class="preview-bullet">
-                            <span class="preview-bullet-icon" style="color: ${primaryColor};">✓</span>
-                            <span class="preview-bullet-text">${escapeHtml(cleanBullet)}</span>
-                        </div>
-                    `;
-                }).join('');
-                bulletHTML = `<div class="preview-bullets">${bulletHTML}</div>`;
-            }
-            
-            let mockupHTML = '';
-            if (mockupUrl) {
-                mockupHTML = `
-                    <div class="preview-mockup">
-                        <img src="${escapeHtml(mockupUrl)}" alt="Mockup" style="max-width: 180px;">
-                    </div>
-                `;
-            }
-            
-            const preheadlineHTML = preheadline ? `
-                <div class="preview-preheadline" style="color: ${primaryColor}; text-align: ${textAlign};">
-                    ${escapeHtml(preheadline)}
-                </div>
-            ` : '';
-            
-            const headlineHTML = `
-                <div class="preview-headline" style="color: ${primaryColor}; text-align: ${textAlign};">
-                    ${escapeHtml(headline || 'Deine Hauptüberschrift')}
-                </div>
-            `;
-            
-            const subheadlineHTML = subheadline ? `
-                <div class="preview-subheadline" style="text-align: ${textAlign};">${escapeHtml(subheadline)}</div>
-            ` : '';
-            
-            const ctaHTML = `
-                <div class="preview-cta" style="text-align: ${textAlign};">
-                    <button class="preview-button" style="background: ${primaryColor}; color: white;">
-                        ${escapeHtml(ctaText || 'BUTTON TEXT')}
-                    </button>
-                </div>
-            `;
-            
-            let layoutHTML = '';
-            
-            if (layout === 'centered') {
-                layoutHTML = `
-                    <div style="max-width: 800px; margin: 0 auto;">
-                        ${preheadlineHTML}
-                        ${headlineHTML}
-                        ${subheadlineHTML}
-                        ${mockupHTML}
-                        ${bulletHTML}
-                        ${ctaHTML}
-                    </div>
-                `;
-            } else if (layout === 'hybrid') {
-                layoutHTML = `
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
-                        <div>
-                            ${mockupHTML}
-                        </div>
-                        <div>
-                            ${preheadlineHTML}
-                            ${headlineHTML}
-                            ${subheadlineHTML}
-                            ${bulletHTML}
-                            ${ctaHTML}
-                        </div>
-                    </div>
-                `;
-            } else { // sidebar
-                layoutHTML = `
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: center;">
-                        <div>
-                            ${preheadlineHTML}
-                            ${headlineHTML}
-                            ${subheadlineHTML}
-                            ${bulletHTML}
-                            ${ctaHTML}
-                        </div>
-                        <div>
-                            ${mockupHTML}
-                        </div>
-                    </div>
-                `;
-            }
-            
-            previewContent.innerHTML = layoutHTML;
-        }
-        
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-        
-        // Initial preview
+        // Nach erfolgreichem Speichern: iFrame neu laden
+        <?php if (isset($success_message) && $customer_freebie): ?>
         document.addEventListener('DOMContentLoaded', function() {
-            updatePreview();
+            const iframe = document.getElementById('livePreview');
+            if (iframe) {
+                // Cache-Bust mit Timestamp
+                const currentSrc = iframe.src.split('&t=')[0];
+                iframe.src = currentSrc + '&t=' + Date.now();
+                
+                // Smooth scroll zur Vorschau
+                setTimeout(function() {
+                    iframe.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 500);
+            }
         });
+        <?php endif; ?>
     </script>
 </body>
 </html>
