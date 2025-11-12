@@ -1,7 +1,7 @@
 <?php
 /**
  * Customer Dashboard - Overview Section
- * KORRIGIERT: Zählt nur Freebies die noch existieren (JOIN mit freebies Tabelle)
+ * KORRIGIERT: Verwendet richtige Spaltennamen (template_id, user_id)
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -11,17 +11,17 @@ if (!isset($customer_id)) {
 
 // ===== ECHTE STATISTIKEN ABRUFEN =====
 try {
-    // Freigeschaltete Freebies - NUR die noch existieren!
+    // 1. Freigeschaltete Freebies - KORRIGIERT: template_id und user_id
     $stmt_freebies = $pdo->prepare("
         SELECT COUNT(*) 
         FROM customer_freebies cf
-        INNER JOIN freebies f ON cf.freebie_id = f.id
-        WHERE cf.customer_id = ?
+        INNER JOIN freebies f ON cf.template_id = f.id
+        WHERE cf.user_id = ?
     ");
     $stmt_freebies->execute([$customer_id]);
     $freebies_unlocked = $stmt_freebies->fetchColumn();
     
-    // Videokurse
+    // 2. Videokurse
     $stmt_courses = $pdo->prepare("
         SELECT COUNT(*) FROM course_access 
         WHERE user_id = ?
@@ -29,33 +29,22 @@ try {
     $stmt_courses->execute([$customer_id]);
     $courses_count = $stmt_courses->fetchColumn();
     
-    // ECHTE KLICKS aus freebie_click_analytics - KORRIGIERT
+    // 3. ECHTE KLICKS - KORRIGIERT: user_id statt customer_id
     try {
         $stmt_clicks = $pdo->prepare("
             SELECT COALESCE(SUM(click_count), 0) 
             FROM freebie_click_analytics 
-            WHERE customer_id = ?
+            WHERE user_id = ?
             AND click_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
         ");
         $stmt_clicks->execute([$customer_id]);
         $total_clicks = $stmt_clicks->fetchColumn();
     } catch (PDOException $e) {
-        // Fallback: customer_tracking
-        try {
-            $stmt_clicks = $pdo->prepare("
-                SELECT COUNT(*) FROM customer_tracking 
-                WHERE user_id = ? 
-                AND type = 'click'
-                AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-            ");
-            $stmt_clicks->execute([$customer_id]);
-            $total_clicks = $stmt_clicks->fetchColumn();
-        } catch (PDOException $e2) {
-            $total_clicks = 0;
-        }
+        // Fallback wenn Tabelle nicht existiert
+        $total_clicks = 0;
     }
     
-    // ECHTE SEITENAUFRUFE
+    // 4. Seitenaufrufe (optional - nur wenn Tabelle existiert)
     try {
         $stmt_page_views = $pdo->prepare("
             SELECT COUNT(*) FROM customer_tracking 
@@ -69,7 +58,7 @@ try {
         $total_page_views = 0;
     }
     
-    // Durchschnittliche Verweildauer
+    // 5. Verweildauer (optional)
     try {
         $stmt_avg_time = $pdo->prepare("
             SELECT AVG(duration) FROM customer_tracking 
@@ -83,7 +72,7 @@ try {
         $avg_time_spent = 0;
     }
     
-    // Heute's Aktivitäten
+    // 6. Heute's Aktivitäten (optional)
     try {
         $stmt_today = $pdo->prepare("
             SELECT COUNT(*) FROM customer_tracking 
@@ -96,7 +85,7 @@ try {
         $today_activities = 0;
     }
     
-    // Top 5 meistbesuchte Seiten
+    // 7. Top 5 meistbesuchte Seiten (optional)
     try {
         $stmt_top_pages = $pdo->prepare("
             SELECT page, COUNT(*) as visits 
@@ -114,7 +103,7 @@ try {
         $top_pages = [];
     }
     
-    // Aktivitätsverlauf (Letzte 7 Tage)
+    // 8. Aktivitätsverlauf (optional)
     try {
         $stmt_activity_chart = $pdo->prepare("
             SELECT DATE(created_at) as date, COUNT(*) as count
@@ -130,7 +119,7 @@ try {
         $activity_chart_data = [];
     }
     
-    // Neue Kurse prüfen
+    // 9. Neue Kurse
     $stmt_new_courses = $pdo->prepare("
         SELECT c.id, c.title, c.description, c.thumbnail, c.is_premium 
         FROM courses c
@@ -269,7 +258,6 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
             50% { opacity: 0.5; }
         }
         
-        /* ===== NEUE PULSIERENDE BUTTON ANIMATION ===== */
         @keyframes buttonPulse {
             0% {
                 box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7),
