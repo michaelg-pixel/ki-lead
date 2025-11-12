@@ -366,10 +366,10 @@ $locked_courses = $stmt->fetchAll();
         }
     }
     
-    /* MOBILE OPTIMIERUNGEN */
+    /* MOBILE OPTIMIERUNGEN - MEHR PLATZ AM UNTEREN RAND */
     @media (max-width: 768px) {
         .courses-container {
-            padding: 20px 16px;
+            padding: 20px 16px 80px 16px; /* 80px Platz am unteren Rand */
         }
         
         .page-header {
@@ -396,10 +396,12 @@ $locked_courses = $stmt->fetchAll();
         .courses-grid {
             grid-template-columns: 1fr;
             gap: 20px;
+            margin-bottom: 40px; /* Extra Platz nach jedem Grid */
         }
         
         .course-card {
             border-radius: 12px;
+            margin-bottom: 8px; /* Extra Spacing zwischen Karten */
         }
         
         .course-thumbnail {
@@ -427,6 +429,7 @@ $locked_courses = $stmt->fetchAll();
         
         .course-content {
             padding: 20px;
+            padding-bottom: 24px; /* Mehr Platz am unteren Rand der Karte */
         }
         
         .course-title {
@@ -447,10 +450,10 @@ $locked_courses = $stmt->fetchAll();
         }
         
         .course-progress {
-            margin-bottom: 14px;
+            margin-bottom: 16px; /* Mehr Abstand vor Button */
         }
         
-        /* MOBILE BUTTONS - VIEL GRÖSSER UND BESSER SICHTBAR */
+        /* MOBILE BUTTONS */
         .course-action {
             padding: 16px 20px;
             font-size: 15px;
@@ -462,6 +465,7 @@ $locked_courses = $stmt->fetchAll();
             justify-content: center;
             gap: 8px;
             letter-spacing: 0.3px;
+            margin-bottom: 4px; /* Kleiner Puffer am unteren Rand */
         }
         
         /* Touch-Feedback für Mobile */
@@ -471,6 +475,7 @@ $locked_courses = $stmt->fetchAll();
         
         .empty-state {
             padding: 60px 20px;
+            margin-bottom: 40px;
         }
         
         .empty-icon {
@@ -486,10 +491,10 @@ $locked_courses = $stmt->fetchAll();
         }
     }
     
-    /* EXTRA KLEINE BILDSCHIRME */
+    /* EXTRA KLEINE BILDSCHIRME - NOCH MEHR PLATZ */
     @media (max-width: 480px) {
         .courses-container {
-            padding: 16px 12px;
+            padding: 16px 12px 100px 12px; /* 100px Platz am unteren Rand */
         }
         
         .page-header {
@@ -508,6 +513,10 @@ $locked_courses = $stmt->fetchAll();
             font-size: 16px;
         }
         
+        .courses-grid {
+            margin-bottom: 60px; /* Extra Platz nach Grid */
+        }
+        
         .course-thumbnail {
             height: 180px;
         }
@@ -518,6 +527,7 @@ $locked_courses = $stmt->fetchAll();
         
         .course-content {
             padding: 16px;
+            padding-bottom: 20px;
         }
         
         .course-title {
@@ -534,12 +544,12 @@ $locked_courses = $stmt->fetchAll();
             gap: 10px;
         }
         
-        /* BUTTONS NOCH PROMINENTER */
         .course-action {
             padding: 18px 20px;
             font-size: 16px;
             font-weight: 700;
             min-height: 56px;
+            margin-bottom: 8px;
         }
     }
     
