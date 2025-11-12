@@ -147,6 +147,10 @@ $page = $_GET['page'] ?? 'overview';
                 <span class="nav-icon">🛒</span>
                 <span>Digistore24</span>
             </a>
+            <a href="?page=webhooks" class="nav-item <?php echo $page === 'webhooks' ? 'active' : ''; ?>">
+                <span class="nav-icon">🔗</span>
+                <span>Webhooks</span>
+            </a>
             <a href="?page=settings" class="nav-item <?php echo $page === 'settings' ? 'active' : ''; ?>">
                 <span class="nav-icon">⚙️</span>
                 <span>Einstellungen</span>
@@ -185,6 +189,7 @@ $page = $_GET['page'] ?? 'overview';
                         'referrals' => 'Empfehlungsprogramm-Übersicht',
                         'jv-check' => 'JV Check Verifizierung',
                         'digistore' => 'Digistore24 Integration',
+                        'webhooks' => 'Flexible Webhook-Verwaltung',
                         'settings' => 'Einstellungen',
                         'profile' => 'Admin-Profil'
                     ];
@@ -318,6 +323,9 @@ $page = $_GET['page'] ?? 'overview';
             
             <?php elseif ($page === 'digistore'): ?>
                 <?php include 'sections/digistore.php'; ?>
+            
+            <?php elseif ($page === 'webhooks'): ?>
+                <?php include 'sections/webhooks.php'; ?>
             
             <?php elseif ($page === 'settings'): ?>
                 <?php include 'sections/settings.php'; ?>
