@@ -1,7 +1,7 @@
 <?php
 /**
- * Digistore24 Webhook-Zentrale - VERSION 3.3
- * KORRIGIERT: Sync-Buttons beziehen sich auf spezifisches Produkt
+ * Digistore24 Webhook-Zentrale - VERSION 3.4
+ * MIT LINK ZUM NEUEN FLEXIBLEN WEBHOOK-SYSTEM
  */
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
@@ -22,6 +22,14 @@ $products = $pdo->query("
 $activeProducts = $pdo->query("SELECT COUNT(*) FROM digistore_products WHERE is_active = 1")->fetchColumn();
 $totalCustomers = $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'customer'")->fetchColumn();
 $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
+
+// Neue Webhook-System Statistiken
+$flexibleWebhooks = 0;
+try {
+    $flexibleWebhooks = $pdo->query("SELECT COUNT(*) FROM webhook_configurations WHERE is_active = 1")->fetchColumn();
+} catch (PDOException $e) {
+    // Tabelle existiert noch nicht
+}
 ?>
 
 <style>
@@ -29,6 +37,77 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
     padding: 30px;
     max-width: 1400px;
     margin: 0 auto;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.header-title h1 {
+    margin: 0 0 8px 0;
+    font-size: 32px;
+    color: #1f2937;
+}
+
+.header-title p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.new-system-banner {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    padding: 20px 24px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 30px;
+    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
+}
+
+.new-system-banner .icon {
+    font-size: 48px;
+}
+
+.new-system-banner .content {
+    flex: 1;
+}
+
+.new-system-banner h3 {
+    margin: 0 0 6px 0;
+    font-size: 20px;
+}
+
+.new-system-banner p {
+    margin: 0;
+    opacity: 0.95;
+    font-size: 14px;
+}
+
+.new-system-banner .btn-new-system {
+    background: white;
+    color: #059669;
+    padding: 12px 24px;
+    border-radius: 10px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.new-system-banner .btn-new-system:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(255, 255, 255, 0.3);
 }
 
 .alert {
@@ -131,6 +210,23 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+}
+
+.section-title {
+    font-size: 24px;
+    color: #1f2937;
+    margin: 40px 0 20px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.section-title::before {
+    content: '';
+    width: 4px;
+    height: 24px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 2px;
 }
 
 .products-grid {
@@ -438,6 +534,17 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
         padding: 20px;
     }
     
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+    
+    .new-system-banner {
+        flex-direction: column;
+        text-align: center;
+    }
+    
     .product-features {
         grid-template-columns: 1fr;
     }
@@ -454,6 +561,31 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
 </style>
 
 <div class="digistore-container">
+    <!-- NEU: Banner für neues Webhook-System -->
+    <?php if ($flexibleWebhooks > 0): ?>
+        <div class="new-system-banner">
+            <div class="icon">✨</div>
+            <div class="content">
+                <h3>Neues flexibles Webhook-System aktiv!</h3>
+                <p>Du hast <?php echo $flexibleWebhooks; ?> flexible Webhook<?php echo $flexibleWebhooks > 1 ? 's' : ''; ?> mit Multi-Produkt-IDs und Upsell-Support</p>
+            </div>
+            <a href="/admin/dashboard.php?page=webhooks" class="btn-new-system">
+                🚀 Webhooks verwalten
+            </a>
+        </div>
+    <?php else: ?>
+        <div class="new-system-banner">
+            <div class="icon">🔗</div>
+            <div class="content">
+                <h3>Neues flexibles Webhook-System verfügbar!</h3>
+                <p>Erstelle unbegrenzt viele Webhooks mit mehreren Produkt-IDs, flexiblen Ressourcen und Upsell-Support</p>
+            </div>
+            <a href="/admin/dashboard.php?page=webhooks" class="btn-new-system">
+                ➕ Erste Webhooks erstellen
+            </a>
+        </div>
+    <?php endif; ?>
+
     <?php if ($success === 'updated'): ?>
         <div class="alert alert-success">
             <span style="font-size: 24px;">✅</span>
@@ -481,13 +613,20 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
             <code id="webhookUrl"><?php echo $webhookUrl; ?></code>
             <button class="copy-btn" onclick="copyWebhookUrl()">📋 Kopieren</button>
         </div>
+        <p style="margin: 12px 0 0 0; opacity: 0.9; font-size: 13px;">
+            💡 <strong>Hinweis:</strong> Diese URL funktioniert für BEIDE Systeme (alte + neue Webhooks)
+        </p>
     </div>
     
     <!-- Statistiken -->
     <div class="stats-row">
         <div class="stat-box">
-            <h4>Aktive Produkte</h4>
+            <h4>Aktive Legacy-Produkte</h4>
             <div class="stat-value"><?php echo $activeProducts; ?></div>
+        </div>
+        <div class="stat-box">
+            <h4>Flexible Webhooks</h4>
+            <div class="stat-value"><?php echo $flexibleWebhooks; ?></div>
         </div>
         <div class="stat-box">
             <h4>Gesamtkunden</h4>
@@ -499,15 +638,12 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
         </div>
     </div>
     
+    <h2 class="section-title">Legacy Produkt-Webhooks</h2>
+    
     <div class="help-text">
-        <strong>📖 Anleitung:</strong>
-        1. Trage unten bei jedem Produkt die Digistore24 Produkt-ID ein<br>
-        2. Passe die <strong>Limits</strong> nach Bedarf an (klicke auf die Zahlen)<br>
-        3. Aktiviere das Produkt mit dem Schalter<br>
-        4. Speichere die Änderungen<br>
-        5. Nutze <strong>"🔄 Kunden aktualisieren"</strong> um Limits für bereits verknüpfte Kunden anzuwenden<br>
-        6. Nutze <strong>"🌐 Inkl. manuell angelegte"</strong> um auch manuell angelegte Kunden MIT DIESEM PRODUKT einzubeziehen<br>
-        7. Der Webhook erkennt automatisch welches Produkt gekauft wurde!
+        <strong>📖 Legacy-System Anleitung:</strong>
+        Dieses System bleibt voll funktionsfähig! Es verwendet fest definierte Produkte mit einzelnen Produkt-IDs.<br><br>
+        <strong>🆕 Für neue Webhooks:</strong> Nutze das <a href="/admin/dashboard.php?page=webhooks" style="color: #667eea; font-weight: bold;">neue flexible Webhook-System</a> mit Multi-Produkt-IDs und Upsell-Support!
     </div>
     
     <!-- Produkte -->
@@ -515,7 +651,7 @@ $webhookUrl = 'https://app.mehr-infos-jetzt.de/webhook/digistore24.php';
         <?php if (empty($products)): ?>
             <div class="empty-state">
                 <div class="empty-state-icon">🛒</div>
-                <p>Keine Produkte gefunden.</p>
+                <p>Keine Legacy-Produkte gefunden.</p>
                 <p style="font-size: 14px; margin-top: 12px;">
                     <a href="/database/install-products.php" style="color: #667eea;">→ Produkte installieren</a>
                 </p>
