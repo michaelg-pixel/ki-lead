@@ -379,7 +379,7 @@ $page = $_GET['page'] ?? 'overview';
             </a>
             <a href="?page=ki-prompt" class="nav-item <?php echo $page === 'ki-prompt' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
                 <span class="nav-icon">🤖</span>
-                <span>KI Prompt</span>
+                <span>KI Agent</span>
             </a>
             <a href="?page=einstellungen" class="nav-item <?php echo $page === 'einstellungen' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
                 <span class="nav-icon">⚙️</span>
