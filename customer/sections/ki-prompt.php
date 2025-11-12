@@ -1,6 +1,6 @@
 <?php
 /**
- * KI Prompt Seite
+ * KI Agent Seite
  * Zugriff auf Henry Landmanns KI Tools
  */
 
@@ -186,7 +186,7 @@ if (!defined('INCLUDED_FROM_DASHBOARD')) {
 
 <div class="ki-prompt-container">
     <div class="ki-header">
-        <h1>🤖 KI Prompt Tools</h1>
+        <h1>🤖 KI Agent Tools</h1>
         <p>Professionelle KI-Tools im Stil von Henry Landmann</p>
     </div>
     
@@ -276,6 +276,29 @@ if (!defined('INCLUDED_FROM_DASHBOARD')) {
                 <div class="feature-item">Professionelle Templates</div>
             </div>
             <a href="https://chatgpt.com/g/g-6908a069a1b0819188bf762e194f29db-produkt-cover-designer" 
+               target="_blank" 
+               rel="noopener noreferrer" 
+               class="tool-button">
+                <span>Tool öffnen</span>
+                <i class="fas fa-external-link-alt"></i>
+            </a>
+        </div>
+        
+        <!-- Report E-Book Creator -->
+        <div class="tool-card">
+            <div class="tool-icon">📚</div>
+            <h3 class="tool-title">Report E-Book Creator</h3>
+            <p class="tool-description">
+                Erstellt hochwertige Reports / E-Books im PDF-Format inklusive Produkt Cover + Texte für Leadpage.
+            </p>
+            <div class="tool-features">
+                <div class="tool-features-title">Beispiel Funktionen:</div>
+                <div class="feature-item">Professionelle PDF-Reports erstellen</div>
+                <div class="feature-item">E-Book Design & Layout</div>
+                <div class="feature-item">Produkt Cover Generation</div>
+                <div class="feature-item">Leadpage-optimierte Texte</div>
+            </div>
+            <a href="https://chatgpt.com/g/g-690b11cb92008191866aa4ec84d24d95-report-und-leadmagnet-generator" 
                target="_blank" 
                rel="noopener noreferrer" 
                class="tool-button">
