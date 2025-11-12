@@ -579,6 +579,21 @@ $error = $_GET['error'] ?? '';
     height: 20px;
 }
 
+.loading-indicator {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f4f6;
+    border-top: 3px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -916,9 +931,57 @@ function toggleUpsellOptions() {
     document.getElementById('upsellBehaviorGroup').style.display = isUpsell ? 'block' : 'none';
 }
 
-function editWebhook(id) {
-    // TODO: Load webhook data and populate form
-    alert('Edit-Funktion wird implementiert');
+async function editWebhook(id) {
+    try {
+        // Modal öffnen und Ladeindikator anzeigen
+        document.getElementById('modalTitle').innerHTML = '✏️ Webhook bearbeiten <span class="loading-indicator"></span>';
+        document.getElementById('webhookModal').classList.add('active');
+        
+        // Webhook-Daten laden
+        const response = await fetch(`/admin/api/webhooks/get.php?webhook_id=${id}`);
+        const result = await response.json();
+        
+        if (!result.success) {
+            alert('❌ Fehler beim Laden: ' + result.error);
+            closeModal();
+            return;
+        }
+        
+        const webhook = result.webhook;
+        
+        // Formular befüllen
+        document.getElementById('webhook_id').value = webhook.id;
+        document.getElementById('name').value = webhook.name || '';
+        document.getElementById('description').value = webhook.description || '';
+        document.getElementById('own_freebies_limit').value = webhook.own_freebies_limit || 0;
+        document.getElementById('ready_freebies_count').value = webhook.ready_freebies_count || 0;
+        document.getElementById('referral_slots').value = webhook.referral_slots || 0;
+        
+        // Produkt-IDs setzen
+        productIds = result.product_ids || [];
+        updateProductIdsList();
+        
+        // Kurse auswählen
+        document.querySelectorAll('input[name="courses[]"]').forEach(checkbox => {
+            checkbox.checked = result.course_ids.includes(parseInt(checkbox.value));
+        });
+        
+        // Upsell-Optionen
+        document.getElementById('is_upsell').checked = webhook.is_upsell == 1;
+        document.getElementById('upsell_behavior').value = webhook.upsell_behavior || 'add';
+        toggleUpsellOptions();
+        
+        // Aktiv-Status
+        document.getElementById('is_active').checked = webhook.is_active == 1;
+        
+        // Titel aktualisieren (Ladeindikator entfernen)
+        document.getElementById('modalTitle').textContent = '✏️ Webhook bearbeiten';
+        
+    } catch (error) {
+        console.error('Fehler beim Laden:', error);
+        alert('❌ Verbindungsfehler beim Laden der Webhook-Daten');
+        closeModal();
+    }
 }
 
 function viewActivity(id) {
