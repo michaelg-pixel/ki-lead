@@ -8,6 +8,65 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     die('Zugriff verweigert');
 }
 
+// Prüfen ob Tabellen existieren
+try {
+    $tableCheck = $pdo->query("SHOW TABLES LIKE 'webhook_configurations'")->fetch();
+    if (!$tableCheck) {
+        // Tabellen existieren noch nicht - Migration erforderlich
+        ?>
+        <div style="max-width: 800px; margin: 50px auto; padding: 40px; background: white; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <div style="font-size: 64px; margin-bottom: 16px;">🔧</div>
+                <h2 style="margin: 0 0 12px 0; color: #1f2937; font-size: 28px;">Migration erforderlich</h2>
+                <p style="color: #6b7280; margin: 0;">Das Webhook-System muss zuerst installiert werden.</p>
+            </div>
+            
+            <div style="background: #f0f9ff; border-left: 4px solid #3b82f6; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+                <p style="margin: 0; color: #1e40af; line-height: 1.6;">
+                    <strong>📋 Installationsschritte:</strong><br><br>
+                    1. Öffne die Migration in einem neuen Tab<br>
+                    2. Klicke auf "Migration starten"<br>
+                    3. Warte bis "Migration erfolgreich" erscheint<br>
+                    4. Kehre hierher zurück und lade die Seite neu
+                </p>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="/database/migrate-webhook-system.html" 
+                   target="_blank"
+                   style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                          color: white; padding: 16px 32px; border-radius: 12px; text-decoration: none; 
+                          font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+                    🚀 Migration jetzt ausführen
+                </a>
+            </div>
+            
+            <div style="margin-top: 30px; padding-top: 30px; border-top: 2px solid #f3f4f6;">
+                <p style="color: #6b7280; font-size: 14px; margin: 0 0 12px 0;">
+                    <strong>💡 Was wird installiert?</strong>
+                </p>
+                <ul style="color: #6b7280; font-size: 14px; line-height: 1.8; margin: 0; padding-left: 20px;">
+                    <li>webhook_configurations - Haupttabelle für Webhooks</li>
+                    <li>webhook_product_ids - Mehrere Produkt-IDs pro Webhook</li>
+                    <li>webhook_course_access - Flexible Kurszuweisungen</li>
+                    <li>webhook_ready_freebies - Spezifische Freebie-Templates</li>
+                    <li>webhook_activity_log - Aktivitäts-Tracking</li>
+                </ul>
+            </div>
+            
+            <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 16px; border-radius: 8px; margin-top: 20px;">
+                <p style="margin: 0; color: #856404; font-size: 13px;">
+                    <strong>⚠️ Hinweis:</strong> Deine bestehenden digistore_products Webhooks bleiben vollständig erhalten!
+                </p>
+            </div>
+        </div>
+        <?php
+        return;
+    }
+} catch (PDOException $e) {
+    die('<div style="padding: 40px; text-align: center; color: #ef4444;">Datenbankfehler: ' . htmlspecialchars($e->getMessage()) . '</div>');
+}
+
 // Alle Webhooks laden
 $webhooks = $pdo->query("
     SELECT 
