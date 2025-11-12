@@ -343,11 +343,8 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <?php endif; ?>
                             
                             <div class="freebie-actions <?php echo $hasCourse ? 'has-course' : ''; ?>">
-                                <?php if ($isUsed): ?>
-                                    <a href="/customer/freebie-preview.php?id=<?php echo $customerData['customer_freebie_id']; ?>" class="btn btn-preview">👁️ Vorschau</a>
-                                <?php else: ?>
-                                    <a href="/template-preview.php?template_id=<?php echo $template['id']; ?>" class="btn btn-preview" target="_blank">👁️ Vorschau</a>
-                                <?php endif; ?>
+                                <!-- GEÄNDERT: Vorschau-Link führt immer zum finalen Freebie-Link -->
+                                <a href="/customer/template-preview-redirect.php?template_id=<?php echo $template['id']; ?>" class="btn btn-preview" target="_blank">👁️ Vorschau</a>
                                 <a href="/customer/freebie-editor.php?template_id=<?php echo $template['id']; ?>" class="btn btn-edit">
                                     <?php echo $isUsed ? '✏️ Bearbeiten' : '✨ Nutzen'; ?>
                                 </a>
