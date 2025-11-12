@@ -310,6 +310,12 @@ $page = $_GET['page'] ?? 'overview';
             }
         }
     </style>
+    
+    <!-- Chatling.ai Chatbot -->
+    <script>
+        window.chtlConfig = { chatbotId: "1774412542" }
+    </script>
+    <script async data-id="1774412542" id="chtl-script" type="text/javascript" src="https://chatling.ai/js/embed.js"></script>
 </head>
 <body>
     <!-- Mobile Header -->
