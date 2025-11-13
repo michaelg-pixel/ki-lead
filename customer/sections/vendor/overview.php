@@ -14,8 +14,7 @@ $stmt = $pdo->prepare("
         COUNT(*) as total_templates,
         SUM(CASE WHEN is_published = 1 THEN 1 ELSE 0 END) as published_templates,
         SUM(times_imported) as total_imports,
-        SUM(times_claimed) as total_claims,
-        SUM(total_revenue) as total_revenue
+        SUM(times_claimed) as total_claims
     FROM vendor_reward_templates
     WHERE vendor_id = ?
 ");
@@ -293,6 +292,16 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <div class="stat-card">
             <div class="stat-card-header">
                 <div>
+                    <div class="stat-value"><?php echo $stats['published_templates'] ?? 0; ?></div>
+                    <div class="stat-label">Veröffentlicht</div>
+                </div>
+                <div class="stat-icon">📢</div>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-card-header">
+                <div>
                     <div class="stat-value"><?php echo $stats['total_imports'] ?? 0; ?></div>
                     <div class="stat-label">Imports</div>
                 </div>
@@ -307,16 +316,6 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <div class="stat-label">Claims</div>
                 </div>
                 <div class="stat-icon">✅</div>
-            </div>
-        </div>
-        
-        <div class="stat-card">
-            <div class="stat-card-header">
-                <div>
-                    <div class="stat-value"><?php echo number_format($stats['total_revenue'] ?? 0, 2, ',', '.'); ?>€</div>
-                    <div class="stat-label">Umsatz</div>
-                </div>
-                <div class="stat-icon">💰</div>
             </div>
         </div>
     </div>
