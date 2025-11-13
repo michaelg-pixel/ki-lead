@@ -160,8 +160,51 @@ $referralEnabled = $user['referral_enabled'] ?? 0;
 $referralCode = $user['ref_code'] ?? '';
 $baseUrl = 'https://app.mehr-infos-jetzt.de';
 
-// Verfügbare Provider
-$providers = EmailProviderFactory::getSupportedProviders();
+// Verfügbare Provider mit API URL Info
+$providers = [
+    'quentn' => [
+        'name' => 'Quentn',
+        'requires_api_url' => true,
+        'api_url_placeholder' => 'https://YOUR-ID.quentn.com',
+        'api_url_help' => 'Format: https://system_id.server_id.quentn.com',
+        'supports_tags' => true,
+        'supports_campaigns' => true,
+        'supports_direct_email' => true,
+    ],
+    'activecampaign' => [
+        'name' => 'ActiveCampaign',
+        'requires_api_url' => true,
+        'api_url_placeholder' => 'https://YOUR-ACCOUNT.api-us1.com',
+        'api_url_help' => 'Zu finden in Settings → Developer',
+        'supports_tags' => true,
+        'supports_campaigns' => true,
+        'supports_direct_email' => true,
+    ],
+    'klicktipp' => [
+        'name' => 'Klick-Tipp',
+        'requires_api_url' => false,
+        'default_api_url' => 'http://api.klicktipp.com',
+        'supports_tags' => true,
+        'supports_campaigns' => false,
+        'supports_direct_email' => false,
+    ],
+    'brevo' => [
+        'name' => 'Brevo (Sendinblue)',
+        'requires_api_url' => false,
+        'default_api_url' => 'https://api.brevo.com/v3',
+        'supports_tags' => true,
+        'supports_campaigns' => true,
+        'supports_direct_email' => true,
+    ],
+    'getresponse' => [
+        'name' => 'GetResponse',
+        'requires_api_url' => false,
+        'default_api_url' => 'https://api.getresponse.com/v3',
+        'supports_tags' => true,
+        'supports_campaigns' => true,
+        'supports_direct_email' => true,
+    ],
+];
 ?>
 
 <!DOCTYPE html>
@@ -222,6 +265,16 @@ $providers = EmailProviderFactory::getSupportedProviders();
         
         input:checked + .toggle-slider:before {
             transform: translateX(30px);
+        }
+        
+        /* Freebie Mockup Image */
+        .freebie-mockup {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 0.75rem;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            flex-shrink: 0;
         }
         
         /* API Setup Box */
@@ -560,6 +613,11 @@ $providers = EmailProviderFactory::getSupportedProviders();
             .btn-copy-url {
                 width: 100%;
             }
+            
+            .freebie-mockup {
+                width: 60px;
+                height: 60px;
+            }
         }
     </style>
 </head>
@@ -705,6 +763,17 @@ $providers = EmailProviderFactory::getSupportedProviders();
                                     <i class="fas fa-key"></i> API-Zugangsdaten
                                 </h4>
                                 
+                                <?php if ($provider['requires_api_url']): ?>
+                                <div class="form-group">
+                                    <label class="form-label">
+                                        API URL <span class="required">*</span>
+                                    </label>
+                                    <input type="url" name="api_url" class="form-input" required 
+                                           placeholder="<?php echo $provider['api_url_placeholder']; ?>">
+                                    <div class="form-hint"><?php echo $provider['api_url_help']; ?></div>
+                                </div>
+                                <?php endif; ?>
+                                
                                 <div class="form-group">
                                     <label class="form-label">
                                         API-Key <span class="required">*</span>
@@ -712,32 +781,6 @@ $providers = EmailProviderFactory::getSupportedProviders();
                                     <input type="password" name="api_key" class="form-input" required placeholder="Dein API-Key">
                                     <div class="form-hint">Zu finden in deinen <?php echo $provider['name']; ?> Einstellungen</div>
                                 </div>
-                                
-                                <?php if (in_array('account_url', $provider['config_fields'])): ?>
-                                <div class="form-group">
-                                    <label class="form-label">
-                                        Account-URL <span class="required">*</span>
-                                    </label>
-                                    <input type="url" name="account_url" class="form-input" required placeholder="https://dein-account.api-us1.com">
-                                </div>
-                                <?php endif; ?>
-                                
-                                <?php if (in_array('sender_email', $provider['config_fields'])): ?>
-                                <div class="form-group">
-                                    <label class="form-label">
-                                        Absender-Email <span class="required">*</span>
-                                    </label>
-                                    <input type="email" name="sender_email" class="form-input" required placeholder="deine@email.de">
-                                    <div class="form-hint">Muss in <?php echo $provider['name']; ?> verifiziert sein</div>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label class="form-label">
-                                        Absender-Name <span class="required">*</span>
-                                    </label>
-                                    <input type="text" name="sender_name" class="form-input" required placeholder="Dein Name / Firma">
-                                </div>
-                                <?php endif; ?>
                             </div>
                             
                             <!-- Listen & Tags -->
@@ -876,7 +919,7 @@ $providers = EmailProviderFactory::getSupportedProviders();
                 </div>
             </div>
             
-            <!-- Freebies Liste (bestehend) -->
+            <!-- Freebies Liste mit Mockup-Bildern -->
             <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.5s;">
                 <h2 style="color: white; font-size: 1.5rem; font-weight: 600; margin-bottom: 1.5rem;">
                     <i class="fas fa-gift"></i> Deine Freebies (<?php echo count($freebies); ?>)
@@ -898,18 +941,27 @@ $providers = EmailProviderFactory::getSupportedProviders();
                 <?php else: ?>
                     <?php foreach ($freebies as $freebie): 
                         $referralLink = $baseUrl . '/freebie/index.php?id=' . $freebie['unique_id'] . '&ref=' . $referralCode;
+                        $mockupImage = $freebie['image_path'] ?? null;
                     ?>
                     <div class="freebie-card-expanded">
-                        <!-- Existing freebie card content ... -->
-                        <div style="margin-bottom: 1rem;">
-                            <h3 style="color: white; font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">
-                                <?php echo htmlspecialchars($freebie['title']); ?>
-                            </h3>
-                            <?php if (!empty($freebie['description'])): ?>
-                            <p style="color: #9ca3af; font-size: 0.9375rem;">
-                                <?php echo htmlspecialchars($freebie['description']); ?>
-                            </p>
+                        <div style="display: flex; gap: 1.5rem; margin-bottom: 1.5rem; align-items: start;">
+                            <?php if ($mockupImage): ?>
+                            <img src="<?php echo htmlspecialchars($mockupImage); ?>" 
+                                 alt="<?php echo htmlspecialchars($freebie['title']); ?>"
+                                 class="freebie-mockup"
+                                 onerror="this.style.display='none'">
                             <?php endif; ?>
+                            
+                            <div style="flex: 1; min-width: 0;">
+                                <h3 style="color: white; font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">
+                                    <?php echo htmlspecialchars($freebie['title']); ?>
+                                </h3>
+                                <?php if (!empty($freebie['description'])): ?>
+                                <p style="color: #9ca3af; font-size: 0.9375rem;">
+                                    <?php echo htmlspecialchars($freebie['description']); ?>
+                                </p>
+                                <?php endif; ?>
+                            </div>
                         </div>
                         
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
@@ -968,6 +1020,7 @@ $providers = EmailProviderFactory::getSupportedProviders();
     
     <script>
         let selectedProvider = null;
+        const providerDefaults = <?php echo json_encode($providers); ?>;
         
         // Provider auswählen
         function selectProvider(provider) {
@@ -1014,12 +1067,12 @@ $providers = EmailProviderFactory::getSupportedProviders();
                 double_optin_enabled: formData.get('double_optin_enabled') ? true : false
             };
             
-            // Provider-spezifische Felder
-            ['account_url', 'sender_email', 'sender_name'].forEach(field => {
-                if (formData.has(field)) {
-                    data[field] = formData.get(field);
-                }
-            });
+            // API URL - verwende entweder eingegebene URL oder Default
+            if (formData.has('api_url') && formData.get('api_url')) {
+                data.api_url = formData.get('api_url');
+            } else if (providerDefaults[provider].default_api_url) {
+                data.api_url = providerDefaults[provider].default_api_url;
+            }
             
             try {
                 const response = await fetch('/api/email-settings/save.php', {
