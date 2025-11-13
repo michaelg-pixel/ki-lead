@@ -33,10 +33,11 @@ try {
         exit;
     }
     
-    // Hole alle Templates des Vendors - NUR EXISTIERENDE SPALTEN
+    // Hole alle Templates des Vendors - NUR BASIS-SPALTEN
     $stmt = $pdo->prepare("
         SELECT 
             id,
+            vendor_id,
             template_name,
             template_description,
             category,
@@ -57,8 +58,6 @@ try {
             suggested_referrals_required,
             marketplace_price,
             is_published,
-            sales_count,
-            revenue,
             created_at,
             updated_at
         FROM vendor_reward_templates
@@ -68,6 +67,16 @@ try {
     
     $stmt->execute([$customer_id]);
     $templates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Berechne Sales und Revenue aus anderen Tabellen falls nötig
+    foreach ($templates as &$template) {
+        // Setze Default-Werte für nicht-existierende Felder
+        $template['sales_count'] = 0;
+        $template['revenue'] = 0.00;
+        
+        // TODO: Hier könnten wir später die echten Werte aus anderen Tabellen holen
+        // z.B. aus reward_template_imports oder reward_template_claims
+    }
     
     echo json_encode([
         'success' => true,
