@@ -5,6 +5,7 @@
  * - Referral-Code-Tracking
  * - Empfehlungsprogramm mit Belohnungen
  * - Webhook-System für Belohnungsstufen
+ * - UNTERSTÜTZT: customer_freebies UND freebies (Templates)
  */
 
 require_once __DIR__ . '/config/database.php';
@@ -155,12 +156,13 @@ try {
 $customer_id = $lead['user_id'];
 $referral_enabled = (int)($lead['referral_enabled'] ?? 0);
 
-// ===== NUR DAS FREEBIE LADEN, FÜR DAS SICH DER LEAD REGISTRIERT HAT =====
+// ===== FREEBIE LADEN - ERST customer_freebies, DANN freebies (Templates) =====
 $freebies_with_courses = [];
 
 try {
     // Prüfen ob Lead eine freebie_id hat
     if (!empty($lead['freebie_id'])) {
+        // ZUERST: In customer_freebies suchen
         $stmt = $pdo->prepare("
             SELECT 
                 cf.id as freebie_id,
@@ -178,6 +180,25 @@ try {
         ");
         $stmt->execute([$customer_id, $lead['freebie_id']]);
         $freebies_with_courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // FALLBACK: Falls nicht gefunden, in freebies (Templates) suchen
+        if (empty($freebies_with_courses)) {
+            $stmt = $pdo->prepare("
+                SELECT 
+                    f.id as freebie_id,
+                    f.unique_id,
+                    f.name as title,
+                    f.description,
+                    f.mockup_image_url as mockup_url,
+                    NULL as course_id,
+                    NULL as course_title,
+                    NULL as course_description
+                FROM freebies f
+                WHERE f.id = ?
+            ");
+            $stmt->execute([$lead['freebie_id']]);
+            $freebies_with_courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
     }
 } catch (PDOException $e) {
     error_log("Fehler beim Laden der Freebies: " . $e->getMessage());
