@@ -1,10 +1,10 @@
 <?php
 /**
- * Lead Dashboard - Vereintes System
- * Zeigt: Freebie-Kurse + Videoplayer + Empfehlungsprogramm PRO FREEBIE
- * Mit One-Click-Login Support
- * 
- * FLOW: Teilen-Button → Link kopiert + Scroll zu Belohnungen für dieses Freebie
+ * Lead Dashboard - Token-basiertes System
+ * - Automatische Lead-Erstellung beim ersten Token-Aufruf
+ * - Referral-Code-Tracking
+ * - Empfehlungsprogramm mit Belohnungen
+ * - Webhook-System für Belohnungsstufen
  */
 
 require_once __DIR__ . '/config/database.php';
@@ -13,24 +13,27 @@ session_start();
 
 $pdo = getDBConnection();
 
-// ===== ONE-CLICK-LOGIN-SUPPORT =====
+// ===== TOKEN-BASIERTE AUTHENTIFIZIERUNG =====
 if (isset($_GET['token']) && !isset($_SESSION['lead_id'])) {
     $token = $_GET['token'];
     
     try {
+        // Token validieren
         $stmt = $pdo->prepare("
             SELECT * FROM lead_login_tokens 
-            WHERE token = ? AND expires_at > NOW() AND used_at IS NULL
+            WHERE token = ? AND expires_at > NOW()
         ");
         $stmt->execute([$token]);
         $token_data = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($token_data) {
-            // Token als verwendet markieren
-            $stmt = $pdo->prepare("UPDATE lead_login_tokens SET used_at = NOW() WHERE id = ?");
-            $stmt->execute([$token_data['id']]);
+            // Token als verwendet markieren (nur beim ersten Mal)
+            if ($token_data['used_at'] === null) {
+                $stmt = $pdo->prepare("UPDATE lead_login_tokens SET used_at = NOW() WHERE id = ?");
+                $stmt->execute([$token_data['id']]);
+            }
             
-            // Lead-User erstellen oder laden
+            // Lead-User laden oder erstellen
             $stmt = $pdo->prepare("
                 SELECT id FROM lead_users 
                 WHERE email = ? AND user_id = ?
@@ -41,34 +44,81 @@ if (isset($_GET['token']) && !isset($_SESSION['lead_id'])) {
             if ($existing_lead) {
                 $lead_id = $existing_lead['id'];
             } else {
-                // Neuen Lead-User erstellen
+                // ===== NEUEN LEAD ERSTELLEN =====
                 $referral_code = strtoupper(substr(md5($token_data['email'] . time()), 0, 8));
                 
+                // Referrer-ID ermitteln (falls Referral-Code vorhanden)
+                $referrer_id = null;
+                if (!empty($token_data['referral_code'])) {
+                    $stmt = $pdo->prepare("
+                        SELECT id FROM lead_users 
+                        WHERE referral_code = ? AND user_id = ?
+                    ");
+                    $stmt->execute([$token_data['referral_code'], $token_data['customer_id']]);
+                    $referrer = $stmt->fetch(PDO::FETCH_ASSOC);
+                    if ($referrer) {
+                        $referrer_id = $referrer['id'];
+                    }
+                }
+                
+                // Lead erstellen
                 $stmt = $pdo->prepare("
                     INSERT INTO lead_users 
-                    (name, email, user_id, referral_code, created_at)
-                    VALUES (?, ?, ?, ?, NOW())
+                    (name, email, user_id, freebie_id, referral_code, referrer_id, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, 'active', NOW())
                 ");
                 $stmt->execute([
                     $token_data['name'] ?: 'Lead',
                     $token_data['email'],
                     $token_data['customer_id'],
-                    $referral_code
+                    $token_data['freebie_id'],
+                    $referral_code,
+                    $referrer_id
                 ]);
                 $lead_id = $pdo->lastInsertId();
+                
+                // Falls Lead durch Referral kam: Eintrag in lead_referrals erstellen
+                if ($referrer_id) {
+                    try {
+                        $stmt = $pdo->prepare("
+                            INSERT INTO lead_referrals 
+                            (referrer_id, referred_email, referred_name, freebie_id, status, invited_at)
+                            VALUES (?, ?, ?, ?, 'active', NOW())
+                        ");
+                        $stmt->execute([
+                            $referrer_id,
+                            $token_data['email'],
+                            $token_data['name'] ?: 'Lead',
+                            $token_data['freebie_id']
+                        ]);
+                        
+                        // Webhook für neuen Referral auslösen
+                        checkAndTriggerRewardWebhooks($pdo, $referrer_id, $token_data['customer_id']);
+                        
+                    } catch (PDOException $e) {
+                        error_log("Fehler beim Erstellen des Referral-Eintrags: " . $e->getMessage());
+                    }
+                }
             }
             
             // Session setzen
             $_SESSION['lead_id'] = $lead_id;
             $_SESSION['lead_email'] = $token_data['email'];
             $_SESSION['lead_customer_id'] = $token_data['customer_id'];
+            $_SESSION['lead_freebie_id'] = $token_data['freebie_id'];
             
-            // Redirect ohne Token
+            // Redirect ohne Token für saubere URL
             header('Location: /lead_dashboard.php');
+            exit;
+        } else {
+            // Token ungültig oder abgelaufen → Fehlerseite
+            header('Location: /lead_token_expired.php');
             exit;
         }
     } catch (PDOException $e) {
         error_log("Login-Token-Fehler: " . $e->getMessage());
+        header('Location: /lead_token_expired.php');
+        exit;
     }
 }
 
@@ -212,6 +262,122 @@ if ($referral_enabled && $customer_id) {
 
 $primary_color = '#8B5CF6';
 $company_name = $lead['company_name'] ?? 'Dashboard';
+
+/**
+ * Prüft ob neue Belohnungsstufen erreicht wurden und triggert Webhooks
+ */
+function checkAndTriggerRewardWebhooks($pdo, $lead_id, $customer_id) {
+    try {
+        // Anzahl erfolgreicher Referrals zählen
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) as count FROM lead_referrals 
+            WHERE referrer_id = ? AND (status = 'active' OR status = 'converted')
+        ");
+        $stmt->execute([$lead_id]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $successful_referrals = $result['count'];
+        
+        // Belohnungsstufen laden die erreicht aber noch nicht claimed sind
+        $stmt = $pdo->prepare("
+            SELECT * FROM reward_definitions 
+            WHERE user_id = ? 
+            AND is_active = 1 
+            AND required_referrals <= ?
+            AND id NOT IN (
+                SELECT reward_id FROM referral_claimed_rewards WHERE lead_id = ?
+            )
+            ORDER BY tier_level ASC
+        ");
+        $stmt->execute([$customer_id, $successful_referrals, $lead_id]);
+        $unlocked_rewards = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Webhook für jede erreichte Stufe auslösen
+        foreach ($unlocked_rewards as $reward) {
+            triggerRewardWebhook($pdo, $lead_id, $customer_id, $reward);
+        }
+        
+    } catch (PDOException $e) {
+        error_log("Webhook-Check-Fehler: " . $e->getMessage());
+    }
+}
+
+/**
+ * Löst Webhook für erreichte Belohnungsstufe aus
+ */
+function triggerRewardWebhook($pdo, $lead_id, $customer_id, $reward) {
+    try {
+        // Lead-Daten laden
+        $stmt = $pdo->prepare("SELECT * FROM lead_users WHERE id = ?");
+        $stmt->execute([$lead_id]);
+        $lead = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$lead) return;
+        
+        // Customer Webhook-Konfiguration laden
+        $stmt = $pdo->prepare("
+            SELECT autoresponder_webhook_url, autoresponder_api_key 
+            FROM users WHERE id = ?
+        ");
+        $stmt->execute([$customer_id]);
+        $customer = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$customer || empty($customer['autoresponder_webhook_url'])) {
+            error_log("Kein Webhook-URL konfiguriert für Customer ID: $customer_id");
+            return;
+        }
+        
+        // Webhook-Payload erstellen
+        $payload = [
+            'event' => 'reward_unlocked',
+            'lead' => [
+                'email' => $lead['email'],
+                'name' => $lead['name'],
+                'id' => $lead['id']
+            ],
+            'reward' => [
+                'tier_level' => $reward['tier_level'],
+                'tier_name' => $reward['tier_name'],
+                'reward_title' => $reward['reward_title'],
+                'reward_type' => $reward['reward_type'],
+                'reward_value' => $reward['reward_value'],
+                'required_referrals' => $reward['required_referrals']
+            ],
+            'timestamp' => date('c')
+        ];
+        
+        // HTTP Request an Autoresponder
+        $ch = curl_init($customer['autoresponder_webhook_url']);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'X-API-Key: ' . ($customer['autoresponder_api_key'] ?? '')
+        ]);
+        
+        $response = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        // Log webhook call
+        error_log("Reward Webhook sent: HTTP $http_code - Lead: {$lead['email']}, Reward: {$reward['reward_title']}");
+        
+        // Als "claimed" markieren damit nicht erneut gesendet wird
+        $stmt = $pdo->prepare("
+            INSERT INTO referral_claimed_rewards 
+            (lead_id, reward_id, reward_name, claimed_at)
+            VALUES (?, ?, ?, NOW())
+        ");
+        $stmt->execute([
+            $lead_id,
+            $reward['id'],
+            $reward['reward_title']
+        ]);
+        
+    } catch (Exception $e) {
+        error_log("Webhook-Trigger-Fehler: " . $e->getMessage());
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="de">
