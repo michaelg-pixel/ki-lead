@@ -1,7 +1,7 @@
 <?php
 /**
- * Klassische Freebie Danke-Seite
- * Zeigt Video und Download-Link nach der Anmeldung
+ * Freebie Danke-Seite mit Dashboard-Zugang
+ * Zeigt Video + Download + Button zum Lead-Dashboard
  */
 
 require_once __DIR__ . '/../config/database.php';
@@ -18,14 +18,24 @@ if ($freebie_id <= 0) {
 
 // Freebie laden (entweder aus customer_freebies oder freebies)
 $freebie = null;
+$referral_enabled = 0;
+
 try {
     // Erst in customer_freebies suchen
-    $stmt = $pdo->prepare("SELECT * FROM customer_freebies WHERE id = ?");
+    $stmt = $pdo->prepare("
+        SELECT cf.*, u.referral_enabled 
+        FROM customer_freebies cf
+        LEFT JOIN users u ON cf.customer_id = u.id
+        WHERE cf.id = ?
+    ");
     $stmt->execute([$freebie_id]);
     $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    // Wenn nicht gefunden, in freebies suchen
-    if (!$freebie) {
+    if ($freebie) {
+        $customer_id = $freebie['customer_id'];
+        $referral_enabled = (int)($freebie['referral_enabled'] ?? 0);
+    } else {
+        // Wenn nicht gefunden, in freebies suchen
         $stmt = $pdo->prepare("SELECT * FROM freebies WHERE id = ?");
         $stmt->execute([$freebie_id]);
         $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -36,6 +46,50 @@ try {
     }
 } catch (PDOException $e) {
     die('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fehler</title></head><body style="font-family:Arial;padding:50px;text-align:center;"><h1>❌ Datenbankfehler</h1><p>' . htmlspecialchars($e->getMessage()) . '</p></body></html>');
+}
+
+// Login-Token für Dashboard-Zugang generieren (wenn E-Mail vorhanden)
+$dashboard_link = null;
+if (!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL) && $customer_id) {
+    try {
+        // Prüfen ob lead_login_tokens Tabelle existiert
+        $token = bin2hex(random_bytes(32));
+        $expires_at = date('Y-m-d H:i:s', strtotime('+24 hours'));
+        
+        $stmt = $pdo->prepare("
+            CREATE TABLE IF NOT EXISTS lead_login_tokens (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                token VARCHAR(255) UNIQUE NOT NULL,
+                email VARCHAR(255) NOT NULL,
+                name VARCHAR(255),
+                customer_id INT,
+                freebie_id INT,
+                expires_at DATETIME NOT NULL,
+                used_at DATETIME NULL,
+                created_at DATETIME NOT NULL,
+                INDEX idx_token (token),
+                INDEX idx_email (email),
+                INDEX idx_expires (expires_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+        $stmt->execute();
+        
+        // Token speichern
+        $stmt = $pdo->prepare("
+            INSERT INTO lead_login_tokens 
+            (token, email, name, customer_id, freebie_id, expires_at, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, NOW())
+        ");
+        $stmt->execute([$token, $email, $name, $customer_id, $freebie_id, $expires_at]);
+        
+        // Dashboard-Link generieren
+        $dashboard_link = '/lead-dashboard-unified.php?token=' . $token;
+        
+    } catch (PDOException $e) {
+        error_log("Token-Fehler: " . $e->getMessage());
+        // Fallback ohne Token
+        $dashboard_link = '/lead_login.php';
+    }
 }
 
 // Styling
@@ -130,10 +184,83 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             color: #1e3a8a;
         }
         
+        /* Dashboard Button - PROMINENT */
+        .dashboard-section {
+            text-align: center;
+            margin: 40px 0;
+            padding: 32px;
+            background: linear-gradient(135deg, <?php echo $primary_color; ?>, color-mix(in srgb, <?php echo $primary_color; ?> 80%, black));
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        .dashboard-section h2 {
+            color: white;
+            font-size: 28px;
+            margin-bottom: 12px;
+            font-weight: 800;
+        }
+        
+        .dashboard-section p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .dashboard-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 20px 48px;
+            background: white;
+            color: <?php echo $primary_color; ?>;
+            text-decoration: none;
+            border-radius: 16px;
+            font-size: 20px;
+            font-weight: 800;
+            transition: all 0.3s;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+        
+        .dashboard-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .dashboard-button i {
+            font-size: 24px;
+        }
+        
+        .dashboard-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 24px;
+        }
+        
+        .dashboard-feature {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 16px;
+            border-radius: 12px;
+            color: white;
+            text-align: center;
+        }
+        
+        .dashboard-feature i {
+            font-size: 32px;
+            margin-bottom: 8px;
+            display: block;
+        }
+        
+        .dashboard-feature span {
+            font-size: 14px;
+            display: block;
+        }
+        
         /* Video Container */
         .video-container {
             position: relative;
-            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+            padding-bottom: 56.25%;
             height: 0;
             overflow: hidden;
             background: #000;
@@ -160,19 +287,20 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             align-items: center;
             gap: 12px;
             padding: 18px 36px;
-            background: <?php echo $primary_color; ?>;
-            color: white;
+            background: #f3f4f6;
+            color: #1a1a1a;
             text-decoration: none;
             border-radius: 12px;
             font-size: 18px;
             font-weight: 700;
             transition: all 0.3s;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            border: 2px solid #e5e7eb;
         }
         
         .download-button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            border-color: <?php echo $primary_color; ?>;
         }
         
         .download-icon {
@@ -270,12 +398,27 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
                 font-size: 16px;
             }
             
+            .dashboard-section h2 {
+                font-size: 24px;
+            }
+            
+            .dashboard-button {
+                width: 100%;
+                justify-content: center;
+                font-size: 18px;
+            }
+            
             .download-button {
                 width: 100%;
                 justify-content: center;
             }
+            
+            .dashboard-features {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="container">
@@ -296,6 +439,42 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
                 📧 Wir haben eine Bestätigung an <span class="email-address"><?php echo htmlspecialchars($email); ?></span> gesendet.
                 Bitte überprüfe auch deinen Spam-Ordner.
             </p>
+        </div>
+        <?php endif; ?>
+        
+        <?php if ($dashboard_link): ?>
+        <!-- DASHBOARD ZUGANG - HAUPT-CALL-TO-ACTION -->
+        <div class="dashboard-section">
+            <h2>🚀 Dein persönliches Dashboard</h2>
+            <p>
+                Greife jetzt auf deine Kurse zu<?php echo $referral_enabled ? ' und verdiene mit unserem Empfehlungsprogramm' : ''; ?>!
+            </p>
+            
+            <a href="<?php echo htmlspecialchars($dashboard_link); ?>" class="dashboard-button">
+                <i class="fas fa-rocket"></i>
+                <span>Zum Dashboard</span>
+            </a>
+            
+            <div class="dashboard-features">
+                <div class="dashboard-feature">
+                    <i class="fas fa-video"></i>
+                    <span>Videokurse ansehen</span>
+                </div>
+                <div class="dashboard-feature">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Fortschritt tracken</span>
+                </div>
+                <?php if ($referral_enabled): ?>
+                <div class="dashboard-feature">
+                    <i class="fas fa-gift"></i>
+                    <span>Empfehlungen teilen</span>
+                </div>
+                <div class="dashboard-feature">
+                    <i class="fas fa-star"></i>
+                    <span>Belohnungen erhalten</span>
+                </div>
+                <?php endif; ?>
+            </div>
         </div>
         <?php endif; ?>
         
@@ -348,26 +527,28 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             <div class="step">
                 <div class="step-number">1</div>
                 <div class="step-content">
-                    <h3>Bestätigungs-E-Mail prüfen</h3>
-                    <p>Du erhältst eine E-Mail mit weiteren Informationen und Zugang zu allen Inhalten.</p>
+                    <h3>Dashboard öffnen</h3>
+                    <p>Klicke auf den Button oben, um zu deinem persönlichen Dashboard zu gelangen.</p>
                 </div>
             </div>
             
             <div class="step">
                 <div class="step-number">2</div>
                 <div class="step-content">
-                    <h3>Video anschauen</h3>
-                    <p>Schau dir das Video oben an, um sofort mit den wertvollen Inhalten zu starten.</p>
+                    <h3>Kurs starten</h3>
+                    <p>Im Dashboard findest du alle deine Kurse und kannst direkt mit dem Lernen beginnen.</p>
                 </div>
             </div>
             
+            <?php if ($referral_enabled): ?>
             <div class="step">
                 <div class="step-number">3</div>
                 <div class="step-content">
-                    <h3>Ressourcen herunterladen</h3>
-                    <p>Lade dir die zusätzlichen Materialien herunter, um das Beste aus dem Freebie herauszuholen.</p>
+                    <h3>Belohnungen verdienen</h3>
+                    <p>Teile deinen Empfehlungslink und erhalte attraktive Belohnungen für jeden Lead!</p>
                 </div>
             </div>
+            <?php endif; ?>
         </div>
         
         <!-- Footer -->
