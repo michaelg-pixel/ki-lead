@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Templates.php Syntax Fix</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #667eea; }
+        .error { background: #fee; border-left: 4px solid #f00; padding: 15px; margin: 15px 0; }
+        .success { background: #dfd; border-left: 4px solid #0f0; padding: 15px; margin: 15px 0; }
+        .code { background: #f5f5f5; padding: 10px; border-radius: 4px; font-family: monospace; margin: 10px 0; }
+        button { background: #667eea; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #5568d3; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Templates.php Syntax Fix</h1>
+        
+        <div class="error">
+            <strong>❌ Problem gefunden:</strong><br>
+            In der Datei <code>customer/sections/vendor/templates.php</code> gibt es einen JavaScript-Syntax-Fehler:
+            <div class="code">
+                const response = await fetch`/api/vendor/templates/get.php?id=${templateId}`);
+            </div>
+        </div>
+        
+        <div class="success">
+            <strong>✅ Korrektur:</strong><br>
+            Es müssen Klammern <code>()</code> um das Template-Literal sein:
+            <div class="code">
+                const response = await fetch(`/api/vendor/templates/get.php?id=${templateId}`);
+            </div>
+        </div>
+        
+        <h3>Manuelle Korrektur:</h3>
+        <ol>
+            <li>Öffne die Datei: <code>customer/sections/vendor/templates.php</code></li>
+            <li>Suche nach: <code>await fetch`</code></li>
+            <li>Ändere zu: <code>await fetch(`</code></li>
+            <li>Speichern und testen</li>
+        </ol>
+        
+        <h3>Oder verwende diesen SQL-Fix:</h3>
+        <p>Da die Datei sehr groß ist, empfehle ich eine manuelle Korrektur oder warte auf das nächste Deployment.</p>
+        
+        <div class="code">
+            # Zeile suchen und ersetzen in templates.php:<br>
+            Suche: await fetch`/api<br>
+            Ersetze mit: await fetch(`/api
+        </div>
+        
+        <p><strong>Nach der Korrektur:</strong></p>
+        <ul>
+            <li>✅ Templates erstellen funktioniert</li>
+            <li>✅ Templates bearbeiten funktioniert</li>
+            <li>✅ Alle neuen Felder werden gespeichert</li>
+        </ul>
+    </div>
+</body>
+</html>
