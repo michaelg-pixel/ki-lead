@@ -9,7 +9,11 @@ if (!isset($customer) || !$customer['is_vendor']) {
     return;
 }
 
-$vendor_id = $customer['id'];
+// $vendor_id wird von vendor-bereich.php bereitgestellt
+if (!isset($vendor_id)) {
+    echo '<p style="color: #ef4444;">Fehler: Vendor-ID nicht verfügbar.</p>';
+    return;
+}
 ?>
 
 <style>
