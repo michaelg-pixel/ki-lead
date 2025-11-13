@@ -15,8 +15,6 @@ $stmt = $pdo->prepare("
         vendor_company_name,
         vendor_website,
         vendor_description,
-        vendor_paypal_email,
-        vendor_bank_account,
         vendor_activated_at
     FROM users 
     WHERE id = ?
@@ -410,18 +408,18 @@ $active_tab = $_GET['tab'] ?? 'overview';
             <div class="activation-icon">💎</div>
             <h2 class="activation-title">Werden Sie Vendor!</h2>
             <p class="activation-description">
-                Erstellen Sie eigene Belohnungs-Templates und bieten Sie diese im Marktplatz an. 
-                Verdienen Sie Geld mit jedem Import und jedem Claim Ihrer Templates.
+                Erstellen Sie eigene Belohnungs-Templates und bieten Sie diese kostenlos im Marktplatz an. 
+                Teilen Sie Ihre besten Belohnungsideen mit der Community!
             </p>
             
             <div class="activation-benefits">
                 <ul>
                     <li>Erstellen Sie unbegrenzt viele Belohnungs-Templates</li>
                     <li>Veröffentlichen Sie Ihre Templates im Marktplatz</li>
-                    <li>Verdienen Sie Provisionen bei jedem Import</li>
-                    <li>Erhalten Sie Zusatzverdienste bei jedem Claim</li>
+                    <li>Helfen Sie anderen beim Aufbau ihrer Belohnungssysteme</li>
+                    <li>Sehen Sie wie oft Ihre Templates verwendet werden</li>
                     <li>Detaillierte Statistiken und Analysen</li>
-                    <li>Monatliche automatische Auszahlungen</li>
+                    <li>Einfache Verwaltung aller Templates</li>
                 </ul>
             </div>
             
@@ -457,9 +455,6 @@ $active_tab = $_GET['tab'] ?? 'overview';
             <a href="?page=vendor-bereich&tab=settings" class="vendor-tab <?php echo $active_tab === 'settings' ? 'active' : ''; ?>">
                 <i class="fas fa-cog"></i> Einstellungen
             </a>
-            <a href="?page=vendor-bereich&tab=payouts" class="vendor-tab <?php echo $active_tab === 'payouts' ? 'active' : ''; ?>">
-                <i class="fas fa-money-bill-wave"></i> Auszahlungen
-            </a>
         </div>
         
         <!-- Tab Content -->
@@ -477,9 +472,6 @@ $active_tab = $_GET['tab'] ?? 'overview';
                     break;
                 case 'settings':
                     include __DIR__ . '/vendor/settings.php';
-                    break;
-                case 'payouts':
-                    include __DIR__ . '/vendor/payouts.php';
                     break;
                 default:
                     include __DIR__ . '/vendor/overview.php';
@@ -535,16 +527,6 @@ $active_tab = $_GET['tab'] ?? 'overview';
             </div>
             
             <div class="form-group">
-                <label class="form-label">PayPal E-Mail (für Auszahlungen)</label>
-                <input 
-                    type="email" 
-                    class="form-input" 
-                    name="paypal_email" 
-                    placeholder="ihre@paypal-email.de"
-                >
-            </div>
-            
-            <div class="form-group">
                 <div class="form-checkbox-wrapper">
                     <input 
                         type="checkbox" 
@@ -554,7 +536,7 @@ $active_tab = $_GET['tab'] ?? 'overview';
                     >
                     <label for="legalConfirm" class="form-checkbox-label">
                         Ich bestätige, dass ich ein gültiges Impressum und eine Datenschutzerklärung habe 
-                        und alle rechtlichen Anforderungen für den Verkauf von digitalen Produkten erfülle.
+                        und alle rechtlichen Anforderungen erfülle.
                     </label>
                 </div>
             </div>
@@ -600,8 +582,7 @@ async function submitActivation(event) {
     const formData = {
         company_name: form.company_name.value,
         website: form.website.value,
-        description: form.description.value,
-        paypal_email: form.paypal_email.value
+        description: form.description.value
     };
     
     try {
