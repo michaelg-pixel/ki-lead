@@ -49,9 +49,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
             // lead_users Tabelle existiert?
             $stmt = $pdo->query("SHOW TABLES LIKE 'lead_users'");
             if ($stmt->rowCount() === 0) {
-                // Tabelle erstellen
+                // Tabelle mit ALLEN nötigen Spalten erstellen
                 $pdo->exec("
-                    CREATE TABLE IF NOT EXISTS lead_users (
+                    CREATE TABLE lead_users (
                         id INT PRIMARY KEY AUTO_INCREMENT,
                         name VARCHAR(255),
                         email VARCHAR(255) NOT NULL,
@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                         referral_code VARCHAR(50) UNIQUE NOT NULL,
                         referrer_id INT NULL,
                         status VARCHAR(50) DEFAULT 'active',
-                        created_at DATETIME NOT NULL,
+                        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                         INDEX idx_email (email),
                         INDEX idx_user (user_id),
                         INDEX idx_referral_code (referral_code),
@@ -69,7 +69,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                         INDEX idx_status (status)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 ");
-                $debug .= "✓ lead_users Tabelle erstellt. ";
+                $debug .= "✓ lead_users Tabelle mit allen Spalten erstellt. ";
+            } else {
+                // Prüfen ob created_at Spalte existiert
+                $stmt = $pdo->query("SHOW COLUMNS FROM lead_users LIKE 'created_at'");
+                if ($stmt->rowCount() === 0) {
+                    // created_at Spalte nachträglich hinzufügen
+                    $pdo->exec("ALTER TABLE lead_users ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
+                    $debug .= "✓ created_at Spalte hinzugefügt. ";
+                }
             }
             
             // Prüfen ob Lead bereits existiert
@@ -122,18 +130,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                 // Referral-Eintrag erstellen
                 if ($referrer_id) {
                     try {
-                        // lead_referrals Tabelle prüfen
+                        // lead_referrals Tabelle prüfen/erstellen
                         $stmt = $pdo->query("SHOW TABLES LIKE 'lead_referrals'");
                         if ($stmt->rowCount() === 0) {
                             $pdo->exec("
-                                CREATE TABLE IF NOT EXISTS lead_referrals (
+                                CREATE TABLE lead_referrals (
                                     id INT PRIMARY KEY AUTO_INCREMENT,
                                     referrer_id INT NOT NULL,
                                     referred_email VARCHAR(255) NOT NULL,
                                     referred_name VARCHAR(255),
                                     freebie_id INT NULL,
                                     status VARCHAR(50) DEFAULT 'pending',
-                                    invited_at DATETIME NOT NULL,
+                                    invited_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                     INDEX idx_referrer (referrer_id),
                                     INDEX idx_email (referred_email),
                                     INDEX idx_status (status),
@@ -306,6 +314,7 @@ $company_name = $freebie['company_name'] ?? 'Dashboard';
             margin-bottom: 20px;
             font-size: 12px;
             font-family: monospace;
+            word-wrap: break-word;
         }
         
         .benefits {
