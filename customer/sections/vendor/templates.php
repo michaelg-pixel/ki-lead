@@ -65,9 +65,24 @@ $categories = [
     'template' => '📄 Vorlage',
     'other' => '🎁 Sonstiges'
 ];
+
+// Reward Types
+$reward_types = [
+    'ebook' => 'E-Book',
+    'video' => 'Video',
+    'course' => 'Online-Kurs',
+    'consultation' => 'Beratungsgespräch',
+    'discount' => 'Rabatt-Code',
+    'voucher' => 'Gutschein',
+    'physical' => 'Physisches Produkt',
+    'service' => 'Dienstleistung',
+    'software' => 'Software-Zugang',
+    'other' => 'Sonstiges'
+];
 ?>
 
 <style>
+/* Hier bleiben alle bisherigen Styles... */
 .vendor-templates {
     padding: 2rem;
     max-width: 1400px;
@@ -361,6 +376,226 @@ $categories = [
     margin-right: auto;
 }
 
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    backdrop-filter: blur(4px);
+    overflow-y: auto;
+}
+
+.modal.show {
+    display: flex;
+}
+
+.modal-content {
+    background: var(--dark-bg, #1f2937);
+    border-radius: 1rem;
+    padding: 0;
+    max-width: 900px;
+    width: 100%;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary, #ffffff);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary, #9ca3af);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    transition: all 0.2s;
+}
+
+.modal-close:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2rem;
+}
+
+.modal-footer {
+    padding: 1.5rem 2rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+}
+
+.form-section {
+    margin-bottom: 2rem;
+}
+
+.form-section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary, #ffffff);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid rgba(102, 126, 234, 0.3);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.form-row.single {
+    grid-template-columns: 1fr;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-label {
+    display: block;
+    color: var(--text-primary, #ffffff);
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    font-size: 0.9375rem;
+}
+
+.form-label .required {
+    color: #ef4444;
+}
+
+.form-input,
+.form-textarea,
+.form-select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: var(--darker-bg, #111827);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    border-radius: 0.5rem;
+    color: var(--text-primary, #ffffff);
+    font-size: 0.9375rem;
+    transition: all 0.2s;
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.form-hint {
+    color: var(--text-secondary, #9ca3af);
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+}
+
+.color-picker-wrapper {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.color-picker {
+    width: 60px;
+    height: 40px;
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    border-radius: 0.5rem;
+    cursor: pointer;
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    font-size: 0.9375rem;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary, #ffffff);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.error-message {
+    background: rgba(239, 68, 68, 0.1);
+    border-left: 3px solid #ef4444;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    color: #ef4444;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+    display: none;
+}
+
+.error-message.show {
+    display: block;
+}
+
 @media (max-width: 768px) {
     .vendor-templates {
         padding: 1rem;
@@ -381,6 +616,14 @@ $categories = [
     
     .templates-grid {
         grid-template-columns: 1fr;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
     }
 }
 </style>
@@ -404,7 +647,7 @@ $categories = [
             </select>
         </div>
         
-        <button class="btn-create" onclick="alert('Template-Editor wird in Phase 4 implementiert')">
+        <button class="btn-create" onclick="openTemplateModal()">
             <i class="fas fa-plus"></i>
             <span>Neues Template</span>
         </button>
@@ -417,7 +660,7 @@ $categories = [
             <p class="empty-state-description">
                 Erstellen Sie Ihr erstes Belohnungs-Template und teilen Sie es mit anderen Kunden im Marktplatz.
             </p>
-            <button class="btn-create" style="margin: 0 auto;" onclick="alert('Template-Editor wird in Phase 4 implementiert')">
+            <button class="btn-create" style="margin: 0 auto;" onclick="openTemplateModal()">
                 <i class="fas fa-rocket"></i>
                 <span>Erstes Template erstellen</span>
             </button>
@@ -471,7 +714,7 @@ $categories = [
                         </div>
                         
                         <div class="template-actions" style="margin-top: 0.5rem;">
-                            <button class="template-btn" onclick="alert('Bearbeiten-Funktion wird in Phase 4 implementiert')">
+                            <button class="template-btn" onclick="editTemplate(<?php echo $template['id']; ?>)">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <a href="?page=vendor-bereich&tab=statistics&template_id=<?php echo $template['id']; ?>" class="template-btn">
@@ -488,20 +731,311 @@ $categories = [
     <?php endif; ?>
 </div>
 
+<!-- Template Editor Modal -->
+<div class="modal" id="templateModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title" id="modalTitle">Neues Template erstellen</h3>
+            <button class="modal-close" onclick="closeTemplateModal()">×</button>
+        </div>
+        
+        <div class="modal-body">
+            <div class="error-message" id="errorMessage"></div>
+            
+            <form id="templateForm">
+                <input type="hidden" id="templateId" name="id">
+                
+                <!-- Grunddaten -->
+                <div class="form-section">
+                    <h4 class="form-section-title">📝 Grunddaten</h4>
+                    
+                    <div class="form-group">
+                        <label class="form-label">
+                            Template-Name <span class="required">*</span>
+                        </label>
+                        <input type="text" class="form-input" id="templateName" name="template_name" required minlength="3" placeholder="z.B. Gratis E-Book: Social Media Marketing">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Beschreibung</label>
+                        <textarea class="form-textarea" id="templateDescription" name="template_description" placeholder="Kurze Beschreibung des Templates..."></textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Kategorie</label>
+                            <select class="form-select" id="category" name="category">
+                                <option value="">-- Wählen --</option>
+                                <?php foreach ($categories as $value => $label): ?>
+                                    <option value="<?php echo $value; ?>"><?php echo $label; ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Nische</label>
+                            <input type="text" class="form-input" id="niche" name="niche" placeholder="z.B. Online-Business, Fitness">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Belohnung -->
+                <div class="form-section">
+                    <h4 class="form-section-title">🎁 Belohnung</h4>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">
+                                Belohnungs-Typ <span class="required">*</span>
+                            </label>
+                            <select class="form-select" id="rewardType" name="reward_type" required>
+                                <option value="">-- Wählen --</option>
+                                <?php foreach ($reward_types as $value => $label): ?>
+                                    <option value="<?php echo $value; ?>"><?php echo $label; ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">
+                                Belohnungs-Titel <span class="required">*</span>
+                            </label>
+                            <input type="text" class="form-input" id="rewardTitle" name="reward_title" required placeholder="z.B. Gratis E-Book">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Belohnungs-Beschreibung</label>
+                        <textarea class="form-textarea" id="rewardDescription" name="reward_description" placeholder="Was erhält der Lead genau?"></textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Wert (Display)</label>
+                            <input type="text" class="form-input" id="rewardValue" name="reward_value" placeholder="z.B. Wert 29€">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Icon</label>
+                            <input type="text" class="form-input" id="rewardIcon" name="reward_icon" placeholder="Emoji oder fa-gift">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Farbe</label>
+                        <div class="color-picker-wrapper">
+                            <input type="color" class="color-picker" id="rewardColor" name="reward_color" value="#667eea">
+                            <input type="text" class="form-input" style="flex: 1;" id="rewardColorText" value="#667eea" onchange="document.getElementById('rewardColor').value = this.value">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Zugriff & Lieferung -->
+                <div class="form-section">
+                    <h4 class="form-section-title">🚀 Zugriff & Lieferung</h4>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Lieferungs-Typ</label>
+                        <select class="form-select" id="deliveryType" name="reward_delivery_type">
+                            <option value="manual">Manuell</option>
+                            <option value="automatic">Automatisch</option>
+                            <option value="code">Zugriffscode</option>
+                            <option value="url">URL/Link</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Download URL</label>
+                        <input type="url" class="form-input" id="downloadUrl" name="reward_download_url" placeholder="https://...">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Anweisungen</label>
+                        <textarea class="form-textarea" id="instructions" name="reward_instructions" placeholder="Anweisungen für den Lead..."></textarea>
+                    </div>
+                </div>
+                
+                <!-- Empfehlungs-Vorschlag -->
+                <div class="form-section">
+                    <h4 class="form-section-title">🎯 Empfehlungs-Vorschlag</h4>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Vorgeschlagene Stufe</label>
+                            <input type="number" class="form-input" id="tierLevel" name="suggested_tier_level" value="1" min="1">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Erforderliche Empfehlungen</label>
+                            <input type="number" class="form-input" id="referralsRequired" name="suggested_referrals_required" value="3" min="1">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Marktplatz -->
+                <div class="form-section">
+                    <h4 class="form-section-title">🏪 Marktplatz</h4>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Preis</label>
+                            <input type="number" class="form-input" id="price" name="marketplace_price" value="0.00" min="0" step="0.01">
+                            <div class="form-hint">0 = Kostenlos</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">DigiStore24 Produkt-ID</label>
+                            <input type="text" class="form-input" id="digistoreId" name="digistore_product_id" placeholder="Optional">
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeTemplateModal()">Abbrechen</button>
+            <button type="button" class="btn btn-primary" id="saveBtn" onclick="saveTemplate()">
+                <i class="fas fa-save"></i> Speichern
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
+// Color picker sync
+document.getElementById('rewardColor')?.addEventListener('change', function() {
+    document.getElementById('rewardColorText').value = this.value;
+});
+
+function openTemplateModal(templateId = null) {
+    const modal = document.getElementById('templateModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const form = document.getElementById('templateForm');
+    const errorMsg = document.getElementById('errorMessage');
+    
+    // Reset
+    form.reset();
+    errorMsg.classList.remove('show');
+    document.getElementById('templateId').value = '';
+    
+    if (templateId) {
+        modalTitle.textContent = 'Template bearbeiten';
+        loadTemplate(templateId);
+    } else {
+        modalTitle.textContent = 'Neues Template erstellen';
+    }
+    
+    modal.classList.add('show');
+}
+
+function closeTemplateModal() {
+    document.getElementById('templateModal').classList.remove('show');
+}
+
+async function loadTemplate(templateId) {
+    try {
+        const response = await fetch(`/api/vendor/templates/get.php?id=${templateId}`);
+        const data = await response.json();
+        
+        if (data.success && data.template) {
+            const t = data.template;
+            
+            // Fill form
+            document.getElementById('templateId').value = t.id;
+            document.getElementById('templateName').value = t.template_name;
+            document.getElementById('templateDescription').value = t.template_description || '';
+            document.getElementById('category').value = t.category || '';
+            document.getElementById('niche').value = t.niche || '';
+            document.getElementById('rewardType').value = t.reward_type;
+            document.getElementById('rewardTitle').value = t.reward_title;
+            document.getElementById('rewardDescription').value = t.reward_description || '';
+            document.getElementById('rewardValue').value = t.reward_value || '';
+            document.getElementById('rewardIcon').value = t.reward_icon || '';
+            document.getElementById('rewardColor').value = t.reward_color || '#667eea';
+            document.getElementById('rewardColorText').value = t.reward_color || '#667eea';
+            document.getElementById('deliveryType').value = t.reward_delivery_type || 'manual';
+            document.getElementById('downloadUrl').value = t.reward_download_url || '';
+            document.getElementById('instructions').value = t.reward_instructions || '';
+            document.getElementById('tierLevel').value = t.suggested_tier_level || 1;
+            document.getElementById('referralsRequired').value = t.suggested_referrals_required || 3;
+            document.getElementById('price').value = t.marketplace_price || 0;
+            document.getElementById('digistoreId').value = t.digistore_product_id || '';
+        } else {
+            alert('Fehler beim Laden des Templates');
+            closeTemplateModal();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Ein Fehler ist aufgetreten');
+        closeTemplateModal();
+    }
+}
+
+async function saveTemplate() {
+    const form = document.getElementById('templateForm');
+    const saveBtn = document.getElementById('saveBtn');
+    const errorMsg = document.getElementById('errorMessage');
+    
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Speichert...';
+    errorMsg.classList.remove('show');
+    
+    const formData = new FormData(form);
+    const data = {};
+    formData.forEach((value, key) => {
+        data[key] = value;
+    });
+    
+    const templateId = document.getElementById('templateId').value;
+    const endpoint = templateId ? '/api/vendor/templates/update.php' : '/api/vendor/templates/create.php';
+    
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            location.reload();
+        } else {
+            if (result.errors && Array.isArray(result.errors)) {
+                errorMsg.innerHTML = result.errors.join('<br>');
+            } else {
+                errorMsg.textContent = result.error || 'Ein Fehler ist aufgetreten';
+            }
+            errorMsg.classList.add('show');
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fas fa-save"></i> Speichern';
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        errorMsg.textContent = 'Ein unerwarteter Fehler ist aufgetreten';
+        errorMsg.classList.add('show');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-save"></i> Speichern';
+    }
+}
+
+function editTemplate(templateId) {
+    openTemplateModal(templateId);
+}
+
 async function togglePublish(templateId, newState) {
     const toggle = document.getElementById('toggle-' + templateId);
     
     try {
         const response = await fetch('/api/vendor/templates/toggle-publish.php', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                id: templateId,
-                is_published: newState
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: templateId, is_published: newState })
         });
         
         const data = await response.json();
@@ -512,8 +1046,6 @@ async function togglePublish(templateId, newState) {
             } else {
                 toggle.classList.remove('active');
             }
-            
-            // Reload page to update badge
             setTimeout(() => location.reload(), 500);
         } else {
             alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
@@ -534,17 +1066,16 @@ async function deleteTemplate(templateId) {
     try {
         const response = await fetch('/api/vendor/templates/delete.php', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                id: templateId
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: templateId })
         });
         
         const data = await response.json();
         
         if (data.success) {
+            if (data.warning) {
+                alert(data.warning);
+            }
             location.reload();
         } else {
             alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
@@ -554,4 +1085,11 @@ async function deleteTemplate(templateId) {
         alert('Ein Fehler ist aufgetreten');
     }
 }
+
+// Close modal on outside click
+document.getElementById('templateModal')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeTemplateModal();
+    }
+});
 </script>
