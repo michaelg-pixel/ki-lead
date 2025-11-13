@@ -107,7 +107,7 @@ try {
         return $input[$key];
     }
     
-    // Template erstellen mit NEUEN FELDERN
+    // Template erstellen - OHNE digistore_product_id
     $stmt = $pdo->prepare("
         INSERT INTO vendor_reward_templates (
             vendor_id,
@@ -131,10 +131,9 @@ try {
             suggested_tier_level,
             suggested_referrals_required,
             marketplace_price,
-            digistore_product_id,
             is_published
         ) VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
     ");
     
@@ -160,7 +159,6 @@ try {
         getIntValue($input, 'suggested_tier_level', 1),
         getIntValue($input, 'suggested_referrals_required', 3),
         getFloatValue($input, 'marketplace_price', 0.00),
-        getStringValue($input, 'digistore_product_id'),
         getBoolValue($input, 'is_published', false)
     ]);
     
