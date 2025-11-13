@@ -107,7 +107,7 @@ try {
         return $input[$key];
     }
     
-    // Template erstellen
+    // Template erstellen mit NEUEN FELDERN
     $stmt = $pdo->prepare("
         INSERT INTO vendor_reward_templates (
             vendor_id,
@@ -125,13 +125,16 @@ try {
             reward_download_url,
             reward_icon,
             reward_color,
+            product_mockup_url,
+            course_duration,
+            original_product_link,
             suggested_tier_level,
             suggested_referrals_required,
             marketplace_price,
             digistore_product_id,
             is_published
         ) VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
     ");
     
@@ -151,6 +154,9 @@ try {
         getStringValue($input, 'reward_download_url'),
         getStringValue($input, 'reward_icon', 'fa-gift'),
         getStringValue($input, 'reward_color', '#667eea'),
+        getStringValue($input, 'product_mockup_url'),
+        getStringValue($input, 'course_duration'),
+        getStringValue($input, 'original_product_link'),
         getIntValue($input, 'suggested_tier_level', 1),
         getIntValue($input, 'suggested_referrals_required', 3),
         getFloatValue($input, 'marketplace_price', 0.00),
