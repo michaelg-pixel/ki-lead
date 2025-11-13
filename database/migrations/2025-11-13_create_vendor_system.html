@@ -143,6 +143,10 @@
             color: #60a5fa;
         }
         
+        .log-warning {
+            color: #f59e0b;
+        }
+        
         .result {
             margin-top: 2rem;
             padding: 1.5rem;
@@ -251,29 +255,26 @@
             
             try {
                 log('Starte Vendor System Migration...', 'info');
-                updateProgress(10);
+                updateProgress(5);
                 
-                // Step 1: Extend users table
+                // Step 1: Add columns to users table (one by one)
                 log('Schritt 1/5: Erweitere users Tabelle...', 'info');
-                const step1 = await executeSQL(`
-                    ALTER TABLE users 
-                    ADD COLUMN IF NOT EXISTS is_vendor BOOLEAN DEFAULT FALSE AFTER customer_id,
-                    ADD COLUMN IF NOT EXISTS vendor_company_name VARCHAR(255) DEFAULT NULL AFTER is_vendor,
-                    ADD COLUMN IF NOT EXISTS vendor_website VARCHAR(255) DEFAULT NULL AFTER vendor_company_name,
-                    ADD COLUMN IF NOT EXISTS vendor_description TEXT DEFAULT NULL AFTER vendor_website,
-                    ADD COLUMN IF NOT EXISTS vendor_paypal_email VARCHAR(255) DEFAULT NULL AFTER vendor_description,
-                    ADD COLUMN IF NOT EXISTS vendor_bank_account VARCHAR(255) DEFAULT NULL AFTER vendor_paypal_email,
-                    ADD COLUMN IF NOT EXISTS vendor_activated_at DATETIME DEFAULT NULL AFTER vendor_bank_account;
-                `);
                 
-                if (!step1.success) throw new Error('Fehler bei users Tabelle: ' + step1.error);
+                await executeSQLSafe('ALTER TABLE users ADD COLUMN is_vendor BOOLEAN DEFAULT FALSE AFTER customer_id', 'is_vendor');
+                await executeSQLSafe('ALTER TABLE users ADD COLUMN vendor_company_name VARCHAR(255) DEFAULT NULL AFTER is_vendor', 'vendor_company_name');
+                await executeSQLSafe('ALTER TABLE users ADD COLUMN vendor_website VARCHAR(255) DEFAULT NULL AFTER vendor_company_name', 'vendor_website');
+                await executeSQLSafe('ALTER TABLE users ADD COLUMN vendor_description TEXT DEFAULT NULL AFTER vendor_website', 'vendor_description');
+                await executeSQLSafe('ALTER TABLE users ADD COLUMN vendor_paypal_email VARCHAR(255) DEFAULT NULL AFTER vendor_description', 'vendor_paypal_email');
+                await executeSQLSafe('ALTER TABLE users ADD COLUMN vendor_bank_account VARCHAR(255) DEFAULT NULL AFTER vendor_paypal_email', 'vendor_bank_account');
+                await executeSQLSafe('ALTER TABLE users ADD COLUMN vendor_activated_at DATETIME DEFAULT NULL AFTER vendor_bank_account', 'vendor_activated_at');
+                
                 log('✓ users Tabelle erweitert', 'success');
-                updateProgress(25);
+                updateProgress(15);
                 
                 // Add index for users
-                await executeSQL('ALTER TABLE users ADD INDEX IF NOT EXISTS idx_vendor (is_vendor);');
+                await executeSQLSafe('ALTER TABLE users ADD INDEX idx_vendor (is_vendor)', 'idx_vendor');
                 log('✓ Index für is_vendor erstellt', 'success');
-                updateProgress(30);
+                updateProgress(20);
                 
                 // Step 2: Create vendor_reward_templates table
                 log('Schritt 2/5: Erstelle vendor_reward_templates Tabelle...', 'info');
@@ -282,50 +283,41 @@
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         vendor_id INT NOT NULL,
                         
-                        -- Template Info
                         template_name VARCHAR(255) NOT NULL,
                         template_description TEXT,
                         category VARCHAR(100),
                         niche VARCHAR(100),
                         
-                        -- Belohnungs-Details
                         reward_type VARCHAR(50) NOT NULL,
                         reward_title VARCHAR(255) NOT NULL,
                         reward_description TEXT,
                         reward_value VARCHAR(100),
                         
-                        -- Zugriff & Lieferung
                         reward_delivery_type ENUM('automatic', 'manual', 'code', 'url') DEFAULT 'manual',
                         reward_instructions TEXT,
                         reward_access_code_template VARCHAR(100),
                         reward_download_url TEXT,
                         
-                        -- Visuals
                         reward_icon VARCHAR(100) DEFAULT 'fa-gift',
                         reward_color VARCHAR(20) DEFAULT '#667eea',
                         reward_badge_image VARCHAR(255),
                         preview_image VARCHAR(255),
                         
-                        -- Empfehlungs-Vorschlag
                         suggested_tier_level INT DEFAULT 1,
                         suggested_referrals_required INT DEFAULT 3,
                         
-                        -- Marktplatz
                         is_published BOOLEAN DEFAULT FALSE,
                         is_featured BOOLEAN DEFAULT FALSE,
                         marketplace_price DECIMAL(10,2) DEFAULT 0.00,
                         digistore_product_id VARCHAR(255),
                         
-                        -- Provisionen
                         commission_per_import DECIMAL(10,2) DEFAULT 0.00,
                         commission_per_claim DECIMAL(10,2) DEFAULT 0.00,
                         
-                        -- Statistiken
                         times_imported INT DEFAULT 0,
                         times_claimed INT DEFAULT 0,
                         total_revenue DECIMAL(10,2) DEFAULT 0.00,
                         
-                        -- Meta
                         sort_order INT DEFAULT 0,
                         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -336,12 +328,12 @@
                         INDEX idx_category (category),
                         INDEX idx_niche (niche),
                         INDEX idx_featured (is_featured)
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 `);
                 
                 if (!step2.success) throw new Error('Fehler bei vendor_reward_templates: ' + step2.error);
                 log('✓ vendor_reward_templates Tabelle erstellt', 'success');
-                updateProgress(50);
+                updateProgress(40);
                 
                 // Step 3: Create reward_template_imports table
                 log('Schritt 3/5: Erstelle reward_template_imports Tabelle...', 'info');
@@ -352,11 +344,9 @@
                         customer_id INT NOT NULL,
                         reward_definition_id INT,
                         
-                        -- Import Details
                         import_date DATETIME DEFAULT CURRENT_TIMESTAMP,
                         import_source VARCHAR(50) DEFAULT 'marketplace',
                         
-                        -- Optional: Falls gekauft
                         purchase_price DECIMAL(10,2) DEFAULT 0.00,
                         digistore_transaction_id VARCHAR(255),
                         
@@ -368,12 +358,12 @@
                         INDEX idx_customer (customer_id),
                         INDEX idx_template (template_id),
                         INDEX idx_import_date (import_date)
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 `);
                 
                 if (!step3.success) throw new Error('Fehler bei reward_template_imports: ' + step3.error);
                 log('✓ reward_template_imports Tabelle erstellt', 'success');
-                updateProgress(65);
+                updateProgress(60);
                 
                 // Step 4: Create reward_template_claims table
                 log('Schritt 4/5: Erstelle reward_template_claims Tabelle...', 'info');
@@ -385,11 +375,9 @@
                         customer_id INT NOT NULL,
                         lead_id INT,
                         
-                        -- Claim Details
                         claimed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                         claim_status ENUM('pending', 'delivered', 'failed') DEFAULT 'pending',
                         
-                        -- Provisionen
                         commission_amount DECIMAL(10,2) DEFAULT 0.00,
                         commission_paid BOOLEAN DEFAULT FALSE,
                         
@@ -400,7 +388,7 @@
                         INDEX idx_template (template_id),
                         INDEX idx_customer (customer_id),
                         INDEX idx_claimed_at (claimed_at)
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 `);
                 
                 if (!step4.success) throw new Error('Fehler bei reward_template_claims: ' + step4.error);
@@ -409,31 +397,28 @@
                 
                 // Step 5: Extend reward_definitions table
                 log('Schritt 5/5: Erweitere reward_definitions Tabelle...', 'info');
-                const step5 = await executeSQL(`
-                    ALTER TABLE reward_definitions
-                    ADD COLUMN IF NOT EXISTS imported_from_template_id INT DEFAULT NULL AFTER user_id,
-                    ADD COLUMN IF NOT EXISTS is_imported BOOLEAN DEFAULT FALSE AFTER imported_from_template_id;
-                `);
                 
-                if (!step5.success) throw new Error('Fehler bei reward_definitions: ' + step5.error);
+                await executeSQLSafe('ALTER TABLE reward_definitions ADD COLUMN imported_from_template_id INT DEFAULT NULL AFTER user_id', 'imported_from_template_id');
+                await executeSQLSafe('ALTER TABLE reward_definitions ADD COLUMN is_imported BOOLEAN DEFAULT FALSE AFTER imported_from_template_id', 'is_imported');
+                
                 log('✓ reward_definitions Tabelle erweitert', 'success');
                 
-                // Add foreign key and index
-                await executeSQL('ALTER TABLE reward_definitions ADD INDEX IF NOT EXISTS idx_imported (is_imported);');
+                // Add index
+                await executeSQLSafe('ALTER TABLE reward_definitions ADD INDEX idx_imported (is_imported)', 'idx_imported');
                 log('✓ Index für is_imported erstellt', 'success');
                 
-                // Try to add foreign key (might fail if already exists)
+                // Try to add foreign key
                 try {
                     await executeSQL(`
                         ALTER TABLE reward_definitions 
                         ADD CONSTRAINT fk_reward_definitions_template 
                         FOREIGN KEY (imported_from_template_id) 
                         REFERENCES vendor_reward_templates(id) 
-                        ON DELETE SET NULL;
+                        ON DELETE SET NULL
                     `);
                     log('✓ Foreign Key für imported_from_template_id erstellt', 'success');
                 } catch (e) {
-                    log('Foreign Key existiert bereits oder konnte nicht erstellt werden', 'info');
+                    log('Foreign Key existiert bereits (ignoriert)', 'warning');
                 }
                 
                 updateProgress(100);
@@ -472,6 +457,28 @@
             });
             
             return await response.json();
+        }
+        
+        async function executeSQLSafe(sql, columnName) {
+            try {
+                const result = await executeSQL(sql);
+                if (result.success) {
+                    return result;
+                }
+                // Check if it's a duplicate column error
+                if (result.error && (result.error.includes('Duplicate column') || result.error.includes('duplicate key'))) {
+                    log(`✓ ${columnName} existiert bereits (übersprungen)`, 'warning');
+                    return { success: true };
+                }
+                throw new Error(result.error);
+            } catch (error) {
+                // If it's a duplicate error, that's OK
+                if (error.message && (error.message.includes('Duplicate') || error.message.includes('duplicate'))) {
+                    log(`✓ ${columnName} existiert bereits (übersprungen)`, 'warning');
+                    return { success: true };
+                }
+                throw error;
+            }
         }
     </script>
 </body>
