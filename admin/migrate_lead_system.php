@@ -31,33 +31,55 @@ echo "<!DOCTYPE html>
 
 $migrations = [];
 
+/**
+ * Helper: Prüft ob eine Spalte existiert
+ */
+function columnExists($pdo, $table, $column) {
+    try {
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) 
+            FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_SCHEMA = DATABASE() 
+            AND TABLE_NAME = ? 
+            AND COLUMN_NAME = ?
+        ");
+        $stmt->execute([$table, $column]);
+        return $stmt->fetchColumn() > 0;
+    } catch (PDOException $e) {
+        return false;
+    }
+}
+
 // ===== MIGRATION 1: lead_users erweitern =====
 try {
     echo "<p class='info'><strong>Migration 1:</strong> lead_users Tabelle erweitern...</p>";
     
     // freebie_id hinzufügen
-    $pdo->exec("
-        ALTER TABLE lead_users 
-        ADD COLUMN IF NOT EXISTS freebie_id INT NULL AFTER user_id,
-        ADD INDEX idx_freebie (freebie_id)
-    ");
-    echo "<p class='success'>✓ freebie_id Spalte hinzugefügt</p>";
+    if (!columnExists($pdo, 'lead_users', 'freebie_id')) {
+        $pdo->exec("ALTER TABLE lead_users ADD COLUMN freebie_id INT NULL AFTER user_id");
+        $pdo->exec("ALTER TABLE lead_users ADD INDEX idx_freebie (freebie_id)");
+        echo "<p class='success'>✓ freebie_id Spalte hinzugefügt</p>";
+    } else {
+        echo "<p class='info'>→ freebie_id existiert bereits</p>";
+    }
     
     // referrer_id hinzufügen
-    $pdo->exec("
-        ALTER TABLE lead_users 
-        ADD COLUMN IF NOT EXISTS referrer_id INT NULL AFTER referral_code,
-        ADD INDEX idx_referrer (referrer_id)
-    ");
-    echo "<p class='success'>✓ referrer_id Spalte hinzugefügt</p>";
+    if (!columnExists($pdo, 'lead_users', 'referrer_id')) {
+        $pdo->exec("ALTER TABLE lead_users ADD COLUMN referrer_id INT NULL AFTER referral_code");
+        $pdo->exec("ALTER TABLE lead_users ADD INDEX idx_referrer (referrer_id)");
+        echo "<p class='success'>✓ referrer_id Spalte hinzugefügt</p>";
+    } else {
+        echo "<p class='info'>→ referrer_id existiert bereits</p>";
+    }
     
     // status hinzufügen
-    $pdo->exec("
-        ALTER TABLE lead_users 
-        ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active' AFTER referrer_id,
-        ADD INDEX idx_status (status)
-    ");
-    echo "<p class='success'>✓ status Spalte hinzugefügt</p>";
+    if (!columnExists($pdo, 'lead_users', 'status')) {
+        $pdo->exec("ALTER TABLE lead_users ADD COLUMN status VARCHAR(50) DEFAULT 'active' AFTER referrer_id");
+        $pdo->exec("ALTER TABLE lead_users ADD INDEX idx_status (status)");
+        echo "<p class='success'>✓ status Spalte hinzugefügt</p>";
+    } else {
+        echo "<p class='info'>→ status existiert bereits</p>";
+    }
     
     $migrations[] = "lead_users erweitert";
     
@@ -70,18 +92,20 @@ try {
     echo "<p class='info'><strong>Migration 2:</strong> users Tabelle für Webhooks erweitern...</p>";
     
     // autoresponder_webhook_url hinzufügen
-    $pdo->exec("
-        ALTER TABLE users 
-        ADD COLUMN IF NOT EXISTS autoresponder_webhook_url TEXT NULL
-    ");
-    echo "<p class='success'>✓ autoresponder_webhook_url Spalte hinzugefügt</p>";
+    if (!columnExists($pdo, 'users', 'autoresponder_webhook_url')) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN autoresponder_webhook_url TEXT NULL");
+        echo "<p class='success'>✓ autoresponder_webhook_url Spalte hinzugefügt</p>";
+    } else {
+        echo "<p class='info'>→ autoresponder_webhook_url existiert bereits</p>";
+    }
     
     // autoresponder_api_key hinzufügen
-    $pdo->exec("
-        ALTER TABLE users 
-        ADD COLUMN IF NOT EXISTS autoresponder_api_key VARCHAR(255) NULL
-    ");
-    echo "<p class='success'>✓ autoresponder_api_key Spalte hinzugefügt</p>";
+    if (!columnExists($pdo, 'users', 'autoresponder_api_key')) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN autoresponder_api_key VARCHAR(255) NULL");
+        echo "<p class='success'>✓ autoresponder_api_key Spalte hinzugefügt</p>";
+    } else {
+        echo "<p class='info'>→ autoresponder_api_key existiert bereits</p>";
+    }
     
     $migrations[] = "users Webhook-Felder hinzugefügt";
     
@@ -118,12 +142,13 @@ try {
     echo "<p class='info'><strong>Migration 4:</strong> lead_referrals Tabelle prüfen...</p>";
     
     // freebie_id hinzufügen falls nicht vorhanden
-    $pdo->exec("
-        ALTER TABLE lead_referrals 
-        ADD COLUMN IF NOT EXISTS freebie_id INT NULL AFTER referred_name,
-        ADD INDEX idx_freebie (freebie_id)
-    ");
-    echo "<p class='success'>✓ freebie_id in lead_referrals hinzugefügt</p>";
+    if (!columnExists($pdo, 'lead_referrals', 'freebie_id')) {
+        $pdo->exec("ALTER TABLE lead_referrals ADD COLUMN freebie_id INT NULL AFTER referred_name");
+        $pdo->exec("ALTER TABLE lead_referrals ADD INDEX idx_freebie (freebie_id)");
+        echo "<p class='success'>✓ freebie_id in lead_referrals hinzugefügt</p>";
+    } else {
+        echo "<p class='info'>→ freebie_id existiert bereits</p>";
+    }
     
     $migrations[] = "lead_referrals erweitert";
     
@@ -135,11 +160,12 @@ try {
 try {
     echo "<p class='info'><strong>Migration 5:</strong> lead_login_tokens erweitern...</p>";
     
-    $pdo->exec("
-        ALTER TABLE lead_login_tokens 
-        ADD COLUMN IF NOT EXISTS referral_code VARCHAR(50) NULL AFTER freebie_id
-    ");
-    echo "<p class='success'>✓ referral_code in lead_login_tokens hinzugefügt</p>";
+    if (!columnExists($pdo, 'lead_login_tokens', 'referral_code')) {
+        $pdo->exec("ALTER TABLE lead_login_tokens ADD COLUMN referral_code VARCHAR(50) NULL AFTER freebie_id");
+        echo "<p class='success'>✓ referral_code in lead_login_tokens hinzugefügt</p>";
+    } else {
+        echo "<p class='info'>→ referral_code existiert bereits</p>";
+    }
     
     $migrations[] = "lead_login_tokens erweitert";
     
