@@ -33,7 +33,7 @@ try {
         exit;
     }
     
-    // Hole alle Templates des Vendors
+    // Hole alle Templates des Vendors - NUR EXISTIERENDE SPALTEN
     $stmt = $pdo->prepare("
         SELECT 
             id,
@@ -56,7 +56,6 @@ try {
             suggested_tier_level,
             suggested_referrals_required,
             marketplace_price,
-            digistore_product_id,
             is_published,
             sales_count,
             revenue,
