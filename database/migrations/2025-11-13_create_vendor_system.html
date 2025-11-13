@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendor System Migration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+            font-size: 1.875rem;
+        }
+        
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 2rem;
+            font-size: 0.875rem;
+        }
+        
+        .info-box {
+            background: #f3f4f6;
+            border-left: 4px solid #667eea;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            border-radius: 0.5rem;
+        }
+        
+        .info-box h3 {
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+        
+        .info-box ul {
+            list-style: none;
+            color: #4b5563;
+            font-size: 0.875rem;
+            line-height: 1.8;
+        }
+        
+        .info-box li:before {
+            content: "✓ ";
+            color: #10b981;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 1rem;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .progress {
+            margin-top: 2rem;
+            display: none;
+        }
+        
+        .progress.show {
+            display: block;
+        }
+        
+        .progress-bar {
+            background: #e5e7eb;
+            border-radius: 1rem;
+            height: 8px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+        
+        .progress-fill {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .log {
+            background: #1f2937;
+            color: #10b981;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            max-height: 300px;
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+        
+        .log-error {
+            color: #ef4444;
+        }
+        
+        .log-success {
+            color: #10b981;
+        }
+        
+        .log-info {
+            color: #60a5fa;
+        }
+        
+        .result {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            display: none;
+        }
+        
+        .result.show {
+            display: block;
+        }
+        
+        .result.success {
+            background: #d1fae5;
+            border: 2px solid #10b981;
+        }
+        
+        .result.error {
+            background: #fee2e2;
+            border: 2px solid #ef4444;
+        }
+        
+        .result h3 {
+            margin-bottom: 0.5rem;
+            font-size: 1.25rem;
+        }
+        
+        .result.success h3 {
+            color: #065f46;
+        }
+        
+        .result.error h3 {
+            color: #991b1b;
+        }
+        
+        .result p {
+            color: #374151;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💎 Vendor System Migration</h1>
+        <p class="subtitle">Datenbank-Struktur für das Vendor Reward Templates System</p>
+        
+        <div class="info-box">
+            <h3>Diese Migration erstellt:</h3>
+            <ul>
+                <li>3 neue Tabellen (vendor_reward_templates, reward_template_imports, reward_template_claims)</li>
+                <li>Erweitert users Tabelle (is_vendor, vendor_*)</li>
+                <li>Erweitert reward_definitions Tabelle (imported_from_template_id, is_imported)</li>
+                <li>Alle notwendigen Indizes und Foreign Keys</li>
+            </ul>
+        </div>
+        
+        <button class="btn" id="startBtn" onclick="startMigration()">
+            🚀 Migration starten
+        </button>
+        
+        <div class="progress" id="progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="log" id="log"></div>
+        </div>
+        
+        <div class="result" id="result">
+            <h3 id="resultTitle"></h3>
+            <p id="resultMessage"></p>
+        </div>
+    </div>
+
+    <script>
+        let logElement;
+        let progressFill;
+        
+        function log(message, type = 'info') {
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-${type}`;
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logElement.appendChild(logEntry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function updateProgress(percent) {
+            progressFill.style.width = percent + '%';
+        }
+        
+        function showResult(success, title, message) {
+            const result = document.getElementById('result');
+            result.className = `result show ${success ? 'success' : 'error'}`;
+            document.getElementById('resultTitle').textContent = title;
+            document.getElementById('resultMessage').textContent = message;
+        }
+        
+        async function startMigration() {
+            const btn = document.getElementById('startBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Migration läuft...';
+            
+            const progress = document.getElementById('progress');
+            progress.classList.add('show');
+            
+            logElement = document.getElementById('log');
+            progressFill = document.getElementById('progressFill');
+            
+            try {
+                log('Starte Vendor System Migration...', 'info');
+                updateProgress(10);
+                
+                // Step 1: Extend users table
+                log('Schritt 1/5: Erweitere users Tabelle...', 'info');
+                const step1 = await executeSQL(`
+                    ALTER TABLE users 
+                    ADD COLUMN IF NOT EXISTS is_vendor BOOLEAN DEFAULT FALSE AFTER customer_id,
+                    ADD COLUMN IF NOT EXISTS vendor_company_name VARCHAR(255) DEFAULT NULL AFTER is_vendor,
+                    ADD COLUMN IF NOT EXISTS vendor_website VARCHAR(255) DEFAULT NULL AFTER vendor_company_name,
+                    ADD COLUMN IF NOT EXISTS vendor_description TEXT DEFAULT NULL AFTER vendor_website,
+                    ADD COLUMN IF NOT EXISTS vendor_paypal_email VARCHAR(255) DEFAULT NULL AFTER vendor_description,
+                    ADD COLUMN IF NOT EXISTS vendor_bank_account VARCHAR(255) DEFAULT NULL AFTER vendor_paypal_email,
+                    ADD COLUMN IF NOT EXISTS vendor_activated_at DATETIME DEFAULT NULL AFTER vendor_bank_account;
+                `);
+                
+                if (!step1.success) throw new Error('Fehler bei users Tabelle: ' + step1.error);
+                log('✓ users Tabelle erweitert', 'success');
+                updateProgress(25);
+                
+                // Add index for users
+                await executeSQL('ALTER TABLE users ADD INDEX IF NOT EXISTS idx_vendor (is_vendor);');
+                log('✓ Index für is_vendor erstellt', 'success');
+                updateProgress(30);
+                
+                // Step 2: Create vendor_reward_templates table
+                log('Schritt 2/5: Erstelle vendor_reward_templates Tabelle...', 'info');
+                const step2 = await executeSQL(`
+                    CREATE TABLE IF NOT EXISTS vendor_reward_templates (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        vendor_id INT NOT NULL,
+                        
+                        -- Template Info
+                        template_name VARCHAR(255) NOT NULL,
+                        template_description TEXT,
+                        category VARCHAR(100),
+                        niche VARCHAR(100),
+                        
+                        -- Belohnungs-Details
+                        reward_type VARCHAR(50) NOT NULL,
+                        reward_title VARCHAR(255) NOT NULL,
+                        reward_description TEXT,
+                        reward_value VARCHAR(100),
+                        
+                        -- Zugriff & Lieferung
+                        reward_delivery_type ENUM('automatic', 'manual', 'code', 'url') DEFAULT 'manual',
+                        reward_instructions TEXT,
+                        reward_access_code_template VARCHAR(100),
+                        reward_download_url TEXT,
+                        
+                        -- Visuals
+                        reward_icon VARCHAR(100) DEFAULT 'fa-gift',
+                        reward_color VARCHAR(20) DEFAULT '#667eea',
+                        reward_badge_image VARCHAR(255),
+                        preview_image VARCHAR(255),
+                        
+                        -- Empfehlungs-Vorschlag
+                        suggested_tier_level INT DEFAULT 1,
+                        suggested_referrals_required INT DEFAULT 3,
+                        
+                        -- Marktplatz
+                        is_published BOOLEAN DEFAULT FALSE,
+                        is_featured BOOLEAN DEFAULT FALSE,
+                        marketplace_price DECIMAL(10,2) DEFAULT 0.00,
+                        digistore_product_id VARCHAR(255),
+                        
+                        -- Provisionen
+                        commission_per_import DECIMAL(10,2) DEFAULT 0.00,
+                        commission_per_claim DECIMAL(10,2) DEFAULT 0.00,
+                        
+                        -- Statistiken
+                        times_imported INT DEFAULT 0,
+                        times_claimed INT DEFAULT 0,
+                        total_revenue DECIMAL(10,2) DEFAULT 0.00,
+                        
+                        -- Meta
+                        sort_order INT DEFAULT 0,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        
+                        FOREIGN KEY (vendor_id) REFERENCES users(id) ON DELETE CASCADE,
+                        INDEX idx_vendor (vendor_id),
+                        INDEX idx_published (is_published),
+                        INDEX idx_category (category),
+                        INDEX idx_niche (niche),
+                        INDEX idx_featured (is_featured)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                `);
+                
+                if (!step2.success) throw new Error('Fehler bei vendor_reward_templates: ' + step2.error);
+                log('✓ vendor_reward_templates Tabelle erstellt', 'success');
+                updateProgress(50);
+                
+                // Step 3: Create reward_template_imports table
+                log('Schritt 3/5: Erstelle reward_template_imports Tabelle...', 'info');
+                const step3 = await executeSQL(`
+                    CREATE TABLE IF NOT EXISTS reward_template_imports (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        template_id INT NOT NULL,
+                        customer_id INT NOT NULL,
+                        reward_definition_id INT,
+                        
+                        -- Import Details
+                        import_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        import_source VARCHAR(50) DEFAULT 'marketplace',
+                        
+                        -- Optional: Falls gekauft
+                        purchase_price DECIMAL(10,2) DEFAULT 0.00,
+                        digistore_transaction_id VARCHAR(255),
+                        
+                        FOREIGN KEY (template_id) REFERENCES vendor_reward_templates(id) ON DELETE CASCADE,
+                        FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE,
+                        FOREIGN KEY (reward_definition_id) REFERENCES reward_definitions(id) ON DELETE SET NULL,
+                        
+                        UNIQUE KEY unique_import (template_id, customer_id),
+                        INDEX idx_customer (customer_id),
+                        INDEX idx_template (template_id),
+                        INDEX idx_import_date (import_date)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                `);
+                
+                if (!step3.success) throw new Error('Fehler bei reward_template_imports: ' + step3.error);
+                log('✓ reward_template_imports Tabelle erstellt', 'success');
+                updateProgress(65);
+                
+                // Step 4: Create reward_template_claims table
+                log('Schritt 4/5: Erstelle reward_template_claims Tabelle...', 'info');
+                const step4 = await executeSQL(`
+                    CREATE TABLE IF NOT EXISTS reward_template_claims (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        template_id INT NOT NULL,
+                        reward_definition_id INT NOT NULL,
+                        customer_id INT NOT NULL,
+                        lead_id INT,
+                        
+                        -- Claim Details
+                        claimed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        claim_status ENUM('pending', 'delivered', 'failed') DEFAULT 'pending',
+                        
+                        -- Provisionen
+                        commission_amount DECIMAL(10,2) DEFAULT 0.00,
+                        commission_paid BOOLEAN DEFAULT FALSE,
+                        
+                        FOREIGN KEY (template_id) REFERENCES vendor_reward_templates(id) ON DELETE CASCADE,
+                        FOREIGN KEY (reward_definition_id) REFERENCES reward_definitions(id) ON DELETE CASCADE,
+                        FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE,
+                        
+                        INDEX idx_template (template_id),
+                        INDEX idx_customer (customer_id),
+                        INDEX idx_claimed_at (claimed_at)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                `);
+                
+                if (!step4.success) throw new Error('Fehler bei reward_template_claims: ' + step4.error);
+                log('✓ reward_template_claims Tabelle erstellt', 'success');
+                updateProgress(80);
+                
+                // Step 5: Extend reward_definitions table
+                log('Schritt 5/5: Erweitere reward_definitions Tabelle...', 'info');
+                const step5 = await executeSQL(`
+                    ALTER TABLE reward_definitions
+                    ADD COLUMN IF NOT EXISTS imported_from_template_id INT DEFAULT NULL AFTER user_id,
+                    ADD COLUMN IF NOT EXISTS is_imported BOOLEAN DEFAULT FALSE AFTER imported_from_template_id;
+                `);
+                
+                if (!step5.success) throw new Error('Fehler bei reward_definitions: ' + step5.error);
+                log('✓ reward_definitions Tabelle erweitert', 'success');
+                
+                // Add foreign key and index
+                await executeSQL('ALTER TABLE reward_definitions ADD INDEX IF NOT EXISTS idx_imported (is_imported);');
+                log('✓ Index für is_imported erstellt', 'success');
+                
+                // Try to add foreign key (might fail if already exists)
+                try {
+                    await executeSQL(`
+                        ALTER TABLE reward_definitions 
+                        ADD CONSTRAINT fk_reward_definitions_template 
+                        FOREIGN KEY (imported_from_template_id) 
+                        REFERENCES vendor_reward_templates(id) 
+                        ON DELETE SET NULL;
+                    `);
+                    log('✓ Foreign Key für imported_from_template_id erstellt', 'success');
+                } catch (e) {
+                    log('Foreign Key existiert bereits oder konnte nicht erstellt werden', 'info');
+                }
+                
+                updateProgress(100);
+                log('Migration erfolgreich abgeschlossen! 🎉', 'success');
+                
+                showResult(
+                    true,
+                    '✅ Migration erfolgreich!',
+                    'Alle Tabellen wurden erfolgreich erstellt und erweitert. Das Vendor System ist jetzt bereit.'
+                );
+                
+                btn.textContent = '✓ Migration abgeschlossen';
+                
+            } catch (error) {
+                log('FEHLER: ' + error.message, 'error');
+                updateProgress(0);
+                
+                showResult(
+                    false,
+                    '❌ Migration fehlgeschlagen',
+                    'Fehler bei der Migration: ' + error.message + '. Bitte prüfe die Logs und versuche es erneut.'
+                );
+                
+                btn.disabled = false;
+                btn.textContent = '🔄 Migration erneut versuchen';
+            }
+        }
+        
+        async function executeSQL(sql) {
+            const response = await fetch('execute-migration.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ sql: sql })
+            });
+            
+            return await response.json();
+        }
+    </script>
+</body>
+</html>
