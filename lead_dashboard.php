@@ -16,6 +16,7 @@ $pdo = getDBConnection();
 // ===== TOKEN-BASIERTE AUTHENTIFIZIERUNG =====
 if (isset($_GET['token']) && !isset($_SESSION['lead_id'])) {
     $token = $_GET['token'];
+    $freebie_param = isset($_GET['freebie']) ? (int)$_GET['freebie'] : null;
     
     try {
         // Token validieren
@@ -107,8 +108,9 @@ if (isset($_GET['token']) && !isset($_SESSION['lead_id'])) {
             $_SESSION['lead_customer_id'] = $token_data['customer_id'];
             $_SESSION['lead_freebie_id'] = $token_data['freebie_id'];
             
-            // Redirect ohne Token für saubere URL
-            header('Location: /lead_dashboard.php');
+            // Redirect MIT freebie Parameter (entweder aus URL oder aus Token)
+            $redirect_freebie = $freebie_param ?: $token_data['freebie_id'];
+            header('Location: /lead_dashboard.php?freebie=' . $redirect_freebie);
             exit;
         } else {
             // Token ungültig oder abgelaufen → Fehlerseite
