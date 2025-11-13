@@ -8,15 +8,61 @@ if (!defined('INCLUDED')) {
     die('Direct access not permitted');
 }
 
-// Placeholder: Später wird hier eine payouts Tabelle abgefragt
-// Für jetzt zeigen wir nur die Gesamtsumme aus vendor_reward_templates
+// Gesamtverdienst aus Templates laden
 $stmt = $pdo->prepare("
     SELECT SUM(total_revenue) as total_earnings
     FROM vendor_reward_templates
     WHERE vendor_id = ?
 ");
 $stmt->execute([$customer_id]);
-$earnings = $stmt->fetchColumn() ?? 0;
+$total_earnings = $stmt->fetchColumn() ?? 0;
+
+// Bereits ausbezahlte Beträge
+$stmt = $pdo->prepare("
+    SELECT 
+        SUM(amount) as paid_amount,
+        COUNT(*) as payout_count
+    FROM vendor_payouts
+    WHERE vendor_id = ? AND status = 'paid'
+");
+$stmt->execute([$customer_id]);
+$payout_stats = $stmt->fetch(PDO::FETCH_ASSOC);
+$paid_amount = $payout_stats['paid_amount'] ?? 0;
+$payout_count = $payout_stats['payout_count'] ?? 0;
+
+// Ausstehender Betrag
+$pending_amount = $total_earnings - $paid_amount;
+
+// Auszahlungs-Historie laden
+$stmt = $pdo->prepare("
+    SELECT 
+        id,
+        amount,
+        period_start,
+        period_end,
+        status,
+        payment_method,
+        payment_email,
+        payment_account,
+        transaction_id,
+        transaction_date,
+        created_at,
+        paid_at
+    FROM vendor_payouts
+    WHERE vendor_id = ?
+    ORDER BY created_at DESC
+    LIMIT 50
+");
+$stmt->execute([$customer_id]);
+$payouts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Nächste Auszahlung berechnen (1. des nächsten Monats)
+$next_payout = new DateTime('first day of next month');
+$next_payout_date = $next_payout->format('d.m.Y');
+
+// Prüfe ob Mindestbetrag erreicht
+$min_payout = 50.00;
+$can_request = $pending_amount >= $min_payout;
 ?>
 
 <style>
@@ -26,32 +72,51 @@ $earnings = $stmt->fetchColumn() ?? 0;
     margin: 0 auto;
 }
 
-.payout-summary {
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
-    border: 1px solid rgba(102, 126, 234, 0.3);
-    border-radius: 1rem;
-    padding: 2rem;
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
     margin-bottom: 3rem;
+}
+
+.stat-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(102, 126, 234, 0.2);
+    border-radius: 1rem;
+    padding: 1.5rem;
     text-align: center;
 }
 
-.summary-label {
+.stat-card.highlight {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+}
+
+.stat-label {
     color: var(--text-secondary, #9ca3af);
-    font-size: 1rem;
+    font-size: 0.875rem;
     font-weight: 500;
     margin-bottom: 0.5rem;
 }
 
-.summary-amount {
-    font-size: 3rem;
+.stat-value {
+    font-size: 2rem;
     font-weight: 700;
-    color: #10b981;
-    margin-bottom: 1rem;
+    color: var(--text-primary, #ffffff);
+    margin-bottom: 0.25rem;
 }
 
-.summary-hint {
+.stat-value.success {
+    color: #10b981;
+}
+
+.stat-value.warning {
+    color: #f59e0b;
+}
+
+.stat-hint {
     color: var(--text-secondary, #9ca3af);
-    font-size: 0.875rem;
+    font-size: 0.75rem;
 }
 
 .info-boxes {
@@ -84,33 +149,50 @@ $earnings = $stmt->fetchColumn() ?? 0;
     line-height: 1.6;
 }
 
-.payouts-placeholder {
+.payouts-section {
     background: rgba(255, 255, 255, 0.05);
-    border: 2px dashed rgba(102, 126, 234, 0.3);
+    border: 1px solid rgba(102, 126, 234, 0.2);
     border-radius: 1rem;
-    padding: 4rem 2rem;
-    text-align: center;
+    padding: 2rem;
 }
 
-.placeholder-icon {
-    font-size: 4rem;
-    margin-bottom: 1.5rem;
-    opacity: 0.5;
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
 }
 
-.placeholder-title {
+.section-title {
     font-size: 1.5rem;
     font-weight: 700;
     color: var(--text-primary, #ffffff);
-    margin-bottom: 1rem;
 }
 
-.placeholder-text {
+.payouts-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.payouts-table thead tr {
+    border-bottom: 2px solid rgba(102, 126, 234, 0.2);
+}
+
+.payouts-table th {
+    padding: 1rem;
+    text-align: left;
     color: var(--text-secondary, #9ca3af);
-    margin-bottom: 1.5rem;
-    max-width: 600px;
-    margin-left: auto;
-    margin-right: auto;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.payouts-table td {
+    padding: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.payouts-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .payout-status {
@@ -138,32 +220,101 @@ $earnings = $stmt->fetchColumn() ?? 0;
     color: #3b82f6;
 }
 
+.payout-status.failed {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+}
+
+.empty-icon {
+    font-size: 4rem;
+    margin-bottom: 1.5rem;
+    opacity: 0.5;
+}
+
+.empty-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary, #ffffff);
+    margin-bottom: 1rem;
+}
+
+.empty-text {
+    color: var(--text-secondary, #9ca3af);
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.amount {
+    color: #10b981;
+    font-weight: 600;
+}
+
 @media (max-width: 768px) {
     .vendor-payouts {
         padding: 1rem;
     }
     
-    .payout-summary {
-        padding: 1.5rem;
-    }
-    
-    .summary-amount {
-        font-size: 2rem;
+    .stats-grid {
+        grid-template-columns: 1fr;
     }
     
     .info-boxes {
         grid-template-columns: 1fr;
     }
+    
+    .payouts-section {
+        padding: 1rem;
+        overflow-x: auto;
+    }
+    
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .payouts-table {
+        min-width: 600px;
+    }
 }
 </style>
 
 <div class="vendor-payouts">
-    <!-- Gesamtverdienst -->
-    <div class="payout-summary">
-        <div class="summary-label">Gesamtverdienst</div>
-        <div class="summary-amount"><?php echo number_format($earnings, 2, ',', '.'); ?>€</div>
-        <div class="summary-hint">
-            Ausstehender Betrag aus allen Template-Verkäufen und Claims
+    <!-- Statistiken -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label">Gesamtverdienst</div>
+            <div class="stat-value"><?php echo number_format($total_earnings, 2, ',', '.'); ?>€</div>
+            <div class="stat-hint">Aus allen Templates</div>
+        </div>
+        
+        <div class="stat-card highlight">
+            <div class="stat-label">Ausstehend</div>
+            <div class="stat-value warning"><?php echo number_format($pending_amount, 2, ',', '.'); ?>€</div>
+            <div class="stat-hint">
+                <?php if ($can_request): ?>
+                    Bereit zur Auszahlung
+                <?php else: ?>
+                    Mindestens <?php echo number_format($min_payout, 2, ',', '.'); ?>€ erforderlich
+                <?php endif; ?>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-label">Ausbezahlt</div>
+            <div class="stat-value success"><?php echo number_format($paid_amount, 2, ',', '.'); ?>€</div>
+            <div class="stat-hint"><?php echo $payout_count; ?> Auszahlungen</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-label">Nächste Auszahlung</div>
+            <div class="stat-value" style="font-size: 1.5rem;"><?php echo $next_payout_date; ?></div>
+            <div class="stat-hint">Automatisch</div>
         </div>
     </div>
     
@@ -175,7 +326,7 @@ $earnings = $stmt->fetchColumn() ?? 0;
                 <span>Auszahlungsrhythmus</span>
             </div>
             <div class="info-box-content">
-                Auszahlungen erfolgen automatisch zum 1. jeden Monats, wenn der Mindestbetrag von 50€ erreicht wurde.
+                Auszahlungen erfolgen automatisch zum 1. jeden Monats, wenn der Mindestbetrag von <?php echo number_format($min_payout, 2, ',', '.'); ?>€ erreicht wurde.
             </div>
         </div>
         
@@ -200,48 +351,84 @@ $earnings = $stmt->fetchColumn() ?? 0;
         </div>
     </div>
     
-    <!-- Auszahlungs-Historie (Platzhalter) -->
-    <div class="payouts-placeholder">
-        <div class="placeholder-icon">💸</div>
-        <h3 class="placeholder-title">Auszahlungs-Historie</h3>
-        <p class="placeholder-text">
-            Hier werden alle Ihre Auszahlungen aufgelistet, sobald die erste Auszahlung erfolgt ist.
-        </p>
+    <!-- Auszahlungs-Historie -->
+    <div class="payouts-section">
+        <div class="section-header">
+            <h2 class="section-title">💸 Auszahlungs-Historie</h2>
+        </div>
         
-        <!-- Beispiel wie es aussehen wird -->
-        <div style="max-width: 800px; margin: 2rem auto; text-align: left;">
-            <table style="width: 100%; border-collapse: collapse;">
+        <?php if (empty($payouts)): ?>
+            <div class="empty-state">
+                <div class="empty-icon">💸</div>
+                <h3 class="empty-title">Noch keine Auszahlungen</h3>
+                <p class="empty-text">
+                    Sobald Sie Ihren ersten Verdienst von mindestens <?php echo number_format($min_payout, 2, ',', '.'); ?>€ erreichen, 
+                    erfolgt die erste Auszahlung automatisch zum 1. des Folgemonats.
+                </p>
+            </div>
+        <?php else: ?>
+            <table class="payouts-table">
                 <thead>
-                    <tr style="border-bottom: 2px solid rgba(102, 126, 234, 0.2);">
-                        <th style="padding: 1rem; text-align: left; color: var(--text-secondary, #9ca3af); font-size: 0.875rem;">Datum</th>
-                        <th style="padding: 1rem; text-align: left; color: var(--text-secondary, #9ca3af); font-size: 0.875rem;">Betrag</th>
-                        <th style="padding: 1rem; text-align: left; color: var(--text-secondary, #9ca3af); font-size: 0.875rem;">Status</th>
-                        <th style="padding: 1rem; text-align: left; color: var(--text-secondary, #9ca3af); font-size: 0.875rem;">Methode</th>
+                    <tr>
+                        <th>Datum</th>
+                        <th>Zeitraum</th>
+                        <th>Betrag</th>
+                        <th>Status</th>
+                        <th>Methode</th>
+                        <th>Details</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05); opacity: 0.5;">
-                        <td style="padding: 1rem; color: var(--text-primary, #ffffff);">01.12.2025</td>
-                        <td style="padding: 1rem; color: #10b981; font-weight: 600;">450,00€</td>
-                        <td style="padding: 1rem;">
-                            <span class="payout-status paid">✓ Ausbezahlt</span>
+                    <?php foreach ($payouts as $payout): ?>
+                    <tr>
+                        <td style="color: var(--text-primary, #ffffff);">
+                            <?php echo date('d.m.Y', strtotime($payout['created_at'])); ?>
                         </td>
-                        <td style="padding: 1rem; color: var(--text-secondary, #9ca3af);">PayPal</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05); opacity: 0.5;">
-                        <td style="padding: 1rem; color: var(--text-primary, #ffffff);">01.01.2026</td>
-                        <td style="padding: 1rem; color: #10b981; font-weight: 600;">320,50€</td>
-                        <td style="padding: 1rem;">
-                            <span class="payout-status processing">⏳ In Bearbeitung</span>
+                        <td style="color: var(--text-secondary, #9ca3af); font-size: 0.875rem;">
+                            <?php echo date('d.m.', strtotime($payout['period_start'])); ?> - 
+                            <?php echo date('d.m.Y', strtotime($payout['period_end'])); ?>
                         </td>
-                        <td style="padding: 1rem; color: var(--text-secondary, #9ca3af);">Bank</td>
+                        <td class="amount">
+                            <?php echo number_format($payout['amount'], 2, ',', '.'); ?>€
+                        </td>
+                        <td>
+                            <?php
+                            $status_icons = [
+                                'pending' => '⏳',
+                                'processing' => '🔄',
+                                'paid' => '✓',
+                                'failed' => '✕'
+                            ];
+                            $status_labels = [
+                                'pending' => 'Ausstehend',
+                                'processing' => 'In Bearbeitung',
+                                'paid' => 'Ausbezahlt',
+                                'failed' => 'Fehlgeschlagen'
+                            ];
+                            ?>
+                            <span class="payout-status <?php echo $payout['status']; ?>">
+                                <?php echo $status_icons[$payout['status']]; ?>
+                                <?php echo $status_labels[$payout['status']]; ?>
+                            </span>
+                        </td>
+                        <td style="color: var(--text-secondary, #9ca3af);">
+                            <?php 
+                            echo $payout['payment_method'] === 'paypal' ? 'PayPal' : 'Banküberweisung';
+                            ?>
+                        </td>
+                        <td style="color: var(--text-secondary, #9ca3af); font-size: 0.875rem;">
+                            <?php if ($payout['transaction_id']): ?>
+                                ID: <?php echo htmlspecialchars($payout['transaction_id']); ?>
+                            <?php elseif ($payout['payment_email']): ?>
+                                <?php echo htmlspecialchars($payout['payment_email']); ?>
+                            <?php else: ?>
+                                -
+                            <?php endif; ?>
+                        </td>
                     </tr>
+                    <?php endforeach; ?>
                 </tbody>
             </table>
-        </div>
-        
-        <p class="placeholder-text" style="margin-top: 2rem;">
-            <strong>Phase 7</strong> - Vollständige Auszahlungs-Verwaltung wird in der nächsten Phase implementiert
-        </p>
+        <?php endif; ?>
     </div>
 </div>
