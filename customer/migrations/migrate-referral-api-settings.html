@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migration: Empfehlungsprogramm API-Einstellungen</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+        }
+        h1 {
+            color: #1f2937;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .step {
+            background: #f9fafb;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+        .step-title {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .step-content {
+            color: #4b5563;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-pending { background: #fef3c7; color: #92400e; }
+        .status-running { background: #dbeafe; color: #1e40af; }
+        .status-success { background: #d1fae5; color: #065f46; }
+        .status-error { background: #fee2e2; color: #991b1b; }
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            transition: transform 0.2s;
+        }
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .log {
+            background: #1f2937;
+            color: #10b981;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+            display: none;
+        }
+        .log-line { margin-bottom: 4px; }
+        .log-error { color: #ef4444; }
+        .log-success { color: #10b981; }
+        .log-info { color: #3b82f6; }
+        pre {
+            background: #f3f4f6;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Empfehlungsprogramm API-Migration</h1>
+        <p class="subtitle">Erweitert das Empfehlungsprogramm um API-Einstellungen und Belohnungsstufen-Management</p>
+        
+        <div class="step">
+            <div class="step-title">
+                <span id="status1" class="status status-pending">AUSSTEHEND</span>
+                <span>Schritt 1: Email-Marketing API Einstellungen</span>
+            </div>
+            <div class="step-content">
+                Erstellt die Tabelle für API-Einstellungen (Quentn, Klick-Tipp, GetResponse, Brevo, etc.)
+                <pre>- API Provider (string)
+- API Key (encrypted)
+- Start Tag / List ID
+- Campaign ID
+- Double Opt-in Einstellung
+- Webhook URL</pre>
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-title">
+                <span id="status2" class="status status-pending">AUSSTEHEND</span>
+                <span>Schritt 2: Erweiterte Belohnungsstufen</span>
+            </div>
+            <div class="step-content">
+                Erweitert die Belohnungsstufen um Email-Versand-Funktionen
+                <pre>- Email-Template für Belohnung
+- Automatischer Versand (Boolean)
+- Versand-Status Tracking
+- Integration mit Email-API</pre>
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-title">
+                <span id="status3" class="status status-pending">AUSSTEHEND</span>
+                <span>Schritt 3: Lead Email-Tracking</span>
+            </div>
+            <div class="step-content">
+                Tracking für versendete Belohnungs-Emails
+                <pre>- Versendete Emails Log
+- Open-Tracking (optional)
+- Click-Tracking (optional)
+- Delivery Status</pre>
+            </div>
+        </div>
+
+        <button id="startBtn" class="btn" onclick="startMigration()">
+            ✨ Migration starten
+        </button>
+
+        <div id="log" class="log"></div>
+    </div>
+
+    <script>
+        let currentStep = 0;
+        const API_BASE = '/api/database';
+
+        const migrations = [
+            {
+                name: 'Email-Marketing API Einstellungen',
+                statusId: 'status1',
+                sql: `
+                    CREATE TABLE IF NOT EXISTS customer_email_api_settings (
+                        id INT PRIMARY KEY AUTO_INCREMENT,
+                        customer_id INT NOT NULL,
+                        
+                        -- API Provider
+                        provider VARCHAR(50) NOT NULL COMMENT 'quentn, klicktipp, getresponse, brevo, activecampaign, mailchimp',
+                        
+                        -- API Credentials (verschlüsselt speichern!)
+                        api_key VARCHAR(500) NOT NULL,
+                        api_secret VARCHAR(500) DEFAULT NULL,
+                        
+                        -- Listen/Tag Konfiguration
+                        start_tag VARCHAR(200) DEFAULT NULL COMMENT 'Tag beim Lead-Eintrag',
+                        list_id VARCHAR(200) DEFAULT NULL COMMENT 'Listen-ID falls nötig',
+                        campaign_id VARCHAR(200) DEFAULT NULL COMMENT 'Kampagnen-ID',
+                        
+                        -- Double Opt-in
+                        double_optin_enabled BOOLEAN DEFAULT TRUE,
+                        double_optin_form_id VARCHAR(200) DEFAULT NULL,
+                        
+                        -- Webhook für Bestätigungen
+                        webhook_url VARCHAR(500) DEFAULT NULL,
+                        webhook_secret VARCHAR(255) DEFAULT NULL,
+                        
+                        -- Status
+                        is_active BOOLEAN DEFAULT TRUE,
+                        is_verified BOOLEAN DEFAULT FALSE COMMENT 'API Verbindung getestet',
+                        last_verified_at DATETIME DEFAULT NULL,
+                        verification_error TEXT DEFAULT NULL,
+                        
+                        -- Zusätzliche Einstellungen als JSON
+                        custom_settings JSON DEFAULT NULL,
+                        
+                        -- Timestamps
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        
+                        -- Foreign Keys & Indexes
+                        FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE,
+                        UNIQUE KEY unique_customer_provider (customer_id, provider),
+                        INDEX idx_customer_active (customer_id, is_active)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                `
+            },
+            {
+                name: 'Erweiterte Belohnungsstufen',
+                statusId: 'status2',
+                sql: `
+                    -- Erweitere bestehende reward_definitions Tabelle
+                    ALTER TABLE reward_definitions
+                    ADD COLUMN IF NOT EXISTS email_subject VARCHAR(200) DEFAULT NULL COMMENT 'Email-Betreff für Belohnung',
+                    ADD COLUMN IF NOT EXISTS email_body TEXT DEFAULT NULL COMMENT 'Email-Text für Belohnung',
+                    ADD COLUMN IF NOT EXISTS email_template_id INT DEFAULT NULL COMMENT 'Referenz zu Email-Template',
+                    ADD COLUMN IF NOT EXISTS auto_send_email BOOLEAN DEFAULT FALSE COMMENT 'Automatisch Email versenden',
+                    ADD COLUMN IF NOT EXISTS send_via_api BOOLEAN DEFAULT TRUE COMMENT 'Über Email-API versenden',
+                    ADD COLUMN IF NOT EXISTS attachment_urls JSON DEFAULT NULL COMMENT 'Anhänge als URLs',
+                    ADD COLUMN IF NOT EXISTS notification_webhook VARCHAR(500) DEFAULT NULL COMMENT 'Webhook bei Erreichen';
+                `
+            },
+            {
+                name: 'Lead Email-Tracking',
+                statusId: 'status3',
+                sql: `
+                    CREATE TABLE IF NOT EXISTS lead_reward_emails (
+                        id INT PRIMARY KEY AUTO_INCREMENT,
+                        
+                        -- Referenzen
+                        lead_id INT NOT NULL,
+                        customer_id INT NOT NULL,
+                        reward_id INT NOT NULL,
+                        
+                        -- Email Details
+                        email_to VARCHAR(255) NOT NULL,
+                        email_subject VARCHAR(200) NOT NULL,
+                        email_body TEXT NOT NULL,
+                        
+                        -- Versand Status
+                        send_status ENUM('pending', 'sent', 'failed', 'bounced') DEFAULT 'pending',
+                        send_method ENUM('api', 'smtp', 'manual') DEFAULT 'api',
+                        api_provider VARCHAR(50) DEFAULT NULL,
+                        api_message_id VARCHAR(255) DEFAULT NULL,
+                        
+                        -- Tracking
+                        sent_at DATETIME DEFAULT NULL,
+                        opened_at DATETIME DEFAULT NULL,
+                        clicked_at DATETIME DEFAULT NULL,
+                        open_count INT DEFAULT 0,
+                        click_count INT DEFAULT 0,
+                        
+                        -- Error Handling
+                        error_message TEXT DEFAULT NULL,
+                        retry_count INT DEFAULT 0,
+                        max_retries INT DEFAULT 3,
+                        
+                        -- Timestamps
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        
+                        -- Foreign Keys & Indexes
+                        FOREIGN KEY (lead_id) REFERENCES lead_users(id) ON DELETE CASCADE,
+                        FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE,
+                        FOREIGN KEY (reward_id) REFERENCES reward_definitions(id) ON DELETE CASCADE,
+                        INDEX idx_lead_reward (lead_id, reward_id),
+                        INDEX idx_customer_status (customer_id, send_status),
+                        INDEX idx_sent_at (sent_at)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                    
+                    -- Table für Email-API Logs
+                    CREATE TABLE IF NOT EXISTS email_api_logs (
+                        id INT PRIMARY KEY AUTO_INCREMENT,
+                        customer_id INT NOT NULL,
+                        provider VARCHAR(50) NOT NULL,
+                        
+                        -- Request Details
+                        endpoint VARCHAR(255) NOT NULL,
+                        method VARCHAR(10) NOT NULL,
+                        request_payload JSON DEFAULT NULL,
+                        
+                        -- Response Details
+                        response_code INT DEFAULT NULL,
+                        response_body JSON DEFAULT NULL,
+                        success BOOLEAN DEFAULT FALSE,
+                        error_message TEXT DEFAULT NULL,
+                        
+                        -- Timing
+                        duration_ms INT DEFAULT NULL,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        
+                        -- Indexes
+                        FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE,
+                        INDEX idx_customer_provider (customer_id, provider),
+                        INDEX idx_created_at (created_at)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                `
+            }
+        ];
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            logDiv.style.display = 'block';
+            const line = document.createElement('div');
+            line.className = `log-line log-${type}`;
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(line);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateStatus(statusId, status) {
+            const el = document.getElementById(statusId);
+            el.className = `status status-${status}`;
+            el.textContent = status.toUpperCase();
+        }
+
+        async function runMigration(migration) {
+            updateStatus(migration.statusId, 'running');
+            log(`Starte: ${migration.name}...`, 'info');
+
+            try {
+                const response = await fetch('/api/database/execute.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sql: migration.sql,
+                        migration_name: migration.name
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    updateStatus(migration.statusId, 'success');
+                    log(`✓ ${migration.name} erfolgreich abgeschlossen`, 'success');
+                    return true;
+                } else {
+                    throw new Error(result.error || 'Unbekannter Fehler');
+                }
+            } catch (error) {
+                updateStatus(migration.statusId, 'error');
+                log(`✗ Fehler bei ${migration.name}: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function startMigration() {
+            const btn = document.getElementById('startBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Migration läuft...';
+
+            log('🚀 Starte Empfehlungsprogramm API-Migration...', 'info');
+            log('═══════════════════════════════════════════', 'info');
+
+            for (let i = 0; i < migrations.length; i++) {
+                const success = await runMigration(migrations[i]);
+                if (!success) {
+                    log('❌ Migration abgebrochen aufgrund von Fehlern', 'error');
+                    btn.textContent = '❌ Migration fehlgeschlagen';
+                    btn.style.background = '#ef4444';
+                    return;
+                }
+                
+                // Kurze Pause zwischen Migrationen
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+            log('═══════════════════════════════════════════', 'success');
+            log('✅ Alle Migrationen erfolgreich abgeschlossen!', 'success');
+            log('', 'info');
+            log('📋 Nächste Schritte:', 'info');
+            log('1. API-Einstellungen im Dashboard konfigurieren', 'info');
+            log('2. Email-Templates für Belohnungen erstellen', 'info');
+            log('3. Automatischen Email-Versand aktivieren', 'info');
+
+            btn.textContent = '✅ Migration erfolgreich';
+            btn.style.background = '#10b981';
+        }
+
+        // Info beim Laden
+        window.addEventListener('load', () => {
+            log('Migrations-Tool geladen', 'info');
+            log('Bereit zur Ausführung. Klicke auf "Migration starten"', 'info');
+        });
+    </script>
+</body>
+</html>
