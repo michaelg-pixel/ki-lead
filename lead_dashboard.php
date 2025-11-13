@@ -1008,8 +1008,7 @@ $company_name = $lead['company_name'] ?? 'Dashboard';
         /**
          * Teilen-Button Klick:
          * 1. Link in Zwischenablage kopieren
-         * 2. URL-Parameter setzen
-         * 3. Zur Belohnungs-Sektion scrollen
+         * 2. Seite mit neuem freebie-Parameter neu laden
          */
         function shareAndScroll(freebieId, uniqueId, title, button) {
             const link = `https://app.mehr-infos-jetzt.de/freebie/index.php?id=${uniqueId}&ref=${leadReferralCode}`;
@@ -1021,25 +1020,10 @@ $company_name = $lead['company_name'] ?? 'Dashboard';
                 button.innerHTML = '<i class="fas fa-check"></i> Kopiert!';
                 button.classList.add('copied');
                 
+                // Nach kurzer Verzögerung Seite neu laden mit neuem Parameter
                 setTimeout(() => {
-                    button.innerHTML = originalHTML;
-                    button.classList.remove('copied');
-                }, 2000);
-                
-                // URL-Parameter setzen und zur Belohnungs-Sektion scrollen
-                const newUrl = window.location.pathname + '?freebie=' + freebieId;
-                window.history.pushState({}, '', newUrl);
-                
-                // Smooth scroll zur Belohnungs-Sektion
-                setTimeout(() => {
-                    const rewardsSection = document.getElementById('rewardsSection');
-                    if (rewardsSection) {
-                        rewardsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    } else {
-                        // Falls noch keine Belohnungs-Sektion sichtbar, Seite neu laden
-                        window.location.href = newUrl;
-                    }
-                }, 500);
+                    window.location.href = window.location.pathname + '?freebie=' + freebieId;
+                }, 600);
                 
             }).catch(err => {
                 alert('Bitte kopiere den Link manuell');
