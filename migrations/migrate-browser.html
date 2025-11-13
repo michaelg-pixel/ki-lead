@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lead Dashboard Migration - Step by Step</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            font-size: 32px;
+            color: #1a1a1a;
+            margin-bottom: 12px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 32px;
+        }
+        
+        .step {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .step-number {
+            width: 40px;
+            height: 40px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        
+        .step-content {
+            flex: 1;
+        }
+        
+        .step-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #1a1a1a;
+        }
+        
+        .step-description {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .step-status {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+        
+        .step.pending .step-status::after {
+            content: '⏳';
+        }
+        
+        .step.running .step-status::after {
+            content: '🔄';
+            animation: spin 1s linear infinite;
+        }
+        
+        .step.success .step-status::after {
+            content: '✅';
+        }
+        
+        .step.error .step-status::after {
+            content: '❌';
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .step.success {
+            background: #d1fae5;
+            border: 2px solid #10b981;
+        }
+        
+        .step.error {
+            background: #fee2e2;
+            border: 2px solid #ef4444;
+        }
+        
+        .step.running {
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+        }
+        
+        .error-details {
+            background: #fee2e2;
+            border: 2px solid #ef4444;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 8px;
+            font-size: 13px;
+            color: #991b1b;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        
+        .success-message {
+            background: #d1fae5;
+            border: 2px solid #10b981;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 24px;
+            text-align: center;
+            display: none;
+        }
+        
+        .success-message h2 {
+            color: #065f46;
+            margin-bottom: 8px;
+        }
+        
+        .success-message p {
+            color: #047857;
+        }
+        
+        .button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 32px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 24px;
+            transition: transform 0.2s;
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .log {
+            background: #1a1a1a;
+            color: #10b981;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 24px;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .log-line {
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Lead Dashboard Migration</h1>
+        <p class="subtitle">Schritt-für-Schritt Datenbank-Setup</p>
+        
+        <div id="steps">
+            <div class="step pending" data-step="1">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <div class="step-title">Lead Login Tokens Tabelle</div>
+                    <div class="step-description">Erstellt Tabelle für One-Click-Login Tokens</div>
+                </div>
+                <div class="step-status"></div>
+            </div>
+            
+            <div class="step pending" data-step="2">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <div class="step-title">Lead Users Tabelle</div>
+                    <div class="step-description">Prüft/erstellt Lead-Benutzer Tabelle mit allen Spalten</div>
+                </div>
+                <div class="step-status"></div>
+            </div>
+            
+            <div class="step pending" data-step="3">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <div class="step-title">Lead Referrals Tabelle</div>
+                    <div class="step-description">Erstellt Tabelle für Empfehlungen</div>
+                </div>
+                <div class="step-status"></div>
+            </div>
+            
+            <div class="step pending" data-step="4">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <div class="step-title">Reward Definitions Tabelle</div>
+                    <div class="step-description">Erstellt Tabelle für Belohnungsstufen</div>
+                </div>
+                <div class="step-status"></div>
+            </div>
+            
+            <div class="step pending" data-step="5">
+                <div class="step-number">5</div>
+                <div class="step-content">
+                    <div class="step-title">Claimed Rewards Tabelle</div>
+                    <div class="step-description">Erstellt Tabelle für eingelöste Belohnungen</div>
+                </div>
+                <div class="step-status"></div>
+            </div>
+        </div>
+        
+        <button class="button" id="startBtn" onclick="startMigration()">
+            🚀 Migration starten
+        </button>
+        
+        <div class="success-message" id="successMessage">
+            <h2>✅ Migration erfolgreich!</h2>
+            <p>Alle Tabellen wurden erstellt. Das System ist einsatzbereit.</p>
+        </div>
+        
+        <div class="log" id="log"></div>
+    </div>
+    
+    <script>
+        let currentStep = 0;
+        const totalSteps = 5;
+        
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            logDiv.style.display = 'block';
+            const line = document.createElement('div');
+            line.className = 'log-line';
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(line);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function updateStep(stepNumber, status, error = null) {
+            const step = document.querySelector(`[data-step="${stepNumber}"]`);
+            step.className = `step ${status}`;
+            
+            if (error) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-details';
+                errorDiv.textContent = error;
+                step.querySelector('.step-content').appendChild(errorDiv);
+            }
+        }
+        
+        async function runStep(stepNumber) {
+            updateStep(stepNumber, 'running');
+            log(`Schritt ${stepNumber} wird ausgeführt...`);
+            
+            try {
+                const response = await fetch('migrate-step.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ step: stepNumber })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateStep(stepNumber, 'success');
+                    log(`✅ Schritt ${stepNumber} erfolgreich: ${result.message}`);
+                    return true;
+                } else {
+                    updateStep(stepNumber, 'error', result.error);
+                    log(`❌ Schritt ${stepNumber} fehlgeschlagen: ${result.error}`);
+                    return false;
+                }
+            } catch (error) {
+                updateStep(stepNumber, 'error', error.message);
+                log(`❌ Schritt ${stepNumber} Fehler: ${error.message}`);
+                return false;
+            }
+        }
+        
+        async function startMigration() {
+            const btn = document.getElementById('startBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Migration läuft...';
+            
+            log('=== Migration gestartet ===');
+            
+            for (let i = 1; i <= totalSteps; i++) {
+                const success = await runStep(i);
+                
+                if (!success) {
+                    btn.textContent = '❌ Migration fehlgeschlagen';
+                    log('=== Migration abgebrochen ===');
+                    return;
+                }
+                
+                // Kurze Pause zwischen Steps
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            btn.textContent = '✅ Migration abgeschlossen!';
+            document.getElementById('successMessage').style.display = 'block';
+            log('=== Migration erfolgreich abgeschlossen ===');
+        }
+    </script>
+</body>
+</html>
