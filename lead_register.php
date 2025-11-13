@@ -2,6 +2,7 @@
 /**
  * Lead Registrierung für Dashboard-Zugang
  * Lead gibt selbst seine E-Mail ein und bekommt Zugang zum Empfehlungsprogramm
+ * UNTERSTÜTZT: customer_freebies UND freebies (Templates)
  */
 
 require_once __DIR__ . '/config/database.php';
@@ -18,9 +19,10 @@ $ref = isset($_GET['ref']) ? trim($_GET['ref']) : ''; // Referral Code
 $error = '';
 $debug = '';
 
-// Freebie laden
+// Freebie laden - ERST customer_freebies, DANN freebies (Templates)
 $freebie = null;
 try {
+    // Zuerst in customer_freebies suchen
     $stmt = $pdo->prepare("
         SELECT cf.*, u.referral_enabled, u.company_name
         FROM customer_freebies cf
@@ -29,6 +31,24 @@ try {
     ");
     $stmt->execute([$freebie_id, $customer_id]);
     $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    // Falls nicht gefunden: In freebies (Templates) suchen
+    if (!$freebie) {
+        $stmt = $pdo->prepare("
+            SELECT f.*, u.referral_enabled, u.company_name
+            FROM freebies f
+            LEFT JOIN users u ON u.id = ?
+            WHERE f.id = ?
+        ");
+        $stmt->execute([$customer_id, $freebie_id]);
+        $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($freebie) {
+            $debug .= "✓ Freebie aus Templates geladen. ";
+        }
+    } else {
+        $debug .= "✓ Freebie aus 'Meine Freebies' geladen. ";
+    }
     
     if (!$freebie) {
         die('Freebie nicht gefunden (ID: ' . $freebie_id . ', Customer: ' . $customer_id . ')');
