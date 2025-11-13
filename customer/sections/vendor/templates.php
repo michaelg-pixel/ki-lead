@@ -1,47 +1,41 @@
-                <!-- Zugriff & Lieferung -->
-                <div class="form-section">
-                    <h4 class="form-section-title">🚀 Zugriff & Lieferung</h4>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Lieferungs-Typ</label>
-                        <select class="form-select" id="deliveryType" name="reward_delivery_type">
-                            <option value="manual">Manuell</option>
-                            <option value="automatic">Automatisch</option>
-                            <option value="code">Zugriffscode</option>
-                            <option value="url">URL/Link</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Download URL</label>
-                        <input type="url" class="form-input" id="downloadUrl" name="reward_download_url" placeholder="https://...">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Anweisungen</label>
-                        <textarea class="form-textarea" id="instructions" name="reward_instructions" placeholder="Anweisungen für den Lead..."></textarea>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Videokurs-Dauer</label>
-                        <input type="text" class="form-input" id="courseDuration" name="course_duration" placeholder="z.B. 3 Stunden, 5 Wochen">
-                        <div class="form-hint">Optional: Wie lange dauert der Kurs (z.B. "3 Stunden", "5 Wochen")</div>
-                    </div>
-                </div>
-                
-                <!-- Produkt-Mockup & Links -->
-                <div class="form-section">
-                    <h4 class="form-section-title">🎨 Produkt-Mockup & Links</h4>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Produkt-Mockup URL</label>
-                        <input type="url" class="form-input" id="mockupUrl" name="product_mockup_url" placeholder="https://...">
-                        <div class="form-hint">URL zu einem Mockup-Bild des Belohnungsprodukts (z.B. E-Book-Cover, Kurs-Thumbnail)</div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Link zum Original-Produkt</label>
-                        <input type="url" class="form-input" id="originalProductLink" name="original_product_link" placeholder="https://...">
-                        <div class="form-hint">Optional: Link zu deinem Original-Produkt (z.B. Verkaufsseite)</div>
-                    </div>
-                </div>
+async function loadTemplate(templateId) {
+    try {
+        const response = await fetch(`/api/vendor/templates/get.php?id=${templateId}`);
+        const data = await response.json();
+        
+        if (data.success && data.template) {
+            const t = data.template;
+            
+            // Fill form
+            document.getElementById('templateId').value = t.id;
+            document.getElementById('templateName').value = t.template_name;
+            document.getElementById('templateDescription').value = t.template_description || '';
+            document.getElementById('category').value = t.category || '';
+            document.getElementById('niche').value = t.niche || '';
+            document.getElementById('rewardType').value = t.reward_type;
+            document.getElementById('rewardTitle').value = t.reward_title;
+            document.getElementById('rewardDescription').value = t.reward_description || '';
+            document.getElementById('rewardValue').value = t.reward_value || '';
+            document.getElementById('rewardIcon').value = t.reward_icon || '';
+            document.getElementById('rewardColor').value = t.reward_color || '#667eea';
+            document.getElementById('rewardColorText').value = t.reward_color || '#667eea';
+            document.getElementById('deliveryType').value = t.reward_delivery_type || 'manual';
+            document.getElementById('downloadUrl').value = t.reward_download_url || '';
+            document.getElementById('instructions').value = t.reward_instructions || '';
+            document.getElementById('courseDuration').value = t.course_duration || '';
+            document.getElementById('mockupUrl').value = t.product_mockup_url || '';
+            document.getElementById('originalProductLink').value = t.original_product_link || '';
+            document.getElementById('tierLevel').value = t.suggested_tier_level || 1;
+            document.getElementById('referralsRequired').value = t.suggested_referrals_required || 3;
+            document.getElementById('price').value = t.marketplace_price || 0;
+            document.getElementById('digistoreId').value = t.digistore_product_id || '';
+        } else {
+            alert('Fehler beim Laden des Templates');
+            closeTemplateModal();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Ein Fehler ist aufgetreten');
+        closeTemplateModal();
+    }
+}
