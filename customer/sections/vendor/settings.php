@@ -13,9 +13,7 @@ $stmt = $pdo->prepare("
     SELECT 
         vendor_company_name,
         vendor_website,
-        vendor_description,
-        vendor_paypal_email,
-        vendor_bank_account
+        vendor_description
     FROM users 
     WHERE id = ?
 ");
@@ -239,44 +237,6 @@ $vendor = $stmt->fetch(PDO::FETCH_ASSOC);
         </form>
     </div>
     
-    <!-- Auszahlungsinformationen -->
-    <div class="settings-section">
-        <h2 class="section-title">
-            <span>💳</span>
-            <span>Auszahlungsinformationen</span>
-        </h2>
-        
-        <form id="paymentForm" onsubmit="savePaymentInfo(event)">
-            <div class="form-group">
-                <label class="form-label">PayPal E-Mail</label>
-                <input 
-                    type="email" 
-                    class="form-input" 
-                    name="vendor_paypal_email" 
-                    value="<?php echo htmlspecialchars($vendor['vendor_paypal_email'] ?? ''); ?>"
-                    placeholder="ihre@paypal-email.de"
-                >
-                <div class="form-hint">Für automatische Auszahlungen via PayPal</div>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">Bankverbindung</label>
-                <input 
-                    type="text" 
-                    class="form-input" 
-                    name="vendor_bank_account" 
-                    value="<?php echo htmlspecialchars($vendor['vendor_bank_account'] ?? ''); ?>"
-                    placeholder="IBAN"
-                >
-                <div class="form-hint">Alternativ: IBAN für Banküberweisungen</div>
-            </div>
-            
-            <button type="submit" class="btn-save" id="paymentBtn">
-                <i class="fas fa-save"></i> Speichern
-            </button>
-        </form>
-    </div>
-    
     <!-- Gefahrenzone -->
     <div class="settings-section danger-zone">
         <h2 class="section-title danger-zone-title">
@@ -321,45 +281,6 @@ async function saveSettings(event) {
         
         if (result.success) {
             successMsg.textContent = 'Einstellungen erfolgreich gespeichert';
-            successMsg.classList.add('show');
-        } else {
-            errorMsg.textContent = result.error || 'Fehler beim Speichern';
-            errorMsg.classList.add('show');
-        }
-    } catch (error) {
-        errorMsg.textContent = 'Ein unerwarteter Fehler ist aufgetreten';
-        errorMsg.classList.add('show');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-save"></i> Speichern';
-    }
-}
-
-async function savePaymentInfo(event) {
-    event.preventDefault();
-    const btn = document.getElementById('paymentBtn');
-    const successMsg = document.getElementById('successMessage');
-    const errorMsg = document.getElementById('errorMessage');
-    
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Speichert...';
-    successMsg.classList.remove('show');
-    errorMsg.classList.remove('show');
-    
-    const formData = new FormData(event.target);
-    const data = Object.fromEntries(formData);
-    
-    try {
-        const response = await fetch('/api/vendor/update-payment-info.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            successMsg.textContent = 'Auszahlungsinformationen erfolgreich gespeichert';
             successMsg.classList.add('show');
         } else {
             errorMsg.textContent = result.error || 'Fehler beim Speichern';
