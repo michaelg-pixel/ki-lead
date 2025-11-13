@@ -1,0 +1,165 @@
+<?php
+/**
+ * Datenbank-Migration: Lead-System Erweiterungen
+ * - Fügt fehlende Felder zu lead_users hinzu
+ * - Fügt Webhook-Felder zu users hinzu
+ * - Erstellt referral_claimed_rewards Tabelle falls nicht vorhanden
+ */
+
+require_once __DIR__ . '/../config/database.php';
+
+$pdo = getDBConnection();
+
+echo "<!DOCTYPE html>
+<html lang='de'>
+<head>
+    <meta charset='UTF-8'>
+    <title>Datenbank Migration</title>
+    <style>
+        body { font-family: Arial; padding: 40px; background: #f5f5f5; }
+        .log { background: white; padding: 20px; border-radius: 8px; max-width: 800px; margin: 0 auto; }
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+        .info { color: #3b82f6; }
+        h1 { color: #1a1a1a; }
+        pre { background: #f9f9f9; padding: 10px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+<div class='log'>
+<h1>🔄 Datenbank Migration</h1>";
+
+$migrations = [];
+
+// ===== MIGRATION 1: lead_users erweitern =====
+try {
+    echo "<p class='info'><strong>Migration 1:</strong> lead_users Tabelle erweitern...</p>";
+    
+    // freebie_id hinzufügen
+    $pdo->exec("
+        ALTER TABLE lead_users 
+        ADD COLUMN IF NOT EXISTS freebie_id INT NULL AFTER user_id,
+        ADD INDEX idx_freebie (freebie_id)
+    ");
+    echo "<p class='success'>✓ freebie_id Spalte hinzugefügt</p>";
+    
+    // referrer_id hinzufügen
+    $pdo->exec("
+        ALTER TABLE lead_users 
+        ADD COLUMN IF NOT EXISTS referrer_id INT NULL AFTER referral_code,
+        ADD INDEX idx_referrer (referrer_id)
+    ");
+    echo "<p class='success'>✓ referrer_id Spalte hinzugefügt</p>";
+    
+    // status hinzufügen
+    $pdo->exec("
+        ALTER TABLE lead_users 
+        ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active' AFTER referrer_id,
+        ADD INDEX idx_status (status)
+    ");
+    echo "<p class='success'>✓ status Spalte hinzugefügt</p>";
+    
+    $migrations[] = "lead_users erweitert";
+    
+} catch (PDOException $e) {
+    echo "<p class='error'>❌ Fehler bei lead_users Migration: " . htmlspecialchars($e->getMessage()) . "</p>";
+}
+
+// ===== MIGRATION 2: users Webhook-Felder =====
+try {
+    echo "<p class='info'><strong>Migration 2:</strong> users Tabelle für Webhooks erweitern...</p>";
+    
+    // autoresponder_webhook_url hinzufügen
+    $pdo->exec("
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS autoresponder_webhook_url TEXT NULL
+    ");
+    echo "<p class='success'>✓ autoresponder_webhook_url Spalte hinzugefügt</p>";
+    
+    // autoresponder_api_key hinzufügen
+    $pdo->exec("
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS autoresponder_api_key VARCHAR(255) NULL
+    ");
+    echo "<p class='success'>✓ autoresponder_api_key Spalte hinzugefügt</p>";
+    
+    $migrations[] = "users Webhook-Felder hinzugefügt";
+    
+} catch (PDOException $e) {
+    echo "<p class='error'>❌ Fehler bei users Migration: " . htmlspecialchars($e->getMessage()) . "</p>";
+}
+
+// ===== MIGRATION 3: referral_claimed_rewards Tabelle =====
+try {
+    echo "<p class='info'><strong>Migration 3:</strong> referral_claimed_rewards Tabelle erstellen...</p>";
+    
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS referral_claimed_rewards (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            lead_id INT NOT NULL,
+            reward_id INT NOT NULL,
+            reward_name VARCHAR(255) NOT NULL,
+            claimed_at DATETIME NOT NULL,
+            INDEX idx_lead (lead_id),
+            INDEX idx_reward (reward_id),
+            UNIQUE KEY unique_claim (lead_id, reward_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+    echo "<p class='success'>✓ referral_claimed_rewards Tabelle erstellt/aktualisiert</p>";
+    
+    $migrations[] = "referral_claimed_rewards Tabelle erstellt";
+    
+} catch (PDOException $e) {
+    echo "<p class='error'>❌ Fehler bei referral_claimed_rewards Migration: " . htmlspecialchars($e->getMessage()) . "</p>";
+}
+
+// ===== MIGRATION 4: lead_referrals erweitern =====
+try {
+    echo "<p class='info'><strong>Migration 4:</strong> lead_referrals Tabelle prüfen...</p>";
+    
+    // freebie_id hinzufügen falls nicht vorhanden
+    $pdo->exec("
+        ALTER TABLE lead_referrals 
+        ADD COLUMN IF NOT EXISTS freebie_id INT NULL AFTER referred_name,
+        ADD INDEX idx_freebie (freebie_id)
+    ");
+    echo "<p class='success'>✓ freebie_id in lead_referrals hinzugefügt</p>";
+    
+    $migrations[] = "lead_referrals erweitert";
+    
+} catch (PDOException $e) {
+    echo "<p class='error'>❌ Fehler bei lead_referrals Migration: " . htmlspecialchars($e->getMessage()) . "</p>";
+}
+
+// ===== MIGRATION 5: lead_login_tokens referral_code =====
+try {
+    echo "<p class='info'><strong>Migration 5:</strong> lead_login_tokens erweitern...</p>";
+    
+    $pdo->exec("
+        ALTER TABLE lead_login_tokens 
+        ADD COLUMN IF NOT EXISTS referral_code VARCHAR(50) NULL AFTER freebie_id
+    ");
+    echo "<p class='success'>✓ referral_code in lead_login_tokens hinzugefügt</p>";
+    
+    $migrations[] = "lead_login_tokens erweitert";
+    
+} catch (PDOException $e) {
+    echo "<p class='error'>❌ Fehler bei lead_login_tokens Migration: " . htmlspecialchars($e->getMessage()) . "</p>";
+}
+
+// ===== ZUSAMMENFASSUNG =====
+echo "<hr>";
+echo "<h2>✅ Migration abgeschlossen</h2>";
+echo "<p><strong>Durchgeführte Migrationen:</strong></p>";
+echo "<ul>";
+foreach ($migrations as $migration) {
+    echo "<li>" . htmlspecialchars($migration) . "</li>";
+}
+echo "</ul>";
+
+echo "<p style='margin-top: 30px;'><a href='/customer/dashboard.php' style='background: #8B5CF6; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; display: inline-block;'>Zum Dashboard</a></p>";
+
+echo "</div>
+</body>
+</html>";
+?>
