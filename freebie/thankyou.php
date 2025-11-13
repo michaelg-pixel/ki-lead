@@ -11,6 +11,7 @@ $freebie_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $customer_id = isset($_GET['customer']) ? (int)$_GET['customer'] : 0;
 $email = isset($_GET['email']) ? trim($_GET['email']) : '';
 $name = isset($_GET['name']) ? trim($_GET['name']) : '';
+$ref = isset($_GET['ref']) ? trim($_GET['ref']) : ''; // Referral Code
 
 if ($freebie_id <= 0) {
     die('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fehler</title></head><body style="font-family:Arial;padding:50px;text-align:center;"><h1>❌ Ungültige Freebie-ID</h1></body></html>');
@@ -54,7 +55,7 @@ if (!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL) && $customer_id)
     try {
         // Prüfen ob lead_login_tokens Tabelle existiert
         $token = bin2hex(random_bytes(32));
-        $expires_at = date('Y-m-d H:i:s', strtotime('+24 hours'));
+        $expires_at = date('Y-m-d H:i:s', strtotime('+7 days')); // 7 Tage gültig
         
         $stmt = $pdo->prepare("
             CREATE TABLE IF NOT EXISTS lead_login_tokens (
@@ -64,6 +65,7 @@ if (!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL) && $customer_id)
                 name VARCHAR(255),
                 customer_id INT,
                 freebie_id INT,
+                referral_code VARCHAR(50) NULL,
                 expires_at DATETIME NOT NULL,
                 used_at DATETIME NULL,
                 created_at DATETIME NOT NULL,
@@ -74,16 +76,16 @@ if (!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL) && $customer_id)
         ");
         $stmt->execute();
         
-        // Token speichern
+        // Token speichern (mit Referral Code falls vorhanden)
         $stmt = $pdo->prepare("
             INSERT INTO lead_login_tokens 
-            (token, email, name, customer_id, freebie_id, expires_at, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, NOW())
+            (token, email, name, customer_id, freebie_id, referral_code, expires_at, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
         ");
-        $stmt->execute([$token, $email, $name, $customer_id, $freebie_id, $expires_at]);
+        $stmt->execute([$token, $email, $name, $customer_id, $freebie_id, $ref ?: null, $expires_at]);
         
-        // Dashboard-Link generieren
-        $dashboard_link = '/lead-dashboard-unified.php?token=' . $token;
+        // Dashboard-Link generieren - KORRIGIERT!
+        $dashboard_link = '/lead_dashboard.php?token=' . $token;
         
     } catch (PDOException $e) {
         error_log("Token-Fehler: " . $e->getMessage());
