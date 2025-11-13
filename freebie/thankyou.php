@@ -84,8 +84,8 @@ if (!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL) && $customer_id)
         ");
         $stmt->execute([$token, $email, $name, $customer_id, $freebie_id, $ref ?: null, $expires_at]);
         
-        // Dashboard-Link generieren - KORRIGIERT!
-        $dashboard_link = '/lead_dashboard.php?token=' . $token;
+        // Dashboard-Link generieren MIT freebie Parameter für direkten Zugang zur Empfehlungs-Sektion
+        $dashboard_link = '/lead_dashboard.php?token=' . $token . '&freebie=' . $freebie_id;
         
     } catch (PDOException $e) {
         error_log("Token-Fehler: " . $e->getMessage());
