@@ -1,7 +1,7 @@
 <?php
 /**
  * Freebie Danke-Seite mit Dashboard-Zugang
- * Zeigt Video + Download + Button zum Lead-Dashboard
+ * Lead kann sich selbst für das Empfehlungsprogramm registrieren
  */
 
 require_once __DIR__ . '/../config/database.php';
@@ -9,20 +9,16 @@ require_once __DIR__ . '/../config/database.php';
 // Parameter aus URL
 $freebie_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $customer_id = isset($_GET['customer']) ? (int)$_GET['customer'] : 0;
-$email = isset($_GET['email']) ? trim($_GET['email']) : '';
-$name = isset($_GET['name']) ? trim($_GET['name']) : '';
-$ref = isset($_GET['ref']) ? trim($_GET['ref']) : ''; // Referral Code
 
 if ($freebie_id <= 0) {
     die('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fehler</title></head><body style="font-family:Arial;padding:50px;text-align:center;"><h1>❌ Ungültige Freebie-ID</h1></body></html>');
 }
 
-// Freebie laden (entweder aus customer_freebies oder freebies)
+// Freebie laden
 $freebie = null;
 $referral_enabled = 0;
 
 try {
-    // Erst in customer_freebies suchen
     $stmt = $pdo->prepare("
         SELECT cf.*, u.referral_enabled 
         FROM customer_freebies cf
@@ -36,7 +32,6 @@ try {
         $customer_id = $freebie['customer_id'];
         $referral_enabled = (int)($freebie['referral_enabled'] ?? 0);
     } else {
-        // Wenn nicht gefunden, in freebies suchen
         $stmt = $pdo->prepare("SELECT * FROM freebies WHERE id = ?");
         $stmt->execute([$freebie_id]);
         $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -49,50 +44,8 @@ try {
     die('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fehler</title></head><body style="font-family:Arial;padding:50px;text-align:center;"><h1>❌ Datenbankfehler</h1><p>' . htmlspecialchars($e->getMessage()) . '</p></body></html>');
 }
 
-// Login-Token für Dashboard-Zugang generieren (wenn E-Mail vorhanden)
-$dashboard_link = null;
-if (!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL) && $customer_id) {
-    try {
-        // Prüfen ob lead_login_tokens Tabelle existiert
-        $token = bin2hex(random_bytes(32));
-        $expires_at = date('Y-m-d H:i:s', strtotime('+7 days')); // 7 Tage gültig
-        
-        $stmt = $pdo->prepare("
-            CREATE TABLE IF NOT EXISTS lead_login_tokens (
-                id INT PRIMARY KEY AUTO_INCREMENT,
-                token VARCHAR(255) UNIQUE NOT NULL,
-                email VARCHAR(255) NOT NULL,
-                name VARCHAR(255),
-                customer_id INT,
-                freebie_id INT,
-                referral_code VARCHAR(50) NULL,
-                expires_at DATETIME NOT NULL,
-                used_at DATETIME NULL,
-                created_at DATETIME NOT NULL,
-                INDEX idx_token (token),
-                INDEX idx_email (email),
-                INDEX idx_expires (expires_at)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ");
-        $stmt->execute();
-        
-        // Token speichern (mit Referral Code falls vorhanden)
-        $stmt = $pdo->prepare("
-            INSERT INTO lead_login_tokens 
-            (token, email, name, customer_id, freebie_id, referral_code, expires_at, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-        ");
-        $stmt->execute([$token, $email, $name, $customer_id, $freebie_id, $ref ?: null, $expires_at]);
-        
-        // Dashboard-Link generieren MIT freebie Parameter für direkten Zugang zur Empfehlungs-Sektion
-        $dashboard_link = '/lead_dashboard.php?token=' . $token . '&freebie=' . $freebie_id;
-        
-    } catch (PDOException $e) {
-        error_log("Token-Fehler: " . $e->getMessage());
-        // Fallback ohne Token
-        $dashboard_link = '/lead_login.php';
-    }
-}
+// Dashboard-Link (zur Registrierungsseite)
+$dashboard_link = '/lead_register.php?freebie=' . $freebie_id . '&customer=' . $customer_id;
 
 // Styling
 $primary_color = $freebie['primary_color'] ?? '#8B5CF6';
@@ -165,25 +118,6 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             color: #666;
             margin-bottom: 40px;
             line-height: 1.6;
-        }
-        
-        .email-info {
-            background: #f0f9ff;
-            border-left: 4px solid #3b82f6;
-            padding: 16px 20px;
-            margin-bottom: 40px;
-            border-radius: 8px;
-        }
-        
-        .email-info p {
-            color: #1e40af;
-            font-size: 14px;
-            margin: 0;
-        }
-        
-        .email-address {
-            font-weight: 600;
-            color: #1e3a8a;
         }
         
         /* Dashboard Button - PROMINENT */
@@ -428,23 +362,13 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             ✓ Erfolgreich angemeldet
         </div>
         
-        <h1>Vielen Dank<?php echo $name ? ', ' . htmlspecialchars($name) : ''; ?>!</h1>
+        <h1>Vielen Dank!</h1>
         
         <p class="subtitle">
             Deine Anmeldung war erfolgreich. Du hast jetzt Zugang zu deinem kostenlosen 
             <?php echo htmlspecialchars($freebie['name'] ?? 'Freebie'); ?>.
         </p>
         
-        <?php if ($email): ?>
-        <div class="email-info">
-            <p>
-                📧 Wir haben eine Bestätigung an <span class="email-address"><?php echo htmlspecialchars($email); ?></span> gesendet.
-                Bitte überprüfe auch deinen Spam-Ordner.
-            </p>
-        </div>
-        <?php endif; ?>
-        
-        <?php if ($dashboard_link): ?>
         <!-- DASHBOARD ZUGANG - HAUPT-CALL-TO-ACTION -->
         <div class="dashboard-section">
             <h2>🚀 Dein persönliches Dashboard</h2>
@@ -478,7 +402,6 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
                 <?php endif; ?>
             </div>
         </div>
-        <?php endif; ?>
         
         <?php if (!empty($video_url)): ?>
         <!-- Video Embed -->
@@ -487,7 +410,6 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
             // YouTube Embed Code automatisch generieren
             $embed_code = $video_url;
             
-            // Wenn es eine YouTube URL ist, konvertiere zu Embed
             if (strpos($video_url, 'youtube.com/watch') !== false) {
                 preg_match('/[?&]v=([^&]+)/', $video_url, $matches);
                 if (isset($matches[1])) {
@@ -501,11 +423,9 @@ $datenschutz_link = $customer_id ? "/datenschutz.php?customer=" . $customer_id :
                 $embed_code = 'https://player.vimeo.com/video/' . $video_id;
             }
             
-            // Wenn es ein iframe ist, direkt ausgeben
             if (strpos($embed_code, '<iframe') !== false) {
                 echo $embed_code;
             } else {
-                // Ansonsten als iframe einbetten
                 echo '<iframe src="' . htmlspecialchars($embed_code) . '" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
             }
             ?>
