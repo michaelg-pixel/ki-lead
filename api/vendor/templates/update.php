@@ -70,7 +70,7 @@ try {
         exit;
     }
     
-    // Build UPDATE query dynamisch
+    // Build UPDATE query dynamisch - INKLUSIVE NEUE FELDER
     $updates = [];
     $params = [];
     
@@ -79,7 +79,8 @@ try {
         'reward_type', 'reward_title', 'reward_description', 'reward_value',
         'reward_delivery_type', 'reward_instructions', 'reward_access_code_template',
         'reward_download_url', 'reward_icon', 'reward_color', 'reward_badge_image',
-        'preview_image', 'suggested_tier_level', 'suggested_referrals_required',
+        'preview_image', 'product_mockup_url', 'course_duration', 'original_product_link',
+        'suggested_tier_level', 'suggested_referrals_required',
         'marketplace_price', 'digistore_product_id', 'is_published'
     ];
     
