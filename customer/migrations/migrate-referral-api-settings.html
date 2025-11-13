@@ -166,9 +166,6 @@
     </div>
 
     <script>
-        let currentStep = 0;
-        const API_BASE = '/api';
-
         const migrations = [
             {
                 name: 'Email-Marketing API Einstellungen',
@@ -337,7 +334,7 @@
                     
                     for (const sql of migration.sqlStatements) {
                         try {
-                            const response = await fetch('/api/execute-migration.php', {
+                            const response = await fetch('/customer/api/execute-migration.php', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ sql: sql })
@@ -348,31 +345,22 @@
                             if (!contentType || !contentType.includes('application/json')) {
                                 const text = await response.text();
                                 log(`⚠ API gibt HTML statt JSON zurück. Erste Zeichen: ${text.substring(0, 100)}`, 'error');
-                                throw new Error('API-Antwort ist kein JSON. Möglicherweise PHP-Fehler oder Session-Problem.');
+                                throw new Error('API-Antwort ist kein JSON. Bitte prüfe ob du als Kunde eingeloggt bist!');
                             }
 
                             const result = await response.json();
                             
                             if (result.success) {
                                 successCount++;
-                            } else {
-                                // Spalte existiert bereits - das ist OK
-                                if (result.error && result.error.includes('Duplicate column')) {
-                                    log(`⚠ Spalte existiert bereits (überspringe)`, 'warning');
-                                    successCount++;
-                                } else {
-                                    throw new Error(result.error);
+                                if (result.warning) {
+                                    log(`⚠ ${result.warning}`, 'warning');
                                 }
+                            } else {
+                                throw new Error(result.error || 'Unbekannter Fehler');
                             }
                         } catch (error) {
-                            // Wenn Spalte bereits existiert, ist das OK
-                            if (error.message.includes('Duplicate column')) {
-                                log(`⚠ Spalte existiert bereits (überspringe)`, 'warning');
-                                successCount++;
-                            } else {
-                                failCount++;
-                                log(`✗ Fehler: ${error.message}`, 'error');
-                            }
+                            failCount++;
+                            log(`✗ Fehler: ${error.message}`, 'error');
                         }
                     }
                     
@@ -385,7 +373,7 @@
                     }
                 } else {
                     // Einzelnes SQL-Statement
-                    const response = await fetch('/api/execute-migration.php', {
+                    const response = await fetch('/customer/api/execute-migration.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -400,7 +388,7 @@
                         const text = await response.text();
                         log(`⚠ API gibt HTML statt JSON zurück:`, 'error');
                         log(text.substring(0, 500), 'error');
-                        throw new Error('API-Antwort ist kein JSON. Bitte prüfe ob du als Admin eingeloggt bist!');
+                        throw new Error('API-Antwort ist kein JSON. Bitte prüfe ob du als Kunde eingeloggt bist!');
                     }
 
                     const result = await response.json();
@@ -408,6 +396,9 @@
                     if (result.success) {
                         updateStatus(migration.statusId, 'success');
                         log(`✓ ${migration.name} erfolgreich abgeschlossen`, 'success');
+                        if (result.warning) {
+                            log(`⚠ ${result.warning}`, 'warning');
+                        }
                         return true;
                     } else {
                         throw new Error(result.error || 'Unbekannter Fehler');
@@ -432,7 +423,7 @@
                 const success = await runMigration(migrations[i]);
                 if (!success) {
                     log('❌ Migration abgebrochen aufgrund von Fehlern', 'error');
-                    log('💡 Tipp: Prüfe ob du als Admin eingeloggt bist!', 'warning');
+                    log('💡 Tipp: Prüfe ob du als Kunde eingeloggt bist!', 'warning');
                     btn.textContent = '❌ Migration fehlgeschlagen';
                     btn.style.background = '#ef4444';
                     return;
