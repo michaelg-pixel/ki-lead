@@ -7,7 +7,7 @@
 session_start();
 header('Content-Type: application/json');
 error_reporting(E_ALL);
-ini_set('display_errors', 0);
+ini_set('display_errors', 1);
 
 require_once __DIR__ . '/../../../config/database.php';
 
@@ -27,6 +27,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $customer_id = $_SESSION['user_id'];
 
 try {
+    // Get PDO connection
+    $pdo = getDBConnection();
+    
     // Prüfe ob User Vendor ist
     $stmt = $pdo->prepare("SELECT is_vendor FROM users WHERE id = ?");
     $stmt->execute([$customer_id]);
@@ -39,6 +42,10 @@ try {
     }
     
     $input = json_decode(file_get_contents('php://input'), true);
+    
+    if (!$input) {
+        throw new Exception('Ungültige JSON-Daten');
+    }
     
     // Validierung
     $errors = [];
@@ -71,7 +78,7 @@ try {
         exit;
     }
     
-    // Template erstellen
+    // Template erstellen - nur Felder die in der Tabelle existieren
     $stmt = $pdo->prepare("
         INSERT INTO vendor_reward_templates (
             vendor_id,
@@ -89,15 +96,13 @@ try {
             reward_download_url,
             reward_icon,
             reward_color,
-            reward_badge_image,
-            preview_image,
             suggested_tier_level,
             suggested_referrals_required,
             marketplace_price,
             digistore_product_id,
             is_published
         ) VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
     ");
     
@@ -117,17 +122,16 @@ try {
         $input['reward_download_url'] ?? null,
         $input['reward_icon'] ?? 'fa-gift',
         $input['reward_color'] ?? '#667eea',
-        $input['reward_badge_image'] ?? null,
-        $input['preview_image'] ?? null,
-        $input['suggested_tier_level'] ?? 1,
-        $input['suggested_referrals_required'] ?? 3,
-        $input['marketplace_price'] ?? 0.00,
+        isset($input['suggested_tier_level']) ? (int)$input['suggested_tier_level'] : 1,
+        isset($input['suggested_referrals_required']) ? (int)$input['suggested_referrals_required'] : 3,
+        isset($input['marketplace_price']) ? (float)$input['marketplace_price'] : 0.00,
         $input['digistore_product_id'] ?? null,
-        $input['is_published'] ?? false
+        isset($input['is_published']) ? (bool)$input['is_published'] : false
     ]);
     
     if (!$result) {
-        throw new Exception('Fehler beim Erstellen des Templates');
+        $errorInfo = $stmt->errorInfo();
+        throw new Exception('Fehler beim Erstellen des Templates: ' . $errorInfo[2]);
     }
     
     $template_id = $pdo->lastInsertId();
@@ -141,9 +145,17 @@ try {
 } catch (PDOException $e) {
     error_log('Template Create Error: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Datenbankfehler']);
+    echo json_encode([
+        'success' => false, 
+        'error' => 'Datenbankfehler: ' . $e->getMessage(),
+        'code' => $e->getCode()
+    ]);
 } catch (Exception $e) {
+    error_log('Template Create Error: ' . $e->getMessage());
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    echo json_encode([
+        'success' => false, 
+        'error' => $e->getMessage()
+    ]);
 }
 ?>
