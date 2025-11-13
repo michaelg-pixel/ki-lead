@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendor Payouts Tabelle Migration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2rem;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1rem;
+        }
+        
+        .info-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        
+        .info-box h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .info-box p {
+            color: #666;
+            line-height: 1.6;
+        }
+        
+        .sql-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+        
+        .sql-box pre {
+            margin: 0;
+            color: #333;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 20px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        #result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        #result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid white;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏦 Vendor Payouts Tabelle</h1>
+        <p class="subtitle">Phase 7: Auszahlungsverwaltung für Vendors</p>
+        
+        <div class="info-box">
+            <h3>📋 Was wird erstellt?</h3>
+            <p>
+                Diese Migration erstellt die <strong>vendor_payouts</strong> Tabelle für die Verwaltung von Vendor-Auszahlungen.
+                Die Tabelle speichert alle Auszahlungen inkl. Status, Betrag, Zahlungsmethode und Transaktionsdetails.
+            </p>
+        </div>
+        
+        <div class="info-box">
+            <h3>✨ Features</h3>
+            <p>
+                • Tracking von Auszahlungen (pending, processing, paid, failed)<br>
+                • Unterstützung für PayPal und Banküberweisung<br>
+                • Transaktions-IDs für externe Zahlungsanbieter<br>
+                • Automatische Zeitstempel<br>
+                • Verknüpfung mit Vendor-Profilen
+            </p>
+        </div>
+        
+        <div class="sql-box">
+            <pre>CREATE TABLE vendor_payouts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    vendor_id INT NOT NULL,
+    
+    -- Auszahlungsdetails
+    amount DECIMAL(10,2) NOT NULL,
+    period_start DATE NOT NULL,
+    period_end DATE NOT NULL,
+    
+    -- Status
+    status ENUM('pending', 'processing', 'paid', 'failed') DEFAULT 'pending',
+    
+    -- Zahlungsmethode
+    payment_method ENUM('paypal', 'bank_transfer') NOT NULL,
+    payment_email VARCHAR(255),
+    payment_account VARCHAR(255),
+    
+    -- Transaktionsdetails
+    transaction_id VARCHAR(255),
+    transaction_date DATETIME,
+    transaction_note TEXT,
+    
+    -- Meta
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    paid_at DATETIME,
+    
+    FOREIGN KEY (vendor_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_vendor (vendor_id),
+    INDEX idx_status (status),
+    INDEX idx_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;</pre>
+        </div>
+        
+        <button class="btn" onclick="runMigration()">
+            Migration ausführen
+        </button>
+        
+        <div id="result"></div>
+    </div>
+    
+    <script>
+        async function runMigration() {
+            const btn = document.querySelector('.btn');
+            const result = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.innerHTML = 'Migration läuft... <span class="spinner"></span>';
+            result.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/vendor/run-payouts-migration.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    result.className = 'success';
+                    result.innerHTML = `
+                        <strong>✅ Migration erfolgreich!</strong><br><br>
+                        ${data.message || 'Vendor Payouts Tabelle wurde erstellt.'}<br><br>
+                        ${data.details ? data.details.join('<br>') : ''}
+                    `;
+                } else {
+                    result.className = 'error';
+                    result.innerHTML = `
+                        <strong>❌ Fehler bei der Migration</strong><br><br>
+                        ${data.error || 'Unbekannter Fehler'}
+                    `;
+                }
+                
+                result.style.display = 'block';
+            } catch (error) {
+                result.className = 'error';
+                result.innerHTML = `
+                    <strong>❌ Netzwerkfehler</strong><br><br>
+                    ${error.message}
+                `;
+                result.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Migration erneut ausführen';
+            }
+        }
+    </script>
+</body>
+</html>
