@@ -11,6 +11,7 @@ if (!defined('INCLUDED')) {
 // Customer-Daten laden
 $stmt = $pdo->prepare("
     SELECT 
+        id,
         is_vendor,
         vendor_company_name,
         vendor_website,
@@ -23,6 +24,7 @@ $stmt->execute([$customer_id]);
 $customer = $stmt->fetch(PDO::FETCH_ASSOC);
 
 $is_vendor = (bool)$customer['is_vendor'];
+$vendor_id = $customer['id']; // Für Verwendung in Sub-Pages
 $active_tab = $_GET['tab'] ?? 'overview';
 ?>
 
