@@ -98,6 +98,7 @@
         .log-error { color: #ef4444; }
         .log-success { color: #10b981; }
         .log-info { color: #3b82f6; }
+        .log-warning { color: #f59e0b; }
         pre {
             background: #f3f4f6;
             padding: 12px;
@@ -220,17 +221,15 @@
             {
                 name: 'Erweiterte Belohnungsstufen',
                 statusId: 'status2',
-                sql: `
-                    -- Erweitere bestehende reward_definitions Tabelle
-                    ALTER TABLE reward_definitions
-                    ADD COLUMN IF NOT EXISTS email_subject VARCHAR(200) DEFAULT NULL COMMENT 'Email-Betreff für Belohnung',
-                    ADD COLUMN IF NOT EXISTS email_body TEXT DEFAULT NULL COMMENT 'Email-Text für Belohnung',
-                    ADD COLUMN IF NOT EXISTS email_template_id INT DEFAULT NULL COMMENT 'Referenz zu Email-Template',
-                    ADD COLUMN IF NOT EXISTS auto_send_email BOOLEAN DEFAULT FALSE COMMENT 'Automatisch Email versenden',
-                    ADD COLUMN IF NOT EXISTS send_via_api BOOLEAN DEFAULT TRUE COMMENT 'Über Email-API versenden',
-                    ADD COLUMN IF NOT EXISTS attachment_urls JSON DEFAULT NULL COMMENT 'Anhänge als URLs',
-                    ADD COLUMN IF NOT EXISTS notification_webhook VARCHAR(500) DEFAULT NULL COMMENT 'Webhook bei Erreichen';
-                `
+                sqlStatements: [
+                    `ALTER TABLE reward_definitions ADD COLUMN email_subject VARCHAR(200) DEFAULT NULL COMMENT 'Email-Betreff für Belohnung'`,
+                    `ALTER TABLE reward_definitions ADD COLUMN email_body TEXT DEFAULT NULL COMMENT 'Email-Text für Belohnung'`,
+                    `ALTER TABLE reward_definitions ADD COLUMN email_template_id INT DEFAULT NULL COMMENT 'Referenz zu Email-Template'`,
+                    `ALTER TABLE reward_definitions ADD COLUMN auto_send_email BOOLEAN DEFAULT FALSE COMMENT 'Automatisch Email versenden'`,
+                    `ALTER TABLE reward_definitions ADD COLUMN send_via_api BOOLEAN DEFAULT TRUE COMMENT 'Über Email-API versenden'`,
+                    `ALTER TABLE reward_definitions ADD COLUMN attachment_urls JSON DEFAULT NULL COMMENT 'Anhänge als URLs'`,
+                    `ALTER TABLE reward_definitions ADD COLUMN notification_webhook VARCHAR(500) DEFAULT NULL COMMENT 'Webhook bei Erreichen'`
+                ]
             },
             {
                 name: 'Lead Email-Tracking',
@@ -331,23 +330,71 @@
             log(`Starte: ${migration.name}...`, 'info');
 
             try {
-                const response = await fetch('/api/execute-migration.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        sql: migration.sql,
-                        migration_name: migration.name
-                    })
-                });
+                // Wenn es mehrere SQL-Statements gibt (für ALTER TABLE)
+                if (migration.sqlStatements) {
+                    let successCount = 0;
+                    let failCount = 0;
+                    
+                    for (const sql of migration.sqlStatements) {
+                        try {
+                            const response = await fetch('/api/execute-migration.php', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ sql: sql })
+                            });
 
-                const result = await response.json();
-
-                if (result.success) {
-                    updateStatus(migration.statusId, 'success');
-                    log(`✓ ${migration.name} erfolgreich abgeschlossen`, 'success');
-                    return true;
+                            const result = await response.json();
+                            
+                            if (result.success) {
+                                successCount++;
+                            } else {
+                                // Spalte existiert bereits - das ist OK
+                                if (result.error && result.error.includes('Duplicate column')) {
+                                    log(`⚠ Spalte existiert bereits (überspringe)`, 'warning');
+                                    successCount++;
+                                } else {
+                                    throw new Error(result.error);
+                                }
+                            }
+                        } catch (error) {
+                            // Wenn Spalte bereits existiert, ist das OK
+                            if (error.message.includes('Duplicate column')) {
+                                log(`⚠ Spalte existiert bereits (überspringe)`, 'warning');
+                                successCount++;
+                            } else {
+                                failCount++;
+                                log(`✗ Fehler: ${error.message}`, 'error');
+                            }
+                        }
+                    }
+                    
+                    if (failCount === 0) {
+                        updateStatus(migration.statusId, 'success');
+                        log(`✓ ${migration.name} abgeschlossen (${successCount} Änderungen)`, 'success');
+                        return true;
+                    } else {
+                        throw new Error(`${failCount} von ${migration.sqlStatements.length} Statements fehlgeschlagen`);
+                    }
                 } else {
-                    throw new Error(result.error || 'Unbekannter Fehler');
+                    // Einzelnes SQL-Statement
+                    const response = await fetch('/api/execute-migration.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            sql: migration.sql,
+                            migration_name: migration.name
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        updateStatus(migration.statusId, 'success');
+                        log(`✓ ${migration.name} erfolgreich abgeschlossen`, 'success');
+                        return true;
+                    } else {
+                        throw new Error(result.error || 'Unbekannter Fehler');
+                    }
                 }
             } catch (error) {
                 updateStatus(migration.statusId, 'error');
