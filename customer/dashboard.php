@@ -14,8 +14,16 @@ $customer_id = $_SESSION['user_id'];
 $customer_name = $_SESSION['name'] ?? 'Kunde';
 $customer_email = $_SESSION['email'] ?? '';
 
+// Vendor-Status prüfen
+$stmt_vendor = $pdo->prepare("SELECT is_vendor FROM users WHERE id = ?");
+$stmt_vendor->execute([$customer_id]);
+$is_vendor = (bool)$stmt_vendor->fetchColumn();
+
 // Aktuelle Seite bestimmen
 $page = $_GET['page'] ?? 'overview';
+
+// Define INCLUDED constant for section files
+define('INCLUDED', true);
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -176,6 +184,13 @@ $page = $_GET['page'] ?? 'overview';
         .nav-item.active {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
+        }
+        
+        /* Vendor Link Highlight */
+        .nav-item-highlight {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
+            border-left: 3px solid #667eea;
+            padding-left: 11px;
         }
         
         .nav-icon {
@@ -377,6 +392,17 @@ $page = $_GET['page'] ?? 'overview';
                 <span class="nav-icon">🏪</span>
                 <span>Meine Marktplatz-Angebote</span>
             </a>
+            <?php if ($is_vendor): ?>
+                <a href="?page=vendor-bereich" class="nav-item <?php echo $page === 'vendor-bereich' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
+                    <span class="nav-icon">💎</span>
+                    <span>Vendor Bereich</span>
+                </a>
+            <?php else: ?>
+                <a href="?page=vendor-bereich" class="nav-item nav-item-highlight <?php echo $page === 'vendor-bereich' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
+                    <span class="nav-icon">✨</span>
+                    <span>Vendor werden</span>
+                </a>
+            <?php endif; ?>
             <a href="?page=ki-prompt" class="nav-item <?php echo $page === 'ki-prompt' ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
                 <span class="nav-icon">🤖</span>
                 <span>KI Agent</span>
@@ -477,6 +503,16 @@ $page = $_GET['page'] ?? 'overview';
                     include $section_file;
                 } else {
                     echo '<div style="padding: 32px; text-align: center;"><h3>Marktplatz wird geladen...</h3></div>';
+                }
+                ?>
+            
+            <?php elseif ($page === 'vendor-bereich'): ?>
+                <?php 
+                $section_file = __DIR__ . '/sections/vendor-bereich.php';
+                if (file_exists($section_file)) {
+                    include $section_file;
+                } else {
+                    echo '<div style="padding: 32px; text-align: center;"><h3>Vendor Bereich wird geladen...</h3></div>';
                 }
                 ?>
             
