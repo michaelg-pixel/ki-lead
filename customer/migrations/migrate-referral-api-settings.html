@@ -166,7 +166,7 @@
 
     <script>
         let currentStep = 0;
-        const API_BASE = '/api/database';
+        const API_BASE = '/api';
 
         const migrations = [
             {
@@ -331,7 +331,7 @@
             log(`Starte: ${migration.name}...`, 'info');
 
             try {
-                const response = await fetch('/api/database/execute.php', {
+                const response = await fetch('/api/execute-migration.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
