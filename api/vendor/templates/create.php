@@ -78,7 +78,36 @@ try {
         exit;
     }
     
-    // Template erstellen - nur Felder die in der Tabelle existieren
+    // Helper function für sichere Wert-Konvertierung
+    function getIntValue($input, $key, $default = 0) {
+        if (!isset($input[$key]) || $input[$key] === '' || $input[$key] === null) {
+            return $default;
+        }
+        return (int)$input[$key];
+    }
+    
+    function getFloatValue($input, $key, $default = 0.00) {
+        if (!isset($input[$key]) || $input[$key] === '' || $input[$key] === null) {
+            return $default;
+        }
+        return (float)$input[$key];
+    }
+    
+    function getBoolValue($input, $key, $default = false) {
+        if (!isset($input[$key]) || $input[$key] === '' || $input[$key] === null) {
+            return $default ? 1 : 0;
+        }
+        return $input[$key] ? 1 : 0;
+    }
+    
+    function getStringValue($input, $key, $default = null) {
+        if (!isset($input[$key]) || $input[$key] === '') {
+            return $default;
+        }
+        return $input[$key];
+    }
+    
+    // Template erstellen
     $stmt = $pdo->prepare("
         INSERT INTO vendor_reward_templates (
             vendor_id,
@@ -109,24 +138,24 @@ try {
     $result = $stmt->execute([
         $customer_id,
         $input['template_name'],
-        $input['template_description'] ?? null,
-        $input['category'] ?? null,
-        $input['niche'] ?? null,
+        getStringValue($input, 'template_description'),
+        getStringValue($input, 'category'),
+        getStringValue($input, 'niche'),
         $input['reward_type'],
         $input['reward_title'],
-        $input['reward_description'] ?? null,
-        $input['reward_value'] ?? null,
-        $input['reward_delivery_type'] ?? 'manual',
-        $input['reward_instructions'] ?? null,
-        $input['reward_access_code_template'] ?? null,
-        $input['reward_download_url'] ?? null,
-        $input['reward_icon'] ?? 'fa-gift',
-        $input['reward_color'] ?? '#667eea',
-        isset($input['suggested_tier_level']) ? (int)$input['suggested_tier_level'] : 1,
-        isset($input['suggested_referrals_required']) ? (int)$input['suggested_referrals_required'] : 3,
-        isset($input['marketplace_price']) ? (float)$input['marketplace_price'] : 0.00,
-        $input['digistore_product_id'] ?? null,
-        isset($input['is_published']) ? (bool)$input['is_published'] : false
+        getStringValue($input, 'reward_description'),
+        getStringValue($input, 'reward_value'),
+        getStringValue($input, 'reward_delivery_type', 'manual'),
+        getStringValue($input, 'reward_instructions'),
+        getStringValue($input, 'reward_access_code_template'),
+        getStringValue($input, 'reward_download_url'),
+        getStringValue($input, 'reward_icon', 'fa-gift'),
+        getStringValue($input, 'reward_color', '#667eea'),
+        getIntValue($input, 'suggested_tier_level', 1),
+        getIntValue($input, 'suggested_referrals_required', 3),
+        getFloatValue($input, 'marketplace_price', 0.00),
+        getStringValue($input, 'digistore_product_id'),
+        getBoolValue($input, 'is_published', false)
     ]);
     
     if (!$result) {
