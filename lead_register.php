@@ -16,7 +16,7 @@ $customer_id = isset($_GET['customer']) ? (int)$_GET['customer'] : 0;
 $ref = isset($_GET['ref']) ? trim($_GET['ref']) : ''; // Referral Code
 
 $error = '';
-$success = false;
+$debug = '';
 
 // Freebie laden
 $freebie = null;
@@ -31,10 +31,10 @@ try {
     $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$freebie) {
-        die('Freebie nicht gefunden');
+        die('Freebie nicht gefunden (ID: ' . $freebie_id . ', Customer: ' . $customer_id . ')');
     }
 } catch (PDOException $e) {
-    die('Datenbankfehler: ' . $e->getMessage());
+    die('Datenbankfehler beim Laden des Freebies: ' . $e->getMessage());
 }
 
 // Form-Submit
@@ -46,6 +46,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
         $error = 'Bitte gib eine gültige E-Mail-Adresse ein.';
     } else {
         try {
+            // lead_users Tabelle existiert?
+            $stmt = $pdo->query("SHOW TABLES LIKE 'lead_users'");
+            if ($stmt->rowCount() === 0) {
+                // Tabelle erstellen
+                $pdo->exec("
+                    CREATE TABLE IF NOT EXISTS lead_users (
+                        id INT PRIMARY KEY AUTO_INCREMENT,
+                        name VARCHAR(255),
+                        email VARCHAR(255) NOT NULL,
+                        user_id INT NOT NULL,
+                        freebie_id INT NULL,
+                        referral_code VARCHAR(50) UNIQUE NOT NULL,
+                        referrer_id INT NULL,
+                        status VARCHAR(50) DEFAULT 'active',
+                        created_at DATETIME NOT NULL,
+                        INDEX idx_email (email),
+                        INDEX idx_user (user_id),
+                        INDEX idx_referral_code (referral_code),
+                        INDEX idx_freebie (freebie_id),
+                        INDEX idx_referrer (referrer_id),
+                        INDEX idx_status (status)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ");
+                $debug .= "✓ lead_users Tabelle erstellt. ";
+            }
+            
             // Prüfen ob Lead bereits existiert
             $stmt = $pdo->prepare("
                 SELECT id FROM lead_users 
@@ -56,6 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
             
             if ($existing_lead) {
                 $lead_id = $existing_lead['id'];
+                $debug .= "✓ Lead existiert bereits (ID: $lead_id). ";
             } else {
                 // Neuen Lead erstellen
                 $referral_code = strtoupper(substr(md5($email . time()), 0, 8));
@@ -71,6 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                     $referrer = $stmt->fetch(PDO::FETCH_ASSOC);
                     if ($referrer) {
                         $referrer_id = $referrer['id'];
+                        $debug .= "✓ Referrer gefunden (ID: $referrer_id). ";
                     }
                 }
                 
@@ -89,10 +117,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                     $referrer_id
                 ]);
                 $lead_id = $pdo->lastInsertId();
+                $debug .= "✓ Lead erstellt (ID: $lead_id, Code: $referral_code). ";
                 
                 // Referral-Eintrag erstellen
                 if ($referrer_id) {
                     try {
+                        // lead_referrals Tabelle prüfen
+                        $stmt = $pdo->query("SHOW TABLES LIKE 'lead_referrals'");
+                        if ($stmt->rowCount() === 0) {
+                            $pdo->exec("
+                                CREATE TABLE IF NOT EXISTS lead_referrals (
+                                    id INT PRIMARY KEY AUTO_INCREMENT,
+                                    referrer_id INT NOT NULL,
+                                    referred_email VARCHAR(255) NOT NULL,
+                                    referred_name VARCHAR(255),
+                                    freebie_id INT NULL,
+                                    status VARCHAR(50) DEFAULT 'pending',
+                                    invited_at DATETIME NOT NULL,
+                                    INDEX idx_referrer (referrer_id),
+                                    INDEX idx_email (referred_email),
+                                    INDEX idx_status (status),
+                                    INDEX idx_freebie (freebie_id)
+                                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                            ");
+                        }
+                        
                         $stmt = $pdo->prepare("
                             INSERT INTO lead_referrals 
                             (referrer_id, referred_email, referred_name, freebie_id, status, invited_at)
@@ -104,8 +153,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                             $name ?: 'Lead',
                             $freebie_id
                         ]);
+                        $debug .= "✓ Referral-Eintrag erstellt. ";
                     } catch (PDOException $e) {
-                        error_log("Referral-Fehler: " . $e->getMessage());
+                        $debug .= "⚠ Referral-Fehler: " . $e->getMessage() . " ";
                     }
                 }
             }
@@ -116,13 +166,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
             $_SESSION['lead_customer_id'] = $customer_id;
             $_SESSION['lead_freebie_id'] = $freebie_id;
             
+            $debug .= "✓ Session gesetzt. ";
+            
             // Redirect zum Dashboard
-            header('Location: /lead_dashboard.php?freebie=' . $freebie_id);
+            $redirect_url = '/lead_dashboard.php?freebie=' . $freebie_id;
+            $debug .= "→ Redirect zu: $redirect_url";
+            
+            header('Location: ' . $redirect_url);
             exit;
             
         } catch (PDOException $e) {
-            $error = 'Ein Fehler ist aufgetreten. Bitte versuche es erneut.';
-            error_log("Lead-Registrierung-Fehler: " . $e->getMessage());
+            $error = 'Datenbankfehler: ' . $e->getMessage();
+            $debug .= "❌ " . $e->getMessage();
         }
     }
 }
@@ -243,6 +298,16 @@ $company_name = $freebie['company_name'] ?? 'Dashboard';
             font-size: 14px;
         }
         
+        .debug {
+            background: #f0f9ff;
+            color: #1e40af;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 12px;
+            font-family: monospace;
+        }
+        
         .benefits {
             background: #f9fafb;
             padding: 24px;
@@ -307,6 +372,12 @@ $company_name = $freebie['company_name'] ?? 'Dashboard';
             <div class="error">
                 <i class="fas fa-exclamation-circle"></i>
                 <?php echo htmlspecialchars($error); ?>
+            </div>
+        <?php endif; ?>
+        
+        <?php if ($debug): ?>
+            <div class="debug">
+                🔍 Debug: <?php echo htmlspecialchars($debug); ?>
             </div>
         <?php endif; ?>
         
