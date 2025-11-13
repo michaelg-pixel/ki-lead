@@ -257,16 +257,16 @@
                 log('Starte Vendor System Migration...', 'info');
                 updateProgress(5);
                 
-                // Step 1: Add columns to users table (one by one)
+                // Step 1: Add columns to users table (one by one, without AFTER clause to be safe)
                 log('Schritt 1/5: Erweitere users Tabelle...', 'info');
                 
-                await executeSQLSafe('ALTER TABLE users ADD COLUMN is_vendor BOOLEAN DEFAULT FALSE AFTER customer_id', 'is_vendor');
-                await executeSQLSafe('ALTER TABLE users ADD COLUMN vendor_company_name VARCHAR(255) DEFAULT NULL AFTER is_vendor', 'vendor_company_name');
-                await executeSQLSafe('ALTER TABLE users ADD COLUMN vendor_website VARCHAR(255) DEFAULT NULL AFTER vendor_company_name', 'vendor_website');
-                await executeSQLSafe('ALTER TABLE users ADD COLUMN vendor_description TEXT DEFAULT NULL AFTER vendor_website', 'vendor_description');
-                await executeSQLSafe('ALTER TABLE users ADD COLUMN vendor_paypal_email VARCHAR(255) DEFAULT NULL AFTER vendor_description', 'vendor_paypal_email');
-                await executeSQLSafe('ALTER TABLE users ADD COLUMN vendor_bank_account VARCHAR(255) DEFAULT NULL AFTER vendor_paypal_email', 'vendor_bank_account');
-                await executeSQLSafe('ALTER TABLE users ADD COLUMN vendor_activated_at DATETIME DEFAULT NULL AFTER vendor_bank_account', 'vendor_activated_at');
+                await executeSQLSafe('ALTER TABLE users ADD COLUMN is_vendor BOOLEAN DEFAULT FALSE', 'is_vendor');
+                await executeSQLSafe('ALTER TABLE users ADD COLUMN vendor_company_name VARCHAR(255) DEFAULT NULL', 'vendor_company_name');
+                await executeSQLSafe('ALTER TABLE users ADD COLUMN vendor_website VARCHAR(255) DEFAULT NULL', 'vendor_website');
+                await executeSQLSafe('ALTER TABLE users ADD COLUMN vendor_description TEXT DEFAULT NULL', 'vendor_description');
+                await executeSQLSafe('ALTER TABLE users ADD COLUMN vendor_paypal_email VARCHAR(255) DEFAULT NULL', 'vendor_paypal_email');
+                await executeSQLSafe('ALTER TABLE users ADD COLUMN vendor_bank_account VARCHAR(255) DEFAULT NULL', 'vendor_bank_account');
+                await executeSQLSafe('ALTER TABLE users ADD COLUMN vendor_activated_at DATETIME DEFAULT NULL', 'vendor_activated_at');
                 
                 log('✓ users Tabelle erweitert', 'success');
                 updateProgress(15);
@@ -398,8 +398,8 @@
                 // Step 5: Extend reward_definitions table
                 log('Schritt 5/5: Erweitere reward_definitions Tabelle...', 'info');
                 
-                await executeSQLSafe('ALTER TABLE reward_definitions ADD COLUMN imported_from_template_id INT DEFAULT NULL AFTER user_id', 'imported_from_template_id');
-                await executeSQLSafe('ALTER TABLE reward_definitions ADD COLUMN is_imported BOOLEAN DEFAULT FALSE AFTER imported_from_template_id', 'is_imported');
+                await executeSQLSafe('ALTER TABLE reward_definitions ADD COLUMN imported_from_template_id INT DEFAULT NULL', 'imported_from_template_id');
+                await executeSQLSafe('ALTER TABLE reward_definitions ADD COLUMN is_imported BOOLEAN DEFAULT FALSE', 'is_imported');
                 
                 log('✓ reward_definitions Tabelle erweitert', 'success');
                 
