@@ -55,6 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                         id INT PRIMARY KEY AUTO_INCREMENT,
                         name VARCHAR(255),
                         email VARCHAR(255) NOT NULL,
+                        password_hash VARCHAR(255) NULL,
                         user_id INT NOT NULL,
                         freebie_id INT NULL,
                         referral_code VARCHAR(50) UNIQUE NOT NULL,
@@ -74,9 +75,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                 // Prüfen ob created_at Spalte existiert
                 $stmt = $pdo->query("SHOW COLUMNS FROM lead_users LIKE 'created_at'");
                 if ($stmt->rowCount() === 0) {
-                    // created_at Spalte nachträglich hinzufügen
                     $pdo->exec("ALTER TABLE lead_users ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
                     $debug .= "✓ created_at Spalte hinzugefügt. ";
+                }
+                
+                // password_hash auf NULL setzen (falls NOT NULL)
+                try {
+                    $pdo->exec("ALTER TABLE lead_users MODIFY COLUMN password_hash VARCHAR(255) NULL");
+                    $debug .= "✓ password_hash auf NULL gesetzt. ";
+                } catch (PDOException $e) {
+                    // Spalte existiert nicht oder ist bereits NULL
                 }
             }
             
@@ -110,11 +118,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                     }
                 }
                 
-                // Lead erstellen
+                // Lead erstellen (mit NULL password)
                 $stmt = $pdo->prepare("
                     INSERT INTO lead_users 
-                    (name, email, user_id, freebie_id, referral_code, referrer_id, status, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, 'active', NOW())
+                    (name, email, password_hash, user_id, freebie_id, referral_code, referrer_id, status, created_at)
+                    VALUES (?, ?, NULL, ?, ?, ?, ?, 'active', NOW())
                 ");
                 $stmt->execute([
                     $name ?: 'Lead',
