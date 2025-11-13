@@ -523,6 +523,62 @@ $providers = [
             border-bottom: none;
         }
         
+        /* Custom Fields Info Box */
+        .custom-fields-box {
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: white;
+        }
+        
+        .custom-fields-box h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .field-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .field-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .field-name {
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            font-size: 0.875rem;
+            color: #fbbf24;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .field-type {
+            display: inline-block;
+            background: rgba(59, 130, 246, 0.3);
+            color: #93c5fd;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .field-description {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+        
         /* Lead URLs Box */
         .lead-urls-box {
             background: linear-gradient(135deg, #3b82f6, #2563eb);
@@ -655,8 +711,74 @@ $providers = [
         
         <?php if ($referralEnabled): ?>
             
+            <!-- Custom Fields Infobox -->
+            <div class="custom-fields-box animate-fade-in-up" style="opacity: 0; animation-delay: 0.1s;">
+                <h3>
+                    <i class="fas fa-database"></i> Benutzerdefinierte Felder für deinen Autoresponder
+                </h3>
+                <div style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem;">
+                    <p style="color: rgba(255, 255, 255, 0.9); font-size: 0.875rem; line-height: 1.6; margin: 0;">
+                        <i class="fas fa-info-circle"></i> <strong>Wichtig:</strong> Lege diese benutzerdefinierten Felder in deinem Email-Marketing-System an, bevor du deine API-Zugangsdaten eingibst. Diese Felder werden automatisch bei der Lead-Registrierung übertragen.
+                    </p>
+                </div>
+                
+                <div class="field-item">
+                    <div class="field-name">
+                        referral_code
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field-description">
+                        Der eindeutige Empfehlungscode des Leads (z.B. "LEAD12AB34CD"). Wird für die Zuordnung von Sub-Empfehlungen verwendet.
+                    </div>
+                </div>
+                
+                <div class="field-item">
+                    <div class="field-name">
+                        total_referrals
+                        <span class="field-type">Zahl</span>
+                    </div>
+                    <div class="field-description">
+                        Gesamtanzahl aller Empfehlungen, die dieser Lead generiert hat (inklusive ausstehender Registrierungen).
+                    </div>
+                </div>
+                
+                <div class="field-item">
+                    <div class="field-name">
+                        successful_referrals
+                        <span class="field-type">Zahl</span>
+                    </div>
+                    <div class="field-description">
+                        Anzahl der erfolgreichen, bestätigten Empfehlungen. Wird für die Belohnungsstufen verwendet.
+                    </div>
+                </div>
+                
+                <div class="field-item">
+                    <div class="field-name">
+                        rewards_earned
+                        <span class="field-type">Zahl</span>
+                    </div>
+                    <div class="field-description">
+                        Anzahl der bereits erhaltenen Belohnungen. Nützlich für Segmentierung und Follow-up-Kampagnen.
+                    </div>
+                </div>
+                
+                <div class="field-item">
+                    <div class="field-name">
+                        referrer_code
+                        <span class="field-type">Text</span>
+                    </div>
+                    <div class="field-description">
+                        Der Code des Empfehlungsgebers (falls vorhanden). Zeigt, wer diesen Lead empfohlen hat.
+                    </div>
+                </div>
+                
+                <small style="color: rgba(255, 255, 255, 0.8); font-size: 0.875rem; display: block; margin-top: 1rem;">
+                    💡 <strong>Tipp:</strong> Diese Felder ermöglichen dir eine präzise Segmentierung und Automation basierend auf dem Empfehlungsverhalten deiner Leads.
+                </small>
+            </div>
+            
             <!-- Lead URLs Box -->
-            <div class="lead-urls-box animate-fade-in-up" style="opacity: 0; animation-delay: 0.1s;">
+            <div class="lead-urls-box animate-fade-in-up" style="opacity: 0; animation-delay: 0.15s;">
                 <h3>
                     <i class="fas fa-users"></i> Lead-Anmeldung & Dashboard
                 </h3>
