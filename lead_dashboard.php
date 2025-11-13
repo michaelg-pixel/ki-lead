@@ -3,6 +3,8 @@
  * Lead Dashboard - Vereintes System
  * Zeigt: Freebie-Kurse + Videoplayer + Empfehlungsprogramm PRO FREEBIE
  * Mit One-Click-Login Support
+ * 
+ * FLOW: Teilen-Button → Link kopiert + Scroll zu Belohnungen für dieses Freebie
  */
 
 require_once __DIR__ . '/config/database.php';
@@ -127,11 +129,8 @@ try {
     error_log("Fehler beim Laden der Freebies: " . $e->getMessage());
 }
 
-// Gewähltes Freebie für Empfehlungsprogramm (aus URL oder erstes Freebie)
+// Gewähltes Freebie für Empfehlungsprogramm (aus URL Parameter)
 $selected_freebie_id = isset($_GET['freebie']) ? (int)$_GET['freebie'] : null;
-if (!$selected_freebie_id && !empty($freebies_with_courses)) {
-    $selected_freebie_id = $freebies_with_courses[0]['freebie_id'];
-}
 
 // Gewähltes Freebie Details laden
 $selected_freebie = null;
@@ -152,8 +151,7 @@ $successful_referrals = 0;
 
 if ($referral_enabled && $selected_freebie_id) {
     try {
-        // Empfehlungen für dieses spezifische Freebie
-        // Wir nutzen den referral_code in der URL des Freebies
+        // Empfehlungen für diesen Lead
         $stmt = $pdo->prepare("
             SELECT referred_name as name, referred_email as email, status, invited_at as registered_at 
             FROM lead_referrals 
@@ -485,40 +483,6 @@ $company_name = $lead['company_name'] ?? 'Dashboard';
             background: #3b82f6;
         }
         
-        /* ===== FREEBIE SELECTOR ===== */
-        .freebie-selector {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin-bottom: 24px;
-        }
-        
-        .freebie-selector-btn {
-            padding: 12px 24px;
-            background: var(--bg);
-            border: 2px solid var(--border);
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-weight: 600;
-            color: var(--text);
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .freebie-selector-btn:hover {
-            border-color: var(--primary);
-            background: var(--primary-light);
-        }
-        
-        .freebie-selector-btn.active {
-            background: var(--primary);
-            border-color: var(--primary);
-            color: white;
-        }
-        
         /* ===== EMPFEHLUNGSPROGRAMM ===== */
         .referral-link-box {
             background: var(--primary-light);
@@ -776,14 +740,6 @@ $company_name = $lead['company_name'] ?? 'Dashboard';
             .copy-btn {
                 width: 100%;
             }
-            
-            .freebie-selector {
-                flex-direction: column;
-            }
-            
-            .freebie-selector-btn {
-                width: 100%;
-            }
         }
     </style>
 </head>
@@ -853,7 +809,7 @@ $company_name = $lead['company_name'] ?? 'Dashboard';
                                     
                                     <?php if ($referral_enabled): ?>
                                         <button class="share-button" 
-                                                onclick="shareFreebieLink('<?php echo htmlspecialchars($freebie['unique_id']); ?>', '<?php echo htmlspecialchars($freebie['title']); ?>', this)">
+                                                onclick="shareAndScroll('<?php echo $freebie['freebie_id']; ?>', '<?php echo htmlspecialchars($freebie['unique_id']); ?>', '<?php echo htmlspecialchars($freebie['title']); ?>', this)">
                                             <i class="fas fa-share-alt"></i> Teilen
                                         </button>
                                     <?php endif; ?>
@@ -865,11 +821,11 @@ $company_name = $lead['company_name'] ?? 'Dashboard';
             <?php endif; ?>
         </div>
         
-        <!-- Empfehlungsprogramm (nur wenn aktiv UND Freebies vorhanden) -->
-        <?php if ($referral_enabled && !empty($freebies_with_courses)): ?>
+        <!-- Empfehlungsprogramm (nur wenn aktiv UND ein Freebie gewählt) -->
+        <?php if ($referral_enabled && $selected_freebie): ?>
         
         <!-- Stats -->
-        <div class="stats-grid">
+        <div class="stats-grid" id="rewardsSection">
             <div class="stat-card">
                 <div class="stat-icon">🎯</div>
                 <div class="stat-label">Gesamt Empfehlungen</div>
@@ -887,30 +843,18 @@ $company_name = $lead['company_name'] ?? 'Dashboard';
             </div>
         </div>
         
-        <!-- Freebie Auswahl für Empfehlungsprogramm -->
+        <!-- Empfehlungslink für gewähltes Freebie -->
         <div class="section">
             <div class="section-header">
                 <h2 class="section-title">
-                    <span class="section-icon">🎯</span>
-                    Wähle dein Freebie zum Bewerben
+                    <span class="section-icon">🔗</span>
+                    Dein Empfehlungs-Link
                 </h2>
             </div>
             
-            <div class="freebie-selector">
-                <?php foreach ($freebies_with_courses as $freebie): ?>
-                    <a href="?freebie=<?php echo $freebie['freebie_id']; ?>" 
-                       class="freebie-selector-btn <?php echo ($selected_freebie_id == $freebie['freebie_id']) ? 'active' : ''; ?>">
-                        <i class="fas fa-gift"></i>
-                        <?php echo htmlspecialchars($freebie['title']); ?>
-                    </a>
-                <?php endforeach; ?>
-            </div>
-            
-            <?php if ($selected_freebie): ?>
-            <!-- Empfehlungslink für gewähltes Freebie -->
             <div class="referral-link-box">
                 <div class="referral-link-label">
-                    Dein Empfehlungs-Link für: <strong><?php echo htmlspecialchars($selected_freebie['title']); ?></strong>
+                    Empfehlungs-Link für: <strong><?php echo htmlspecialchars($selected_freebie['title']); ?></strong>
                 </div>
                 <div class="referral-link-input">
                     <input type="text" 
@@ -925,13 +869,12 @@ $company_name = $lead['company_name'] ?? 'Dashboard';
             
             <p style="color: var(--text-light); font-size: 14px;">
                 <i class="fas fa-info-circle"></i> 
-                Teile diesen Link für "<strong><?php echo htmlspecialchars($selected_freebie['title']); ?></strong>" und verdiene Belohnungen!
+                Teile diesen Link und verdiene Belohnungen für jeden erfolgreichen Lead!
             </p>
-            <?php endif; ?>
         </div>
         
         <!-- Belohnungen für gewähltes Freebie -->
-        <?php if (!empty($reward_tiers) && $selected_freebie): ?>
+        <?php if (!empty($reward_tiers)): ?>
         <div class="section">
             <div class="section-header">
                 <h2 class="section-title">
@@ -1062,11 +1005,18 @@ $company_name = $lead['company_name'] ?? 'Dashboard';
     <script>
         const leadReferralCode = '<?php echo $lead['referral_code']; ?>';
         
-        function shareFreebieLink(uniqueId, title, button) {
+        /**
+         * Teilen-Button Klick:
+         * 1. Link in Zwischenablage kopieren
+         * 2. URL-Parameter setzen
+         * 3. Zur Belohnungs-Sektion scrollen
+         */
+        function shareAndScroll(freebieId, uniqueId, title, button) {
             const link = `https://app.mehr-infos-jetzt.de/freebie/index.php?id=${uniqueId}&ref=${leadReferralCode}`;
             
             // In Zwischenablage kopieren
             navigator.clipboard.writeText(link).then(() => {
+                // Button Feedback
                 const originalHTML = button.innerHTML;
                 button.innerHTML = '<i class="fas fa-check"></i> Kopiert!';
                 button.classList.add('copied');
@@ -1075,6 +1025,22 @@ $company_name = $lead['company_name'] ?? 'Dashboard';
                     button.innerHTML = originalHTML;
                     button.classList.remove('copied');
                 }, 2000);
+                
+                // URL-Parameter setzen und zur Belohnungs-Sektion scrollen
+                const newUrl = window.location.pathname + '?freebie=' + freebieId;
+                window.history.pushState({}, '', newUrl);
+                
+                // Smooth scroll zur Belohnungs-Sektion
+                setTimeout(() => {
+                    const rewardsSection = document.getElementById('rewardsSection');
+                    if (rewardsSection) {
+                        rewardsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    } else {
+                        // Falls noch keine Belohnungs-Sektion sichtbar, Seite neu laden
+                        window.location.href = newUrl;
+                    }
+                }, 500);
+                
             }).catch(err => {
                 alert('Bitte kopiere den Link manuell');
             });
@@ -1101,6 +1067,19 @@ $company_name = $lead['company_name'] ?? 'Dashboard';
                 alert('Bitte kopiere den Link manuell');
             }
         }
+        
+        // Beim Laden der Seite zur Belohnungs-Sektion scrollen (wenn freebie-Parameter vorhanden)
+        window.addEventListener('load', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('freebie')) {
+                setTimeout(() => {
+                    const rewardsSection = document.getElementById('rewardsSection');
+                    if (rewardsSection) {
+                        rewardsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }, 300);
+            }
+        });
     </script>
 </body>
 </html>
