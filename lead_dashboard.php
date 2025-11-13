@@ -155,34 +155,36 @@ try {
 $customer_id = $lead['user_id'];
 $referral_enabled = (int)($lead['referral_enabled'] ?? 0);
 
-// ===== FREEBIES MIT KURSEN LADEN =====
+// ===== NUR DAS FREEBIE LADEN, FÜR DAS SICH DER LEAD REGISTRIERT HAT =====
 $freebies_with_courses = [];
 
 try {
-    $stmt = $pdo->prepare("
-        SELECT 
-            cf.id as freebie_id,
-            cf.unique_id,
-            COALESCE(NULLIF(cf.headline, ''), f.name, 'Freebie') as title,
-            COALESCE(NULLIF(cf.subheadline, ''), f.description, '') as description,
-            COALESCE(NULLIF(cf.mockup_image_url, ''), f.mockup_image_url) as mockup_url,
-            fc.id as course_id,
-            fc.title as course_title,
-            fc.description as course_description
-        FROM customer_freebies cf
-        LEFT JOIN freebies f ON cf.template_id = f.id
-        LEFT JOIN freebie_courses fc ON cf.id = fc.freebie_id
-        WHERE cf.customer_id = ?
-        ORDER BY cf.id DESC
-    ");
-    $stmt->execute([$customer_id]);
-    $freebies_with_courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Prüfen ob Lead eine freebie_id hat
+    if (!empty($lead['freebie_id'])) {
+        $stmt = $pdo->prepare("
+            SELECT 
+                cf.id as freebie_id,
+                cf.unique_id,
+                COALESCE(NULLIF(cf.headline, ''), f.name, 'Freebie') as title,
+                COALESCE(NULLIF(cf.subheadline, ''), f.description, '') as description,
+                COALESCE(NULLIF(cf.mockup_image_url, ''), f.mockup_image_url) as mockup_url,
+                fc.id as course_id,
+                fc.title as course_title,
+                fc.description as course_description
+            FROM customer_freebies cf
+            LEFT JOIN freebies f ON cf.template_id = f.id
+            LEFT JOIN freebie_courses fc ON cf.id = fc.freebie_id
+            WHERE cf.customer_id = ? AND cf.id = ?
+        ");
+        $stmt->execute([$customer_id, $lead['freebie_id']]);
+        $freebies_with_courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 } catch (PDOException $e) {
     error_log("Fehler beim Laden der Freebies: " . $e->getMessage());
 }
 
-// Gewähltes Freebie für Empfehlungsprogramm (aus URL Parameter)
-$selected_freebie_id = isset($_GET['freebie']) ? (int)$_GET['freebie'] : null;
+// Gewähltes Freebie für Empfehlungsprogramm (aus URL Parameter oder aus Lead-Daten)
+$selected_freebie_id = isset($_GET['freebie']) ? (int)$_GET['freebie'] : $lead['freebie_id'];
 
 // Gewähltes Freebie Details laden
 $selected_freebie = null;
@@ -936,15 +938,15 @@ function triggerRewardWebhook($pdo, $lead_id, $customer_id, $reward) {
             <div class="section-header">
                 <h2 class="section-title">
                     <span class="section-icon">📚</span>
-                    Deine Kurse
+                    Dein Kurs
                 </h2>
             </div>
             
             <?php if (empty($freebies_with_courses)): ?>
                 <div class="empty-state">
                     <div class="empty-icon">📭</div>
-                    <div class="empty-text">Noch keine Kurse verfügbar</div>
-                    <div class="empty-subtext">Kurse werden hier angezeigt, sobald sie verfügbar sind</div>
+                    <div class="empty-text">Noch kein Kurs verfügbar</div>
+                    <div class="empty-subtext">Der Kurs wird hier angezeigt, sobald er verfügbar ist</div>
                 </div>
             <?php else: ?>
                 <div class="freebie-grid">
@@ -1047,7 +1049,7 @@ function triggerRewardWebhook($pdo, $lead_id, $customer_id, $reward) {
             <div class="section-header">
                 <h2 class="section-title">
                     <span class="section-icon">🎁</span>
-                    Deine Belohnungen für "<?php echo htmlspecialchars($selected_freebie['title']); ?>"
+                    Deine Belohnungen
                 </h2>
             </div>
             
