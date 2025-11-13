@@ -79,12 +79,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                     $debug .= "✓ created_at Spalte hinzugefügt. ";
                 }
                 
-                // password_hash auf NULL setzen (falls NOT NULL)
-                try {
-                    $pdo->exec("ALTER TABLE lead_users MODIFY COLUMN password_hash VARCHAR(255) NULL");
-                    $debug .= "✓ password_hash auf NULL gesetzt. ";
-                } catch (PDOException $e) {
-                    // Spalte existiert nicht oder ist bereits NULL
+                // password_hash auf NULL setzen (SEPARAT prüfen!)
+                $stmt = $pdo->query("SHOW COLUMNS FROM lead_users LIKE 'password_hash'");
+                if ($stmt->rowCount() > 0) {
+                    $column = $stmt->fetch(PDO::FETCH_ASSOC);
+                    // Nur ändern wenn NOT NULL
+                    if ($column['Null'] === 'NO') {
+                        try {
+                            $pdo->exec("ALTER TABLE lead_users MODIFY COLUMN password_hash VARCHAR(255) NULL");
+                            $debug .= "✓ password_hash auf NULL gesetzt. ";
+                        } catch (PDOException $e) {
+                            $debug .= "⚠ password_hash Fehler: " . $e->getMessage() . " ";
+                        }
+                    } else {
+                        $debug .= "✓ password_hash ist bereits NULL. ";
+                    }
                 }
             }
             
