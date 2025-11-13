@@ -1,0 +1,387 @@
+<!-- 
+    MARKETPLACE IMPORT INTEGRATION
+    Füge diesen Code am Ende von customer/sections/belohnungsstufen.php ein,
+    VOR dem schließenden </body> Tag
+-->
+
+<!-- Import Button zum Header hinzufügen -->
+<script>
+// Button zum Header hinzufügen
+document.addEventListener('DOMContentLoaded', function() {
+    const createBtn = document.getElementById('createBtn');
+    if (createBtn) {
+        const importBtn = document.createElement('button');
+        importBtn.className = 'btn';
+        importBtn.style.cssText = 'background: linear-gradient(135deg, #10b981, #059669); color: white;';
+        importBtn.innerHTML = '<i class="fas fa-shopping-bag"></i> Belohnungen importieren';
+        importBtn.onclick = openMarketplaceModal;
+        createBtn.parentElement.insertBefore(importBtn, createBtn);
+    }
+});
+</script>
+
+<!-- Marketplace Modal -->
+<div id="marketplaceModal" class="modal">
+    <div class="modal-content" style="max-width: 1200px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <div>
+                <h2 style="color: white; font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">
+                    🛍️ Belohnungen aus dem Marktplatz
+                </h2>
+                <p style="color: #9ca3af; font-size: 0.875rem;">
+                    Importiere fertige Belohnungs-Templates von anderen Vendors
+                </p>
+            </div>
+            <button onclick="closeMarketplaceModal()" style="background: none; border: none; color: #9ca3af; font-size: 1.5rem; cursor: pointer;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <!-- Filter -->
+        <div style="display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap;">
+            <input type="text" id="searchInput" placeholder="Suche..." class="form-input" style="flex: 1; min-width: 200px;" onkeyup="filterMarketplace()">
+            <select id="categoryFilter" class="form-select" style="width: 200px;" onchange="filterMarketplace()">
+                <option value="">Alle Kategorien</option>
+            </select>
+            <select id="nicheFilter" class="form-select" style="width: 200px;" onchange="filterMarketplace()">
+                <option value="">Alle Nischen</option>
+            </select>
+        </div>
+        
+        <!-- Loading -->
+        <div id="marketplaceLoading" style="text-align: center; padding: 4rem;">
+            <div style="font-size: 3rem; color: #667eea;">
+                <i class="fas fa-spinner fa-spin"></i>
+            </div>
+            <p style="color: #9ca3af; margin-top: 1rem;">Lade Templates...</p>
+        </div>
+        
+        <!-- Grid -->
+        <div id="marketplaceGrid" style="display: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; max-height: 60vh; overflow-y: auto; padding-right: 0.5rem;">
+            <!-- Wird dynamisch gefüllt -->
+        </div>
+        
+        <!-- Empty State -->
+        <div id="marketplaceEmpty" style="display: none; text-align: center; padding: 4rem;">
+            <div style="font-size: 4rem; color: #374151; margin-bottom: 1rem;">
+                <i class="fas fa-inbox"></i>
+            </div>
+            <h3 style="color: white; font-size: 1.25rem; margin-bottom: 0.5rem;">
+                Keine Templates gefunden
+            </h3>
+            <p style="color: #9ca3af;">
+                Versuche andere Filter oder erstelle dein eigenes Template
+            </p>
+        </div>
+    </div>
+</div>
+
+<style>
+.marketplace-card {
+    background: linear-gradient(to bottom right, #1f2937, #374151);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    border-radius: 1rem;
+    overflow: hidden;
+    transition: all 0.3s;
+}
+
+.marketplace-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4);
+    border-color: rgba(102, 126, 234, 0.5);
+}
+
+.marketplace-preview {
+    width: 100%;
+    height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    position: relative;
+}
+
+.marketplace-imported-badge {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: rgba(16, 185, 129, 0.9);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.marketplace-content {
+    padding: 1.25rem;
+}
+
+.marketplace-vendor {
+    color: #9ca3af;
+    font-size: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.marketplace-title {
+    color: white;
+    font-size: 1.125rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.marketplace-description {
+    color: #9ca3af;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin-bottom: 1rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.marketplace-stats {
+    display: flex;
+    gap: 1rem;
+    padding: 0.75rem 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 1rem;
+}
+
+.marketplace-stat {
+    flex: 1;
+    text-align: center;
+}
+
+.marketplace-stat-value {
+    color: white;
+    font-weight: 700;
+    font-size: 1.125rem;
+}
+
+.marketplace-stat-label {
+    color: #9ca3af;
+    font-size: 0.75rem;
+}
+
+.btn-import {
+    width: 100%;
+    padding: 0.75rem;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-import:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-import:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-imported {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+</style>
+
+<script>
+let marketplaceTemplates = [];
+let filteredTemplates = [];
+
+function openMarketplaceModal() {
+    document.getElementById('marketplaceModal').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    loadMarketplace();
+}
+
+function closeMarketplaceModal() {
+    document.getElementById('marketplaceModal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+
+async function loadMarketplace() {
+    document.getElementById('marketplaceLoading').style.display = 'block';
+    document.getElementById('marketplaceGrid').style.display = 'none';
+    document.getElementById('marketplaceEmpty').style.display = 'none';
+    
+    try {
+        const response = await fetch('/api/vendor/marketplace/list.php');
+        const data = await response.json();
+        
+        if (data.success) {
+            marketplaceTemplates = data.templates;
+            filteredTemplates = marketplaceTemplates;
+            
+            // Fill filters
+            const categoryFilter = document.getElementById('categoryFilter');
+            const nicheFilter = document.getElementById('nicheFilter');
+            
+            data.filters.categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                categoryFilter.appendChild(option);
+            });
+            
+            data.filters.niches.forEach(niche => {
+                const option = document.createElement('option');
+                option.value = niche;
+                option.textContent = niche;
+                nicheFilter.appendChild(option);
+            });
+            
+            renderMarketplace();
+        } else {
+            throw new Error(data.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showNotification('Fehler beim Laden des Marktplatzes', 'error');
+        closeMarketplaceModal();
+    }
+}
+
+function filterMarketplace() {
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const category = document.getElementById('categoryFilter').value;
+    const niche = document.getElementById('nicheFilter').value;
+    
+    filteredTemplates = marketplaceTemplates.filter(t => {
+        const matchSearch = !search || 
+            t.template_name.toLowerCase().includes(search) ||
+            (t.template_description && t.template_description.toLowerCase().includes(search)) ||
+            t.reward_title.toLowerCase().includes(search);
+        
+        const matchCategory = !category || t.category === category;
+        const matchNiche = !niche || t.niche === niche;
+        
+        return matchSearch && matchCategory && matchNiche;
+    });
+    
+    renderMarketplace();
+}
+
+function renderMarketplace() {
+    const loading = document.getElementById('marketplaceLoading');
+    const grid = document.getElementById('marketplaceGrid');
+    const empty = document.getElementById('marketplaceEmpty');
+    
+    loading.style.display = 'none';
+    
+    if (filteredTemplates.length === 0) {
+        grid.style.display = 'none';
+        empty.style.display = 'block';
+        return;
+    }
+    
+    grid.style.display = 'grid';
+    empty.style.display = 'none';
+    
+    grid.innerHTML = filteredTemplates.map(template => {
+        const isImported = template.is_imported_by_me == 1;
+        const categoryEmojis = {
+            'ebook': '📚',
+            'consultation': '💬',
+            'discount': '🏷️',
+            'course': '🎓',
+            'voucher': '🎟️',
+            'software': '💻',
+            'template': '📄'
+        };
+        const emoji = categoryEmojis[template.category] || '🎁';
+        
+        return `
+            <div class="marketplace-card">
+                <div class="marketplace-preview" style="background: ${template.reward_color || '#667eea'};">
+                    <span>${template.reward_icon || emoji}</span>
+                    ${isImported ? '<div class="marketplace-imported-badge">✓ Importiert</div>' : ''}
+                </div>
+                <div class="marketplace-content">
+                    <div class="marketplace-vendor">
+                        <i class="fas fa-user"></i> ${escapeHtml(template.vendor_company_name || template.vendor_name)}
+                    </div>
+                    <h3 class="marketplace-title">${escapeHtml(template.template_name)}</h3>
+                    ${template.template_description ? `
+                        <p class="marketplace-description">${escapeHtml(template.template_description)}</p>
+                    ` : ''}
+                    
+                    <div class="marketplace-stats">
+                        <div class="marketplace-stat">
+                            <div class="marketplace-stat-value">${template.times_imported || 0}</div>
+                            <div class="marketplace-stat-label">Imports</div>
+                        </div>
+                        <div class="marketplace-stat">
+                            <div class="marketplace-stat-value">${template.suggested_referrals_required || 0}</div>
+                            <div class="marketplace-stat-label">Empfehlungen</div>
+                        </div>
+                    </div>
+                    
+                    ${template.marketplace_price > 0 ? `
+                        <div style="text-align: center; padding: 0.75rem 0; color: #10b981; font-weight: 700; font-size: 1.25rem;">
+                            ${parseFloat(template.marketplace_price).toFixed(2)}€
+                        </div>
+                    ` : `
+                        <div style="text-align: center; padding: 0.75rem 0; color: #10b981; font-weight: 700;">
+                            <i class="fas fa-check-circle"></i> Kostenlos
+                        </div>
+                    `}
+                    
+                    <button 
+                        onclick="importTemplate(${template.id})" 
+                        class="btn-import ${isImported ? 'btn-imported' : ''}"
+                        ${isImported ? 'disabled' : ''}
+                    >
+                        ${isImported ? '<i class="fas fa-check"></i> Bereits importiert' : '<i class="fas fa-download"></i> Importieren'}
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function importTemplate(templateId) {
+    if (!confirm('Möchten Sie dieses Template wirklich importieren?\n\nEs wird als neue Belohnungsstufe hinzugefügt.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/vendor/marketplace/import.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                template_id: templateId,
+                freebie_id: freebieId || null
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification('Template erfolgreich importiert! ✓', 'success');
+            closeMarketplaceModal();
+            loadRewards(); // Belohnungen neu laden
+        } else {
+            showNotification('Fehler: ' + data.error, 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showNotification('Verbindungsfehler beim Importieren', 'error');
+    }
+}
+
+// Close modal on outside click
+document.getElementById('marketplaceModal')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeMarketplaceModal();
+    }
+});
+</script>
