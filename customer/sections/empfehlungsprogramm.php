@@ -1,13 +1,17 @@
 <?php
 /**
  * Customer Dashboard - Empfehlungsprogramm Section
- * KOMPLETT ÜBERARBEITET mit Slots-Verwaltung und Admin-Hinweisen
+ * MIT INTEGRIERTER API-KONFIGURATION
+ * Zeigt API-Setup wenn Empfehlungsprogramm aktiviert wird
  */
 
 // Sicherstellen, dass Session aktiv ist
 if (!isset($customer_id)) {
     die('Nicht autorisiert');
 }
+
+// Provider-Klassen laden
+require_once __DIR__ . '/../includes/EmailProviders.php';
 
 // Benutzer-Details laden
 try {
@@ -28,6 +32,20 @@ try {
         throw new Exception("User nicht gefunden");
     }
     
+    // API-Einstellungen laden
+    $stmt_api = $pdo->prepare("
+        SELECT * FROM customer_email_api_settings 
+        WHERE customer_id = ? AND is_active = TRUE
+        LIMIT 1
+    ");
+    $stmt_api->execute([$customer_id]);
+    $api_settings = $stmt_api->fetch(PDO::FETCH_ASSOC);
+    
+    // API-Key maskieren wenn vorhanden
+    if ($api_settings && !empty($api_settings['api_key'])) {
+        $api_settings['api_key_masked'] = '••••••••' . substr($api_settings['api_key'], -4);
+    }
+    
     // EMPFEHLUNGS-SLOTS LADEN
     $stmt_slots = $pdo->prepare("
         SELECT 
@@ -43,7 +61,6 @@ try {
     $slots_data = $stmt_slots->fetch(PDO::FETCH_ASSOC);
     
     if (!$slots_data) {
-        // Fallback wenn keine Slots-Daten vorhanden
         $slots_data = [
             'total_slots' => 0,
             'used_slots' => 0,
@@ -56,30 +73,6 @@ try {
     $total_slots = (int)$slots_data['total_slots'];
     $used_slots = (int)$slots_data['used_slots'];
     $available_slots = max(0, $total_slots - $used_slots);
-    $slots_source = $slots_data['source'];
-    $product_name = $slots_data['product_name'] ?? 'Nicht zugewiesen';
-    
-    // FREEBIE-LIMIT LADEN
-    $stmt_freebie_limit = $pdo->prepare("
-        SELECT 
-            freebie_limit,
-            product_name as freebie_product_name,
-            source as freebie_source
-        FROM customer_freebie_limits 
-        WHERE customer_id = ?
-    ");
-    $stmt_freebie_limit->execute([$customer_id]);
-    $freebie_limit_data = $stmt_freebie_limit->fetch(PDO::FETCH_ASSOC);
-    
-    if ($freebie_limit_data) {
-        $freebie_limit = (int)$freebie_limit_data['freebie_limit'];
-        $freebie_source = $freebie_limit_data['freebie_source'];
-        $freebie_product_name = $freebie_limit_data['freebie_product_name'] ?? 'Nicht zugewiesen';
-    } else {
-        $freebie_limit = 0;
-        $freebie_source = 'webhook';
-        $freebie_product_name = 'Nicht zugewiesen';
-    }
     
     // Statistiken
     $stmt_stats = $pdo->prepare("
@@ -103,49 +96,7 @@ try {
         ];
     }
     
-    // Lead-Empfehlungen laden
-    $stmt_referrals = $pdo->prepare("
-        SELECT 
-            lr.referred_name as name,
-            lr.referred_email as email,
-            lr.status,
-            lr.invited_at,
-            lu_referrer.name as referrer_name,
-            lu_referrer.email as referrer_email
-        FROM lead_referrals lr
-        INNER JOIN lead_users lu_referrer ON lr.referrer_id = lu_referrer.id
-        WHERE lu_referrer.user_id = ?
-        ORDER BY lr.invited_at DESC
-        LIMIT 50
-    ");
-    $stmt_referrals->execute([$customer_id]);
-    $referrals = $stmt_referrals->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Direkt registrierte Leads
-    $stmt_direct_leads = $pdo->prepare("
-        SELECT 
-            name,
-            email,
-            'active' as status,
-            registered_at as invited_at,
-            NULL as referrer_name,
-            NULL as referrer_email
-        FROM lead_users
-        WHERE user_id = ? AND referrer_code IS NULL
-        ORDER BY registered_at DESC
-        LIMIT 50
-    ");
-    $stmt_direct_leads->execute([$customer_id]);
-    $direct_leads = $stmt_direct_leads->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Kombiniere beide Listen
-    $all_leads = array_merge($referrals, $direct_leads);
-    usort($all_leads, function($a, $b) {
-        return strtotime($b['invited_at']) - strtotime($a['invited_at']);
-    });
-    
-    // FREEBIES LADEN MIT BELOHNUNGS-COUNT
-    // 1. Eigene Freebies (custom type aus customer_freebies)
+    // Freebies laden
     $stmt_custom = $pdo->prepare("
         SELECT 
             cf.id as customer_freebie_id,
@@ -163,7 +114,6 @@ try {
     $stmt_custom->execute([$customer_id, $customer_id]);
     $custom_freebies = $stmt_custom->fetchAll(PDO::FETCH_ASSOC);
     
-    // 2. Freigeschaltete Template-Freebies (aus customer_freebies mit template_id)
     $stmt_templates = $pdo->prepare("
         SELECT DISTINCT
             cf.id as customer_freebie_id,
@@ -184,34 +134,10 @@ try {
     $stmt_templates->execute([$customer_id, $customer_id]);
     $template_freebies = $stmt_templates->fetchAll(PDO::FETCH_ASSOC);
     
-    // Kombiniere beide Listen
     $freebies = array_merge($custom_freebies, $template_freebies);
-    
-    // Nach Datum sortieren (neueste zuerst)
     usort($freebies, function($a, $b) {
         return strtotime($b['created_at']) - strtotime($a['created_at']);
     });
-    
-    // Anzahl erstellter Freebies zählen
-    $stmt_freebie_count = $pdo->prepare("
-        SELECT COUNT(*) FROM customer_freebies WHERE customer_id = ?
-    ");
-    $stmt_freebie_count->execute([$customer_id]);
-    $freebies_created = (int)$stmt_freebie_count->fetchColumn();
-    
-    // Chart-Daten
-    $stmt_chart = $pdo->prepare("
-        SELECT 
-            DATE(registered_at) as date,
-            COUNT(*) as count
-        FROM lead_users
-        WHERE user_id = ?
-            AND registered_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-        GROUP BY DATE(registered_at)
-        ORDER BY date ASC
-    ");
-    $stmt_chart->execute([$customer_id]);
-    $chart_data = $stmt_chart->fetchAll(PDO::FETCH_ASSOC);
     
 } catch (PDOException $e) {
     error_log("Empfehlungsprogramm Error: " . $e->getMessage());
@@ -222,50 +148,20 @@ try {
         'company_email' => '',
         'company_imprint_html' => ''
     ];
-    $stats = [
-        'total_leads' => 0,
-        'referred_leads' => 0,
-        'total_referrals' => 0,
-        'successful_referrals' => 0
-    ];
-    $all_leads = [];
+    $stats = ['total_leads' => 0, 'referred_leads' => 0, 'total_referrals' => 0, 'successful_referrals' => 0];
     $freebies = [];
-    $chart_data = [];
     $total_slots = 0;
     $used_slots = 0;
     $available_slots = 0;
-    $slots_source = 'webhook';
-    $product_name = 'Nicht zugewiesen';
-    $freebie_limit = 0;
-    $freebies_created = 0;
-    $freebie_source = 'webhook';
-    $freebie_product_name = 'Nicht zugewiesen';
+    $api_settings = null;
 }
 
 $referralEnabled = $user['referral_enabled'] ?? 0;
 $referralCode = $user['ref_code'] ?? '';
-
-// Basis-URL
 $baseUrl = 'https://app.mehr-infos-jetzt.de';
 
-// Chart-Daten vorbereiten
-$chart_labels = [];
-$chart_registrations = [];
-
-for ($i = 6; $i >= 0; $i--) {
-    $date = date('Y-m-d', strtotime("-$i days"));
-    $label = date('d.m', strtotime($date));
-    $chart_labels[] = $label;
-    
-    $count = 0;
-    foreach ($chart_data as $data) {
-        if ($data['date'] === $date) {
-            $count = $data['count'];
-            break;
-        }
-    }
-    $chart_registrations[] = $count;
-}
+// Verfügbare Provider
+$providers = EmailProviderFactory::getSupportedProviders();
 ?>
 
 <!DOCTYPE html>
@@ -274,7 +170,6 @@ for ($i = 6; $i >= 0; $i--) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @keyframes fadeInUp {
             from { opacity: 0; transform: translateY(20px); }
@@ -283,59 +178,6 @@ for ($i = 6; $i >= 0; $i--) {
         
         .animate-fade-in-up {
             animation: fadeInUp 0.6s ease-out forwards;
-        }
-        
-        .admin-notice {
-            background: linear-gradient(135deg, #f59e0b, #d97706);
-            border: 2px solid #fbbf24;
-            border-radius: 1rem;
-            padding: 1.25rem;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.3);
-        }
-        
-        .admin-notice-title {
-            color: white;
-            font-size: 1.125rem;
-            font-weight: 700;
-            margin-bottom: 0.75rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .admin-notice-content {
-            color: rgba(255, 255, 255, 0.95);
-            font-size: 0.9375rem;
-            line-height: 1.6;
-        }
-        
-        .limits-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-        
-        .limit-box {
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 0.75rem;
-            padding: 1rem;
-        }
-        
-        .limit-label {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 0.5rem;
-        }
-        
-        .limit-value {
-            color: white;
-            font-size: 1.5rem;
-            font-weight: 700;
         }
         
         .toggle-switch {
@@ -382,6 +224,321 @@ for ($i = 6; $i >= 0; $i--) {
             transform: translateX(30px);
         }
         
+        /* API Setup Box */
+        .api-setup-box {
+            background: linear-gradient(to bottom right, #1f2937, #374151);
+            border: 2px solid rgba(251, 191, 36, 0.5);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        
+        .api-setup-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .api-setup-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(251, 191, 36, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            color: #fbbf24;
+        }
+        
+        .provider-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        
+        .provider-card {
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        
+        .provider-card:hover {
+            border-color: #667eea;
+            transform: translateY(-4px);
+            box-shadow: 0 10px 20px -5px rgba(102, 126, 234, 0.3);
+        }
+        
+        .provider-card.selected {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+        
+        .provider-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .provider-name {
+            color: white;
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .provider-features {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 0.75rem;
+        }
+        
+        .feature-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        
+        /* Config Form */
+        .config-form {
+            display: none;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .config-form.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+        
+        .form-label {
+            display: block;
+            color: #9ca3af;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+        
+        .form-label .required {
+            color: #ef4444;
+        }
+        
+        .form-input, .form-select {
+            width: 100%;
+            padding: 0.75rem;
+            background: #111827;
+            border: 1px solid #374151;
+            border-radius: 0.5rem;
+            color: white;
+            font-size: 0.9375rem;
+            transition: all 0.3s;
+        }
+        
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .form-hint {
+            color: #6b7280;
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: 1.25rem;
+            height: 1.25rem;
+            cursor: pointer;
+        }
+        
+        .checkbox-group label {
+            color: #e5e7eb;
+            font-size: 0.9375rem;
+            cursor: pointer;
+            flex: 1;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9375rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(102, 126, 234, 0.5);
+        }
+        
+        .btn-test {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #374151;
+            color: white;
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        /* API Status Badge */
+        .api-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        
+        .status-verified {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+        
+        .status-unverified {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+        }
+        
+        .status-none {
+            background: rgba(107, 114, 128, 0.2);
+            color: #9ca3af;
+        }
+        
+        /* Existing Config Display */
+        .existing-api-config {
+            background: rgba(16, 185, 129, 0.1);
+            border: 2px solid #10b981;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .config-detail {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .config-detail:last-child {
+            border-bottom: none;
+        }
+        
+        /* Lead URLs Box */
+        .lead-urls-box {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: white;
+        }
+        
+        .lead-urls-box h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .url-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .url-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .url-label {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 0.5rem;
+        }
+        
+        .url-link {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        
+        .url-input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0.5rem;
+            color: white;
+            padding: 0.5rem;
+            font-size: 0.875rem;
+            font-family: monospace;
+        }
+        
+        .btn-copy-url {
+            padding: 0.5rem 1rem;
+            background: white;
+            color: #3b82f6;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-copy-url:hover {
+            background: #f0f9ff;
+        }
+        
+        /* Rest of existing styles ... */
         .freebie-card-expanded {
             background: linear-gradient(to bottom right, #1f2937, #374151);
             border: 1px solid rgba(102, 126, 234, 0.3);
@@ -391,211 +548,17 @@ for ($i = 6; $i >= 0; $i--) {
             margin-bottom: 1.5rem;
         }
         
-        .freebie-header {
-            display: flex;
-            gap: 1.5rem;
-            align-items: start;
-            margin-bottom: 1.5rem;
-            flex-wrap: wrap;
-        }
-        
-        .freebie-image {
-            width: 150px;
-            height: 150px;
-            border-radius: 0.75rem;
-            overflow: hidden;
-            background: #111827;
-            flex-shrink: 0;
-        }
-        
-        .freebie-info {
-            flex: 1;
-            min-width: 250px;
-        }
-        
-        .freebie-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
-            margin-bottom: 0.75rem;
-        }
-        
-        .badge-custom {
-            background: rgba(251, 191, 36, 0.2);
-            color: #fbbf24;
-        }
-        
-        .badge-template {
-            background: rgba(59, 130, 246, 0.2);
-            color: #3b82f6;
-        }
-        
-        .freebie-actions {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            padding-top: 1rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .action-card {
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(102, 126, 234, 0.2);
-            border-radius: 0.75rem;
-            padding: 1rem;
-            text-align: center;
-        }
-        
-        .action-label {
-            color: #9ca3af;
-            font-size: 0.75rem;
-            margin-bottom: 0.5rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .link-input-group {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 0.5rem;
-        }
-        
-        .link-input {
-            flex: 1;
-            background: #111827;
-            border: 1px solid #374151;
-            border-radius: 0.5rem;
-            color: white;
-            padding: 0.5rem;
-            font-size: 0.75rem;
-            font-family: monospace;
-        }
-        
-        .btn-copy {
-            padding: 0.5rem 1rem;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        
-        .btn-rewards {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1.25rem;
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
-            text-decoration: none;
-            border-radius: 0.5rem;
-            font-weight: 600;
-            font-size: 0.875rem;
-            transition: all 0.3s;
-        }
-        
-        .btn-rewards:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.5);
-        }
-        
-        .reward-count {
-            background: rgba(255, 255, 255, 0.2);
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 0.75rem;
-        }
-        
-        .page-title {
-            font-size: 2rem;
-            font-weight: 700;
-            color: white;
-            margin-bottom: 0.5rem;
-        }
-        
-        .page-subtitle {
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 1rem;
-        }
-        
-        .stat-value {
-            font-size: 3rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-        }
-        
-        .stat-label {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 0.875rem;
-        }
-        
-        .section-title {
-            color: white;
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        th {
-            background: rgba(0, 0, 0, 0.2);
-            padding: 12px;
-            text-align: left;
-            color: #9ca3af;
-            font-weight: 600;
-            font-size: 13px;
-        }
-        
-        td {
-            padding: 12px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            color: white;
-        }
-        
-        tbody tr:hover {
-            background: rgba(102, 126, 234, 0.1);
-        }
-        
-        .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
-        }
-        
-        .status-badge.active {
-            background: rgba(16, 185, 129, 0.2);
-            color: #10b981;
-        }
-        
-        .status-badge.pending {
-            background: rgba(251, 191, 36, 0.2);
-            color: #fbbf24;
-        }
-        
-        @media (max-width: 640px) {
-            .page-title {
-                font-size: 1.5rem;
+        @media (max-width: 768px) {
+            .provider-grid {
+                grid-template-columns: 1fr;
             }
-            .stat-value {
-                font-size: 2rem;
-            }
-            .freebie-header {
+            
+            .url-link {
                 flex-direction: column;
             }
-            .freebie-image {
+            
+            .btn-copy-url {
                 width: 100%;
-                height: 200px;
             }
         }
     </style>
@@ -608,10 +571,10 @@ for ($i = 6; $i >= 0; $i--) {
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 1rem; padding: 1.5rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);">
                 <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem;">
                     <div style="flex: 1; min-width: 200px;">
-                        <h1 class="page-title">
+                        <h1 style="font-size: 2rem; font-weight: 700; color: white; margin-bottom: 0.5rem;">
                             <i class="fas fa-rocket"></i> Empfehlungsprogramm
                         </h1>
-                        <p class="page-subtitle">
+                        <p style="color: rgba(255, 255, 255, 0.9); font-size: 1rem;">
                             Verwalte deine Freebies und Empfehlungslinks
                         </p>
                     </div>
@@ -632,295 +595,559 @@ for ($i = 6; $i >= 0; $i--) {
             </div>
         </div>
         
-        <!-- Admin-Hinweis wenn Limits manuell gesetzt wurden -->
-        <?php if ($slots_source === 'manual' || $freebie_source === 'manual'): ?>
-        <div class="animate-fade-in-up admin-notice" style="opacity: 0; animation-delay: 0.05s;">
-            <div class="admin-notice-title">
-                <i class="fas fa-user-shield"></i> Hinweis: Limits vom Administrator angepasst
-            </div>
-            <div class="admin-notice-content">
-                <p style="margin-bottom: 0.75rem;">
-                    Deine Limits wurden manuell vom Administrator angepasst und werden nicht automatisch durch Tarif-Upgrades überschrieben.
-                </p>
-                <div class="limits-grid">
-                    <?php if ($freebie_source === 'manual'): ?>
-                    <div class="limit-box">
-                        <div class="limit-label">🎁 Freebie-Limit</div>
-                        <div class="limit-value"><?php echo $freebies_created; ?> / <?php echo $freebie_limit; ?></div>
-                        <small style="color: rgba(255,255,255,0.7); font-size: 0.75rem; display: block; margin-top: 0.25rem;">
-                            Manuell vom Admin gesetzt
-                        </small>
-                    </div>
-                    <?php endif; ?>
-                    
-                    <?php if ($slots_source === 'manual'): ?>
-                    <div class="limit-box">
-                        <div class="limit-label">🚀 Empfehlungs-Slots</div>
-                        <div class="limit-value"><?php echo $used_slots; ?> / <?php echo $total_slots; ?></div>
-                        <small style="color: rgba(255,255,255,0.7); font-size: 0.75rem; display: block; margin-top: 0.25rem;">
-                            Manuell vom Admin gesetzt • <?php echo $available_slots; ?> verfügbar
-                        </small>
-                    </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-        <?php endif; ?>
-        
-        <!-- Statistiken -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-            <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.1s; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-                <div style="color: white;">
-                    <div class="stat-value"><?php echo number_format((int)($stats['total_leads'] ?? 0)); ?></div>
-                    <div class="stat-label">Gesamt Leads</div>
-                </div>
-            </div>
-            
-            <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.2s; background: linear-gradient(135deg, #8b5cf6, #7c3aed); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-                <div style="color: white;">
-                    <div class="stat-value"><?php echo $used_slots; ?> / <?php echo $total_slots; ?></div>
-                    <div class="stat-label">Empfehlungs-Slots genutzt</div>
-                </div>
-            </div>
-            
-            <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.3s; background: linear-gradient(135deg, #10b981, #059669); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-                <div style="color: white;">
-                    <div class="stat-value"><?php echo $available_slots; ?></div>
-                    <div class="stat-label">Verfügbare Slots</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Freebies mit individuellen Links und Belohnungen -->
         <?php if ($referralEnabled): ?>
-        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.4s;">
-            <h3 class="section-title">
-                <i class="fas fa-gift"></i> Deine Freebies (<?php echo count($freebies); ?>)
-            </h3>
             
-            <?php if (empty($freebies)): ?>
-            <div style="text-align: center; padding: 3rem 1rem; background: rgba(0, 0, 0, 0.2); border-radius: 1rem; border: 1px solid rgba(102, 126, 234, 0.3);">
-                <div style="font-size: 3rem; color: #374151; margin-bottom: 1rem;">
-                    <i class="fas fa-inbox"></i>
+            <!-- Lead URLs Box -->
+            <div class="lead-urls-box animate-fade-in-up" style="opacity: 0; animation-delay: 0.1s;">
+                <h3>
+                    <i class="fas fa-users"></i> Lead-Anmeldung & Dashboard
+                </h3>
+                <div class="url-item">
+                    <div class="url-label">📝 Lead-Anmeldeseite (mit Double Opt-in)</div>
+                    <div class="url-link">
+                        <input type="text" class="url-input" readonly value="<?php echo $baseUrl; ?>/lead_login.php?ref=<?php echo $referralCode; ?>" id="lead-login-url">
+                        <button class="btn-copy-url" onclick="copyUrl('lead-login-url')">
+                            <i class="fas fa-copy"></i> Kopieren
+                        </button>
+                    </div>
                 </div>
-                <h4 style="color: white; font-size: 1.125rem; margin-bottom: 0.5rem;">
-                    Keine Freebies verfügbar
-                </h4>
-                <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 1.5rem;">
-                    Du hast noch keine Freebies freigeschaltet oder erstellt
-                </p>
-                <a href="?page=freebies" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #667eea, #764ba2); color: white; text-decoration: none; border-radius: 0.5rem; font-weight: 600;">
-                    <i class="fas fa-plus"></i> Freebie freischalten
-                </a>
+                <div class="url-item">
+                    <div class="url-label">📊 Lead-Dashboard (nach Anmeldung)</div>
+                    <div class="url-link">
+                        <input type="text" class="url-input" readonly value="<?php echo $baseUrl; ?>/lead_dashboard.php" id="lead-dashboard-url">
+                        <button class="btn-copy-url" onclick="copyUrl('lead-dashboard-url')">
+                            <i class="fas fa-copy"></i> Kopieren
+                        </button>
+                    </div>
+                </div>
+                <small style="color: rgba(255, 255, 255, 0.8); font-size: 0.875rem; display: block; margin-top: 0.75rem;">
+                    💡 Deine Leads können sich über die Anmeldeseite registrieren und dann im Dashboard ihre eigenen Empfehlungslinks verwalten.
+                </small>
             </div>
-            <?php else: ?>
-                <?php foreach ($freebies as $freebie): 
-                    $referralLink = $baseUrl . '/freebie/index.php?id=' . $freebie['unique_id'] . '&ref=' . $referralCode;
-                ?>
-                <div class="freebie-card-expanded">
-                    <div class="freebie-header">
-                        <?php if (!empty($freebie['image_path'])): ?>
-                        <div class="freebie-image">
-                            <img src="<?php echo htmlspecialchars($freebie['image_path']); ?>" 
-                                 alt="<?php echo htmlspecialchars($freebie['title']); ?>"
-                                 style="width: 100%; height: 100%; object-fit: cover;">
+            
+            <!-- API Setup / Status -->
+            <?php if (!$api_settings): ?>
+                <!-- API Setup Required -->
+                <div class="api-setup-box animate-fade-in-up" style="opacity: 0; animation-delay: 0.2s;">
+                    <div class="api-setup-header">
+                        <div class="api-setup-icon">
+                            <i class="fas fa-plug"></i>
                         </div>
-                        <?php endif; ?>
-                        
-                        <div class="freebie-info">
-                            <span class="freebie-badge <?php echo $freebie['freebie_source'] === 'custom' ? 'badge-custom' : 'badge-template'; ?>">
-                                <?php echo $freebie['freebie_source'] === 'custom' ? '✨ Eigenes Freebie' : '📚 Template-Freebie'; ?>
-                            </span>
-                            
-                            <h4 style="color: white; font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;">
-                                <?php echo htmlspecialchars($freebie['title']); ?>
-                            </h4>
-                            
-                            <?php if (!empty($freebie['description'])): ?>
-                            <p style="color: #9ca3af; font-size: 0.9375rem; line-height: 1.6; margin-bottom: 1rem;">
-                                <?php echo htmlspecialchars($freebie['description']); ?>
+                        <div style="flex: 1;">
+                            <h2 style="color: white; font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem;">
+                                Email-Marketing Integration
+                            </h2>
+                            <p style="color: #9ca3af; font-size: 0.875rem;">
+                                Verbinde dein Email-Marketing-System für automatische Belohnungs-Emails
                             </p>
-                            <?php endif; ?>
-                            
-                            <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
-                                <span style="color: #3b82f6; font-size: 0.875rem;">
-                                    <i class="fas fa-calendar"></i> <?php echo date('d.m.Y', strtotime($freebie['created_at'])); ?>
-                                </span>
-                                <span style="color: #10b981; font-size: 0.875rem;">
-                                    <i class="fas fa-trophy"></i> <?php echo $freebie['reward_count']; ?> Belohnung<?php echo $freebie['reward_count'] != 1 ? 'en' : ''; ?>
-                                </span>
+                        </div>
+                    </div>
+                    
+                    <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid #3b82f6; border-radius: 0.75rem; padding: 1rem; margin-bottom: 1.5rem;">
+                        <div style="display: flex; align-items: start; gap: 1rem;">
+                            <i class="fas fa-info-circle" style="color: #3b82f6; font-size: 1.5rem;"></i>
+                            <div style="flex: 1;">
+                                <h4 style="color: white; font-size: 0.9375rem; font-weight: 600; margin-bottom: 0.5rem;">
+                                    Warum API-Integration?
+                                </h4>
+                                <ul style="color: #9ca3af; font-size: 0.875rem; line-height: 1.6; margin: 0; padding-left: 1.25rem;">
+                                    <li>Automatische Lead-Eintragung in dein Email-System</li>
+                                    <li>Automatischer Versand von Belohnungs-Emails</li>
+                                    <li>Tag-Management für bessere Segmentierung</li>
+                                    <li>DSGVO-konformes Double Opt-in</li>
+                                </ul>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="freebie-actions">
-                        <div class="action-card">
-                            <div class="action-label">Empfehlungslink</div>
-                            <div class="link-input-group">
-                                <input type="text" 
-                                       readonly 
-                                       value="<?php echo htmlspecialchars($referralLink); ?>" 
-                                       class="link-input"
-                                       id="link-<?php echo $freebie['customer_freebie_id']; ?>">
-                                <button onclick="copyLink('link-<?php echo $freebie['customer_freebie_id']; ?>')" 
-                                        class="btn-copy">
-                                    <i class="fas fa-copy"></i>
+                    <h3 style="color: white; font-size: 1.125rem; font-weight: 600; margin-bottom: 1rem;">
+                        Wähle deinen Email-Marketing-Anbieter
+                    </h3>
+                    
+                    <div class="provider-grid">
+                        <?php foreach ($providers as $key => $provider): ?>
+                        <div class="provider-card" 
+                             data-provider="<?php echo $key; ?>"
+                             onclick="selectProvider('<?php echo $key; ?>')">
+                            <div class="provider-icon">📧</div>
+                            <div class="provider-name"><?php echo htmlspecialchars($provider['name']); ?></div>
+                            <div class="provider-features">
+                                <?php if ($provider['supports_direct_email']): ?>
+                                <span class="feature-badge">📨 Email</span>
+                                <?php endif; ?>
+                                <?php if ($provider['supports_tags']): ?>
+                                <span class="feature-badge">🏷️ Tags</span>
+                                <?php endif; ?>
+                                <?php if ($provider['supports_campaigns']): ?>
+                                <span class="feature-badge">📣 Kampagnen</span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    
+                    <!-- Config Forms for each provider -->
+                    <?php foreach ($providers as $key => $provider): ?>
+                    <div id="config-<?php echo $key; ?>" class="config-form">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                            <h3 style="color: white; font-size: 1.125rem; font-weight: 600;">
+                                <?php echo htmlspecialchars($provider['name']); ?> konfigurieren
+                            </h3>
+                            <button onclick="cancelConfig()" style="background: none; border: none; color: #9ca3af; cursor: pointer; font-size: 0.875rem;">
+                                <i class="fas fa-times"></i> Abbrechen
+                            </button>
+                        </div>
+                        
+                        <form onsubmit="saveApiConfig(event, '<?php echo $key; ?>')">
+                            <!-- API-Zugangsdaten -->
+                            <div style="background: rgba(0, 0, 0, 0.2); border-radius: 0.75rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+                                <h4 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 1rem;">
+                                    <i class="fas fa-key"></i> API-Zugangsdaten
+                                </h4>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">
+                                        API-Key <span class="required">*</span>
+                                    </label>
+                                    <input type="password" name="api_key" class="form-input" required placeholder="Dein API-Key">
+                                    <div class="form-hint">Zu finden in deinen <?php echo $provider['name']; ?> Einstellungen</div>
+                                </div>
+                                
+                                <?php if (in_array('account_url', $provider['config_fields'])): ?>
+                                <div class="form-group">
+                                    <label class="form-label">
+                                        Account-URL <span class="required">*</span>
+                                    </label>
+                                    <input type="url" name="account_url" class="form-input" required placeholder="https://dein-account.api-us1.com">
+                                </div>
+                                <?php endif; ?>
+                                
+                                <?php if (in_array('sender_email', $provider['config_fields'])): ?>
+                                <div class="form-group">
+                                    <label class="form-label">
+                                        Absender-Email <span class="required">*</span>
+                                    </label>
+                                    <input type="email" name="sender_email" class="form-input" required placeholder="deine@email.de">
+                                    <div class="form-hint">Muss in <?php echo $provider['name']; ?> verifiziert sein</div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">
+                                        Absender-Name <span class="required">*</span>
+                                    </label>
+                                    <input type="text" name="sender_name" class="form-input" required placeholder="Dein Name / Firma">
+                                </div>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <!-- Listen & Tags -->
+                            <div style="background: rgba(0, 0, 0, 0.2); border-radius: 0.75rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+                                <h4 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 1rem;">
+                                    <i class="fas fa-tags"></i> Listen & Tags
+                                </h4>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Start-Tag</label>
+                                    <input type="text" name="start_tag" class="form-input" placeholder="z.B. lead_empfehlung">
+                                    <div class="form-hint">Wird jedem neuen Lead zugewiesen</div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Listen-ID</label>
+                                    <input type="text" name="list_id" class="form-input" placeholder="z.B. 12345">
+                                </div>
+                                
+                                <?php if ($provider['supports_campaigns']): ?>
+                                <div class="form-group">
+                                    <label class="form-label">Kampagnen-ID</label>
+                                    <input type="text" name="campaign_id" class="form-input" placeholder="z.B. 67890">
+                                </div>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <!-- Double Opt-in -->
+                            <div style="background: rgba(0, 0, 0, 0.2); border-radius: 0.75rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+                                <h4 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 1rem;">
+                                    <i class="fas fa-shield-alt"></i> Double Opt-in
+                                </h4>
+                                
+                                <div class="checkbox-group">
+                                    <input type="checkbox" name="double_optin_enabled" id="doi-<?php echo $key; ?>" checked>
+                                    <label for="doi-<?php echo $key; ?>">
+                                        <strong>Double Opt-in aktivieren</strong><br>
+                                        <small style="color: #9ca3af;">Empfohlen für DSGVO-Konformität</small>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <!-- Buttons -->
+                            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                                <button type="button" onclick="cancelConfig()" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Abbrechen
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Speichern & Testen
                                 </button>
                             </div>
-                            <small style="color: #6b7280; font-size: 0.75rem;">Teile diesen Link mit deinen Kontakten</small>
+                        </form>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                
+            <?php else: ?>
+                <!-- API Configured - Show Status -->
+                <div class="existing-api-config animate-fade-in-up" style="opacity: 0; animation-delay: 0.2s;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+                        <div>
+                            <h3 style="color: white; font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem;">
+                                <i class="fas fa-check-circle"></i> Email-Marketing verbunden
+                            </h3>
+                            <span class="api-status-badge <?php echo $api_settings['is_verified'] ? 'status-verified' : 'status-unverified'; ?>">
+                                <i class="fas fa-circle" style="font-size: 0.5rem;"></i>
+                                <?php echo $api_settings['is_verified'] ? 'Verifiziert' : 'Nicht verifiziert'; ?>
+                            </span>
                         </div>
-                        
-                        <div class="action-card">
-                            <div class="action-label">Belohnungen</div>
-                            <a href="?page=belohnungsstufen&freebie_id=<?php echo $freebie['customer_freebie_id']; ?>" 
-                               class="btn-rewards">
-                                <i class="fas fa-trophy"></i>
-                                <?php if ($freebie['reward_count'] > 0): ?>
-                                    Belohnungen verwalten
-                                    <span class="reward-count"><?php echo $freebie['reward_count']; ?></span>
-                                <?php else: ?>
-                                    Belohnungen einrichten
-                                <?php endif; ?>
-                            </a>
-                            <small style="color: #6b7280; font-size: 0.75rem; display: block; margin-top: 0.5rem;">
-                                Konfiguriere Belohnungen für Empfehlungen
-                            </small>
+                        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                            <button onclick="testApiConnection()" class="btn btn-test">
+                                <i class="fas fa-check-circle"></i> Testen
+                            </button>
+                            <button onclick="deleteApiConfig()" class="btn" style="background: #ef4444; color: white;">
+                                <i class="fas fa-trash"></i> Löschen
+                            </button>
                         </div>
                     </div>
+                    
+                    <div class="config-detail">
+                        <span style="color: #9ca3af;">Provider:</span>
+                        <span style="color: white; font-weight: 600;">
+                            <?php echo ucfirst($api_settings['provider']); ?>
+                        </span>
+                    </div>
+                    
+                    <div class="config-detail">
+                        <span style="color: #9ca3af;">API Key:</span>
+                        <span style="color: white; font-family: monospace; font-size: 0.875rem;">
+                            <?php echo $api_settings['api_key_masked'] ?? '••••••••'; ?>
+                        </span>
+                    </div>
+                    
+                    <?php if ($api_settings['start_tag']): ?>
+                    <div class="config-detail">
+                        <span style="color: #9ca3af;">Start-Tag:</span>
+                        <span style="color: #10b981; font-weight: 500;">
+                            <?php echo htmlspecialchars($api_settings['start_tag']); ?>
+                        </span>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <?php if ($api_settings['list_id']): ?>
+                    <div class="config-detail">
+                        <span style="color: #9ca3af;">Listen-ID:</span>
+                        <span style="color: #3b82f6; font-weight: 500;">
+                            <?php echo htmlspecialchars($api_settings['list_id']); ?>
+                        </span>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <div class="config-detail">
+                        <span style="color: #9ca3af;">Double Opt-in:</span>
+                        <span style="color: white;">
+                            <?php echo $api_settings['double_optin_enabled'] ? '✅ Aktiviert' : '❌ Deaktiviert'; ?>
+                        </span>
+                    </div>
                 </div>
-                <?php endforeach; ?>
+                
             <?php endif; ?>
-        </div>
-        <?php endif; ?>
-        
-        <!-- Aktivitätsgraph -->
-        <?php if (!empty($chart_data)): ?>
-        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.5s; margin-top: 1.5rem; margin-bottom: 1.5rem;">
-            <div style="background: linear-gradient(to bottom right, #1f2937, #374151); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-                <h3 class="section-title">
-                    <i class="fas fa-chart-line"></i> Lead-Registrierungen (Letzte 7 Tage)
-                </h3>
-                <div style="height: 250px;">
-                    <canvas id="activityChart"></canvas>
+            
+            <!-- Statistiken -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.3s; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+                    <div style="color: white;">
+                        <div style="font-size: 3rem; font-weight: 700; margin-bottom: 0.5rem;"><?php echo $stats['total_leads']; ?></div>
+                        <div style="color: rgba(255,255,255,0.8); font-size: 0.875rem;">Gesamt Leads</div>
+                    </div>
+                </div>
+                
+                <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.4s; background: linear-gradient(135deg, #10b981, #059669); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+                    <div style="color: white;">
+                        <div style="font-size: 3rem; font-weight: 700; margin-bottom: 0.5rem;"><?php echo $available_slots; ?></div>
+                        <div style="color: rgba(255,255,255,0.8); font-size: 0.875rem;">Verfügbare Slots</div>
+                    </div>
                 </div>
             </div>
-        </div>
-        <?php endif; ?>
-        
-        <!-- Leads-Liste -->
-        <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.6s;">
-            <div style="background: linear-gradient(to bottom right, #1f2937, #374151); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-                <h3 class="section-title">
-                    <i class="fas fa-users"></i> Deine Leads (<?php echo count($all_leads); ?>)
-                </h3>
+            
+            <!-- Freebies Liste (bestehend) -->
+            <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.5s;">
+                <h2 style="color: white; font-size: 1.5rem; font-weight: 600; margin-bottom: 1.5rem;">
+                    <i class="fas fa-gift"></i> Deine Freebies (<?php echo count($freebies); ?>)
+                </h2>
                 
-                <?php if (empty($all_leads)): ?>
-                <div style="text-align: center; padding: 3rem 1rem; background: rgba(0, 0, 0, 0.2); border-radius: 0.5rem;">
+                <?php if (empty($freebies)): ?>
+                <div style="text-align: center; padding: 3rem 1rem; background: rgba(0, 0, 0, 0.2); border-radius: 1rem;">
                     <div style="font-size: 3rem; color: #374151; margin-bottom: 1rem;">
                         <i class="fas fa-inbox"></i>
                     </div>
-                    <h4 style="color: white; font-size: 1.125rem; margin-bottom: 0.5rem;">
-                        Noch keine Leads
-                    </h4>
-                    <p style="color: #9ca3af; font-size: 0.875rem;">
-                        Teile deinen Empfehlungslink um Leads zu generieren
+                    <h4 style="color: white; font-size: 1.125rem; margin-bottom: 0.5rem;">Keine Freebies verfügbar</h4>
+                    <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 1.5rem;">
+                        Du hast noch keine Freebies freigeschaltet oder erstellt
                     </p>
+                    <a href="?page=freebies" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #667eea, #764ba2); color: white; text-decoration: none; border-radius: 0.5rem; font-weight: 600;">
+                        <i class="fas fa-plus"></i> Freebie freischalten
+                    </a>
                 </div>
                 <?php else: ?>
-                <div style="overflow-x: auto;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>E-Mail</th>
-                                <th>Status</th>
-                                <th>Empfohlen von</th>
-                                <th>Registriert am</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($all_leads as $lead): ?>
-                            <tr>
-                                <td><?php echo htmlspecialchars($lead['name']); ?></td>
-                                <td><?php echo htmlspecialchars($lead['email']); ?></td>
-                                <td>
-                                    <span class="status-badge <?php echo $lead['status']; ?>">
-                                        <?php 
-                                        $status_labels = [
-                                            'pending' => 'Ausstehend',
-                                            'active' => 'Aktiv',
-                                            'converted' => 'Konvertiert'
-                                        ];
-                                        echo $status_labels[$lead['status']] ?? 'Aktiv';
-                                        ?>
-                                    </span>
-                                </td>
-                                <td>
-                                    <?php if ($lead['referrer_name']): ?>
-                                        <span style="color: #10b981;">
-                                            <i class="fas fa-user"></i> <?php echo htmlspecialchars($lead['referrer_name']); ?>
-                                        </span>
-                                    <?php else: ?>
-                                        <span style="color: #6b7280;">
-                                            <i class="fas fa-minus"></i> Direkt
-                                        </span>
-                                    <?php endif; ?>
-                                </td>
-                                <td><?php echo date('d.m.Y H:i', strtotime($lead['invited_at'])); ?></td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
+                    <?php foreach ($freebies as $freebie): 
+                        $referralLink = $baseUrl . '/freebie/index.php?id=' . $freebie['unique_id'] . '&ref=' . $referralCode;
+                    ?>
+                    <div class="freebie-card-expanded">
+                        <!-- Existing freebie card content ... -->
+                        <div style="margin-bottom: 1rem;">
+                            <h3 style="color: white; font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">
+                                <?php echo htmlspecialchars($freebie['title']); ?>
+                            </h3>
+                            <?php if (!empty($freebie['description'])): ?>
+                            <p style="color: #9ca3af; font-size: 0.9375rem;">
+                                <?php echo htmlspecialchars($freebie['description']); ?>
+                            </p>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                            <div style="background: rgba(0, 0, 0, 0.2); border-radius: 0.75rem; padding: 1rem;">
+                                <div style="color: #9ca3af; font-size: 0.75rem; margin-bottom: 0.5rem;">Empfehlungslink</div>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <input type="text" readonly value="<?php echo htmlspecialchars($referralLink); ?>" 
+                                           style="flex: 1; background: #111827; border: 1px solid #374151; border-radius: 0.5rem; color: white; padding: 0.5rem; font-size: 0.75rem; font-family: monospace;">
+                                    <button onclick="copyLink(this)" class="btn btn-primary" style="padding: 0.5rem 1rem;">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div style="background: rgba(0, 0, 0, 0.2); border-radius: 0.75rem; padding: 1rem;">
+                                <div style="color: #9ca3af; font-size: 0.75rem; margin-bottom: 0.5rem;">Belohnungen</div>
+                                <a href="?page=belohnungsstufen&freebie_id=<?php echo $freebie['customer_freebie_id']; ?>" 
+                                   class="btn btn-primary" style="width: 100%; justify-content: center;">
+                                    <i class="fas fa-trophy"></i>
+                                    <?php echo $freebie['reward_count'] > 0 ? 'Verwalten (' . $freebie['reward_count'] . ')' : 'Einrichten'; ?>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
                 <?php endif; ?>
             </div>
-        </div>
+            
+        <?php else: ?>
+            <!-- Empfehlungsprogramm ist deaktiviert -->
+            <div style="text-align: center; padding: 4rem 2rem; background: rgba(0, 0, 0, 0.2); border-radius: 1rem; margin-top: 2rem;">
+                <div style="font-size: 4rem; color: #374151; margin-bottom: 1.5rem;">
+                    <i class="fas fa-power-off"></i>
+                </div>
+                <h3 style="color: white; font-size: 1.5rem; margin-bottom: 1rem;">
+                    Empfehlungsprogramm ist deaktiviert
+                </h3>
+                <p style="color: #9ca3af; margin-bottom: 2rem; max-width: 600px; margin-left: auto; margin-right: auto;">
+                    Aktiviere das Empfehlungsprogramm über den Schieber oben rechts, um deine Freebies zu teilen und Belohnungen zu konfigurieren.
+                </p>
+                <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid #3b82f6; border-radius: 0.75rem; padding: 1.5rem; max-width: 600px; margin: 0 auto;">
+                    <h4 style="color: #3b82f6; font-size: 1.125rem; margin-bottom: 1rem;">
+                        <i class="fas fa-info-circle"></i> Was passiert beim Aktivieren?
+                    </h4>
+                    <ul style="color: #9ca3af; text-align: left; line-height: 1.8;">
+                        <li>Du kannst deine Email-Marketing-Integration einrichten</li>
+                        <li>Du erhältst Zugriff auf Lead-Anmeldeseiten</li>
+                        <li>Deine Freebies werden mit Empfehlungslinks versehen</li>
+                        <li>Du kannst Belohnungsstufen konfigurieren</li>
+                    </ul>
+                </div>
+            </div>
+        <?php endif; ?>
+        
     </div>
     
     <script>
-        // Link kopieren
-        function copyLink(inputId) {
-            const input = document.getElementById(inputId);
-            input.select();
-            input.setSelectionRange(0, 99999);
+        let selectedProvider = null;
+        
+        // Provider auswählen
+        function selectProvider(provider) {
+            selectedProvider = provider;
             
-            navigator.clipboard.writeText(input.value).then(() => {
-                showNotification('Link kopiert!', 'success');
-            }).catch(err => {
-                console.error('Kopieren fehlgeschlagen:', err);
-                showNotification('Kopieren fehlgeschlagen', 'error');
+            // Alle Cards deselektieren
+            document.querySelectorAll('.provider-card').forEach(card => {
+                card.classList.remove('selected');
             });
+            
+            // Gewählte Card selektieren
+            document.querySelector(`[data-provider="${provider}"]`).classList.add('selected');
+            
+            // Alle Forms ausblenden
+            document.querySelectorAll('.config-form').forEach(form => {
+                form.classList.remove('active');
+            });
+            
+            // Gewähltes Form anzeigen
+            document.getElementById(`config-${provider}`).classList.add('active');
+        }
+        
+        function cancelConfig() {
+            document.querySelectorAll('.config-form').forEach(form => {
+                form.classList.remove('active');
+            });
+            document.querySelectorAll('.provider-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            selectedProvider = null;
+        }
+        
+        // API Config speichern
+        async function saveApiConfig(event, provider) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const data = {
+                provider: provider,
+                api_key: formData.get('api_key'),
+                start_tag: formData.get('start_tag'),
+                list_id: formData.get('list_id'),
+                campaign_id: formData.get('campaign_id'),
+                double_optin_enabled: formData.get('double_optin_enabled') ? true : false
+            };
+            
+            // Provider-spezifische Felder
+            ['account_url', 'sender_email', 'sender_name'].forEach(field => {
+                if (formData.has(field)) {
+                    data[field] = formData.get(field);
+                }
+            });
+            
+            try {
+                const response = await fetch('/api/email-settings/save.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('✅ Einstellungen gespeichert! Teste jetzt die Verbindung...', 'success');
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    showNotification('❌ Fehler: ' + result.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('❌ Verbindungsfehler beim Speichern', 'error');
+            }
+        }
+        
+        // API-Verbindung testen
+        async function testApiConnection() {
+            showNotification('🔄 Teste Verbindung...', 'info');
+            
+            try {
+                const response = await fetch('/api/email-settings/test.php', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('✅ Verbindung erfolgreich! ' + result.message, 'success');
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    showNotification('❌ Verbindung fehlgeschlagen: ' + result.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('❌ Fehler beim Testen', 'error');
+            }
+        }
+        
+        // API-Config löschen
+        async function deleteApiConfig() {
+            if (!confirm('API-Konfiguration wirklich löschen? Dies kann nicht rückgängig gemacht werden.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/email-settings/delete.php', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('✅ Konfiguration gelöscht', 'success');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showNotification('❌ Fehler: ' + result.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('❌ Verbindungsfehler', 'error');
+            }
         }
         
         // Toggle Programm
         function toggleReferralProgram(enabled) {
             fetch('/api/referral/toggle.php', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    enabled: enabled
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled: enabled })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     showNotification(
-                        enabled ? 'Empfehlungsprogramm aktiviert!' : 'Empfehlungsprogramm deaktiviert',
+                        enabled ? '✅ Empfehlungsprogramm aktiviert!' : '⏸️ Empfehlungsprogramm deaktiviert',
                         'success'
                     );
                     setTimeout(() => location.reload(), 1500);
                 } else {
-                    showNotification('Fehler: ' + (data.message || 'Unbekannter Fehler'), 'error');
+                    showNotification('❌ Fehler: ' + (data.message || 'Unbekannter Fehler'), 'error');
                     document.getElementById('referralToggle').checked = !enabled;
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                showNotification('Verbindungsfehler', 'error');
+                showNotification('❌ Verbindungsfehler', 'error');
                 document.getElementById('referralToggle').checked = !enabled;
             });
+        }
+        
+        // URL kopieren
+        function copyUrl(inputId) {
+            const input = document.getElementById(inputId);
+            input.select();
+            document.execCommand('copy');
+            
+            const btn = event.target.closest('button');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i> Kopiert!';
+            btn.style.background = '#10b981';
+            
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.style.background = '';
+            }, 2000);
+        }
+        
+        // Link kopieren
+        function copyLink(button) {
+            const input = button.previousElementSibling;
+            input.select();
+            document.execCommand('copy');
+            
+            const originalHTML = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-check"></i> Kopiert!';
+            button.style.background = '#10b981';
+            
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+                button.style.background = '';
+            }, 2000);
         }
         
         // Notification
@@ -938,10 +1165,10 @@ for ($i = 6; $i >= 0; $i--) {
                 right: 20px;
                 background: ${colors[type]};
                 color: white;
-                padding: 0.875rem 1.25rem;
+                padding: 1rem 1.5rem;
                 border-radius: 0.5rem;
                 box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-                z-index: 9999;
+                z-index: 99999;
                 animation: slideIn 0.3s ease-out;
                 max-width: 90%;
                 font-size: 0.875rem;
@@ -953,73 +1180,10 @@ for ($i = 6; $i >= 0; $i--) {
             setTimeout(() => {
                 notification.style.animation = 'slideOut 0.3s ease-out';
                 setTimeout(() => notification.remove(), 300);
-            }, 3000);
+            }, 4000);
         }
         
-        // Chart
-        <?php if (!empty($chart_data)): ?>
-        document.addEventListener('DOMContentLoaded', function() {
-            const ctx = document.getElementById('activityChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: <?php echo json_encode($chart_labels); ?>,
-                    datasets: [
-                        {
-                            label: 'Registrierungen',
-                            data: <?php echo json_encode($chart_registrations); ?>,
-                            borderColor: '#667eea',
-                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                            borderWidth: 2,
-                            fill: true,
-                            tension: 0.4
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            labels: {
-                                color: '#9ca3af',
-                                font: {
-                                    size: window.innerWidth < 640 ? 10 : 12
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                color: '#9ca3af',
-                                font: {
-                                    size: window.innerWidth < 640 ? 9 : 11
-                                }
-                            },
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            }
-                        },
-                        x: {
-                            ticks: {
-                                color: '#9ca3af',
-                                font: {
-                                    size: window.innerWidth < 640 ? 9 : 11
-                                }
-                            },
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            }
-                        }
-                    }
-                }
-            });
-        });
-        <?php endif; ?>
-        
-        // Animations
+        // Animation Styles
         const style = document.createElement('style');
         style.textContent = `
             @keyframes slideIn {
