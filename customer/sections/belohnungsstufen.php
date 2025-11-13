@@ -5,6 +5,7 @@
  * - Zeigt alle Belohnungen an
  * - Erlaubt Zugriff ohne Freebie-Parameter (zeigt dann alle)
  * - Option: Freebie nachträglich zuordnen
+ * + PHASE 5: Marktplatz Integration
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -160,6 +161,60 @@ try {
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
         
+        /* MARKETPLACE MODAL STYLES */
+        .marketplace-modal-content {
+            max-width: 1200px;
+        }
+        
+        .marketplace-filters {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .marketplace-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .template-card {
+            background: linear-gradient(to bottom right, #111827, #1f2937);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            transition: all 0.3s;
+        }
+        
+        .template-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(102, 126, 234, 0.6);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.2);
+        }
+        
+        .template-card.imported {
+            border-color: rgba(16, 185, 129, 0.5);
+            background: linear-gradient(to bottom right, #064e3b, #1f2937);
+        }
+        
+        .btn-import {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            width: 100%;
+        }
+        
+        .btn-import:hover {
+            background: linear-gradient(135deg, #059669, #047857);
+        }
+        
+        .btn-import:disabled {
+            background: #374151;
+            color: #6b7280;
+            cursor: not-allowed;
+        }
+        
         .form-group {
             margin-bottom: 1.5rem;
         }
@@ -280,6 +335,10 @@ try {
                 flex-direction: column;
                 text-align: center;
             }
+            
+            .marketplace-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -298,10 +357,16 @@ try {
                             Konfiguriere die Belohnungen für dein Empfehlungsprogramm
                         </p>
                     </div>
-                    <button onclick="openRewardModal()" class="btn btn-primary" id="createBtn">
-                        <i class="fas fa-plus"></i>
-                        Neue Belohnungsstufe
-                    </button>
+                    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                        <button onclick="openMarketplace()" class="btn" style="background: rgba(255, 255, 255, 0.2); color: white;">
+                            <i class="fas fa-shopping-bag"></i>
+                            Marktplatz
+                        </button>
+                        <button onclick="openRewardModal()" class="btn btn-primary" id="createBtn">
+                            <i class="fas fa-plus"></i>
+                            Neue Belohnungsstufe
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -381,12 +446,18 @@ try {
                     </h3>
                     <p style="color: #9ca3af; font-size: 0.875rem; line-height: 1.6;">
                         Du siehst hier alle deine Belohnungsstufen. Belohnungen mit <span class="no-freebie-tag" style="display: inline;">⚠️ Allgemein</span> gelten für alle Freebies. 
-                        Du kannst über das Empfehlungsprogramm neue freebie-spezifische Belohnungen erstellen.
+                        Du kannst über das Empfehlungsprogramm neue freebie-spezifische Belohnungen erstellen oder fertige Templates aus dem Marktplatz importieren.
                     </p>
-                    <a href="?page=empfehlungsprogramm" style="display: inline-flex; align-items: center; gap: 0.5rem; margin-top: 1rem; padding: 0.5rem 1rem; background: linear-gradient(135deg, #667eea, #764ba2); color: white; text-decoration: none; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 600;">
-                        <i class="fas fa-rocket"></i>
-                        Zum Empfehlungsprogramm
-                    </a>
+                    <div style="display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
+                        <a href="?page=empfehlungsprogramm" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: linear-gradient(135deg, #667eea, #764ba2); color: white; text-decoration: none; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 600;">
+                            <i class="fas fa-rocket"></i>
+                            Zum Empfehlungsprogramm
+                        </a>
+                        <button onclick="openMarketplace()" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: linear-gradient(135deg, #10b981, #059669); color: white; text-decoration: none; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 600; border: none; cursor: pointer;">
+                            <i class="fas fa-shopping-bag"></i>
+                            Marktplatz durchstöbern
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -433,13 +504,19 @@ try {
                 <?php if ($selected_freebie): ?>
                     Erstelle deine erste Belohnungsstufe für dieses Freebie
                 <?php else: ?>
-                    Erstelle deine erste Belohnungsstufe
+                    Erstelle deine erste Belohnungsstufe oder importiere fertige Templates aus dem Marktplatz
                 <?php endif; ?>
             </p>
-            <button onclick="openRewardModal()" class="btn btn-primary">
-                <i class="fas fa-plus"></i>
-                Jetzt erstellen
-            </button>
+            <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                <button onclick="openRewardModal()" class="btn btn-primary">
+                    <i class="fas fa-plus"></i>
+                    Jetzt erstellen
+                </button>
+                <button onclick="openMarketplace()" class="btn" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">
+                    <i class="fas fa-shopping-bag"></i>
+                    Marktplatz durchstöbern
+                </button>
+            </div>
         </div>
     </div>
     
@@ -600,9 +677,95 @@ try {
         </div>
     </div>
     
+    <!-- Modal: Marktplatz -->
+    <div id="marketplaceModal" class="modal">
+        <div class="modal-content marketplace-modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <div>
+                    <h2 style="color: white; font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;">
+                        <i class="fas fa-shopping-bag"></i> Belohnungen-Marktplatz
+                    </h2>
+                    <p style="color: #9ca3af; font-size: 0.875rem;">
+                        Importiere fertige Belohnungs-Templates von anderen Vendors
+                    </p>
+                </div>
+                <button onclick="closeMarketplace()" style="background: none; border: none; color: #9ca3af; font-size: 1.5rem; cursor: pointer;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <!-- Filters -->
+            <div class="marketplace-filters">
+                <div style="flex: 1; min-width: 200px;">
+                    <input 
+                        type="text" 
+                        id="marketplaceSearch" 
+                        class="form-input" 
+                        placeholder="🔍 Suche..." 
+                        onkeyup="filterMarketplace()"
+                        style="margin-bottom: 0;"
+                    >
+                </div>
+                <div style="min-width: 200px;">
+                    <select id="marketplaceCategory" class="form-select" onchange="filterMarketplace()" style="margin-bottom: 0;">
+                        <option value="">Alle Kategorien</option>
+                        <option value="ebook">E-Books</option>
+                        <option value="pdf">PDFs</option>
+                        <option value="consultation">Beratungen</option>
+                        <option value="course">Kurse</option>
+                        <option value="voucher">Gutscheine</option>
+                        <option value="discount">Rabatte</option>
+                        <option value="other">Sonstiges</option>
+                    </select>
+                </div>
+                <div style="min-width: 200px;">
+                    <select id="marketplaceNiche" class="form-select" onchange="filterMarketplace()" style="margin-bottom: 0;">
+                        <option value="">Alle Nischen</option>
+                        <option value="online-business">Online Business</option>
+                        <option value="fitness">Fitness</option>
+                        <option value="health">Gesundheit</option>
+                        <option value="marketing">Marketing</option>
+                        <option value="coaching">Coaching</option>
+                        <option value="other">Sonstiges</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Loading -->
+            <div id="marketplaceLoading" style="text-align: center; padding: 4rem 2rem;">
+                <div style="font-size: 3rem; color: #667eea; margin-bottom: 1rem;">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
+                <p style="color: #9ca3af; font-size: 1.125rem;">
+                    Lade Marktplatz...
+                </p>
+            </div>
+            
+            <!-- Grid -->
+            <div id="marketplaceGrid" class="marketplace-grid" style="display: none;">
+                <!-- Wird dynamisch gefüllt -->
+            </div>
+            
+            <!-- Empty -->
+            <div id="marketplaceEmpty" style="display: none; text-align: center; padding: 4rem 2rem;">
+                <div style="font-size: 4rem; color: #374151; margin-bottom: 1rem;">
+                    <i class="fas fa-shopping-bag"></i>
+                </div>
+                <h3 style="color: white; font-size: 1.5rem; margin-bottom: 0.5rem;">
+                    Keine Templates gefunden
+                </h3>
+                <p style="color: #9ca3af;">
+                    Passe deine Filter an oder werde selbst zum Vendor und erstelle Templates!
+                </p>
+            </div>
+        </div>
+    </div>
+    
     <script>
         let rewards = [];
         let freebieId = <?php echo $freebie_id ?? 'null'; ?>;
+        let marketplaceTemplates = [];
+        let allMarketplaceTemplates = [];
         
         // Seite laden
         document.addEventListener('DOMContentLoaded', function() {
@@ -675,6 +838,7 @@ try {
                                 <h3 style="color: white; font-size: 1.25rem; font-weight: 700; margin-bottom: 0.25rem;">
                                     ${escapeHtml(reward.tier_name)}
                                     ${hasNoFreebie ? '<span class="no-freebie-tag">⚠️ Allgemein</span>' : ''}
+                                    ${reward.is_imported ? '<span class="no-freebie-tag" style="background: rgba(16, 185, 129, 0.2); color: #10b981;">📥 Importiert</span>' : ''}
                                 </h3>
                                 ${reward.tier_description ? `
                                     <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 0.5rem;">
@@ -750,6 +914,209 @@ try {
                 </div>
             `}).join('');
         }
+        
+        // ===========================================
+        // MARKTPLATZ FUNKTIONEN
+        // ===========================================
+        
+        function openMarketplace() {
+            document.getElementById('marketplaceModal').style.display = 'block';
+            document.body.style.overflow = 'hidden';
+            loadMarketplace();
+        }
+        
+        function closeMarketplace() {
+            document.getElementById('marketplaceModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+        
+        function loadMarketplace() {
+            document.getElementById('marketplaceLoading').style.display = 'block';
+            document.getElementById('marketplaceGrid').style.display = 'none';
+            document.getElementById('marketplaceEmpty').style.display = 'none';
+            
+            fetch('/api/vendor/marketplace/list.php')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('marketplaceLoading').style.display = 'none';
+                    
+                    if (data.success) {
+                        allMarketplaceTemplates = data.templates;
+                        marketplaceTemplates = data.templates;
+                        renderMarketplace();
+                    } else {
+                        document.getElementById('marketplaceEmpty').style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('marketplaceLoading').style.display = 'none';
+                    document.getElementById('marketplaceEmpty').style.display = 'block';
+                });
+        }
+        
+        function filterMarketplace() {
+            const search = document.getElementById('marketplaceSearch').value.toLowerCase();
+            const category = document.getElementById('marketplaceCategory').value;
+            const niche = document.getElementById('marketplaceNiche').value;
+            
+            marketplaceTemplates = allMarketplaceTemplates.filter(template => {
+                const matchesSearch = !search || 
+                    template.template_name.toLowerCase().includes(search) ||
+                    template.template_description?.toLowerCase().includes(search);
+                const matchesCategory = !category || template.category === category;
+                const matchesNiche = !niche || template.niche === niche;
+                
+                return matchesSearch && matchesCategory && matchesNiche;
+            });
+            
+            renderMarketplace();
+        }
+        
+        function renderMarketplace() {
+            const grid = document.getElementById('marketplaceGrid');
+            const empty = document.getElementById('marketplaceEmpty');
+            
+            if (marketplaceTemplates.length === 0) {
+                grid.style.display = 'none';
+                empty.style.display = 'block';
+                return;
+            }
+            
+            grid.style.display = 'grid';
+            empty.style.display = 'none';
+            
+            grid.innerHTML = marketplaceTemplates.map(template => {
+                const isImported = template.is_imported_by_me;
+                
+                return `
+                <div class="template-card ${isImported ? 'imported' : ''}">
+                    ${isImported ? `
+                        <div style="background: rgba(16, 185, 129, 0.2); color: #10b981; padding: 0.5rem; border-radius: 0.5rem; margin-bottom: 1rem; text-align: center; font-size: 0.875rem; font-weight: 600;">
+                            ✓ Bereits importiert
+                        </div>
+                    ` : ''}
+                    
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <div style="color: ${template.reward_color || '#667eea'}; font-size: 2rem;">
+                            <i class="fas ${template.reward_icon || 'fa-gift'}"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 style="color: white; font-size: 1.125rem; font-weight: 700; margin-bottom: 0.25rem;">
+                                ${escapeHtml(template.template_name)}
+                            </h3>
+                            <div style="color: #9ca3af; font-size: 0.75rem;">
+                                von ${escapeHtml(template.vendor_name)}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${template.template_description ? `
+                        <p style="color: #9ca3af; font-size: 0.875rem; line-height: 1.5; margin-bottom: 1rem;">
+                            ${escapeHtml(template.template_description.substring(0, 120))}${template.template_description.length > 120 ? '...' : ''}
+                        </p>
+                    ` : ''}
+                    
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                        ${template.category ? `
+                            <span style="background: rgba(102, 126, 234, 0.2); color: #667eea; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600;">
+                                ${getCategoryLabel(template.category)}
+                            </span>
+                        ` : ''}
+                        ${template.niche ? `
+                            <span style="background: rgba(16, 185, 129, 0.2); color: #10b981; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600;">
+                                ${getNicheLabel(template.niche)}
+                            </span>
+                        ` : ''}
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; padding: 0.75rem; background: rgba(0, 0, 0, 0.2); border-radius: 0.5rem; margin-bottom: 1rem;">
+                        <div style="text-align: center;">
+                            <div style="color: white; font-size: 1.25rem; font-weight: 700;">
+                                ${template.times_imported || 0}
+                            </div>
+                            <div style="color: #9ca3af; font-size: 0.75rem;">
+                                Imports
+                            </div>
+                        </div>
+                        <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.1);">
+                            <div style="color: white; font-size: 1.25rem; font-weight: 700;">
+                                ${template.suggested_referrals_required || 3}
+                            </div>
+                            <div style="color: #9ca3af; font-size: 0.75rem;">
+                                Empfehlungen
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button 
+                        onclick="importTemplate(${template.id})" 
+                        class="btn btn-import"
+                        ${isImported ? 'disabled' : ''}
+                    >
+                        ${isImported ? '<i class="fas fa-check"></i> Importiert' : '<i class="fas fa-download"></i> Importieren'}
+                    </button>
+                </div>
+            `}).join('');
+        }
+        
+        function importTemplate(templateId) {
+            if (!confirm('Dieses Template in deine Belohnungsstufen importieren?')) {
+                return;
+            }
+            
+            fetch('/api/vendor/marketplace/import.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    template_id: templateId,
+                    freebie_id: freebieId || null
+                })
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    showNotification('✓ Template erfolgreich importiert!', 'success');
+                    closeMarketplace();
+                    loadRewards();
+                } else {
+                    showNotification('Fehler: ' + result.error, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Verbindungsfehler', 'error');
+            });
+        }
+        
+        function getCategoryLabel(category) {
+            const labels = {
+                'ebook': 'E-Book',
+                'pdf': 'PDF',
+                'consultation': 'Beratung',
+                'course': 'Kurs',
+                'voucher': 'Gutschein',
+                'discount': 'Rabatt',
+                'other': 'Sonstiges'
+            };
+            return labels[category] || category;
+        }
+        
+        function getNicheLabel(niche) {
+            const labels = {
+                'online-business': 'Online Business',
+                'fitness': 'Fitness',
+                'health': 'Gesundheit',
+                'marketing': 'Marketing',
+                'coaching': 'Coaching',
+                'other': 'Sonstiges'
+            };
+            return labels[niche] || niche;
+        }
+        
+        // ===========================================
+        // BESTEHENDE FUNKTIONEN
+        // ===========================================
         
         // Modal öffnen (neu)
         function openRewardModal() {
