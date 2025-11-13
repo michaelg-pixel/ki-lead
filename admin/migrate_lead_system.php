@@ -54,6 +54,14 @@ function columnExists($pdo, $table, $column) {
 try {
     echo "<p class='info'><strong>Migration 1:</strong> lead_users Tabelle erweitern...</p>";
     
+    // created_at hinzufügen (WICHTIG!)
+    if (!columnExists($pdo, 'lead_users', 'created_at')) {
+        $pdo->exec("ALTER TABLE lead_users ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
+        echo "<p class='success'>✓ created_at Spalte hinzugefügt</p>";
+    } else {
+        echo "<p class='info'>→ created_at existiert bereits</p>";
+    }
+    
     // freebie_id hinzufügen
     if (!columnExists($pdo, 'lead_users', 'freebie_id')) {
         $pdo->exec("ALTER TABLE lead_users ADD COLUMN freebie_id INT NULL AFTER user_id");
@@ -150,13 +158,21 @@ try {
         echo "<p class='info'>→ freebie_id existiert bereits</p>";
     }
     
+    // invited_at prüfen
+    if (!columnExists($pdo, 'lead_referrals', 'invited_at')) {
+        $pdo->exec("ALTER TABLE lead_referrals ADD COLUMN invited_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
+        echo "<p class='success'>✓ invited_at in lead_referrals hinzugefügt</p>";
+    } else {
+        echo "<p class='info'>→ invited_at existiert bereits</p>";
+    }
+    
     $migrations[] = "lead_referrals erweitert";
     
 } catch (PDOException $e) {
     echo "<p class='error'>❌ Fehler bei lead_referrals Migration: " . htmlspecialchars($e->getMessage()) . "</p>";
 }
 
-// ===== MIGRATION 5: lead_login_tokens referral_code =====
+// ===== MIGRATION 5: lead_login_tokens erweitern =====
 try {
     echo "<p class='info'><strong>Migration 5:</strong> lead_login_tokens erweitern...</p>";
     
@@ -165,6 +181,14 @@ try {
         echo "<p class='success'>✓ referral_code in lead_login_tokens hinzugefügt</p>";
     } else {
         echo "<p class='info'>→ referral_code existiert bereits</p>";
+    }
+    
+    // created_at prüfen
+    if (!columnExists($pdo, 'lead_login_tokens', 'created_at')) {
+        $pdo->exec("ALTER TABLE lead_login_tokens ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
+        echo "<p class='success'>✓ created_at in lead_login_tokens hinzugefügt</p>";
+    } else {
+        echo "<p class='info'>→ created_at existiert bereits</p>";
     }
     
     $migrations[] = "lead_login_tokens erweitert";
@@ -183,7 +207,7 @@ foreach ($migrations as $migration) {
 }
 echo "</ul>";
 
-echo "<p style='margin-top: 30px;'><a href='/customer/dashboard.php' style='background: #8B5CF6; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; display: inline-block;'>Zum Dashboard</a></p>";
+echo "<p style='margin-top: 30px;'><a href='/lead_register.php?freebie=7&customer=4' style='background: #8B5CF6; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; display: inline-block;'>Jetzt Lead registrieren testen</a></p>";
 
 echo "</div>
 </body>
