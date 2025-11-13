@@ -12,8 +12,8 @@ ini_set('display_errors', 0);
 // Datenbank-Verbindung
 require_once __DIR__ . '/../../config/database.php';
 
-// Auth-Prüfung
-if (!isset($_SESSION['customer_id'])) {
+// Auth-Prüfung - verwende user_id wie im Rest des Systems
+if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
     echo json_encode([
         'success' => false,
@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-$customer_id = $_SESSION['customer_id'];
+$customer_id = $_SESSION['user_id'];
 
 try {
     // Input parsen
@@ -78,6 +78,15 @@ try {
     $stmt = $pdo->prepare("SELECT is_vendor FROM users WHERE id = ?");
     $stmt->execute([$customer_id]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$user) {
+        http_response_code(404);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Benutzer nicht gefunden'
+        ]);
+        exit;
+    }
     
     if ($user['is_vendor']) {
         http_response_code(400);
