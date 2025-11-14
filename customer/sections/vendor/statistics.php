@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendor Statistics Page (Tab 3)
- * Zeigt detaillierte Statistiken für alle Templates
+ * Zeigt Download- und Claim-Statistiken für alle Templates (Kostenlose Belohnungen)
  */
 
 if (!isset($customer) || !$customer['is_vendor']) {
@@ -220,7 +220,7 @@ if (!isset($vendor_id)) {
     
     <!-- Loading State -->
     <div id="loadingState" class="loading-spinner">
-        <i class="fas fa-spinner fa-spin"></i>
+        <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
         <p style="margin-top: 1rem;">Lade Statistiken...</p>
     </div>
     
@@ -230,7 +230,7 @@ if (!isset($vendor_id)) {
         <!-- Stats Grid -->
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-icon">📊</div>
+                <div class="stat-icon">🎁</div>
                 <div class="stat-value" id="totalTemplates">0</div>
                 <div class="stat-label">Templates</div>
             </div>
@@ -238,25 +238,25 @@ if (!isset($vendor_id)) {
             <div class="stat-card">
                 <div class="stat-icon">⬇️</div>
                 <div class="stat-value" id="totalImports">0</div>
-                <div class="stat-label">Gesamt-Imports</div>
+                <div class="stat-label">Gesamt-Downloads</div>
             </div>
             
             <div class="stat-card">
-                <div class="stat-icon">🎁</div>
+                <div class="stat-icon">✅</div>
                 <div class="stat-value" id="totalClaims">0</div>
                 <div class="stat-label">Gesamt-Claims</div>
             </div>
             
             <div class="stat-card">
-                <div class="stat-icon">💰</div>
-                <div class="stat-value" id="totalRevenue">0€</div>
-                <div class="stat-label">Gesamt-Revenue</div>
+                <div class="stat-icon">📈</div>
+                <div class="stat-value" id="avgDownloads">0</div>
+                <div class="stat-label">Ø Downloads pro Template</div>
             </div>
         </div>
         
         <!-- Charts -->
         <div class="chart-card">
-            <h3><i class="fas fa-chart-line"></i> Imports & Claims über Zeit (letzte 30 Tage)</h3>
+            <h3>📈 Downloads & Claims über Zeit (letzte 30 Tage)</h3>
             <div class="chart-container">
                 <canvas id="timelineChart"></canvas>
             </div>
@@ -264,16 +264,15 @@ if (!isset($vendor_id)) {
         
         <!-- Top Templates -->
         <div class="table-card">
-            <h3><i class="fas fa-trophy"></i> Top Templates nach Performance</h3>
+            <h3>🏆 Top Templates nach Downloads</h3>
             <div style="overflow-x: auto;">
                 <table class="stats-table">
                     <thead>
                         <tr>
                             <th>Template</th>
                             <th>Kategorie</th>
-                            <th>Imports</th>
+                            <th>Downloads</th>
                             <th>Claims</th>
-                            <th>Revenue</th>
                             <th>Status</th>
                         </tr>
                     </thead>
@@ -286,7 +285,7 @@ if (!isset($vendor_id)) {
         
         <!-- Recent Imports -->
         <div class="table-card">
-            <h3><i class="fas fa-download"></i> Letzte Imports (Top 10)</h3>
+            <h3>⬇️ Letzte Downloads (Top 10)</h3>
             <div style="overflow-x: auto;">
                 <table class="stats-table">
                     <thead>
@@ -294,7 +293,6 @@ if (!isset($vendor_id)) {
                             <th>Datum</th>
                             <th>Template</th>
                             <th>Customer</th>
-                            <th>Preis</th>
                         </tr>
                     </thead>
                     <tbody id="recentImportsBody">
@@ -306,7 +304,7 @@ if (!isset($vendor_id)) {
         
         <!-- Recent Claims -->
         <div class="table-card">
-            <h3><i class="fas fa-gift"></i> Letzte Claims (Top 10)</h3>
+            <h3>🎁 Letzte Claims (Top 10)</h3>
             <div style="overflow-x: auto;">
                 <table class="stats-table">
                     <thead>
@@ -328,7 +326,7 @@ if (!isset($vendor_id)) {
     
     <!-- Empty State -->
     <div id="emptyState" style="display: none;" class="empty-state">
-        <i class="fas fa-chart-bar"></i>
+        <div style="font-size: 4rem; margin-bottom: 1rem;">📊</div>
         <h3 style="color: white; margin-bottom: 0.5rem;">Noch keine Statistiken</h3>
         <p>Erstelle dein erstes Template im Templates-Tab</p>
     </div>
@@ -370,8 +368,9 @@ async function loadStatistics() {
     } catch (error) {
         console.error('Error loading statistics:', error);
         document.getElementById('loadingState').innerHTML = `
-            <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
+            <div style="font-size: 3rem; color: #ef4444;">⚠️</div>
             <p style="margin-top: 1rem; color: #ef4444;">Fehler beim Laden der Statistiken</p>
+            <p style="margin-top: 0.5rem; font-size: 0.875rem;">${error.message}</p>
         `;
     }
 }
@@ -384,7 +383,12 @@ function renderStatistics(data) {
     document.getElementById('totalTemplates').textContent = stats.total_templates;
     document.getElementById('totalImports').textContent = stats.total_imports;
     document.getElementById('totalClaims').textContent = stats.total_claims;
-    document.getElementById('totalRevenue').textContent = parseFloat(stats.total_revenue).toFixed(2) + '€';
+    
+    // Durchschnittliche Downloads
+    const avgDownloads = stats.total_templates > 0 
+        ? Math.round(stats.total_imports / stats.total_templates) 
+        : 0;
+    document.getElementById('avgDownloads').textContent = avgDownloads;
     
     // Timeline Chart
     if (data.timeline) {
@@ -427,7 +431,7 @@ function renderTimelineChart(timeline) {
             labels: dates,
             datasets: [
                 {
-                    label: 'Imports',
+                    label: 'Downloads',
                     data: imports,
                     borderColor: '#667eea',
                     backgroundColor: 'rgba(102, 126, 234, 0.1)',
@@ -483,7 +487,7 @@ function renderTopTemplates(templates) {
     const tbody = document.getElementById('topTemplatesBody');
     
     if (templates.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #9ca3af;">Keine Templates vorhanden</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #9ca3af;">Keine Templates vorhanden</td></tr>';
         return;
     }
     
@@ -504,12 +508,6 @@ function renderTopTemplates(templates) {
                 </div>
             </td>
             <td>
-                <div class="metric">
-                    <span class="metric-icon">💰</span>
-                    <span class="metric-value">${parseFloat(t.total_revenue).toFixed(2)}€</span>
-                </div>
-            </td>
-            <td>
                 <span class="badge ${t.is_published ? 'badge-success' : 'badge-warning'}">
                     ${t.is_published ? '✓ Veröffentlicht' : '⏸ Entwurf'}
                 </span>
@@ -523,7 +521,7 @@ function renderRecentImports(imports) {
     const tbody = document.getElementById('recentImportsBody');
     
     if (imports.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #9ca3af;">Keine Imports vorhanden</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #9ca3af;">Keine Downloads vorhanden</td></tr>';
         return;
     }
     
@@ -532,9 +530,6 @@ function renderRecentImports(imports) {
             <td>${formatDate(i.import_date)}</td>
             <td class="template-name">${escapeHtml(i.template_name)}</td>
             <td>${escapeHtml(i.customer_name)}</td>
-            <td>
-                <span class="metric-value">${parseFloat(i.purchase_price).toFixed(2)}€</span>
-            </td>
         </tr>
     `).join('');
 }
