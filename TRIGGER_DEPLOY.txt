@@ -1,5 +1,1 @@
-Deployment Trigger: <?php echo date('Y-m-d H:i:s'); ?>
-
-Letzte Änderungen:
-- Empfehlungsprogramm-CTA zur Danke-Seite hinzugefügt
-- Motivierende Belohnungsinformationen integriert
+Deployment Trigger: Vendor Templates Update - 2025-11-14 09:58:57
