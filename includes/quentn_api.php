@@ -32,11 +32,11 @@ function sendPasswordResetEmail($toEmail, $toName, $resetLink) {
             return $updateResult;
         }
         
-        // 3. Tag setzen um Campaign zu triggern
-        $tagResult = addTagToContact($contactId, 'password-reset');
+        // 3. Tag "kunde optinpilot" setzen um Campaign zu triggern
+        $tagResult = addTagToContact($contactId, 'kunde optinpilot');
         
         if (!$tagResult['success']) {
-            error_log("Warning: Tag could not be added, but contact updated: " . $tagResult['message']);
+            error_log("Warning: Tag 'kunde optinpilot' could not be added: " . $tagResult['message']);
         }
         
         error_log("Password reset email triggered via Quentn for: $toEmail");
