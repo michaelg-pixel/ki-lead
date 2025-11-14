@@ -1,10 +1,10 @@
-Deployment Trigger: Vendor System komplett überarbeitet - 2025-11-14 10:15:00
+Deployment Trigger: Vendor Template APIs gefixxt - 2025-11-14 10:30:00
 
-Änderungen:
-- Templates Editor ohne Preis/Digistore-ID
-- Produktbild-Upload Funktion hinzugefügt
-- Design ohne doppelte Scrollbalken optimiert
-- Template-Übersicht zeigt nur Downloads/Claims (keine Umsätze/Preise)
-- Statistik-Seite ohne Revenue, nur Downloads und Claims
-- API für Bild-Upload erstellt
-- Alle Vendor-APIs auf kostenlose Belohnungen umgestellt
+KRITISCHE FIXES:
+- create.php: Korrekte Kategorien-Validierung (leadmagnet, video_course, etc.)
+- create.php: Korrekte Delivery-Type-Validierung (manual, download, email, redirect)
+- update.php: FEHLENDE PDO CONNECTION HINZUGEFÜGT (war der Hauptfehler!)
+- update.php: Vendor-Berechtigung prüfen hinzugefügt
+- Beide APIs: Besseres Error-Handling und Logging
+
+Diese Fixes sollten das "Fehler beim Speichern" Problem beheben.
