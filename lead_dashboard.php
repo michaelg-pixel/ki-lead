@@ -1,11 +1,12 @@
 <?php
 /**
- * Lead Dashboard - Token-basiertes System
+ * Lead Dashboard - Token-basiertes System mit Multi-Freebie Support
  * - Automatische Lead-Erstellung beim ersten Token-Aufruf
  * - Referral-Code-Tracking
  * - Empfehlungsprogramm mit Belohnungen
  * - Webhook-System für Belohnungsstufen
  * - UNTERSTÜTZT: customer_freebies UND freebies (Templates)
+ * - MULTI-FREEBIE: Lead hat Zugang zu mehreren Freebies
  */
 
 require_once __DIR__ . '/config/database.php';
@@ -156,56 +157,119 @@ try {
 $customer_id = $lead['user_id'];
 $referral_enabled = (int)($lead['referral_enabled'] ?? 0);
 
-// ===== FREEBIE LADEN - ERST customer_freebies, DANN freebies (Templates) =====
+// ===== ALLE FREEBIES LADEN, ZU DENEN DER LEAD ZUGANG HAT =====
 $freebies_with_courses = [];
 
 try {
-    // Prüfen ob Lead eine freebie_id hat
-    if (!empty($lead['freebie_id'])) {
-        // ZUERST: In customer_freebies suchen
+    // Prüfe ob lead_freebie_access Tabelle existiert
+    $stmt = $pdo->query("SHOW TABLES LIKE 'lead_freebie_access'");
+    $table_exists = $stmt->rowCount() > 0;
+    
+    if ($table_exists) {
+        // Alle Freebie-IDs holen, zu denen der Lead Zugang hat
         $stmt = $pdo->prepare("
-            SELECT 
-                cf.id as freebie_id,
-                cf.unique_id,
-                COALESCE(NULLIF(cf.headline, ''), f.name, 'Freebie') as title,
-                COALESCE(NULLIF(cf.subheadline, ''), f.description, '') as description,
-                COALESCE(NULLIF(cf.mockup_image_url, ''), f.mockup_image_url) as mockup_url,
-                fc.id as course_id,
-                fc.title as course_title,
-                fc.description as course_description
-            FROM customer_freebies cf
-            LEFT JOIN freebies f ON cf.template_id = f.id
-            LEFT JOIN freebie_courses fc ON cf.id = fc.freebie_id
-            WHERE cf.customer_id = ? AND cf.id = ?
+            SELECT freebie_id FROM lead_freebie_access 
+            WHERE lead_id = ?
         ");
-        $stmt->execute([$customer_id, $lead['freebie_id']]);
-        $freebies_with_courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $stmt->execute([$lead_id]);
+        $freebie_ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
         
-        // FALLBACK: Falls nicht gefunden, in freebies (Templates) suchen
-        if (empty($freebies_with_courses)) {
+        if (!empty($freebie_ids)) {
+            $placeholders = implode(',', array_fill(0, count($freebie_ids), '?'));
+            
+            // ZUERST: Aus customer_freebies laden
             $stmt = $pdo->prepare("
                 SELECT 
-                    f.id as freebie_id,
-                    f.unique_id,
-                    f.name as title,
-                    f.description,
-                    f.mockup_image_url as mockup_url,
-                    NULL as course_id,
-                    NULL as course_title,
-                    NULL as course_description
-                FROM freebies f
-                WHERE f.id = ?
+                    cf.id as freebie_id,
+                    cf.unique_id,
+                    COALESCE(NULLIF(cf.headline, ''), f.name, 'Freebie') as title,
+                    COALESCE(NULLIF(cf.subheadline, ''), f.description, '') as description,
+                    COALESCE(NULLIF(cf.mockup_image_url, ''), f.mockup_image_url) as mockup_url,
+                    fc.id as course_id,
+                    fc.title as course_title,
+                    fc.description as course_description
+                FROM customer_freebies cf
+                LEFT JOIN freebies f ON cf.template_id = f.id
+                LEFT JOIN freebie_courses fc ON cf.id = fc.freebie_id
+                WHERE cf.customer_id = ? AND cf.id IN ($placeholders)
             ");
-            $stmt->execute([$lead['freebie_id']]);
+            $params = array_merge([$customer_id], $freebie_ids);
+            $stmt->execute($params);
+            $customer_freebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // DANN: Aus freebies (Templates) laden - aber nur IDs die nicht in customer_freebies waren
+            $found_ids = array_column($customer_freebies, 'freebie_id');
+            $missing_ids = array_diff($freebie_ids, $found_ids);
+            
+            $template_freebies = [];
+            if (!empty($missing_ids)) {
+                $placeholders = implode(',', array_fill(0, count($missing_ids), '?'));
+                $stmt = $pdo->prepare("
+                    SELECT 
+                        f.id as freebie_id,
+                        f.id as unique_id,
+                        f.name as title,
+                        f.description,
+                        f.mockup_image_url as mockup_url,
+                        NULL as course_id,
+                        NULL as course_title,
+                        NULL as course_description
+                    FROM freebies f
+                    WHERE f.id IN ($placeholders)
+                ");
+                $stmt->execute(array_values($missing_ids));
+                $template_freebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            }
+            
+            // Beide Arrays zusammenführen
+            $freebies_with_courses = array_merge($customer_freebies, $template_freebies);
+        }
+    } else {
+        // FALLBACK: Alte Logik für Kompatibilität (nur ein Freebie aus lead_users.freebie_id)
+        if (!empty($lead['freebie_id'])) {
+            $stmt = $pdo->prepare("
+                SELECT 
+                    cf.id as freebie_id,
+                    cf.unique_id,
+                    COALESCE(NULLIF(cf.headline, ''), f.name, 'Freebie') as title,
+                    COALESCE(NULLIF(cf.subheadline, ''), f.description, '') as description,
+                    COALESCE(NULLIF(cf.mockup_image_url, ''), f.mockup_image_url) as mockup_url,
+                    fc.id as course_id,
+                    fc.title as course_title,
+                    fc.description as course_description
+                FROM customer_freebies cf
+                LEFT JOIN freebies f ON cf.template_id = f.id
+                LEFT JOIN freebie_courses fc ON cf.id = fc.freebie_id
+                WHERE cf.customer_id = ? AND cf.id = ?
+            ");
+            $stmt->execute([$customer_id, $lead['freebie_id']]);
             $freebies_with_courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            if (empty($freebies_with_courses)) {
+                $stmt = $pdo->prepare("
+                    SELECT 
+                        f.id as freebie_id,
+                        f.id as unique_id,
+                        f.name as title,
+                        f.description,
+                        f.mockup_image_url as mockup_url,
+                        NULL as course_id,
+                        NULL as course_title,
+                        NULL as course_description
+                    FROM freebies f
+                    WHERE f.id = ?
+                ");
+                $stmt->execute([$lead['freebie_id']]);
+                $freebies_with_courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            }
         }
     }
 } catch (PDOException $e) {
     error_log("Fehler beim Laden der Freebies: " . $e->getMessage());
 }
 
-// Gewähltes Freebie für Empfehlungsprogramm (aus URL Parameter oder aus Lead-Daten)
-$selected_freebie_id = isset($_GET['freebie']) ? (int)$_GET['freebie'] : $lead['freebie_id'];
+// Gewähltes Freebie für Empfehlungsprogramm (aus URL Parameter oder erstes Freebie)
+$selected_freebie_id = isset($_GET['freebie']) ? (int)$_GET['freebie'] : (!empty($freebies_with_courses) ? $freebies_with_courses[0]['freebie_id'] : null);
 
 // Gewähltes Freebie Details laden
 $selected_freebie = null;
@@ -403,6 +467,9 @@ function triggerRewardWebhook($pdo, $lead_id, $customer_id, $reward) {
         error_log("Webhook-Trigger-Fehler: " . $e->getMessage());
     }
 }
+
+// Titel anpassen je nach Anzahl der Freebies
+$course_section_title = count($freebies_with_courses) > 1 ? 'Deine Kurse' : 'Dein Kurs';
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -959,15 +1026,15 @@ function triggerRewardWebhook($pdo, $lead_id, $customer_id, $reward) {
             <div class="section-header">
                 <h2 class="section-title">
                     <span class="section-icon">📚</span>
-                    Dein Kurs
+                    <?php echo $course_section_title; ?>
                 </h2>
             </div>
             
             <?php if (empty($freebies_with_courses)): ?>
                 <div class="empty-state">
                     <div class="empty-icon">📭</div>
-                    <div class="empty-text">Noch kein Kurs verfügbar</div>
-                    <div class="empty-subtext">Der Kurs wird hier angezeigt, sobald er verfügbar ist</div>
+                    <div class="empty-text">Noch keine Kurse verfügbar</div>
+                    <div class="empty-subtext">Kurse werden hier angezeigt, sobald sie verfügbar sind</div>
                 </div>
             <?php else: ?>
                 <div class="freebie-grid">
