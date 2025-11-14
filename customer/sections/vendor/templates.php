@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendor Dashboard - Templates Tab
- * Template-Verwaltung für Vendor
+ * Template-Verwaltung für Vendor (Kostenlose Belohnungen)
  */
 
 if (!defined('INCLUDED')) {
@@ -63,12 +63,42 @@ if (!defined('INCLUDED')) {
     border-radius: 1rem;
     padding: 1.5rem;
     transition: all 0.3s;
+    display: flex;
+    gap: 1.5rem;
 }
 
 .template-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(102, 126, 234, 0.2);
     border-color: rgba(102, 126, 234, 0.4);
+}
+
+.template-image {
+    flex-shrink: 0;
+    width: 120px;
+    height: 120px;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.template-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.template-image-placeholder {
+    font-size: 3rem;
+    opacity: 0.3;
+}
+
+.template-content {
+    flex: 1;
+    min-width: 0;
 }
 
 .template-card-header {
@@ -128,9 +158,8 @@ if (!defined('INCLUDED')) {
 }
 
 .template-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 1rem;
+    display: flex;
+    gap: 2rem;
     margin: 1rem 0;
     padding: 1rem;
     background: rgba(0, 0, 0, 0.2);
@@ -138,11 +167,17 @@ if (!defined('INCLUDED')) {
 }
 
 .stat-item {
-    text-align: center;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.stat-icon {
+    font-size: 1.25rem;
 }
 
 .stat-value {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 700;
     color: var(--text-primary, #ffffff);
 }
@@ -150,7 +185,7 @@ if (!defined('INCLUDED')) {
 .stat-label {
     font-size: 0.75rem;
     color: var(--text-secondary, #9ca3af);
-    margin-top: 0.25rem;
+    margin-left: 0.25rem;
 }
 
 .template-actions {
@@ -190,7 +225,7 @@ if (!defined('INCLUDED')) {
     border-color: rgba(239, 68, 68, 0.5);
 }
 
-/* Modal Styles */
+/* Modal Styles - OHNE doppelte Scrollbalken */
 .modal {
     display: none;
     position: fixed;
@@ -201,14 +236,12 @@ if (!defined('INCLUDED')) {
     background: rgba(0, 0, 0, 0.8);
     backdrop-filter: blur(10px);
     z-index: 10000;
-    overflow-y: auto;
     padding: 2rem;
+    overflow-y: auto;
 }
 
 .modal.active {
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
+    display: block;
 }
 
 .modal-content {
@@ -217,7 +250,7 @@ if (!defined('INCLUDED')) {
     border-radius: 1.5rem;
     width: 100%;
     max-width: 900px;
-    margin: 2rem auto;
+    margin: 0 auto;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
@@ -256,8 +289,6 @@ if (!defined('INCLUDED')) {
 
 .modal-body {
     padding: 2rem;
-    max-height: calc(100vh - 16rem);
-    overflow-y: auto;
 }
 
 .form-grid {
@@ -327,6 +358,64 @@ if (!defined('INCLUDED')) {
     border: 2px solid rgba(255, 255, 255, 0.2);
 }
 
+/* Image Upload Bereich */
+.image-upload-area {
+    border: 2px dashed rgba(102, 126, 234, 0.3);
+    border-radius: 0.75rem;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.image-upload-area:hover {
+    border-color: rgba(102, 126, 234, 0.6);
+    background: rgba(102, 126, 234, 0.05);
+}
+
+.image-upload-area.dragover {
+    border-color: #667eea;
+    background: rgba(102, 126, 234, 0.1);
+}
+
+.upload-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.image-preview-container {
+    margin-top: 1rem;
+    display: none;
+}
+
+.image-preview-container.active {
+    display: block;
+}
+
+.image-preview {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.remove-image-btn {
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.remove-image-btn:hover {
+    background: rgba(239, 68, 68, 0.3);
+}
+
 .modal-footer {
     padding: 1.5rem 2rem;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -349,9 +438,14 @@ if (!defined('INCLUDED')) {
     color: white;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+}
+
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .btn-secondary {
@@ -406,12 +500,24 @@ if (!defined('INCLUDED')) {
     
     .modal-content {
         border-radius: 0;
-        margin: 0;
-        min-height: 100vh;
+    }
+    
+    .template-card {
+        flex-direction: column;
+    }
+    
+    .template-image {
+        width: 100%;
+        height: 200px;
     }
     
     .template-actions {
         flex-direction: column;
+    }
+    
+    .template-stats {
+        flex-direction: column;
+        gap: 0.75rem;
     }
 }
 </style>
@@ -447,9 +553,32 @@ if (!defined('INCLUDED')) {
         
         <form id="templateForm" onsubmit="saveTemplate(event)">
             <input type="hidden" id="templateId" name="id">
+            <input type="hidden" id="mockupUrl" name="product_mockup_url">
             
             <div class="modal-body">
                 <div class="form-grid">
+                    <!-- Produktbild Upload -->
+                    <div class="form-group">
+                        <label class="form-label">Produktbild</label>
+                        <div class="image-upload-area" id="uploadArea" onclick="document.getElementById('imageInput').click()">
+                            <div class="upload-icon">📸</div>
+                            <div style="color: var(--text-primary, #ffffff); font-weight: 600; margin-bottom: 0.5rem;">
+                                Bild hochladen oder hierher ziehen
+                            </div>
+                            <div style="color: var(--text-secondary, #9ca3af); font-size: 0.875rem;">
+                                JPG, PNG, WebP oder GIF (max. 5MB)
+                            </div>
+                        </div>
+                        <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageSelect(event)">
+                        
+                        <div id="imagePreviewContainer" class="image-preview-container">
+                            <img id="imagePreview" class="image-preview" src="" alt="Vorschau">
+                            <button type="button" class="remove-image-btn" onclick="removeImage()">
+                                🗑️ Bild entfernen
+                            </button>
+                        </div>
+                    </div>
+                    
                     <!-- Template Basic Info -->
                     <div class="form-group">
                         <label class="form-label">
@@ -561,19 +690,13 @@ if (!defined('INCLUDED')) {
                     </div>
                     
                     <div class="form-group">
-                        <label class="form-label">Mockup-URL</label>
-                        <input type="url" id="mockupUrl" name="product_mockup_url" class="form-input">
-                        <span class="form-help">URL zum Produktbild/Mockup</span>
-                    </div>
-                    
-                    <div class="form-group">
                         <label class="form-label">Original Produkt-Link</label>
                         <input type="url" id="originalProductLink" name="original_product_link" class="form-input">
                         <span class="form-help">Link zu deinem Originalprodukt</span>
                     </div>
                     
                     <!-- Marketplace Settings -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                         <div class="form-group">
                             <label class="form-label">Empfohlene Stufe</label>
                             <input type="number" id="tierLevel" name="suggested_tier_level" class="form-input" 
@@ -581,29 +704,19 @@ if (!defined('INCLUDED')) {
                         </div>
                         
                         <div class="form-group">
-                            <label class="form-label">Empf. Anzahl</label>
+                            <label class="form-label">Empfohlene Anzahl</label>
                             <input type="number" id="referralsRequired" name="suggested_referrals_required" 
                                    class="form-input" min="1" value="3">
                         </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label">Preis (€)</label>
-                            <input type="number" id="price" name="marketplace_price" class="form-input" 
-                                   min="0" step="0.01" value="0">
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Digistore24 Produkt-ID</label>
-                        <input type="text" id="digistoreId" name="digistore_product_id" class="form-input">
-                        <span class="form-help">Optional: Für automatische Provisionszahlungen</span>
                     </div>
                 </div>
             </div>
             
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeTemplateModal()">Abbrechen</button>
-                <button type="submit" class="btn btn-primary">Speichern</button>
+                <button type="submit" class="btn btn-primary" id="saveBtn">
+                    <span id="saveBtnText">Speichern</span>
+                </button>
             </div>
         </form>
     </div>
@@ -611,6 +724,7 @@ if (!defined('INCLUDED')) {
 
 <script>
 let currentTemplates = [];
+let uploadedImageUrl = null;
 
 // Load templates on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -620,6 +734,27 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('rewardColor').addEventListener('input', function() {
         document.getElementById('rewardColorText').value = this.value;
         document.getElementById('colorPreview').style.background = this.value;
+    });
+    
+    // Drag & Drop
+    const uploadArea = document.getElementById('uploadArea');
+    
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
+    
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+    });
+    
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+            handleImageUpload(file);
+        }
     });
 });
 
@@ -648,7 +783,7 @@ function renderTemplates(templates) {
             <div class="empty-state">
                 <div class="empty-state-icon">📦</div>
                 <h3 class="empty-state-title">Noch keine Templates</h3>
-                <p>Erstellen Sie Ihr erstes Template und bieten Sie es im Marktplatz an.</p>
+                <p>Erstellen Sie Ihr erstes Template und bieten Sie es kostenlos im Marktplatz an.</p>
             </div>
         `;
         return;
@@ -658,46 +793,52 @@ function renderTemplates(templates) {
         <div class="templates-grid">
             ${templates.map(template => `
                 <div class="template-card">
-                    <div class="template-card-header">
-                        <div class="template-info">
-                            <h3 class="template-name">${escapeHtml(template.template_name)}</h3>
-                            ${template.category ? `<span class="template-category">${escapeHtml(template.category)}</span>` : ''}
-                        </div>
-                        <div class="template-status ${template.is_published ? 'published' : 'draft'}">
-                            <span>${template.is_published ? '✓' : '○'}</span>
-                            <span>${template.is_published ? 'Veröffentlicht' : 'Entwurf'}</span>
-                        </div>
+                    <div class="template-image">
+                        ${template.product_mockup_url 
+                            ? `<img src="${escapeHtml(template.product_mockup_url)}" alt="${escapeHtml(template.template_name)}">`
+                            : `<div class="template-image-placeholder">🎁</div>`
+                        }
                     </div>
-                    
-                    ${template.template_description ? `
-                        <p class="template-description">${escapeHtml(template.template_description)}</p>
-                    ` : ''}
-                    
-                    <div class="template-stats">
-                        <div class="stat-item">
-                            <div class="stat-value">${template.sales_count || 0}</div>
-                            <div class="stat-label">Verkäufe</div>
+                    <div class="template-content">
+                        <div class="template-card-header">
+                            <div class="template-info">
+                                <h3 class="template-name">${escapeHtml(template.template_name)}</h3>
+                                ${template.category ? `<span class="template-category">${escapeHtml(template.category)}</span>` : ''}
+                            </div>
+                            <div class="template-status ${template.is_published ? 'published' : 'draft'}">
+                                <span>${template.is_published ? '✓' : '○'}</span>
+                                <span>${template.is_published ? 'Veröffentlicht' : 'Entwurf'}</span>
+                            </div>
                         </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${(template.revenue || 0).toFixed(2)}€</div>
-                            <div class="stat-label">Umsatz</div>
+                        
+                        ${template.template_description ? `
+                            <p class="template-description">${escapeHtml(template.template_description)}</p>
+                        ` : ''}
+                        
+                        <div class="template-stats">
+                            <div class="stat-item">
+                                <span class="stat-icon">⬇️</span>
+                                <span class="stat-value">${template.times_imported || 0}</span>
+                                <span class="stat-label">Downloads</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-icon">🎁</span>
+                                <span class="stat-value">${template.times_claimed || 0}</span>
+                                <span class="stat-label">Claims</span>
+                            </div>
                         </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${template.marketplace_price || 0}€</div>
-                            <div class="stat-label">Preis</div>
+                        
+                        <div class="template-actions">
+                            <button class="action-btn" onclick="editTemplate(${template.id})">
+                                ✏️ Bearbeiten
+                            </button>
+                            <button class="action-btn" onclick="togglePublish(${template.id}, ${template.is_published})">
+                                ${template.is_published ? '📥 Zurückziehen' : '📢 Veröffentlichen'}
+                            </button>
+                            <button class="action-btn danger" onclick="deleteTemplate(${template.id})">
+                                🗑️ Löschen
+                            </button>
                         </div>
-                    </div>
-                    
-                    <div class="template-actions">
-                        <button class="action-btn" onclick="editTemplate(${template.id})">
-                            ✏️ Bearbeiten
-                        </button>
-                        <button class="action-btn" onclick="togglePublish(${template.id}, ${template.is_published})">
-                            ${template.is_published ? '📥 Zurückziehen' : '📢 Veröffentlichen'}
-                        </button>
-                        <button class="action-btn danger" onclick="deleteTemplate(${template.id})">
-                            🗑️ Löschen
-                        </button>
                     </div>
                 </div>
             `).join('')}
@@ -705,10 +846,81 @@ function renderTemplates(templates) {
     `;
 }
 
+function handleImageSelect(event) {
+    const file = event.target.files[0];
+    if (file) {
+        handleImageUpload(file);
+    }
+}
+
+async function handleImageUpload(file) {
+    // Validierung
+    if (!file.type.startsWith('image/')) {
+        alert('Bitte wählen Sie eine Bilddatei');
+        return;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) {
+        alert('Datei zu groß. Maximal 5MB erlaubt');
+        return;
+    }
+    
+    // Vorschau anzeigen
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        document.getElementById('imagePreview').src = e.target.result;
+        document.getElementById('imagePreviewContainer').classList.add('active');
+        document.getElementById('uploadArea').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+    
+    // Upload zum Server
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    try {
+        document.getElementById('saveBtn').disabled = true;
+        document.getElementById('saveBtnText').textContent = 'Lade Bild hoch...';
+        
+        const response = await fetch('/api/vendor/upload-image.php', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            uploadedImageUrl = data.url;
+            document.getElementById('mockupUrl').value = data.url;
+            showSuccess('Bild erfolgreich hochgeladen');
+        } else {
+            alert('Fehler beim Upload: ' + data.error);
+            removeImage();
+        }
+    } catch (error) {
+        console.error('Upload error:', error);
+        alert('Fehler beim Hochladen des Bildes');
+        removeImage();
+    } finally {
+        document.getElementById('saveBtn').disabled = false;
+        document.getElementById('saveBtnText').textContent = 'Speichern';
+    }
+}
+
+function removeImage() {
+    document.getElementById('imagePreview').src = '';
+    document.getElementById('imagePreviewContainer').classList.remove('active');
+    document.getElementById('uploadArea').style.display = 'block';
+    document.getElementById('imageInput').value = '';
+    document.getElementById('mockupUrl').value = '';
+    uploadedImageUrl = null;
+}
+
 function openTemplateModal(templateId = null) {
     const modal = document.getElementById('templateModal');
     const form = document.getElementById('templateForm');
     form.reset();
+    removeImage();
     
     if (templateId) {
         document.getElementById('modalTitle').textContent = 'Template bearbeiten';
@@ -719,11 +931,13 @@ function openTemplateModal(templateId = null) {
     }
     
     modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
 }
 
 function closeTemplateModal() {
     const modal = document.getElementById('templateModal');
     modal.classList.remove('active');
+    document.body.style.overflow = '';
 }
 
 async function loadTemplate(templateId) {
@@ -752,12 +966,18 @@ async function loadTemplate(templateId) {
             document.getElementById('downloadUrl').value = t.reward_download_url || '';
             document.getElementById('instructions').value = t.reward_instructions || '';
             document.getElementById('courseDuration').value = t.course_duration || '';
-            document.getElementById('mockupUrl').value = t.product_mockup_url || '';
             document.getElementById('originalProductLink').value = t.original_product_link || '';
             document.getElementById('tierLevel').value = t.suggested_tier_level || 1;
             document.getElementById('referralsRequired').value = t.suggested_referrals_required || 3;
-            document.getElementById('price').value = t.marketplace_price || 0;
-            document.getElementById('digistoreId').value = t.digistore_product_id || '';
+            
+            // Image
+            if (t.product_mockup_url) {
+                document.getElementById('mockupUrl').value = t.product_mockup_url;
+                document.getElementById('imagePreview').src = t.product_mockup_url;
+                document.getElementById('imagePreviewContainer').classList.add('active');
+                document.getElementById('uploadArea').style.display = 'none';
+                uploadedImageUrl = t.product_mockup_url;
+            }
         } else {
             alert('Fehler beim Laden des Templates');
             closeTemplateModal();
@@ -780,6 +1000,9 @@ async function saveTemplate(event) {
     const url = templateId ? '/api/vendor/templates/update.php' : '/api/vendor/templates/create.php';
     
     try {
+        document.getElementById('saveBtn').disabled = true;
+        document.getElementById('saveBtnText').textContent = 'Speichere...';
+        
         const response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -800,6 +1023,9 @@ async function saveTemplate(event) {
     } catch (error) {
         console.error('Error:', error);
         alert('Ein Fehler ist aufgetreten');
+    } finally {
+        document.getElementById('saveBtn').disabled = false;
+        document.getElementById('saveBtnText').textContent = 'Speichern';
     }
 }
 
@@ -870,7 +1096,6 @@ function escapeHtml(text) {
 }
 
 function showSuccess(message) {
-    // Simple alert for now - can be enhanced with toast notifications
     alert(message);
 }
 
@@ -881,6 +1106,13 @@ function showError(message) {
 // Close modal on outside click
 document.getElementById('templateModal').addEventListener('click', function(e) {
     if (e.target === this) {
+        closeTemplateModal();
+    }
+});
+
+// ESC key closes modal
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && document.getElementById('templateModal').classList.contains('active')) {
         closeTemplateModal();
     }
 });
