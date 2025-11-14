@@ -80,19 +80,19 @@ $testLastName = 'Test';
                 if (!empty($tags)) {
                     echo '<div class="result success">✅ ' . count($tags) . ' Tags gefunden!
 
-Suche nach "kunde optinpilot"...' . "\n";
+Suche nach "Kunde-OptinPilot"...' . "\n";
                     
                     $foundTag = false;
                     foreach ($tags as $tag) {
-                        if (isset($tag['name']) && strtolower($tag['name']) === 'kunde optinpilot') {
+                        if (isset($tag['name']) && $tag['name'] === 'Kunde-OptinPilot') {
                             $foundTag = true;
-                            echo '✅ Tag "kunde optinpilot" gefunden! (ID: ' . $tag['id'] . ')' . "\n";
+                            echo '✅ Tag "Kunde-OptinPilot" gefunden! (ID: ' . $tag['id'] . ')' . "\n";
                             break;
                         }
                     }
                     
                     if (!$foundTag) {
-                        echo '⚠️  Tag "kunde optinpilot" NICHT gefunden!
+                        echo '⚠️  Tag "Kunde-OptinPilot" NICHT gefunden!
 Du musst diesen Tag in Quentn erstellen.' . "\n";
                     }
                     
@@ -122,7 +122,7 @@ Du musst diesen Tag in Quentn erstellen.' . "\n";
                     $testEmail,
                     $testFirstName,
                     $testLastName,
-                    ['registration', 'customer', 'kunde optinpilot']
+                    ['registration', 'customer', 'Kunde-OptinPilot']
                 );
                 
                 if ($success) {
@@ -130,7 +130,7 @@ Du musst diesen Tag in Quentn erstellen.' . "\n";
                     
 Nächste Schritte:
 1. Prüfe in Quentn ob der Kontakt da ist
-2. Prüfe ob die Tags gesetzt sind
+2. Prüfe ob die Tags gesetzt sind (inkl. "Kunde-OptinPilot")
 3. Prüfe ob die Campaign getriggert wird</div>';
                 } else {
                     echo '<div class="result error">❌ FEHLER! Schaue in die PHP Error Logs für Details</div>';
@@ -188,17 +188,17 @@ Bitte erst "Kontakt erstellen" ausführen</div>';
 Stelle sicher dass das Custom Field "reset_link" in Quentn existiert!</div>';
                     }
                     
-                    // 3. Füge Tag hinzu
-                    $tagAdded = quentnAddTagsByName($contact['id'], ['kunde optinpilot']);
+                    // 3. Füge Tag "Kunde-OptinPilot" hinzu
+                    $tagAdded = quentnAddTagsByName($contact['id'], ['Kunde-OptinPilot']);
                     
                     if ($tagAdded) {
-                        echo '<div class="result success">✅ Schritt 3: Tag "kunde optinpilot" hinzugefügt
+                        echo '<div class="result success">✅ Schritt 3: Tag "Kunde-OptinPilot" (ID: 790) hinzugefügt
 
 🎯 Campaign sollte jetzt getriggert werden!
 Prüfe in Quentn ob die E-Mail versendet wird.</div>';
                     } else {
                         echo '<div class="result error">❌ Schritt 3: Tag konnte nicht hinzugefügt werden
-Stelle sicher dass der Tag "kunde optinpilot" in Quentn existiert!</div>';
+Stelle sicher dass der Tag "Kunde-OptinPilot" in Quentn existiert!</div>';
                     }
                 }
             } catch (Exception $e) {
@@ -234,9 +234,9 @@ Stelle sicher dass der Tag "kunde optinpilot" in Quentn existiert!</div>';
             <ol style="line-height: 1.8; color: #374151;">
                 <li>✅ API URL: <code>/public/api/V1/contact</code></li>
                 <li>✅ 756 Tags verfügbar</li>
-                <li>⚠️  Tag "kunde optinpilot" muss existieren</li>
+                <li>✅ Tag "Kunde-OptinPilot" existiert (ID: 790)</li>
                 <li>⚠️  Custom Field "reset_link" muss existieren</li>
-                <li>⚠️  Campaign mit Trigger "kunde optinpilot" muss erstellt sein</li>
+                <li>⚠️  Campaign mit Trigger "Kunde-OptinPilot" muss erstellt sein</li>
                 <li>⚠️  Campaign muss AKTIV sein</li>
             </ol>
         </div>
