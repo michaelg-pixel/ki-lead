@@ -1,7 +1,7 @@
 <?php
 /**
  * Template List API
- * Gibt alle Templates des Vendors zurück
+ * Gibt alle Templates des Vendors zurück (Kostenlose Belohnungen)
  */
 
 session_start();
@@ -33,7 +33,7 @@ try {
         exit;
     }
     
-    // Hole alle Templates des Vendors - NUR BASIS-SPALTEN
+    // Hole alle Templates des Vendors
     $stmt = $pdo->prepare("
         SELECT 
             id,
@@ -56,8 +56,9 @@ try {
             original_product_link,
             suggested_tier_level,
             suggested_referrals_required,
-            marketplace_price,
             is_published,
+            COALESCE(times_imported, 0) as times_imported,
+            COALESCE(times_claimed, 0) as times_claimed,
             created_at,
             updated_at
         FROM vendor_reward_templates
@@ -68,14 +69,11 @@ try {
     $stmt->execute([$customer_id]);
     $templates = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Berechne Sales und Revenue aus anderen Tabellen falls nötig
+    // Konvertiere Werte zu korrekten Typen
     foreach ($templates as &$template) {
-        // Setze Default-Werte für nicht-existierende Felder
-        $template['sales_count'] = 0;
-        $template['revenue'] = 0.00;
-        
-        // TODO: Hier könnten wir später die echten Werte aus anderen Tabellen holen
-        // z.B. aus reward_template_imports oder reward_template_claims
+        $template['times_imported'] = (int)$template['times_imported'];
+        $template['times_claimed'] = (int)$template['times_claimed'];
+        $template['is_published'] = (bool)$template['is_published'];
     }
     
     echo json_encode([
