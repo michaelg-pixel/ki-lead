@@ -38,8 +38,10 @@ $testLastName = 'Test';
             padding: 16px;
             margin-top: 12px;
             font-family: monospace;
-            font-size: 13px;
+            font-size: 11px;
             white-space: pre-wrap;
+            max-height: 600px;
+            overflow-y: auto;
         }
         .success {
             border-color: #10b981;
@@ -94,8 +96,10 @@ Suche nach "kunde optinpilot"...' . "\n";
 Du musst diesen Tag in Quentn erstellen.' . "\n";
                     }
                     
-                    echo "\nErste 10 Tags:\n";
-                    foreach (array_slice($tags, 0, 10) as $tag) {
+                    echo "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+                    echo "ALLE " . count($tags) . " TAGS:\n";
+                    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
+                    foreach ($tags as $tag) {
                         echo '• ' . ($tag['name'] ?? 'N/A') . ' (ID: ' . ($tag['id'] ?? 'N/A') . ')' . "\n";
                     }
                     echo '</div>';
@@ -209,7 +213,7 @@ Stelle sicher dass der Tag "kunde optinpilot" in Quentn existiert!</div>';
             <p style="margin-bottom: 16px;">Test-E-Mail: <strong><?php echo htmlspecialchars($testEmail); ?></strong></p>
             
             <form method="POST">
-                <button type="submit" name="test_tags" class="btn">1. Tags prüfen</button>
+                <button type="submit" name="test_tags" class="btn">1. Alle 756 Tags anzeigen</button>
             </form>
             
             <form method="POST" style="margin-top: 12px;">
