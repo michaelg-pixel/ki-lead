@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migration: Fix reward_delivery_type</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #0f0f1e;
+            color: #e0e0e0;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 30px;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        .info {
+            background: rgba(59, 130, 246, 0.1);
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .warning {
+            background: rgba(251, 191, 36, 0.1);
+            border-left: 4px solid #fbbf24;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background: rgba(16, 185, 129, 0.1);
+            border-left: 4px solid #10b981;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .error {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 4px solid #ef4444;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #667eea;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Database Migration: Fix reward_delivery_type</h1>
+        
+        <div class="info">
+            <strong>ℹ️ Info:</strong><br>
+            Diese Migration behebt den Fehler "Data truncated for column 'reward_delivery_type'" indem die Spalte von ENUM zu VARCHAR(50) geändert wird.
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ Wichtig:</strong><br>
+            Diese Migration ändert die Datenbankstruktur. Bitte stelle sicher, dass du ein Backup hast.
+        </div>
+
+        <div id="result"></div>
+
+        <button id="migrateBtn" onclick="runMigration()">
+            Migration ausführen
+        </button>
+
+        <a href="/customer/dashboard.php?page=vendor-bereich&tab=templates" class="back-link">
+            ← Zurück zum Vendor Bereich
+        </a>
+    </div>
+
+    <script>
+        async function runMigration() {
+            const btn = document.getElementById('migrateBtn');
+            const resultDiv = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.textContent = 'Migration läuft...';
+            
+            try {
+                const response = await fetch('/migrations/fix_reward_delivery_type_execute.php', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <strong>✓ Migration erfolgreich!</strong><br><br>
+                            <pre>${data.output}</pre>
+                        </div>
+                    `;
+                    btn.textContent = 'Migration abgeschlossen';
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <strong>❌ Migration fehlgeschlagen:</strong><br><br>
+                            <pre>${data.error}</pre>
+                        </div>
+                    `;
+                    btn.disabled = false;
+                    btn.textContent = 'Erneut versuchen';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>❌ Fehler:</strong><br><br>
+                        ${error.message}
+                    </div>
+                `;
+                btn.disabled = false;
+                btn.textContent = 'Erneut versuchen';
+            }
+        }
+    </script>
+</body>
+</html>
