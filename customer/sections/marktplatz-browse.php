@@ -466,6 +466,16 @@ $rewardCategories = [
     font-size: 0.875rem;
 }
 
+/* Produktbild im Modal */
+.detail-product-image {
+    width: 100%;
+    max-height: 300px;
+    object-fit: contain;
+    border-radius: 0.75rem;
+    margin-bottom: 1rem;
+    background: rgba(0, 0, 0, 0.3);
+}
+
 .import-section {
     background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
     padding: 1.5rem;
@@ -857,20 +867,28 @@ function createFreebieCard(freebie) {
     `;
 }
 
-// Reward-Karte (NEU)
+// Reward-Karte (mit Produktbild)
 function createRewardCard(reward) {
     const categoryLabel = rewardCategories[reward.category] || '🎁 Sonstiges';
     const bgColor = reward.reward_color || '#667eea';
     const isImported = reward.is_imported_by_me;
+    
+    // Priorisiere product_mockup_url, dann preview_image, dann Icon
+    let imageHtml;
+    if (reward.product_mockup_url) {
+        imageHtml = `<img src="${reward.product_mockup_url}" alt="${reward.template_name}" style="max-width: 100%; max-height: 100%; object-fit: contain;">`;
+    } else if (reward.preview_image) {
+        imageHtml = `<img src="${reward.preview_image}" alt="${reward.template_name}" style="max-width: 100%; max-height: 100%; object-fit: contain;">`;
+    } else {
+        imageHtml = `<div style="font-size: 64px;">${reward.reward_icon || '🎁'}</div>`;
+    }
     
     return `
         <div class="marketplace-item ${isImported ? 'imported' : ''}" onclick="showRewardDetail(${reward.id})">
             <div class="item-preview" style="background: ${bgColor};">
                 <div class="item-niche-badge">${categoryLabel}</div>
                 ${isImported ? '<div class="item-imported-badge">✓ Importiert</div>' : ''}
-                <div style="font-size: 64px;">
-                    <i class="fas ${reward.reward_icon || 'fa-gift'}"></i>
-                </div>
+                ${imageHtml}
             </div>
             
             <div class="item-content">
@@ -895,7 +913,7 @@ function createRewardCard(reward) {
                 <div class="item-footer">
                     <div class="item-seller">
                         <span>👤</span>
-                        <span>${reward.vendor_name}</span>
+                        <span>${reward.vendor_name || 'Unbekannt'}</span>
                     </div>
                     <div>
                         <span>✓ Kostenlos</span>
@@ -917,22 +935,43 @@ function showRewardDetail(rewardId) {
     
     document.getElementById('rewardModalTitle').textContent = reward.template_name;
     
+    // Produktbild HTML
+    let productImageHtml = '';
+    if (reward.product_mockup_url || reward.preview_image) {
+        const imageUrl = reward.product_mockup_url || reward.preview_image;
+        productImageHtml = `
+            <div class="detail-section">
+                <img src="${imageUrl}" alt="${reward.template_name}" class="detail-product-image">
+            </div>
+        `;
+    }
+    
     const modalBody = document.getElementById('rewardModalBody');
     modalBody.innerHTML = `
+        ${productImageHtml}
+        
         <div class="detail-section">
-            <h3><i class="fas ${reward.reward_icon || 'fa-gift'}"></i> Belohnungs-Details</h3>
+            <h3>${reward.reward_icon || '🎁'} Belohnungs-Details</h3>
             <div class="detail-row">
                 <span class="detail-label">Typ:</span>
                 <span class="detail-value">${reward.reward_title}</span>
             </div>
-            <div class="detail-row">
-                <span class="detail-label">Wert:</span>
-                <span class="detail-value">${reward.reward_value || '-'}</span>
-            </div>
+            ${reward.reward_value ? `
+                <div class="detail-row">
+                    <span class="detail-label">Wert:</span>
+                    <span class="detail-value">${reward.reward_value}</span>
+                </div>
+            ` : ''}
             <div class="detail-row">
                 <span class="detail-label">Vorgeschlagene Empfehlungen:</span>
                 <span class="detail-value">${reward.suggested_referrals_required}</span>
             </div>
+            ${reward.course_duration ? `
+                <div class="detail-row">
+                    <span class="detail-label">Dauer:</span>
+                    <span class="detail-value">${reward.course_duration}</span>
+                </div>
+            ` : ''}
             ${reward.reward_description ? `
                 <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
                     <p style="color: #9ca3af; font-size: 0.875rem; line-height: 1.6;">
@@ -946,8 +985,25 @@ function showRewardDetail(rewardId) {
             <h3>👤 Vendor-Info</h3>
             <div class="detail-row">
                 <span class="detail-label">Vendor:</span>
-                <span class="detail-value">${reward.vendor_name}</span>
+                <span class="detail-value">${reward.vendor_name || 'Unbekannt'}</span>
             </div>
+            ${reward.vendor_website ? `
+                <div class="detail-row">
+                    <span class="detail-label">Website:</span>
+                    <span class="detail-value">
+                        <a href="${reward.vendor_website}" target="_blank" style="color: #667eea;">
+                            ${reward.vendor_website}
+                        </a>
+                    </span>
+                </div>
+            ` : ''}
+            ${reward.vendor_description ? `
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <p style="color: #9ca3af; font-size: 0.875rem; line-height: 1.6;">
+                        ${reward.vendor_description}
+                    </p>
+                </div>
+            ` : ''}
             <div class="detail-row">
                 <span class="detail-label">Bereits importiert:</span>
                 <span class="detail-value">${reward.times_imported} mal</span>
@@ -974,7 +1030,7 @@ function showRewardDetail(rewardId) {
                 </div>
                 
                 <button type="submit" class="btn-import" id="importBtn">
-                    <i class="fas fa-download"></i> Jetzt importieren
+                    📥 Jetzt importieren
                 </button>
             </form>
         </div>
@@ -996,7 +1052,7 @@ async function importReward(event, templateId) {
     
     const btn = document.getElementById('importBtn');
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importiere...';
+    btn.innerHTML = '⏳ Importiere...';
     
     const formData = new FormData(event.target);
     const freebieId = formData.get('freebie_id') || null;
@@ -1020,13 +1076,13 @@ async function importReward(event, templateId) {
         } else {
             showNotification('Fehler: ' + result.error, 'error');
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-download"></i> Jetzt importieren';
+            btn.innerHTML = '📥 Jetzt importieren';
         }
     } catch (error) {
         console.error('Error:', error);
         showNotification('Verbindungsfehler', 'error');
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-download"></i> Jetzt importieren';
+        btn.innerHTML = '📥 Jetzt importieren';
     }
 }
 
