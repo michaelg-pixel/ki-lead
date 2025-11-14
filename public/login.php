@@ -134,23 +134,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
         
-        .forgot-password {
-            text-align: right;
-            margin-top: -16px;
-            margin-bottom: 20px;
-        }
-        
-        .forgot-password a {
-            color: #667eea;
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 500;
-        }
-        
-        .forgot-password a:hover {
-            text-decoration: underline;
-        }
-        
         .btn-login {
             width: 100%;
             padding: 14px;
@@ -240,10 +223,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <label class="form-label">Passwort</label>
                 <input type="password" name="password" class="form-input" 
                        placeholder="••••••••" required>
-            </div>
-            
-            <div class="forgot-password">
-                <a href="password-reset-request.php">🔐 Passwort vergessen?</a>
             </div>
             
             <button type="submit" class="btn-login">
