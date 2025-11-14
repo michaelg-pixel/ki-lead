@@ -1,13 +1,13 @@
 <?php
 /**
  * Template Create API
- * Erstellt ein neues Template
+ * Erstellt ein neues Template (Kostenlose Belohnungen)
  */
 
 session_start();
 header('Content-Type: application/json');
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
 
 require_once __DIR__ . '/../../../config/database.php';
 
@@ -62,44 +62,27 @@ try {
         $errors[] = 'Belohnungs-Titel ist erforderlich';
     }
     
-    $valid_categories = ['ebook', 'consultation', 'discount', 'course', 'voucher', 'software', 'template', 'other'];
+    // Angepasste Kategorien aus dem Frontend
+    $valid_categories = ['leadmagnet', 'video_course', 'ebook', 'checklist', 'template', 'tool'];
     if (!empty($input['category']) && !in_array($input['category'], $valid_categories)) {
-        $errors[] = 'Ungültige Kategorie';
+        // Erlauben, aber loggen
+        error_log('Unbekannte Kategorie: ' . $input['category']);
     }
     
-    $valid_delivery_types = ['automatic', 'manual', 'code', 'url'];
+    // Angepasste Delivery-Types aus dem Frontend
+    $valid_delivery_types = ['manual', 'download', 'email', 'redirect'];
     if (!empty($input['reward_delivery_type']) && !in_array($input['reward_delivery_type'], $valid_delivery_types)) {
-        $errors[] = 'Ungültiger Lieferungs-Typ';
+        // Erlauben, aber loggen
+        error_log('Unbekannter Delivery-Type: ' . $input['reward_delivery_type']);
     }
     
     if (!empty($errors)) {
         http_response_code(400);
-        echo json_encode(['success' => false, 'errors' => $errors]);
+        echo json_encode(['success' => false, 'errors' => $errors, 'error' => implode(', ', $errors)]);
         exit;
     }
     
     // Helper function für sichere Wert-Konvertierung
-    function getIntValue($input, $key, $default = 0) {
-        if (!isset($input[$key]) || $input[$key] === '' || $input[$key] === null) {
-            return $default;
-        }
-        return (int)$input[$key];
-    }
-    
-    function getFloatValue($input, $key, $default = 0.00) {
-        if (!isset($input[$key]) || $input[$key] === '' || $input[$key] === null) {
-            return $default;
-        }
-        return (float)$input[$key];
-    }
-    
-    function getBoolValue($input, $key, $default = false) {
-        if (!isset($input[$key]) || $input[$key] === '' || $input[$key] === null) {
-            return $default ? 1 : 0;
-        }
-        return $input[$key] ? 1 : 0;
-    }
-    
     function getStringValue($input, $key, $default = null) {
         if (!isset($input[$key]) || $input[$key] === '') {
             return $default;
@@ -107,7 +90,14 @@ try {
         return $input[$key];
     }
     
-    // Template erstellen - OHNE digistore_product_id
+    function getIntValue($input, $key, $default = 0) {
+        if (!isset($input[$key]) || $input[$key] === '' || $input[$key] === null) {
+            return $default;
+        }
+        return (int)$input[$key];
+    }
+    
+    // Template erstellen
     $stmt = $pdo->prepare("
         INSERT INTO vendor_reward_templates (
             vendor_id,
@@ -121,7 +111,6 @@ try {
             reward_value,
             reward_delivery_type,
             reward_instructions,
-            reward_access_code_template,
             reward_download_url,
             reward_icon,
             reward_color,
@@ -130,10 +119,11 @@ try {
             original_product_link,
             suggested_tier_level,
             suggested_referrals_required,
-            marketplace_price,
-            is_published
+            is_published,
+            created_at,
+            updated_at
         ) VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW(), NOW()
         )
     ");
     
@@ -149,17 +139,14 @@ try {
         getStringValue($input, 'reward_value'),
         getStringValue($input, 'reward_delivery_type', 'manual'),
         getStringValue($input, 'reward_instructions'),
-        getStringValue($input, 'reward_access_code_template'),
         getStringValue($input, 'reward_download_url'),
-        getStringValue($input, 'reward_icon', 'fa-gift'),
+        getStringValue($input, 'reward_icon', '🎁'),
         getStringValue($input, 'reward_color', '#667eea'),
         getStringValue($input, 'product_mockup_url'),
         getStringValue($input, 'course_duration'),
         getStringValue($input, 'original_product_link'),
         getIntValue($input, 'suggested_tier_level', 1),
-        getIntValue($input, 'suggested_referrals_required', 3),
-        getFloatValue($input, 'marketplace_price', 0.00),
-        getBoolValue($input, 'is_published', false)
+        getIntValue($input, 'suggested_referrals_required', 3)
     ]);
     
     if (!$result) {
@@ -180,8 +167,7 @@ try {
     http_response_code(500);
     echo json_encode([
         'success' => false, 
-        'error' => 'Datenbankfehler: ' . $e->getMessage(),
-        'code' => $e->getCode()
+        'error' => 'Datenbankfehler: ' . $e->getMessage()
     ]);
 } catch (Exception $e) {
     error_log('Template Create Error: ' . $e->getMessage());
