@@ -1,7 +1,7 @@
 <?php
 /**
  * Vendor Overview Statistics API
- * Liefert Gesamtstatistiken für alle Templates eines Vendors
+ * Liefert Gesamtstatistiken für alle Templates eines Vendors (Kostenlose Belohnungen)
  */
 
 session_start();
@@ -29,26 +29,35 @@ $vendor_id = $_SESSION['user_id'];
 try {
     $pdo = getDBConnection();
     
+    // Prüfe ob User Vendor ist
+    $stmt = $pdo->prepare("SELECT is_vendor FROM users WHERE id = ?");
+    $stmt->execute([$vendor_id]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$user || !$user['is_vendor']) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Kein Vendor']);
+        exit;
+    }
+    
     // Gesamtstatistiken
     $stmt = $pdo->prepare("
         SELECT 
             COUNT(*) as total_templates,
             COUNT(CASE WHEN is_published = 1 THEN 1 END) as published_templates,
-            SUM(times_imported) as total_imports,
-            SUM(times_claimed) as total_claims,
-            SUM(total_revenue) as total_revenue
+            COALESCE(SUM(times_imported), 0) as total_imports,
+            COALESCE(SUM(times_claimed), 0) as total_claims
         FROM vendor_reward_templates
         WHERE vendor_id = ?
     ");
     $stmt->execute([$vendor_id]);
     $stats = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    // Konvertiere NULL zu 0
+    // Konvertiere zu integers
     $stats['total_templates'] = (int)($stats['total_templates'] ?? 0);
     $stats['published_templates'] = (int)($stats['published_templates'] ?? 0);
     $stats['total_imports'] = (int)($stats['total_imports'] ?? 0);
     $stats['total_claims'] = (int)($stats['total_claims'] ?? 0);
-    $stats['total_revenue'] = (float)($stats['total_revenue'] ?? 0);
     
     // Timeline-Daten (letzte 30 Tage)
     $stmt = $pdo->prepare("
@@ -110,18 +119,16 @@ try {
         }
     }
     
-    // Top Templates
+    // Top Templates nach Downloads
     $stmt = $pdo->prepare("
         SELECT 
             id,
             template_name,
             category,
             niche,
-            times_imported,
-            times_claimed,
-            total_revenue,
-            is_published,
-            is_featured
+            COALESCE(times_imported, 0) as times_imported,
+            COALESCE(times_claimed, 0) as times_claimed,
+            is_published
         FROM vendor_reward_templates
         WHERE vendor_id = ?
         ORDER BY times_imported DESC, times_claimed DESC
@@ -134,7 +141,6 @@ try {
     $stmt = $pdo->prepare("
         SELECT 
             rti.import_date,
-            rti.purchase_price,
             vrt.template_name,
             u.name as customer_name
         FROM reward_template_imports rti
