@@ -315,8 +315,7 @@ if (!defined('INCLUDED')) {
 }
 
 .form-input,
-.form-textarea,
-.form-select {
+.form-textarea {
     width: 100%;
     padding: 0.75rem 1rem;
     background: rgba(255, 255, 255, 0.05);
@@ -328,11 +327,52 @@ if (!defined('INCLUDED')) {
 }
 
 .form-input:focus,
-.form-textarea:focus,
-.form-select:focus {
+.form-textarea:focus {
     outline: none;
     border-color: #667eea;
     background: rgba(102, 126, 234, 0.1);
+}
+
+/* VERBESSERTE DROPDOWN-KONTRASTE */
+.form-select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    border-radius: 0.5rem;
+    color: var(--text-primary, #ffffff);
+    font-size: 0.875rem;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.form-select:focus {
+    outline: none;
+    border-color: #667eea;
+    background: rgba(102, 126, 234, 0.15);
+}
+
+.form-select:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(102, 126, 234, 0.5);
+}
+
+/* Dropdown Options mit besserem Kontrast */
+.form-select option {
+    background: #1a1a2e;
+    color: #ffffff;
+    padding: 0.75rem;
+}
+
+.form-select option:hover {
+    background: #667eea;
+    color: #ffffff;
+}
+
+.form-select option:checked {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #ffffff;
+    font-weight: 600;
 }
 
 .form-textarea {
@@ -608,7 +648,7 @@ if (!defined('INCLUDED')) {
                         
                         <div class="form-group">
                             <label class="form-label">Nische</label>
-                            <input type="text" id="niche" name="niche" class="form-input" placeholder="z.B. Online Marketing">
+                            <input type="text" id="nische" name="niche" class="form-input" placeholder="z.B. Online Marketing">
                         </div>
                     </div>
                     
@@ -953,7 +993,7 @@ async function loadTemplate(templateId) {
             document.getElementById('templateName').value = t.template_name;
             document.getElementById('templateDescription').value = t.template_description || '';
             document.getElementById('category').value = t.category || '';
-            document.getElementById('niche').value = t.niche || '';
+            document.getElementById('nische').value = t.niche || '';
             document.getElementById('rewardType').value = t.reward_type;
             document.getElementById('rewardTitle').value = t.reward_title;
             document.getElementById('rewardDescription').value = t.reward_description || '';
