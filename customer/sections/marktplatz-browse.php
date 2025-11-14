@@ -517,6 +517,11 @@ $rewardCategories = [
     margin-top: 0.5rem;
 }
 
+.import-buttons {
+    display: grid;
+    gap: 0.75rem;
+}
+
 .btn-import {
     width: 100%;
     padding: 1rem;
@@ -539,6 +544,24 @@ $rewardCategories = [
     opacity: 0.5;
     cursor: not-allowed;
     transform: none;
+}
+
+.btn-cancel {
+    width: 100%;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-cancel:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
 }
 
 .empty-marketplace {
@@ -1029,9 +1052,14 @@ function showRewardDetail(rewardId) {
                     </div>
                 </div>
                 
-                <button type="submit" class="btn-import" id="importBtn">
-                    📥 Jetzt importieren
-                </button>
+                <div class="import-buttons">
+                    <button type="submit" class="btn-import" id="importBtn">
+                        📥 Jetzt importieren
+                    </button>
+                    <button type="button" class="btn-cancel" onclick="closeRewardModal()">
+                        ↩️ Abbrechen
+                    </button>
+                </div>
             </form>
         </div>
     `;
