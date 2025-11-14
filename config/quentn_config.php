@@ -4,7 +4,8 @@
  * Für E-Mail-Versand (z.B. Passwort-Reset)
  */
 
-define('QUENTN_API_BASE_URL', 'https://pk1bh1.eu-1.quentn.com/public/api/v1/');
+// WICHTIG: V1 mit GROSSEM V und /contact (singular)
+define('QUENTN_API_BASE_URL', 'https://pk1bh1.eu-1.quentn.com/public/api/V1/contact');
 define('QUENTN_API_KEY', 'm-gkCLAXFVewwguCP1ZCm9zFFi_bauieZPl21EkGUqo');
 
 // E-Mail Absender-Einstellungen
