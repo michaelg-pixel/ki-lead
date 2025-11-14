@@ -2,6 +2,8 @@
 /**
  * Lead Registrierung für Dashboard-Zugang
  * Lead gibt selbst seine E-Mail ein und bekommt Zugang zum Empfehlungsprogramm
+ * UNTERSTÜTZT: customer_freebies UND freebies (Templates)
+ * MULTI-FREEBIE: Lead kann Zugang zu mehreren Freebies haben
  */
 
 require_once __DIR__ . '/config/database.php';
@@ -18,9 +20,10 @@ $ref = isset($_GET['ref']) ? trim($_GET['ref']) : ''; // Referral Code
 $error = '';
 $debug = '';
 
-// Freebie laden
+// Freebie laden - ERST customer_freebies, DANN freebies (Templates)
 $freebie = null;
 try {
+    // Zuerst in customer_freebies suchen
     $stmt = $pdo->prepare("
         SELECT cf.*, u.referral_enabled, u.company_name
         FROM customer_freebies cf
@@ -29,6 +32,24 @@ try {
     ");
     $stmt->execute([$freebie_id, $customer_id]);
     $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    // Falls nicht gefunden: In freebies (Templates) suchen
+    if (!$freebie) {
+        $stmt = $pdo->prepare("
+            SELECT f.*, u.referral_enabled, u.company_name
+            FROM freebies f
+            LEFT JOIN users u ON u.id = ?
+            WHERE f.id = ?
+        ");
+        $stmt->execute([$customer_id, $freebie_id]);
+        $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($freebie) {
+            $debug .= "✓ Freebie aus Templates geladen. ";
+        }
+    } else {
+        $debug .= "✓ Freebie aus 'Meine Freebies' geladen. ";
+    }
     
     if (!$freebie) {
         die('Freebie nicht gefunden (ID: ' . $freebie_id . ', Customer: ' . $customer_id . ')');
@@ -97,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                 }
             }
             
-            // lead_freebie_access Tabelle für Many-to-Many Beziehung
+            // lead_freebie_access Tabelle existiert?
             $stmt = $pdo->query("SHOW TABLES LIKE 'lead_freebie_access'");
             if ($stmt->rowCount() === 0) {
                 $pdo->exec("
@@ -106,9 +127,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                         lead_id INT NOT NULL,
                         freebie_id INT NOT NULL,
                         granted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        UNIQUE KEY unique_lead_freebie (lead_id, freebie_id),
                         INDEX idx_lead (lead_id),
-                        INDEX idx_freebie (freebie_id)
+                        INDEX idx_freebie (freebie_id),
+                        UNIQUE KEY unique_access (lead_id, freebie_id)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 ");
                 $debug .= "✓ lead_freebie_access Tabelle erstellt. ";
@@ -144,7 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                     }
                 }
                 
-                // Lead erstellen (mit NULL password, freebie_id bleibt für Kompatibilität)
+                // Lead erstellen (mit NULL password)
                 $stmt = $pdo->prepare("
                     INSERT INTO lead_users 
                     (name, email, password_hash, user_id, freebie_id, referral_code, referrer_id, status, created_at)
@@ -154,7 +175,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                     $name ?: 'Lead',
                     $email,
                     $customer_id,
-                    $freebie_id, // Erstes Freebie als Standard
+                    $freebie_id,
                     $referral_code,
                     $referrer_id
                 ]);
@@ -202,24 +223,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                 }
             }
             
-            // ===== FREEBIE-ZUGANG GEWÄHREN =====
-            // Prüfen ob Zugang bereits existiert
-            $stmt = $pdo->prepare("
-                SELECT id FROM lead_freebie_access 
-                WHERE lead_id = ? AND freebie_id = ?
-            ");
-            $stmt->execute([$lead_id, $freebie_id]);
-            
-            if ($stmt->rowCount() === 0) {
-                // Neuen Zugang gewähren
+            // FREEBIE-ZUGANG GEWÄHREN (auch wenn Lead bereits existiert!)
+            try {
                 $stmt = $pdo->prepare("
-                    INSERT INTO lead_freebie_access (lead_id, freebie_id, granted_at)
+                    INSERT IGNORE INTO lead_freebie_access 
+                    (lead_id, freebie_id, granted_at)
                     VALUES (?, ?, NOW())
                 ");
                 $stmt->execute([$lead_id, $freebie_id]);
-                $debug .= "✓ Freebie-Zugang gewährt (Freebie ID: $freebie_id). ";
-            } else {
-                $debug .= "✓ Freebie-Zugang existiert bereits. ";
+                
+                if ($pdo->lastInsertId() > 0) {
+                    $debug .= "✓ Freebie-Zugang gewährt (Freebie ID: $freebie_id). ";
+                } else {
+                    $debug .= "✓ Freebie-Zugang bereits vorhanden. ";
+                }
+            } catch (PDOException $e) {
+                $debug .= "⚠ Freebie-Zugang Fehler: " . $e->getMessage() . " ";
             }
             
             // Session setzen
