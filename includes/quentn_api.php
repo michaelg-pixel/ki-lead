@@ -37,11 +37,11 @@ function sendPasswordResetEmail($toEmail, $toName, $resetLink) {
             return $updateResult;
         }
         
-        // 3. Tag "kunde optinpilot" setzen um Campaign zu triggern
-        $tagResult = addTagToContact($contactId, 'kunde optinpilot');
+        // 3. Tag "Kunde-OptinPilot" setzen um Campaign zu triggern
+        $tagResult = addTagToContact($contactId, 'Kunde-OptinPilot');
         
         if (!$tagResult['success']) {
-            error_log("Warning: Tag 'kunde optinpilot' could not be added: " . $tagResult['message']);
+            error_log("Warning: Tag 'Kunde-OptinPilot' could not be added: " . $tagResult['message']);
         }
         
         error_log("Password reset email triggered via Quentn for: $toEmail");
@@ -187,14 +187,21 @@ function updateContactWithResetLink($contactId, $resetLink) {
 /**
  * Fügt Tag zu Kontakt hinzu (triggert Campaign)
  * POST /contact/<id>/terms
+ * 
+ * Tag "Kunde-OptinPilot" hat die ID 790
  */
 function addTagToContact($contactId, $tagName) {
-    // Erst müssen wir die Tag-ID finden
-    $tagId = findTagId($tagName);
-    
-    if (!$tagId) {
-        // Tag erstellen wenn nicht vorhanden
-        $tagId = createTag($tagName);
+    // Direkt mit bekannter Tag-ID für "Kunde-OptinPilot"
+    if ($tagName === 'Kunde-OptinPilot') {
+        $tagId = 790;
+    } else {
+        // Für andere Tags: ID suchen
+        $tagId = findTagId($tagName);
+        
+        if (!$tagId) {
+            // Tag erstellen wenn nicht vorhanden
+            $tagId = createTag($tagName);
+        }
     }
     
     if (!$tagId) {
@@ -259,7 +266,7 @@ function findTagId($tagName) {
         $tags = json_decode($response, true);
         if (is_array($tags)) {
             foreach ($tags as $tag) {
-                if (isset($tag['name']) && strtolower($tag['name']) === strtolower($tagName)) {
+                if (isset($tag['name']) && $tag['name'] === $tagName) {
                     return $tag['id'];
                 }
             }
