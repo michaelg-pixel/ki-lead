@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config/database.php';
+require_once '../config/quentn_config.php';
 
 $success = false;
 $error = '';
@@ -42,13 +43,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ");
                 $stmt->execute([$name, $email, $hashed_password]);
                 
-                // Auto-Login nach Registrierung - KORRIGIERTE Session-Variablen
                 $user_id = $pdo->lastInsertId();
+                
+                // QUENTN INTEGRATION: Kontakt zu Quentn senden
+                sendToQuentn($email, $vorname, $nachname);
+                
+                // Auto-Login nach Registrierung
                 $_SESSION['user_id'] = $user_id;
-                $_SESSION['name'] = $name;        // Korrigiert von 'user_name'
-                $_SESSION['email'] = $email;      // Korrigiert von 'user_email'
-                $_SESSION['role'] = 'customer';   // Korrigiert von 'user_role'
-                $_SESSION['logged_in'] = true;    // NEU: für isLoggedIn() Funktion
+                $_SESSION['name'] = $name;
+                $_SESSION['email'] = $email;
+                $_SESSION['role'] = 'customer';
+                $_SESSION['logged_in'] = true;
                 
                 // Weiterleitung zum Dashboard
                 header('Location: /customer/dashboard.php');
@@ -58,6 +63,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Registrierung fehlgeschlagen. Bitte versuche es später erneut.';
             error_log("Registration error: " . $e->getMessage());
         }
+    }
+}
+
+/**
+ * Sendet Kontakt zu Quentn bei Registrierung
+ */
+function sendToQuentn($email, $firstName, $lastName) {
+    try {
+        // Kontakt-Daten für Quentn
+        $contactData = [
+            'email' => $email,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'skip_double_opt_in' => true, // Wichtig: Kunde hat bereits bei Registrierung zugestimmt
+            'tags' => ['registration', 'customer'] // Tags für Segmentierung
+        ];
+        
+        // API Request zu Quentn
+        $ch = curl_init(QUENTN_API_BASE_URL . 'contacts');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($contactData),
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . QUENTN_API_KEY
+            ],
+            CURLOPT_TIMEOUT => 10
+        ]);
+        
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        if ($httpCode >= 200 && $httpCode < 300) {
+            error_log("Quentn: Contact created successfully for $email");
+            return true;
+        } else {
+            error_log("Quentn: Failed to create contact for $email - HTTP $httpCode - $response");
+            return false;
+        }
+        
+    } catch (Exception $e) {
+        error_log("Quentn API error during registration: " . $e->getMessage());
+        return false;
     }
 }
 ?>
