@@ -1,7 +1,7 @@
 <?php
 /**
  * Template Update API
- * Aktualisiert ein bestehendes Template
+ * Aktualisiert ein bestehendes Template (Kostenlose Belohnungen)
  */
 
 session_start();
@@ -27,7 +27,25 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $customer_id = $_SESSION['user_id'];
 
 try {
+    // Get PDO connection
+    $pdo = getDBConnection();
+    
+    // Prüfe ob User Vendor ist
+    $stmt = $pdo->prepare("SELECT is_vendor FROM users WHERE id = ?");
+    $stmt->execute([$customer_id]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$user || !$user['is_vendor']) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Kein Vendor']);
+        exit;
+    }
+    
     $input = json_decode(file_get_contents('php://input'), true);
+    
+    if (!$input) {
+        throw new Exception('Ungültige JSON-Daten');
+    }
     
     if (!isset($input['id'])) {
         throw new Exception('Template-ID fehlt');
@@ -59,33 +77,34 @@ try {
         $errors[] = 'Template-Name zu kurz (min. 3 Zeichen)';
     }
     
-    $valid_categories = ['ebook', 'consultation', 'discount', 'course', 'voucher', 'software', 'template', 'other'];
+    // Angepasste Kategorien aus dem Frontend
+    $valid_categories = ['leadmagnet', 'video_course', 'ebook', 'checklist', 'template', 'tool'];
     if (isset($input['category']) && !empty($input['category']) && !in_array($input['category'], $valid_categories)) {
-        $errors[] = 'Ungültige Kategorie';
+        // Erlauben, aber loggen
+        error_log('Unbekannte Kategorie: ' . $input['category']);
     }
     
     if (!empty($errors)) {
         http_response_code(400);
-        echo json_encode(['success' => false, 'errors' => $errors]);
+        echo json_encode(['success' => false, 'errors' => $errors, 'error' => implode(', ', $errors)]);
         exit;
     }
     
-    // Build UPDATE query dynamisch - INKLUSIVE NEUE FELDER
+    // Build UPDATE query dynamisch
     $updates = [];
     $params = [];
     
     $allowed_fields = [
         'template_name', 'template_description', 'category', 'niche',
         'reward_type', 'reward_title', 'reward_description', 'reward_value',
-        'reward_delivery_type', 'reward_instructions', 'reward_access_code_template',
-        'reward_download_url', 'reward_icon', 'reward_color', 'reward_badge_image',
-        'preview_image', 'product_mockup_url', 'course_duration', 'original_product_link',
-        'suggested_tier_level', 'suggested_referrals_required',
-        'marketplace_price', 'digistore_product_id', 'is_published'
+        'reward_delivery_type', 'reward_instructions',
+        'reward_download_url', 'reward_icon', 'reward_color',
+        'product_mockup_url', 'course_duration', 'original_product_link',
+        'suggested_tier_level', 'suggested_referrals_required'
     ];
     
     foreach ($allowed_fields as $field) {
-        if (isset($input[$field])) {
+        if (array_key_exists($field, $input)) {
             $updates[] = "$field = ?";
             $params[] = $input[$field];
         }
@@ -95,19 +114,37 @@ try {
         throw new Exception('Keine Änderungen zum Speichern');
     }
     
+    // Updated_at hinzufügen
+    $updates[] = "updated_at = NOW()";
+    
     $params[] = $template_id;
     
     $sql = "UPDATE vendor_reward_templates SET " . implode(', ', $updates) . " WHERE id = ?";
     $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
+    $result = $stmt->execute($params);
+    
+    if (!$result) {
+        throw new Exception('Fehler beim Aktualisieren des Templates');
+    }
     
     echo json_encode([
         'success' => true,
         'message' => 'Template erfolgreich aktualisiert'
     ]);
     
+} catch (PDOException $e) {
+    error_log('Template Update Error: ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode([
+        'success' => false, 
+        'error' => 'Datenbankfehler: ' . $e->getMessage()
+    ]);
 } catch (Exception $e) {
+    error_log('Template Update Error: ' . $e->getMessage());
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    echo json_encode([
+        'success' => false, 
+        'error' => $e->getMessage()
+    ]);
 }
 ?>
