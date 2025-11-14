@@ -77,7 +77,7 @@ function sendToQuentn($email, $firstName, $lastName) {
             'first_name' => $firstName,
             'last_name' => $lastName,
             'skip_double_opt_in' => true, // Wichtig: Kunde hat bereits bei Registrierung zugestimmt
-            'tags' => ['registration', 'customer'] // Tags für Segmentierung
+            'tags' => ['registration', 'customer', 'kunde optinpilot'] // Tags für Segmentierung + Campaign Trigger
         ];
         
         // API Request zu Quentn
