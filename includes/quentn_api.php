@@ -1,13 +1,11 @@
 <?php
 /**
- * Quentn API Helper Functions
- * Für E-Mail-Versand über Quentn
+ * E-Mail Helper Functions
+ * Nutzt PHP mail() für Transaktions-E-Mails (einfacher und zuverlässiger als Quentn für solche Zwecke)
  */
 
-require_once __DIR__ . '/../config/quentn_config.php';
-
 /**
- * Sendet eine Passwort-Reset E-Mail über Quentn
+ * Sendet eine Passwort-Reset E-Mail
  * 
  * @param string $toEmail Empfänger E-Mail
  * @param string $toName Empfänger Name
@@ -16,57 +14,41 @@ require_once __DIR__ . '/../config/quentn_config.php';
  */
 function sendPasswordResetEmail($toEmail, $toName, $resetLink) {
     try {
-        // E-Mail HTML erstellen
+        $subject = 'Passwort zurücksetzen - Optinpilot';
         $emailHtml = getPasswordResetEmailTemplate($toName, $resetLink);
         
-        // Quentn API Request vorbereiten
-        $data = [
-            'email' => $toEmail,
-            'first_name' => $toName,
-            'tags' => ['password-reset'],
-            'skip_double_opt_in' => true, // Wichtig: Kein DOI für Transaktions-E-Mails
-            'custom_fields' => [
-                'reset_link' => $resetLink,
-                'email_subject' => 'Passwort zurücksetzen - Optinpilot',
-                'email_body' => $emailHtml
-            ]
-        ];
+        // E-Mail Headers
+        $headers = [];
+        $headers[] = 'MIME-Version: 1.0';
+        $headers[] = 'Content-type: text/html; charset=utf-8';
+        $headers[] = 'From: Optinpilot <noreply@mehr-infos-jetzt.de>';
+        $headers[] = 'Reply-To: Optinpilot <noreply@mehr-infos-jetzt.de>';
+        $headers[] = 'X-Mailer: PHP/' . phpversion();
         
-        // cURL Request
-        $ch = curl_init(QUENTN_API_BASE_URL . 'contacts');
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => json_encode($data),
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: application/json',
-                'Authorization: Bearer ' . QUENTN_API_KEY
-            ],
-            CURLOPT_TIMEOUT => 10
-        ]);
+        // E-Mail senden
+        $sent = mail(
+            $toEmail,
+            $subject,
+            $emailHtml,
+            implode("\r\n", $headers)
+        );
         
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
-        
-        // Log für Debugging
-        error_log("Quentn API Response: HTTP $httpCode - " . substr($response, 0, 200));
-        
-        if ($httpCode >= 200 && $httpCode < 300) {
+        if ($sent) {
+            error_log("Password reset email sent to: $toEmail");
             return [
                 'success' => true,
                 'message' => 'E-Mail erfolgreich versendet'
             ];
         } else {
+            error_log("Failed to send password reset email to: $toEmail");
             return [
                 'success' => false,
-                'message' => 'E-Mail-Versand fehlgeschlagen: HTTP ' . $httpCode
+                'message' => 'E-Mail-Versand fehlgeschlagen'
             ];
         }
         
     } catch (Exception $e) {
-        error_log("Quentn API Error: " . $e->getMessage());
+        error_log("Email sending error: " . $e->getMessage());
         return [
             'success' => false,
             'message' => 'Fehler beim E-Mail-Versand: ' . $e->getMessage()
@@ -129,9 +111,9 @@ function getPasswordResetEmailTemplate($name, $resetLink) {
                             </table>
                             
                             <!-- Info Box -->
-                            <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                            <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px; margin: 20px 0;">
                                 <tr>
-                                    <td>
+                                    <td style="padding: 16px;">
                                         <p style="margin: 0; color: #92400e; font-size: 14px; line-height: 1.5;">
                                             ⏰ <strong>Wichtig:</strong> Dieser Link ist aus Sicherheitsgründen nur 1 Stunde gültig.
                                         </p>
@@ -142,6 +124,11 @@ function getPasswordResetEmailTemplate($name, $resetLink) {
                             <p style="margin: 20px 0 0 0; color: #6b7280; font-size: 14px; line-height: 1.6;">
                                 Falls du diese Anfrage nicht gestellt hast, kannst du diese E-Mail einfach ignorieren. 
                                 Dein Passwort bleibt dann unverändert.
+                            </p>
+                            
+                            <p style="margin: 20px 0 0 0; color: #6b7280; font-size: 14px; line-height: 1.6;">
+                                Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:<br>
+                                <a href="{$safeResetLink}" style="color: #667eea; word-break: break-all;">{$safeResetLink}</a>
                             </p>
                         </td>
                     </tr>
@@ -154,6 +141,9 @@ function getPasswordResetEmailTemplate($name, $resetLink) {
                             </p>
                             <p style="margin: 0; color: #374151; font-size: 16px; font-weight: 600;">
                                 Optinpilot - Dein Lead-System
+                            </p>
+                            <p style="margin: 10px 0 0 0; color: #9ca3af; font-size: 12px;">
+                                mehr-infos-jetzt.de
                             </p>
                         </td>
                     </tr>
