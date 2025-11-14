@@ -2,6 +2,11 @@
 /**
  * Quentn API Integration für Passwort-Reset E-Mails
  * Nutzt Custom Fields und Campaign Trigger
+ * 
+ * WICHTIG: Quentn API nutzt SINGULAR Endpoints:
+ * - /contact (nicht /contacts)
+ * - /contact/<email> (Suche nach E-Mail)
+ * - /contact/<id>/terms (Tags setzen, nicht /tags)
  */
 
 require_once __DIR__ . '/../config/quentn_config.php';
@@ -59,8 +64,9 @@ function sendPasswordResetEmail($toEmail, $toName, $resetLink) {
  * Findet einen Kontakt oder erstellt einen neuen
  */
 function findOrCreateContact($email, $name) {
-    // 1. Versuche Kontakt zu finden
-    $ch = curl_init(QUENTN_API_BASE_URL . 'contacts?email=' . urlencode($email));
+    // 1. Versuche Kontakt zu finden via E-Mail
+    // GET /contact/<email>
+    $ch = curl_init(QUENTN_API_BASE_URL . '/' . urlencode($email));
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_HTTPHEADER => [
@@ -78,11 +84,15 @@ function findOrCreateContact($email, $name) {
     if ($httpCode == 200) {
         $data = json_decode($response, true);
         
-        if (!empty($data) && isset($data[0]['id'])) {
-            return [
-                'success' => true,
-                'contact_id' => $data[0]['id']
-            ];
+        // Quentn gibt Array zurück, auch wenn nur 1 Kontakt
+        if (!empty($data) && is_array($data)) {
+            $firstContact = is_array($data[0]) ? $data[0] : $data;
+            if (isset($firstContact['id'])) {
+                return [
+                    'success' => true,
+                    'contact_id' => $firstContact['id']
+                ];
+            }
         }
     }
     
@@ -92,13 +102,16 @@ function findOrCreateContact($email, $name) {
     $lastName = $nameParts[1] ?? '';
     
     $contactData = [
-        'email' => $email,
-        'first_name' => $firstName,
-        'last_name' => $lastName,
-        'skip_double_opt_in' => true // Wichtig für Transaktions-E-Mails
+        'contact' => [
+            'mail' => $email,
+            'first_name' => $firstName,
+            'family_name' => $lastName,
+        ],
+        'skip_double_opt_in' => true
     ];
     
-    $ch = curl_init(QUENTN_API_BASE_URL . 'contacts');
+    // POST /contact
+    $ch = curl_init(QUENTN_API_BASE_URL);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
@@ -136,13 +149,12 @@ function findOrCreateContact($email, $name) {
  * Aktualisiert Kontakt mit Reset-Link im Custom Field
  */
 function updateContactWithResetLink($contactId, $resetLink) {
+    // PUT /contact/<id>
     $updateData = [
-        'custom_fields' => [
-            'reset_link' => $resetLink
-        ]
+        'reset_link' => $resetLink
     ];
     
-    $ch = curl_init(QUENTN_API_BASE_URL . 'contacts/' . $contactId);
+    $ch = curl_init(QUENTN_API_BASE_URL . '/' . $contactId);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_CUSTOMREQUEST => 'PUT',
@@ -174,17 +186,30 @@ function updateContactWithResetLink($contactId, $resetLink) {
 
 /**
  * Fügt Tag zu Kontakt hinzu (triggert Campaign)
+ * POST /contact/<id>/terms
  */
 function addTagToContact($contactId, $tagName) {
-    $tagData = [
-        'tags' => [$tagName]
-    ];
+    // Erst müssen wir die Tag-ID finden
+    $tagId = findTagId($tagName);
     
-    $ch = curl_init(QUENTN_API_BASE_URL . 'contacts/' . $contactId . '/tags');
+    if (!$tagId) {
+        // Tag erstellen wenn nicht vorhanden
+        $tagId = createTag($tagName);
+    }
+    
+    if (!$tagId) {
+        return [
+            'success' => false,
+            'message' => 'Tag konnte nicht gefunden oder erstellt werden'
+        ];
+    }
+    
+    // POST /contact/<id>/terms mit Array von IDs
+    $ch = curl_init(QUENTN_API_BASE_URL . '/' . $contactId . '/terms');
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode($tagData),
+        CURLOPT_POSTFIELDS => json_encode([$tagId]),
         CURLOPT_HTTPHEADER => [
             'Content-Type: application/json',
             'Authorization: Bearer ' . QUENTN_API_KEY
@@ -208,6 +233,73 @@ function addTagToContact($contactId, $tagName) {
         'success' => false,
         'message' => 'Tag konnte nicht gesetzt werden'
     ];
+}
+
+/**
+ * Findet Tag-ID anhand des Tag-Namens
+ */
+function findTagId($tagName) {
+    // GET /terms
+    $termsUrl = str_replace('/contact', '/terms', QUENTN_API_BASE_URL);
+    $ch = curl_init($termsUrl . '?limit=1000');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . QUENTN_API_KEY
+        ],
+        CURLOPT_TIMEOUT => 10
+    ]);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode == 200) {
+        $tags = json_decode($response, true);
+        if (is_array($tags)) {
+            foreach ($tags as $tag) {
+                if (isset($tag['name']) && strtolower($tag['name']) === strtolower($tagName)) {
+                    return $tag['id'];
+                }
+            }
+        }
+    }
+    
+    return null;
+}
+
+/**
+ * Erstellt einen neuen Tag
+ */
+function createTag($tagName) {
+    // POST /terms
+    $termsUrl = str_replace('/contact', '/terms', QUENTN_API_BASE_URL);
+    $ch = curl_init($termsUrl);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode([
+            'name' => $tagName,
+            'description' => 'Auto-created for password reset'
+        ]),
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . QUENTN_API_KEY
+        ],
+        CURLOPT_TIMEOUT => 10
+    ]);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode >= 200 && $httpCode < 300) {
+        $data = json_decode($response, true);
+        return $data['id'] ?? null;
+    }
+    
+    return null;
 }
 
 /**
