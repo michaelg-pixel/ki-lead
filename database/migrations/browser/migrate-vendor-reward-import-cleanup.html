@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendor Reward Import - Cleanup</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #1a202c;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #718096;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        
+        .info-box {
+            background: #f7fafc;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+        }
+        
+        .info-box h3 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .info-box p {
+            color: #4a5568;
+            line-height: 1.6;
+        }
+        
+        .warning-box {
+            background: #fffaf0;
+            border-left: 4px solid #ed8936;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+        }
+        
+        .warning-box strong {
+            color: #c05621;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #2d3748;
+        }
+        
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+        
+        #log {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+            line-height: 1.6;
+            display: none;
+        }
+        
+        #log.show {
+            display: block;
+        }
+        
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px 0;
+        }
+        
+        .log-success {
+            color: #48bb78;
+        }
+        
+        .log-error {
+            color: #f56565;
+        }
+        
+        .log-info {
+            color: #4299e1;
+        }
+        
+        .log-warning {
+            color: #ed8936;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .status.show {
+            display: block;
+        }
+        
+        .status.success {
+            background: #c6f6d5;
+            color: #22543d;
+            border-left: 4px solid #48bb78;
+        }
+        
+        .status.error {
+            background: #fed7d7;
+            color: #742a2a;
+            border-left: 4px solid #f56565;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Vendor Reward Import - Cleanup</h1>
+        <p class="subtitle">Bereinigt ungültige Daten und fügt Foreign Key hinzu</p>
+        
+        <div class="info-box">
+            <h3>🔧 Was macht dieses Script?</h3>
+            <p>
+                Dieses Script bereinigt ungültige <code>freebie_id</code> Werte in der 
+                <code>reward_definitions</code> Tabelle und fügt dann den Foreign Key hinzu.
+                Dies ist notwendig, wenn die erste Migration einen Foreign Key Fehler hatte.
+            </p>
+        </div>
+        
+        <div class="warning-box">
+            <strong>⚠️ Wichtig:</strong> Dieses Script setzt ungültige freebie_id Werte auf NULL. 
+            Das bedeutet, dass diese Belohnungen nicht mehr einem spezifischen Freebie zugeordnet sind, 
+            sondern als allgemeine Belohnungen gelten.
+        </div>
+        
+        <div class="button-group">
+            <button class="btn-primary" id="cleanupBtn" onclick="runCleanup()">
+                🧹 Cleanup starten
+            </button>
+            <button class="btn-secondary" onclick="location.reload()">
+                🔄 Seite neu laden
+            </button>
+        </div>
+        
+        <div id="log"></div>
+        <div id="status" class="status"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            logDiv.classList.add('show');
+            
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString('de-DE');
+            const icon = {
+                'success': '✓',
+                'error': '✗',
+                'warning': '⚠',
+                'info': 'ℹ'
+            }[type] || 'ℹ';
+            
+            entry.textContent = `[${timestamp}] ${icon} ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status show ${type}`;
+            statusDiv.textContent = message;
+        }
+
+        async function executeSQL(sql, description) {
+            log(`Ausführen: ${description}`, 'info');
+            
+            const response = await fetch('/api/execute-migration.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ sql: sql })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                log(`✓ ${description} - Erfolgreich`, 'success');
+                return { success: true, result };
+            } else {
+                // Check if error is acceptable
+                if (result.error && (
+                    result.error.includes('Duplicate column') || 
+                    result.error.includes('already exists') ||
+                    result.error.includes('Duplicate key name')
+                )) {
+                    log(`○ ${description} - Bereits vorhanden`, 'warning');
+                    return { success: true, result };
+                }
+                log(`✗ ${description} - Fehler: ${result.error}`, 'error');
+                return { success: false, error: result.error };
+            }
+        }
+
+        async function runCleanup() {
+            const btn = document.getElementById('cleanupBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Cleanup läuft...';
+            
+            document.getElementById('log').innerHTML = '';
+            document.getElementById('status').classList.remove('show');
+            
+            log('🧹 Starte Cleanup-Process...', 'info');
+            log('', 'info');
+            
+            try {
+                // 1. Prüfe ungültige freebie_id Einträge
+                log('🔍 Schritt 1: Prüfe ungültige freebie_id Werte...', 'info');
+                
+                const checkResult = await executeSQL(
+                    `SELECT COUNT(*) as invalid_count 
+                     FROM reward_definitions rd 
+                     LEFT JOIN customer_freebies cf ON rd.freebie_id = cf.id 
+                     WHERE rd.freebie_id IS NOT NULL AND cf.id IS NULL`,
+                    'Zähle ungültige freebie_id Einträge'
+                );
+                
+                // 2. Bereinige ungültige Einträge
+                log('🧹 Schritt 2: Bereinige ungültige freebie_id Werte...', 'info');
+                
+                await executeSQL(
+                    `UPDATE reward_definitions rd 
+                     LEFT JOIN customer_freebies cf ON rd.freebie_id = cf.id 
+                     SET rd.freebie_id = NULL 
+                     WHERE rd.freebie_id IS NOT NULL AND cf.id IS NULL`,
+                    'Setze ungültige freebie_id auf NULL'
+                );
+                
+                // 3. Entferne bestehenden Foreign Key falls vorhanden
+                log('🔧 Schritt 3: Entferne bestehenden Foreign Key (falls vorhanden)...', 'info');
+                
+                await executeSQL(
+                    `ALTER TABLE reward_definitions 
+                     DROP FOREIGN KEY IF EXISTS fk_reward_def_freebie`,
+                    'Entferne alten Foreign Key'
+                );
+                
+                // 4. Füge Foreign Key hinzu
+                log('➕ Schritt 4: Füge Foreign Key hinzu...', 'info');
+                
+                const fkResult = await executeSQL(
+                    `ALTER TABLE reward_definitions 
+                     ADD CONSTRAINT fk_reward_def_freebie 
+                     FOREIGN KEY (freebie_id) 
+                     REFERENCES customer_freebies(id) 
+                     ON DELETE SET NULL`,
+                    'Füge Foreign Key für freebie_id hinzu'
+                );
+                
+                if (!fkResult.success) {
+                    throw new Error('Foreign Key konnte nicht hinzugefügt werden');
+                }
+                
+                // 5. Prüfe ob Foreign Key existiert
+                log('✓ Schritt 5: Verifiziere Foreign Key...', 'info');
+                
+                await executeSQL(
+                    `SELECT CONSTRAINT_NAME 
+                     FROM information_schema.KEY_COLUMN_USAGE 
+                     WHERE TABLE_SCHEMA = DATABASE() 
+                     AND TABLE_NAME = 'reward_definitions' 
+                     AND CONSTRAINT_NAME = 'fk_reward_def_freebie'`,
+                    'Prüfe Foreign Key Existenz'
+                );
+                
+                log('', 'info');
+                log('✓ Cleanup erfolgreich abgeschlossen!', 'success');
+                log('', 'info');
+                log('📊 Zusammenfassung:', 'info');
+                log('  • Ungültige freebie_id Werte bereinigt', 'success');
+                log('  • Foreign Key erfolgreich hinzugefügt', 'success');
+                log('  • Datenbank-Integrität wiederhergestellt', 'success');
+                log('', 'info');
+                log('✓ Import-Funktion ist jetzt voll funktionsfähig!', 'success');
+                
+                showStatus('✓ Cleanup erfolgreich! Du kannst jetzt Vendor-Templates importieren.', 'success');
+                
+                btn.innerHTML = '✓ Cleanup abgeschlossen';
+                setTimeout(() => {
+                    btn.innerHTML = '🧹 Cleanup erneut ausführen';
+                    btn.disabled = false;
+                }, 3000);
+                
+            } catch (error) {
+                log(`✗ Kritischer Fehler: ${error.message}`, 'error');
+                showStatus('✗ Cleanup fehlgeschlagen. Siehe Log für Details.', 'error');
+                
+                btn.innerHTML = '🧹 Cleanup starten';
+                btn.disabled = false;
+            }
+        }
+
+        // Log initial info
+        window.addEventListener('DOMContentLoaded', function() {
+            log('Bereit für Cleanup. Klicke auf "Cleanup starten".', 'info');
+        });
+    </script>
+</body>
+</html>
