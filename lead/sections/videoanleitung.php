@@ -1,60 +1,39 @@
 <?php
 /**
  * Lead Dashboard - Videoanleitung Sektion
- * + Video-Management NUR für Admin (michael.gluska@gmail.com)
- * + Videos sind für ALLE Leads des Kunden sichtbar
+ * Zeigt GLOBALE Videos (freebie_id = 0) für ALLE Leads
+ * Videos werden in Kategorien angezeigt
  */
-if (!isset($lead) && !isset($_SESSION['user_id'])) {
+if (!isset($lead)) {
     die('Unauthorized');
 }
 
-// Prüfen ob jemand als Customer (Admin) eingeloggt ist
-$is_customer_logged_in = isset($_SESSION['user_id']) && !isset($_SESSION['lead_id']);
-$effective_customer_id = $is_customer_logged_in ? $_SESSION['user_id'] : ($lead['user_id'] ?? null);
-$effective_freebie_id = $is_customer_logged_in ? (isset($_GET['freebie']) ? (int)$_GET['freebie'] : null) : $selected_freebie_id;
+$effective_customer_id = $lead['user_id'] ?? null;
 
-if (!$effective_customer_id || !$effective_freebie_id) {
+if (!$effective_customer_id) {
     echo '<div class="bg-red-600/20 border border-red-600/30 rounded-xl p-6 text-center">';
-    echo '<p class="text-red-300">Fehler: Kunden- oder Freebie-ID fehlt</p>';
+    echo '<p class="text-red-300">Fehler: Kunden-ID fehlt</p>';
     echo '</div>';
     return;
 }
 
-// Videos für das aktuelle Freebie laden - FÜR ALLE LEADS des Kunden sichtbar
+// GLOBALE Videos laden - freebie_id = 0 bedeutet für ALLE Leads sichtbar
 $videos = [];
 try {
     $stmt = $pdo->prepare("
         SELECT * FROM video_tutorials 
-        WHERE customer_id = ? AND freebie_id = ? 
+        WHERE customer_id = ? AND freebie_id = 0 
         ORDER BY sort_order ASC, id ASC
     ");
-    $stmt->execute([$effective_customer_id, $effective_freebie_id]);
+    $stmt->execute([$effective_customer_id]);
     $videos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     error_log("Fehler beim Laden der Videos: " . $e->getMessage());
     $videos = [];
 }
 
-// Prüfen ob der eingeloggte Benutzer der Admin ist (NUR michael.gluska@gmail.com)
-$is_admin = false;
-$check_user_id = $is_customer_logged_in ? $_SESSION['user_id'] : ($lead['user_id'] ?? null);
-
-if ($check_user_id) {
-    try {
-        $stmt = $pdo->prepare("SELECT email FROM users WHERE id = ?");
-        $stmt->execute([$check_user_id]);
-        $user_email = $stmt->fetchColumn();
-        if ($user_email === 'michael.gluska@gmail.com') {
-            $is_admin = true;
-        }
-    } catch (PDOException $e) {
-        error_log("Fehler beim Prüfen der Admin-Rechte: " . $e->getMessage());
-    }
-}
-
 // Vimeo URL in Embed-URL konvertieren
 function getVimeoEmbedUrl($url) {
-    // Extrahiere Video-ID aus verschiedenen Vimeo-URL-Formaten
     preg_match('/vimeo\.com\/(\d+)/', $url, $matches);
     if (isset($matches[1])) {
         return 'https://player.vimeo.com/video/' . $matches[1] . '?title=0&byline=0&portrait=0';
@@ -74,19 +53,16 @@ $color_classes = [
 ?>
 
 <div class="animate-fade-in-up opacity-0">
-    <!-- Header mit Admin-Button (NUR für michael.gluska@gmail.com) -->
-    <div class="flex justify-between items-center mb-8">
-        <h2 class="text-3xl font-bold text-white">
+    <!-- Header -->
+    <div class="mb-8">
+        <h2 class="text-3xl font-bold text-white mb-2">
             <i class="fas fa-video text-purple-400 mr-3"></i>
             Videoanleitung
         </h2>
-        
-        <?php if ($is_admin): ?>
-        <button onclick="openVideoModal()" 
-                class="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-all shadow-lg">
-            <i class="fas fa-plus-circle mr-2"></i>Video hinzufügen
-        </button>
-        <?php endif; ?>
+        <p class="text-gray-400">
+            <i class="fas fa-graduation-cap mr-2"></i>
+            Schau dir unsere Video-Tutorials an und werde zum Experten
+        </p>
     </div>
     
     <?php if (empty($videos)): ?>
@@ -95,12 +71,11 @@ $color_classes = [
         <div class="text-6xl mb-4">🎥</div>
         <h3 class="text-white text-2xl font-bold mb-2">Noch keine Videos verfügbar</h3>
         <p class="text-gray-400 mb-6">Videos werden hier angezeigt, sobald sie hinzugefügt wurden</p>
-        <?php if ($is_admin): ?>
-        <button onclick="openVideoModal()" 
-                class="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-xl font-semibold transition-all">
-            <i class="fas fa-plus-circle mr-2"></i>Erstes Video hinzufügen
-        </button>
-        <?php endif; ?>
+        <a href="?page=dashboard<?php echo $selected_freebie_id ? '&freebie=' . $selected_freebie_id : ''; ?>" 
+           class="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-xl font-semibold transition-all">
+            <i class="fas fa-home"></i>
+            Zurück zum Dashboard
+        </a>
     </div>
     
     <?php else: ?>
@@ -129,186 +104,69 @@ $color_classes = [
         </div>
     </div>
     
-    <!-- Video-Kategorien -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <?php foreach ($videos as $index => $video): ?>
-        <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl overflow-hidden border border-purple-500/20 hover:border-purple-500 transition-all group shadow-xl cursor-pointer video-category"
-             data-video-id="<?php echo $video['id']; ?>"
-             data-video-url="<?php echo htmlspecialchars(getVimeoEmbedUrl($video['vimeo_url'])); ?>"
-             data-video-name="<?php echo htmlspecialchars($video['category_name']); ?>"
-             data-video-icon="<?php echo htmlspecialchars($video['category_icon']); ?>"
-             data-video-description="<?php echo htmlspecialchars($video['description'] ?: ''); ?>"
-             onclick="loadVideo(this)">
-            
-            <div class="h-48 bg-gradient-to-br <?php echo $color_classes[$video['category_color']] ?? $color_classes['purple']; ?> flex items-center justify-center relative overflow-hidden">
-                <i class="fas <?php echo htmlspecialchars($video['category_icon']); ?> text-white text-6xl group-hover:scale-110 transition-transform duration-300"></i>
+    <!-- Video-Kategorien Grid -->
+    <div class="mb-8">
+        <h3 class="text-white text-xl font-bold mb-4">
+            <i class="fas fa-th-large mr-2"></i>
+            Alle Video-Kategorien (<?php echo count($videos); ?>)
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <?php foreach ($videos as $index => $video): ?>
+            <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl overflow-hidden border border-purple-500/20 hover:border-purple-500 transition-all group shadow-xl cursor-pointer video-category"
+                 data-video-id="<?php echo $video['id']; ?>"
+                 data-video-url="<?php echo htmlspecialchars(getVimeoEmbedUrl($video['vimeo_url'])); ?>"
+                 data-video-name="<?php echo htmlspecialchars($video['category_name']); ?>"
+                 data-video-icon="<?php echo htmlspecialchars($video['category_icon']); ?>"
+                 data-video-description="<?php echo htmlspecialchars($video['description'] ?: ''); ?>"
+                 onclick="loadVideo(this)">
                 
-                <?php if ($is_admin): ?>
-                <div class="absolute top-3 right-3 flex gap-2">
-                    <button onclick="event.stopPropagation(); editVideo(<?php echo htmlspecialchars(json_encode($video)); ?>)" 
-                            class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm transition-all">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button onclick="event.stopPropagation(); deleteVideo(<?php echo $video['id']; ?>, '<?php echo htmlspecialchars($video['category_name']); ?>')" 
-                            class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-sm transition-all">
-                        <i class="fas fa-trash"></i>
-                    </button>
+                <!-- Icon Header -->
+                <div class="h-48 bg-gradient-to-br <?php echo $color_classes[$video['category_color']] ?? $color_classes['purple']; ?> flex items-center justify-center relative overflow-hidden">
+                    <i class="fas <?php echo htmlspecialchars($video['category_icon']); ?> text-white text-6xl group-hover:scale-110 transition-transform duration-300"></i>
+                    
+                    <!-- Video Nummer Badge -->
+                    <div class="absolute top-3 left-3 bg-black/30 backdrop-blur-sm text-white px-3 py-1 rounded-lg text-sm font-semibold">
+                        #<?php echo $index + 1; ?>
+                    </div>
                 </div>
-                <?php endif; ?>
-            </div>
-            
-            <div class="p-6">
-                <h3 class="text-white font-bold text-xl mb-2"><?php echo htmlspecialchars($video['category_name']); ?></h3>
-                <p class="text-gray-400 text-sm mb-4 line-clamp-2">
-                    <?php echo htmlspecialchars($video['description'] ?: 'Klicke hier, um das Video anzusehen'); ?>
-                </p>
-                <div class="bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white px-4 py-2 rounded-xl text-center font-semibold transition-all">
-                    <i class="fas fa-play-circle mr-2"></i>Video ansehen
+                
+                <!-- Content -->
+                <div class="p-6">
+                    <h3 class="text-white font-bold text-xl mb-2 line-clamp-2">
+                        <?php echo htmlspecialchars($video['category_name']); ?>
+                    </h3>
+                    <p class="text-gray-400 text-sm mb-4 line-clamp-3">
+                        <?php echo htmlspecialchars($video['description'] ?: 'Klicke hier, um das Video anzusehen und mehr zu erfahren'); ?>
+                    </p>
+                    <div class="bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white px-4 py-3 rounded-xl text-center font-semibold transition-all flex items-center justify-center gap-2">
+                        <i class="fas fa-play-circle text-lg"></i>
+                        <span>Video ansehen</span>
+                    </div>
                 </div>
             </div>
+            <?php endforeach; ?>
         </div>
-        <?php endforeach; ?>
     </div>
-    <?php endif; ?>
     
-    <!-- Quick Action (nur für Leads, nicht für Customer-Admin) -->
-    <?php if (!$is_customer_logged_in): ?>
-    <div class="mt-8 text-center">
+    <!-- Quick Actions -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Zum Empfehlen -->
+        <?php if ($referral_enabled): ?>
         <a href="?page=empfehlen<?php echo $selected_freebie_id ? '&freebie=' . $selected_freebie_id : ''; ?>" 
-           class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-xl">
-            <i class="fas fa-rocket"></i>
-            Jetzt loslegen und empfehlen
+           class="bg-gradient-to-br from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-2xl p-8 text-center transition-all shadow-xl border border-purple-500/20 group">
+            <div class="text-5xl mb-4">🚀</div>
+            <h3 class="text-white text-xl font-bold mb-2 group-hover:scale-105 transition-transform">Jetzt loslegen</h3>
+            <p class="text-purple-200">Starte mit dem Empfehlen und sichere dir Belohnungen</p>
         </a>
-    </div>
-    <?php endif; ?>
-</div>
-
-<?php if ($is_admin): ?>
-<!-- Video-Management Modal (NUR für Admin sichtbar) -->
-<div id="videoModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-purple-500/20">
-        <div class="sticky top-0 bg-gradient-to-r from-purple-600 to-blue-600 p-6 rounded-t-2xl">
-            <div class="flex justify-between items-center">
-                <h3 class="text-white text-2xl font-bold">
-                    <i class="fas fa-video mr-2"></i>
-                    <span id="modalTitle">Video hinzufügen</span>
-                </h3>
-                <button onclick="closeVideoModal()" class="text-white hover:text-gray-300 text-2xl">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        </div>
+        <?php endif; ?>
         
-        <form id="videoForm" class="p-6 space-y-6">
-            <input type="hidden" id="videoId" name="videoId" value="">
-            
-            <!-- Kategorie-Name -->
-            <div>
-                <label class="block text-white font-semibold mb-2">
-                    <i class="fas fa-tag mr-2"></i>Kategorie-Name *
-                </label>
-                <input type="text" 
-                       id="categoryName" 
-                       name="categoryName" 
-                       required
-                       placeholder="z.B. Social Media Sharing"
-                       class="w-full bg-gray-700 text-white px-4 py-3 rounded-xl border border-purple-500/20 focus:border-purple-500 focus:outline-none">
-            </div>
-            
-            <!-- Vimeo URL -->
-            <div>
-                <label class="block text-white font-semibold mb-2">
-                    <i class="fas fa-link mr-2"></i>Vimeo Video-URL *
-                </label>
-                <input type="url" 
-                       id="vimeoUrl" 
-                       name="vimeoUrl" 
-                       required
-                       placeholder="https://vimeo.com/123456789"
-                       class="w-full bg-gray-700 text-white px-4 py-3 rounded-xl border border-purple-500/20 focus:border-purple-500 focus:outline-none">
-                <p class="text-gray-400 text-sm mt-2">
-                    <i class="fas fa-info-circle mr-1"></i>Füge die komplette Vimeo-URL ein (z.B. https://vimeo.com/123456789)
-                </p>
-            </div>
-            
-            <!-- Beschreibung -->
-            <div>
-                <label class="block text-white font-semibold mb-2">
-                    <i class="fas fa-align-left mr-2"></i>Beschreibung
-                </label>
-                <textarea 
-                    id="description" 
-                    name="description" 
-                    rows="3"
-                    placeholder="Kurze Beschreibung des Videos"
-                    class="w-full bg-gray-700 text-white px-4 py-3 rounded-xl border border-purple-500/20 focus:border-purple-500 focus:outline-none"></textarea>
-            </div>
-            
-            <!-- Icon Auswahl -->
-            <div>
-                <label class="block text-white font-semibold mb-2">
-                    <i class="fas fa-icons mr-2"></i>Icon
-                </label>
-                <div class="grid grid-cols-5 md:grid-cols-8 gap-2">
-                    <?php
-                    $icons = ['fa-video', 'fa-share-alt', 'fa-users', 'fa-robot', 'fa-trophy', 'fa-gift', 'fa-chart-line', 'fa-hashtag', 'fa-lightbulb', 'fa-rocket', 'fa-star', 'fa-heart', 'fa-thumbs-up', 'fa-play-circle', 'fa-comment', 'fa-envelope'];
-                    foreach ($icons as $icon): ?>
-                    <button type="button" 
-                            class="icon-selector bg-gray-700 hover:bg-purple-600 text-white p-4 rounded-xl transition-all text-xl"
-                            data-icon="<?php echo $icon; ?>"
-                            onclick="selectIcon('<?php echo $icon; ?>')">
-                        <i class="fas <?php echo $icon; ?>"></i>
-                    </button>
-                    <?php endforeach; ?>
-                </div>
-                <input type="hidden" id="categoryIcon" name="categoryIcon" value="fa-video">
-            </div>
-            
-            <!-- Farb-Auswahl -->
-            <div>
-                <label class="block text-white font-semibold mb-2">
-                    <i class="fas fa-palette mr-2"></i>Farbe
-                </label>
-                <div class="grid grid-cols-3 md:grid-cols-6 gap-2">
-                    <?php foreach ($color_classes as $color => $gradient): ?>
-                    <button type="button" 
-                            class="color-selector h-12 rounded-xl bg-gradient-to-r <?php echo $gradient; ?> border-2 border-transparent hover:border-white transition-all"
-                            data-color="<?php echo $color; ?>"
-                            onclick="selectColor('<?php echo $color; ?>')"></button>
-                    <?php endforeach; ?>
-                </div>
-                <input type="hidden" id="categoryColor" name="categoryColor" value="purple">
-            </div>
-            
-            <!-- Sortierung -->
-            <div>
-                <label class="block text-white font-semibold mb-2">
-                    <i class="fas fa-sort mr-2"></i>Sortierung
-                </label>
-                <input type="number" 
-                       id="sortOrder" 
-                       name="sortOrder" 
-                       value="0"
-                       min="0"
-                       class="w-full bg-gray-700 text-white px-4 py-3 rounded-xl border border-purple-500/20 focus:border-purple-500 focus:outline-none">
-                <p class="text-gray-400 text-sm mt-2">
-                    <i class="fas fa-info-circle mr-1"></i>Niedrigere Zahlen erscheinen zuerst
-                </p>
-            </div>
-            
-            <!-- Buttons -->
-            <div class="flex gap-3">
-                <button type="submit" 
-                        class="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-all">
-                    <i class="fas fa-save mr-2"></i>Speichern
-                </button>
-                <button type="button" 
-                        onclick="closeVideoModal()" 
-                        class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all">
-                    Abbrechen
-                </button>
-            </div>
-        </form>
+        <!-- Zu den Kursen -->
+        <a href="?page=kurse<?php echo $selected_freebie_id ? '&freebie=' . $selected_freebie_id : ''; ?>" 
+           class="bg-gradient-to-br from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-2xl p-8 text-center transition-all shadow-xl border border-green-500/20 group">
+            <div class="text-5xl mb-4">📚</div>
+            <h3 class="text-white text-xl font-bold mb-2 group-hover:scale-105 transition-transform">Meine Kurse</h3>
+            <p class="text-green-200">Entdecke alle verfügbaren Kurse und lerne mehr</p>
+        </a>
     </div>
 </div>
 
@@ -320,155 +178,53 @@ function loadVideo(element) {
     const videoIcon = element.getAttribute('data-video-icon');
     const videoDescription = element.getAttribute('data-video-description');
     
+    // Update Player
     document.getElementById('vimeoPlayer').src = videoUrl;
     document.getElementById('currentVideoName').textContent = videoName;
     document.getElementById('currentVideoIcon').className = 'fas ' + videoIcon + ' text-purple-400 mr-2';
     document.getElementById('currentVideoDescription').textContent = videoDescription || 'Schau dir dieses Tutorial an';
     
-    // Scroll zum Video-Player
-    document.getElementById('videoPlayerContainer').scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
-// Modal öffnen
-function openVideoModal() {
-    document.getElementById('videoModal').classList.remove('hidden');
-    document.getElementById('videoForm').reset();
-    document.getElementById('videoId').value = '';
-    document.getElementById('modalTitle').textContent = 'Video hinzufügen';
-    
-    // Reset selections
-    document.querySelectorAll('.icon-selector').forEach(btn => btn.classList.remove('bg-purple-600'));
-    document.querySelectorAll('.icon-selector')[0].classList.add('bg-purple-600');
-    
-    document.querySelectorAll('.color-selector').forEach(btn => btn.classList.remove('border-white'));
-    document.querySelectorAll('.color-selector')[0].classList.add('border-white');
-}
-
-// Modal schließen
-function closeVideoModal() {
-    document.getElementById('videoModal').classList.add('hidden');
-}
-
-// Icon auswählen
-function selectIcon(icon) {
-    document.getElementById('categoryIcon').value = icon;
-    document.querySelectorAll('.icon-selector').forEach(btn => {
-        btn.classList.remove('bg-purple-600');
-        btn.classList.add('bg-gray-700');
-    });
-    event.target.closest('button').classList.remove('bg-gray-700');
-    event.target.closest('button').classList.add('bg-purple-600');
-}
-
-// Farbe auswählen
-function selectColor(color) {
-    document.getElementById('categoryColor').value = color;
-    document.querySelectorAll('.color-selector').forEach(btn => btn.classList.remove('border-white'));
-    event.target.classList.add('border-white');
-}
-
-// Video bearbeiten
-function editVideo(video) {
-    document.getElementById('videoModal').classList.remove('hidden');
-    document.getElementById('modalTitle').textContent = 'Video bearbeiten';
-    
-    document.getElementById('videoId').value = video.id;
-    document.getElementById('categoryName').value = video.category_name;
-    document.getElementById('vimeoUrl').value = video.vimeo_url;
-    document.getElementById('description').value = video.description || '';
-    document.getElementById('categoryIcon').value = video.category_icon;
-    document.getElementById('categoryColor').value = video.category_color;
-    document.getElementById('sortOrder').value = video.sort_order;
-    
-    // Icon markieren
-    document.querySelectorAll('.icon-selector').forEach(btn => {
-        btn.classList.remove('bg-purple-600');
-        btn.classList.add('bg-gray-700');
-        if (btn.getAttribute('data-icon') === video.category_icon) {
-            btn.classList.remove('bg-gray-700');
-            btn.classList.add('bg-purple-600');
-        }
+    // Scroll zum Video-Player mit smooth animation
+    document.getElementById('videoPlayerContainer').scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' 
     });
     
-    // Farbe markieren
-    document.querySelectorAll('.color-selector').forEach(btn => {
-        btn.classList.remove('border-white');
-        if (btn.getAttribute('data-color') === video.category_color) {
-            btn.classList.add('border-white');
-        }
-    });
+    // Kurze Animation für besseres Feedback
+    const container = document.getElementById('videoPlayerContainer');
+    container.style.transform = 'scale(0.98)';
+    setTimeout(() => {
+        container.style.transform = 'scale(1)';
+    }, 150);
 }
 
-// Video löschen
-async function deleteVideo(videoId, videoName) {
-    if (!confirm(`Möchtest du das Video "${videoName}" wirklich löschen?`)) {
-        return;
-    }
-    
-    try {
-        const response = await fetch('/api/video-tutorials.php?action=delete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: videoId })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            location.reload();
-        } else {
-            alert('Fehler: ' + (result.error || 'Unbekannter Fehler'));
-        }
-    } catch (error) {
-        alert('Fehler beim Löschen: ' + error.message);
-    }
-}
-
-// Formular absenden
-document.getElementById('videoForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const videoId = document.getElementById('videoId').value;
-    const action = videoId ? 'update' : 'create';
-    
-    const data = {
-        freebie_id: <?php echo $effective_freebie_id; ?>,
-        category_name: document.getElementById('categoryName').value,
-        vimeo_url: document.getElementById('vimeoUrl').value,
-        description: document.getElementById('description').value,
-        category_icon: document.getElementById('categoryIcon').value,
-        category_color: document.getElementById('categoryColor').value,
-        sort_order: parseInt(document.getElementById('sortOrder').value)
-    };
-    
-    if (videoId) {
-        data.id = parseInt(videoId);
-    }
-    
-    try {
-        const response = await fetch('/api/video-tutorials.php?action=' + action, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            location.reload();
-        } else {
-            alert('Fehler: ' + (result.error || 'Unbekannter Fehler'));
-        }
-    } catch (error) {
-        alert('Fehler beim Speichern: ' + error.message);
-    }
-});
-
-// Modal bei ESC schließen
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeVideoModal();
+// Smooth Animation beim Laden
+document.addEventListener('DOMContentLoaded', function() {
+    const fadeElement = document.querySelector('.animate-fade-in-up');
+    if (fadeElement) {
+        setTimeout(() => {
+            fadeElement.style.opacity = '1';
+        }, 100);
     }
 });
 </script>
-<?php endif; ?>
+
+<style>
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+#videoPlayerContainer {
+    transition: transform 0.15s ease-out;
+}
+</style>
