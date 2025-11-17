@@ -10,9 +10,9 @@ session_start();
 
 $pdo = getDBConnection();
 
-// Nur für michael.gluska@gmail.com
+// Nur für eingeloggte Benutzer
 if (!isset($_SESSION['user_id'])) {
-    header('Location: /login.php');
+    header('Location: /');
     exit;
 }
 
@@ -23,8 +23,8 @@ try {
     $stmt->execute([$customer_id]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    if ($user['email'] !== 'michael.gluska@gmail.com') {
-        die('<h3 style="color: red;">Zugriff verweigert - Nur für Admin (michael.gluska@gmail.com)</h3>');
+    if (!$user || $user['email'] !== 'michael.gluska@gmail.com') {
+        die('<div style="padding: 40px; text-align: center; font-family: Arial;"><h2 style="color: #ff6b6b;">⛔ Zugriff verweigert</h2><p>Diese Seite ist nur für den Administrator (michael.gluska@gmail.com) zugänglich.</p><a href="/dashboard.php" style="color: #667eea;">Zurück zum Dashboard</a></div>');
     }
     
     $company_name = $user['company_name'] ?? 'Dashboard';
@@ -36,8 +36,11 @@ try {
 $selected_freebie_id = isset($_GET['freebie']) ? (int)$_GET['freebie'] : null;
 
 if (!$selected_freebie_id) {
+    echo '<div style="padding: 40px; font-family: Arial;">';
     echo '<h3>Bitte Freebie-ID angeben</h3>';
-    echo '<p>Beispiel: <a href="?freebie=7">admin_video_manager.php?freebie=7</a></p>';
+    echo '<p>Beispiel: <a href="?freebie=7" style="color: #667eea;">admin_video_manager.php?freebie=7</a></p>';
+    echo '<a href="/dashboard.php" style="color: #667eea;">Zurück zum Dashboard</a>';
+    echo '</div>';
     exit;
 }
 
@@ -90,6 +93,9 @@ $color_classes = [
             min-height: 100vh;
         }
         .container { max-width: 1400px; margin: 0 auto; }
+        @media (max-width: 768px) {
+            body { padding: 16px; }
+        }
     </style>
 </head>
 <body>
@@ -190,7 +196,7 @@ $color_classes = [
         <?php endif; ?>
     </div>
 
-    <!-- Video Modal (von videoanleitung.php kopiert) -->
+    <!-- Video Modal -->
     <div id="videoModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
         <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-purple-500/20">
             <div class="sticky top-0 bg-gradient-to-r from-purple-600 to-blue-600 p-6 rounded-t-2xl">
