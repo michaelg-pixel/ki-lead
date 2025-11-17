@@ -4,7 +4,8 @@
  * + AUTO-DELIVERY: Automatische Belohnungsauslieferung
  * + SIDEBAR MENÜ: Navigation wie im Customer-Dashboard
  * + KI SOCIAL ASSISTANT: Für Social Media Posting
- * + FREEBIE-FILTER: Zeigt nur Belohnungen für das aktuelle Freebie
+ * + FREEBIE-SPECIFIC REWARDS: Nur Belohnungen für das aktuelle Freebie
+ * + FOOTER: Impressum & Datenschutz
  */
 
 require_once __DIR__ . '/config/database.php';
@@ -102,6 +103,16 @@ try {
 $customer_id = $lead['user_id'];
 $referral_enabled = (int)($lead['referral_enabled'] ?? 0);
 $company_name = $lead['company_name'] ?? 'Dashboard';
+
+// Rechtstexte laden für Footer
+$legal_texts = [];
+try {
+    $stmt = $pdo->prepare("SELECT impressum, datenschutz FROM legal_texts WHERE user_id = ? LIMIT 1");
+    $stmt->execute([$customer_id]);
+    $legal_texts = $stmt->fetch(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Fehler beim Laden der Rechtstexte: " . $e->getMessage());
+}
 
 // Aktive Seite
 $current_page = $_GET['page'] ?? 'dashboard';
@@ -203,12 +214,12 @@ if ($referral_enabled && $selected_freebie_id) {
     }
 }
 
-// Belohnungsstufen laden - NUR für das spezifische Freebie oder allgemeine Belohnungen
+// Belohnungsstufen laden - NUR für das spezifische Freebie (keine allgemeinen mehr)
 $reward_tiers = [];
 if ($referral_enabled && $customer_id && $selected_freebie_id) {
     try {
-        // Lade nur Belohnungen die entweder für dieses spezifische Freebie sind ODER allgemein (freebie_id IS NULL)
-        $stmt = $pdo->prepare("SELECT id, tier_level, tier_name, tier_description, required_referrals, reward_type, reward_title, reward_description, reward_icon, reward_color, reward_value FROM reward_definitions WHERE user_id = ? AND is_active = 1 AND (freebie_id = ? OR freebie_id IS NULL) ORDER BY tier_level ASC");
+        // Lade NUR Belohnungen für das spezifische Freebie (KEINE allgemeinen mit freebie_id IS NULL)
+        $stmt = $pdo->prepare("SELECT id, tier_level, tier_name, tier_description, required_referrals, reward_type, reward_title, reward_description, reward_icon, reward_color, reward_value FROM reward_definitions WHERE user_id = ? AND is_active = 1 AND freebie_id = ? ORDER BY tier_level ASC");
         $stmt->execute([$customer_id, $selected_freebie_id]);
         $reward_tiers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
@@ -455,7 +466,41 @@ $menu_items = [
             flex: 1;
             overflow-y: auto;
             padding: 32px;
+            padding-bottom: 80px;
             -webkit-overflow-scrolling: touch;
+        }
+        
+        /* Footer */
+        .footer {
+            background: linear-gradient(180deg, #16213e 0%, #1a1a2e 100%);
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding: 20px 32px;
+            text-align: center;
+        }
+        
+        .footer-links {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .footer-link {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .footer-link:hover {
+            color: #8b9bff;
+            text-decoration: underline;
+        }
+        
+        .footer-copyright {
+            color: #888;
+            font-size: 12px;
+            margin-top: 12px;
         }
         
         /* Responsive */
@@ -491,6 +536,11 @@ $menu_items = [
             
             .content-area {
                 padding: 20px;
+                padding-bottom: 80px;
+            }
+            
+            .footer {
+                padding: 16px 20px;
             }
         }
         
@@ -568,6 +618,26 @@ $menu_items = [
                 echo '</div>';
             }
             ?>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-links">
+                <?php if (!empty($legal_texts['impressum'])): ?>
+                <a href="#" onclick="window.open('/legal-pages/impressum.php?customer=<?php echo $customer_id; ?>', '_blank'); return false;" class="footer-link">
+                    <i class="fas fa-info-circle"></i> Impressum
+                </a>
+                <?php endif; ?>
+                
+                <?php if (!empty($legal_texts['datenschutz'])): ?>
+                <a href="#" onclick="window.open('/legal-pages/datenschutz.php?customer=<?php echo $customer_id; ?>', '_blank'); return false;" class="footer-link">
+                    <i class="fas fa-shield-alt"></i> Datenschutzerklärung
+                </a>
+                <?php endif; ?>
+            </div>
+            <div class="footer-copyright">
+                © <?php echo date('Y'); ?> <?php echo htmlspecialchars($company_name); ?>. Alle Rechte vorbehalten.
+            </div>
         </div>
     </div>
     
