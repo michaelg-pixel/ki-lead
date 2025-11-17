@@ -2,6 +2,7 @@
 /**
  * API für Video-Tutorial-Verwaltung
  * CRUD Operationen für Vimeo-Videos in Videoanleitung
+ * NUR für Admin (michael.gluska@gmail.com)
  */
 
 require_once __DIR__ . '/../config/database.php';
@@ -18,6 +19,24 @@ if (!isset($_SESSION['user_id'])) {
 
 $pdo = getDBConnection();
 $user_id = $_SESSION['user_id'];
+
+// Prüfe ob der Benutzer der Admin ist (NUR michael.gluska@gmail.com)
+try {
+    $stmt = $pdo->prepare("SELECT email FROM users WHERE id = ?");
+    $stmt->execute([$user_id]);
+    $user_email = $stmt->fetchColumn();
+    
+    if ($user_email !== 'michael.gluska@gmail.com') {
+        http_response_code(403);
+        echo json_encode(['error' => 'Zugriff verweigert - Nur für Admin']);
+        exit;
+    }
+} catch (PDOException $e) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Fehler beim Prüfen der Berechtigung']);
+    exit;
+}
+
 $action = $_GET['action'] ?? '';
 
 // Tabelle erstellen falls nicht vorhanden
@@ -41,7 +60,7 @@ try {
     error_log("Fehler beim Erstellen der video_tutorials Tabelle: " . $e->getMessage());
 }
 
-// GET: Alle Videos für ein Freebie laden
+// GET: Alle Videos für ein Freebie laden (nur für Admin)
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'list') {
     $freebie_id = isset($_GET['freebie_id']) ? (int)$_GET['freebie_id'] : 0;
     
@@ -67,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'list') {
     exit;
 }
 
-// POST: Neues Video hinzufügen
+// POST: Neues Video hinzufügen (nur für Admin)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'create') {
     $data = json_decode(file_get_contents('php://input'), true);
     
@@ -102,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'create') {
     exit;
 }
 
-// PUT: Video aktualisieren
+// PUT: Video aktualisieren (nur für Admin)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'update') {
     $data = json_decode(file_get_contents('php://input'), true);
     
@@ -136,7 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'update') {
     exit;
 }
 
-// DELETE: Video löschen
+// DELETE: Video löschen (nur für Admin)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'delete') {
     $data = json_decode(file_get_contents('php://input'), true);
     $video_id = (int)($data['id'] ?? 0);
