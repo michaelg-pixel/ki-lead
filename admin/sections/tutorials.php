@@ -2,7 +2,7 @@
 // Admin Tutorials Management
 $pdo = getDBConnection();
 
-// Kategorien laden
+// Kategorien laden - KEINE BEGRENZUNG
 $categories = $pdo->query("SELECT * FROM tutorial_categories ORDER BY sort_order ASC")->fetchAll(PDO::FETCH_ASSOC);
 
 // Alle Videos laden mit Kategorie-Info
@@ -58,7 +58,8 @@ foreach ($videos as $video) {
                                 </div>
                             </div>
 
-                            <div class="videos-grid">
+                            <!-- HORIZONTAL SCROLLBARE VIDEO-LISTE -->
+                            <div class="videos-horizontal-scroll">
                                 <?php foreach ($grouped_videos[$category['id']] as $video): ?>
                                     <div class="video-card">
                                         <div class="video-thumbnail">
@@ -372,19 +373,46 @@ foreach ($videos as $video) {
     border: 1px solid rgba(168, 85, 247, 0.3);
 }
 
-/* Videos Grid */
-.videos-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+/* HORIZONTAL SCROLLBARE VIDEO-LISTE - NEU! */
+.videos-horizontal-scroll {
+    display: flex;
     gap: 16px;
+    overflow-x: auto;
+    padding-bottom: 12px;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
 }
 
+/* Scrollbar Styling */
+.videos-horizontal-scroll::-webkit-scrollbar {
+    height: 8px;
+}
+
+.videos-horizontal-scroll::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+}
+
+.videos-horizontal-scroll::-webkit-scrollbar-thumb {
+    background: rgba(168, 85, 247, 0.5);
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.videos-horizontal-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(168, 85, 247, 0.8);
+}
+
+/* Video Card - für horizontales Layout angepasst */
 .video-card {
     background: rgba(26, 26, 46, 0.7);
     border: 1px solid rgba(168, 85, 247, 0.3);
     border-radius: 12px;
     overflow: hidden;
     transition: all 0.2s;
+    min-width: 320px;
+    max-width: 320px;
+    flex-shrink: 0;
 }
 
 .video-card:hover {
@@ -442,6 +470,11 @@ foreach ($videos as $video) {
     font-size: 16px;
     color: white;
     margin-bottom: 8px;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .video-info p {
@@ -449,6 +482,10 @@ foreach ($videos as $video) {
     color: #b0b0b0;
     margin-bottom: 12px;
     line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .video-meta {
@@ -775,8 +812,9 @@ foreach ($videos as $video) {
 
 /* Responsive */
 @media (max-width: 768px) {
-    .videos-grid {
-        grid-template-columns: 1fr;
+    .video-card {
+        min-width: 280px;
+        max-width: 280px;
     }
     
     .category-item {
