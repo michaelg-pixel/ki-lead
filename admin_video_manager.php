@@ -2,7 +2,7 @@
 /**
  * Video-Management für Admin
  * Direkter Zugriff für michael.gluska@gmail.com
- * GLOBALE Videos sind für ALLE Leads sichtbar (freebie_id = 0)
+ * GLOBALE Videos sind für ALLE Leads ALLER Customers sichtbar (freebie_id = 0)
  */
 
 require_once __DIR__ . '/config/database.php';
@@ -32,15 +32,16 @@ try {
     die('Fehler: ' . $e->getMessage());
 }
 
-// GLOBALE Videos laden - freebie_id = 0 bedeutet für ALLE Leads sichtbar
+// GLOBALE Videos laden - freebie_id = 0, für ALLE Leads ALLER Customers sichtbar
 $videos = [];
 try {
+    // Zeige ALLE globalen Videos, unabhängig vom Customer
     $stmt = $pdo->prepare("
         SELECT * FROM video_tutorials 
-        WHERE customer_id = ? AND freebie_id = 0 
+        WHERE freebie_id = 0 
         ORDER BY sort_order ASC, id ASC
     ");
-    $stmt->execute([$customer_id]);
+    $stmt->execute();
     $videos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     error_log("Fehler beim Laden der Videos: " . $e->getMessage());
@@ -99,10 +100,17 @@ $color_classes = [
                         <i class="fas fa-video text-purple-400 mr-3"></i>
                         Globale Video-Verwaltung
                     </h1>
-                    <p class="text-gray-400">
-                        <i class="fas fa-globe mr-2"></i>
-                        Diese Videos sind für <strong>ALLE Leads</strong> auf dem Lead-Dashboard sichtbar
-                    </p>
+                    <div class="flex items-center gap-3 text-gray-400">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-globe text-green-400"></i>
+                            <span>Diese Videos sind für <strong class="text-white">ALLE Leads ALLER Customers</strong> sichtbar</span>
+                        </div>
+                        <span class="text-gray-600">|</span>
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-users text-blue-400"></i>
+                            <span>Plattform-weite Videos</span>
+                        </div>
+                    </div>
                 </div>
                 <button onclick="openVideoModal()" 
                         class="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-all shadow-lg">
@@ -111,12 +119,26 @@ $color_classes = [
             </div>
         </div>
 
+        <!-- Info Banner -->
+        <div class="bg-blue-600/20 border border-blue-600/30 rounded-xl p-4 mb-6">
+            <div class="flex items-start gap-3">
+                <i class="fas fa-info-circle text-blue-400 text-xl mt-0.5"></i>
+                <div>
+                    <h3 class="text-blue-300 font-semibold mb-1">Globales Video-System</h3>
+                    <p class="text-blue-200 text-sm">
+                        Alle hier erstellten Videos werden automatisch auf dem Lead-Dashboard unter "Videoanleitung" angezeigt - 
+                        für <strong>jeden Lead</strong>, unabhängig vom Customer-Account. Perfekt für plattform-weite Tutorials!
+                    </p>
+                </div>
+            </div>
+        </div>
+
         <?php if (empty($videos)): ?>
         <!-- Keine Videos -->
         <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-12 text-center shadow-xl border border-purple-500/20">
             <div class="text-6xl mb-4">🎥</div>
             <h3 class="text-white text-2xl font-bold mb-2">Noch keine globalen Videos vorhanden</h3>
-            <p class="text-gray-400 mb-6">Füge dein erstes globales Video hinzu - es wird für alle Leads auf dem Dashboard sichtbar sein</p>
+            <p class="text-gray-400 mb-6">Füge dein erstes globales Video hinzu - es wird für alle Leads auf allen Dashboards sichtbar sein</p>
             <button onclick="openVideoModal()" 
                     class="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-xl font-semibold transition-all">
                 <i class="fas fa-plus-circle mr-2"></i>Erstes Video hinzufügen
@@ -382,7 +404,7 @@ document.getElementById('videoForm').addEventListener('submit', async function(e
     const action = videoId ? 'update' : 'create';
     
     const data = {
-        freebie_id: 0, // GLOBAL für alle Leads
+        freebie_id: 0, // GLOBAL für alle Leads aller Customers
         category_name: document.getElementById('categoryName').value,
         vimeo_url: document.getElementById('vimeoUrl').value,
         description: document.getElementById('description').value,
