@@ -387,10 +387,12 @@ $rewardCategories = [
     background: linear-gradient(to bottom right, #1f2937, #374151);
     border-radius: 1rem;
     padding: 2rem;
-    max-width: 800px;
+    max-width: 900px;
     width: 100%;
     box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
     border: 1px solid rgba(102, 126, 234, 0.3);
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 .modal-header {
@@ -466,10 +468,22 @@ $rewardCategories = [
     font-size: 0.875rem;
 }
 
+.detail-text-content {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 0.5rem;
+    color: #d1d5db;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
 /* Produktbild im Modal */
 .detail-product-image {
     width: 100%;
-    max-height: 300px;
+    max-height: 400px;
     object-fit: contain;
     border-radius: 0.75rem;
     margin-bottom: 1rem;
@@ -951,12 +965,25 @@ function createRewardCard(reward) {
     `;
 }
 
-// Reward Details anzeigen
+// Reward Details anzeigen - ERWEITERT mit allen Beschreibungen
 function showRewardDetail(rewardId) {
     const reward = allRewards.find(r => r.id === rewardId);
     if (!reward || reward.is_imported_by_me) return;
     
     document.getElementById('rewardModalTitle').textContent = reward.template_name;
+    
+    // Helper-Funktion für sichere HTML-Darstellung
+    const escapeHtml = (text) => {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    };
+    
+    // Helper-Funktion für Textanzeige
+    const renderTextContent = (content) => {
+        if (!content) return '';
+        return `<div class="detail-text-content">${escapeHtml(content)}</div>`;
+    };
     
     // Produktbild HTML
     let productImageHtml = '';
@@ -964,68 +991,150 @@ function showRewardDetail(rewardId) {
         const imageUrl = reward.product_mockup_url || reward.preview_image;
         productImageHtml = `
             <div class="detail-section">
-                <img src="${imageUrl}" alt="${reward.template_name}" class="detail-product-image">
+                <img src="${imageUrl}" alt="${escapeHtml(reward.template_name)}" class="detail-product-image">
             </div>
         `;
     }
+    
+    // Belohnungstyp Labels
+    const rewardTypeLabels = {
+        'leadmagnet': 'Leadmagnet',
+        'video_course': 'Videokurs',
+        'ebook': 'E-Book',
+        'discount': 'Rabatt',
+        'consultation': 'Beratung'
+    };
+    
+    // Auslieferungsart Labels
+    const deliveryTypeLabels = {
+        'manual': 'Manuell',
+        'download': 'Download-Link',
+        'email': 'Per E-Mail',
+        'redirect': 'Redirect'
+    };
     
     const modalBody = document.getElementById('rewardModalBody');
     modalBody.innerHTML = `
         ${productImageHtml}
         
+        <!-- Template Beschreibung -->
+        ${reward.template_description ? `
+            <div class="detail-section">
+                <h3>📝 Template Beschreibung</h3>
+                ${renderTextContent(reward.template_description)}
+            </div>
+        ` : ''}
+        
+        <!-- Belohnungs-Details -->
         <div class="detail-section">
             <h3>${reward.reward_icon || '🎁'} Belohnungs-Details</h3>
             <div class="detail-row">
-                <span class="detail-label">Typ:</span>
-                <span class="detail-value">${reward.reward_title}</span>
+                <span class="detail-label">Belohnungstyp:</span>
+                <span class="detail-value">${rewardTypeLabels[reward.reward_type] || reward.reward_type}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Belohnungstitel:</span>
+                <span class="detail-value">${escapeHtml(reward.reward_title)}</span>
             </div>
             ${reward.reward_value ? `
                 <div class="detail-row">
                     <span class="detail-label">Wert:</span>
-                    <span class="detail-value">${reward.reward_value}</span>
+                    <span class="detail-value">${escapeHtml(reward.reward_value)}</span>
                 </div>
             ` : ''}
             <div class="detail-row">
                 <span class="detail-label">Vorgeschlagene Empfehlungen:</span>
                 <span class="detail-value">${reward.suggested_referrals_required}</span>
             </div>
+            <div class="detail-row">
+                <span class="detail-label">Vorgeschlagene Stufe:</span>
+                <span class="detail-value">Stufe ${reward.suggested_tier_level}</span>
+            </div>
             ${reward.course_duration ? `
                 <div class="detail-row">
-                    <span class="detail-label">Dauer:</span>
-                    <span class="detail-value">${reward.course_duration}</span>
-                </div>
-            ` : ''}
-            ${reward.reward_description ? `
-                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
-                    <p style="color: #9ca3af; font-size: 0.875rem; line-height: 1.6;">
-                        ${reward.reward_description}
-                    </p>
+                    <span class="detail-label">Kursdauer:</span>
+                    <span class="detail-value">${escapeHtml(reward.course_duration)}</span>
                 </div>
             ` : ''}
         </div>
         
+        <!-- Belohnungsbeschreibung -->
+        ${reward.reward_description ? `
+            <div class="detail-section">
+                <h3>📄 Belohnungsbeschreibung</h3>
+                ${renderTextContent(reward.reward_description)}
+            </div>
+        ` : ''}
+        
+        <!-- Auslieferungs-Details -->
+        <div class="detail-section">
+            <h3>📦 Auslieferung</h3>
+            <div class="detail-row">
+                <span class="detail-label">Auslieferungsart:</span>
+                <span class="detail-value">${deliveryTypeLabels[reward.reward_delivery_type] || reward.reward_delivery_type}</span>
+            </div>
+            ${reward.reward_download_url ? `
+                <div class="detail-row">
+                    <span class="detail-label">Download-/Redirect-URL:</span>
+                    <span class="detail-value">
+                        <a href="${escapeHtml(reward.reward_download_url)}" target="_blank" style="color: #667eea; word-break: break-all;">
+                            ${escapeHtml(reward.reward_download_url)}
+                        </a>
+                    </span>
+                </div>
+            ` : ''}
+        </div>
+        
+        <!-- Anweisungen -->
+        ${reward.reward_instructions ? `
+            <div class="detail-section">
+                <h3>📋 Einlösungs-Anweisungen</h3>
+                ${renderTextContent(reward.reward_instructions)}
+            </div>
+        ` : ''}
+        
+        <!-- Produktinformationen -->
+        ${reward.original_product_link || reward.niche ? `
+            <div class="detail-section">
+                <h3>ℹ️ Produktinformationen</h3>
+                ${reward.niche ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Nische:</span>
+                        <span class="detail-value">${escapeHtml(reward.niche)}</span>
+                    </div>
+                ` : ''}
+                ${reward.original_product_link ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Original Produkt:</span>
+                        <span class="detail-value">
+                            <a href="${escapeHtml(reward.original_product_link)}" target="_blank" style="color: #667eea; word-break: break-all;">
+                                ${escapeHtml(reward.original_product_link)}
+                            </a>
+                        </span>
+                    </div>
+                ` : ''}
+            </div>
+        ` : ''}
+        
+        <!-- Vendor Info -->
         <div class="detail-section">
             <h3>👤 Vendor-Info</h3>
             <div class="detail-row">
                 <span class="detail-label">Vendor:</span>
-                <span class="detail-value">${reward.vendor_name || 'Unbekannt'}</span>
+                <span class="detail-value">${escapeHtml(reward.vendor_name || 'Unbekannt')}</span>
             </div>
             ${reward.vendor_website ? `
                 <div class="detail-row">
                     <span class="detail-label">Website:</span>
                     <span class="detail-value">
-                        <a href="${reward.vendor_website}" target="_blank" style="color: #667eea;">
-                            ${reward.vendor_website}
+                        <a href="${escapeHtml(reward.vendor_website)}" target="_blank" style="color: #667eea;">
+                            ${escapeHtml(reward.vendor_website)}
                         </a>
                     </span>
                 </div>
             ` : ''}
             ${reward.vendor_description ? `
-                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
-                    <p style="color: #9ca3af; font-size: 0.875rem; line-height: 1.6;">
-                        ${reward.vendor_description}
-                    </p>
-                </div>
+                ${renderTextContent(reward.vendor_description)}
             ` : ''}
             <div class="detail-row">
                 <span class="detail-label">Bereits importiert:</span>
@@ -1033,6 +1142,7 @@ function showRewardDetail(rewardId) {
             </div>
         </div>
         
+        <!-- Import Section -->
         <div class="import-section">
             <h3 style="color: #ffffff; font-size: 1.125rem; font-weight: 600; margin-bottom: 1rem;">
                 📥 In eigenes Belohnungssystem importieren
@@ -1044,7 +1154,7 @@ function showRewardDetail(rewardId) {
                     <select name="freebie_id" class="form-select">
                         <option value="">Allgemeine Belohnung (für alle Freebies)</option>
                         ${customerFreebies.map(f => `
-                            <option value="${f.id}">${f.title}</option>
+                            <option value="${f.id}">${escapeHtml(f.title)}</option>
                         `).join('')}
                     </select>
                     <div class="form-hint">
