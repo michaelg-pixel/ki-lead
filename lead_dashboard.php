@@ -35,6 +35,7 @@ $stmt = $conn->prepare("
         cf.subheadline as description,
         cf.mockup_image_url as mockup_image,
         cf.customer_id,
+        cf.unique_id,
         lfa.granted_at,
         (
             SELECT COUNT(*) 
@@ -69,7 +70,15 @@ if (!empty($lead['user_id'])) {
 
     if ($user_data && $user_data['referral_enabled']) {
         $referral_enabled = true;
-        $referral_link = SITE_URL . '/lead_register.php?freebie=' . $lead['freebie_id'] . '&customer=' . $lead['user_id'] . '&ref=' . $lead['referral_code'];
+        
+        // KORREKTUR: Link zur Freebie-Landingpage statt direkt zur Registrierung
+        // Hole die unique_id des ersten Freebies für den Link
+        if (!empty($freebies) && !empty($freebies[0]['unique_id'])) {
+            $referral_link = SITE_URL . '/freebie/?id=' . $freebies[0]['unique_id'] . '&ref=' . $lead['referral_code'];
+        } else {
+            // Fallback: Wenn keine unique_id vorhanden, verwende den alten Link
+            $referral_link = SITE_URL . '/lead_register.php?freebie=' . $lead['freebie_id'] . '&customer=' . $lead['user_id'] . '&ref=' . $lead['referral_code'];
+        }
         
         $stmt = $conn->prepare("SELECT COUNT(*) as total, SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending FROM lead_referrals WHERE referrer_id = ?");
         $stmt->bind_param("i", $lead_id);
@@ -204,7 +213,7 @@ if ($referral_enabled) $menu_items['empfehlen'] = ['icon' => 'fa-share-alt', 'la
             <?php if ($referral_enabled): ?>
             <div class="page-content <?php echo $current_page === 'empfehlen' ? 'active' : ''; ?>">
                 <h2><i class="fas fa-share-alt"></i> Freunde empfehlen</h2>
-                <p style="color:#666;margin-top:10px;margin-bottom:30px">Teile deinen persönlichen Link!</p>
+                <p style="color:#666;margin-top:10px;margin-bottom:30px">Teile deinen persönlichen Link und zeige deinen Freunden dieses großartige Angebot!</p>
                 
                 <div class="referral-link-box">
                     <h3>Dein Empfehlungslink:</h3>
