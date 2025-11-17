@@ -2,35 +2,47 @@
 /**
  * Lead Dashboard - Videoanleitung Sektion
  * + Video-Management NUR für Admin (michael.gluska@gmail.com)
- * + Dynamischer Video-Player mit Kategorien
+ * + Videos sind für ALLE Leads des Kunden sichtbar
  */
-if (!isset($lead) || !isset($pdo)) {
+if (!isset($lead) && !isset($_SESSION['user_id'])) {
     die('Unauthorized');
 }
 
-// Videos für das aktuelle Freebie laden
+// Prüfen ob jemand als Customer (Admin) eingeloggt ist
+$is_customer_logged_in = isset($_SESSION['user_id']) && !isset($_SESSION['lead_id']);
+$effective_customer_id = $is_customer_logged_in ? $_SESSION['user_id'] : ($lead['user_id'] ?? null);
+$effective_freebie_id = $is_customer_logged_in ? (isset($_GET['freebie']) ? (int)$_GET['freebie'] : null) : $selected_freebie_id;
+
+if (!$effective_customer_id || !$effective_freebie_id) {
+    echo '<div class="bg-red-600/20 border border-red-600/30 rounded-xl p-6 text-center">';
+    echo '<p class="text-red-300">Fehler: Kunden- oder Freebie-ID fehlt</p>';
+    echo '</div>';
+    return;
+}
+
+// Videos für das aktuelle Freebie laden - FÜR ALLE LEADS des Kunden sichtbar
 $videos = [];
-if ($selected_freebie_id) {
-    try {
-        $stmt = $pdo->prepare("
-            SELECT * FROM video_tutorials 
-            WHERE customer_id = ? AND freebie_id = ? 
-            ORDER BY sort_order ASC, id ASC
-        ");
-        $stmt->execute([$customer_id, $selected_freebie_id]);
-        $videos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        error_log("Fehler beim Laden der Videos: " . $e->getMessage());
-        $videos = [];
-    }
+try {
+    $stmt = $pdo->prepare("
+        SELECT * FROM video_tutorials 
+        WHERE customer_id = ? AND freebie_id = ? 
+        ORDER BY sort_order ASC, id ASC
+    ");
+    $stmt->execute([$effective_customer_id, $effective_freebie_id]);
+    $videos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Fehler beim Laden der Videos: " . $e->getMessage());
+    $videos = [];
 }
 
 // Prüfen ob der eingeloggte Benutzer der Admin ist (NUR michael.gluska@gmail.com)
 $is_admin = false;
-if (isset($_SESSION['user_id'])) {
+$check_user_id = $is_customer_logged_in ? $_SESSION['user_id'] : ($lead['user_id'] ?? null);
+
+if ($check_user_id) {
     try {
         $stmt = $pdo->prepare("SELECT email FROM users WHERE id = ?");
-        $stmt->execute([$_SESSION['user_id']]);
+        $stmt->execute([$check_user_id]);
         $user_email = $stmt->fetchColumn();
         if ($user_email === 'michael.gluska@gmail.com') {
             $is_admin = true;
@@ -159,7 +171,8 @@ $color_classes = [
     </div>
     <?php endif; ?>
     
-    <!-- Quick Action -->
+    <!-- Quick Action (nur für Leads, nicht für Customer-Admin) -->
+    <?php if (!$is_customer_logged_in): ?>
     <div class="mt-8 text-center">
         <a href="?page=empfehlen<?php echo $selected_freebie_id ? '&freebie=' . $selected_freebie_id : ''; ?>" 
            class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-xl">
@@ -167,6 +180,7 @@ $color_classes = [
             Jetzt loslegen und empfehlen
         </a>
     </div>
+    <?php endif; ?>
 </div>
 
 <?php if ($is_admin): ?>
@@ -418,7 +432,7 @@ document.getElementById('videoForm').addEventListener('submit', async function(e
     const action = videoId ? 'update' : 'create';
     
     const data = {
-        freebie_id: <?php echo $selected_freebie_id; ?>,
+        freebie_id: <?php echo $effective_freebie_id; ?>,
         category_name: document.getElementById('categoryName').value,
         vimeo_url: document.getElementById('vimeoUrl').value,
         description: document.getElementById('description').value,
