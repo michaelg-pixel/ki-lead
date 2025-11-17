@@ -4,6 +4,7 @@
  * + AUTO-DELIVERY: Automatische Belohnungsauslieferung mit Email
  * + REDESIGN: Gleiches Design wie Customer Dashboard
  * + BELOHNUNGSSTUFEN: Prominente Anzeige aller verfügbaren Belohnungen
+ * + EMPFEHLUNGSLINK: Über Belohnungen + Auto-Scroll beim Teilen
  */
 
 require_once __DIR__ . '/config/database.php';
@@ -285,6 +286,9 @@ function sendRewardDeliveryEmail($lead, $reward) {
             background-size: 1000px 100%;
             animation: shimmer 3s infinite;
         }
+        html {
+            scroll-behavior: smooth;
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 min-h-screen">
@@ -401,7 +405,7 @@ function sendRewardDeliveryEmail($lead, $reward) {
                                 </a>
                                 <?php endif; ?>
                                 <?php if ($referral_enabled): ?>
-                                <button onclick="shareAndScroll('<?php echo $freebie['freebie_id']; ?>', '<?php echo htmlspecialchars($freebie['unique_id']); ?>')" 
+                                <button onclick="scrollToReferralLink('<?php echo htmlspecialchars($freebie['unique_id']); ?>')" 
                                         class="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-semibold transition-all">
                                     <i class="fas fa-share-alt"></i>
                                 </button>
@@ -415,9 +419,41 @@ function sendRewardDeliveryEmail($lead, $reward) {
             </div>
         </div>
         
-        <!-- Belohnungsstufen - PROMINENT ANZEIGEN -->
+        <!-- Empfehlungslink - JETZT ÜBER BELOHNUNGEN -->
+        <?php if ($referral_enabled && $selected_freebie): ?>
+        <div id="referralLinkSection" class="mb-8 animate-fade-in-up opacity-0" style="animation-delay: 0.4s;">
+            <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 shadow-xl border border-green-500/20">
+                <h3 class="text-2xl font-bold text-white mb-6">
+                    <i class="fas fa-link text-green-400 mr-2"></i>
+                    Dein Empfehlungs-Link
+                </h3>
+                
+                <div class="bg-green-500/10 rounded-xl p-6">
+                    <p class="text-green-300 font-semibold mb-3">
+                        📢 Teile diesen Link und verdiene Belohnungen!
+                    </p>
+                    <p class="text-gray-400 text-sm mb-4">
+                        Empfehlungs-Link für: <strong class="text-white"><?php echo htmlspecialchars($selected_freebie['title']); ?></strong>
+                    </p>
+                    <div class="flex gap-3 flex-col sm:flex-row">
+                        <input type="text" 
+                               id="referralLink" 
+                               value="<?php echo htmlspecialchars('https://app.mehr-infos-jetzt.de/freebie/index.php?id=' . $selected_freebie['unique_id'] . '&ref=' . $lead['referral_code']); ?>" 
+                               readonly
+                               class="flex-1 bg-gray-900 text-white px-4 py-3 rounded-lg border border-green-500/50">
+                        <button onclick="copyReferralLink()" 
+                                class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap">
+                            <i class="fas fa-copy mr-2"></i>Link kopieren
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+        
+        <!-- Belohnungsstufen -->
         <?php if ($referral_enabled && !empty($reward_tiers)): ?>
-        <div class="mb-8 animate-fade-in-up opacity-0" style="animation-delay: 0.4s;">
+        <div class="mb-8 animate-fade-in-up opacity-0" style="animation-delay: 0.5s;">
             <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 shadow-xl border border-yellow-500/20">
                 <div class="flex items-center justify-between mb-6">
                     <h3 class="text-2xl font-bold text-white">
@@ -518,7 +554,7 @@ function sendRewardDeliveryEmail($lead, $reward) {
         
         <!-- Meine erhaltenen Belohnungen -->
         <?php if ($referral_enabled && !empty($delivered_rewards)): ?>
-        <div class="mb-8 animate-fade-in-up opacity-0" style="animation-delay: 0.5s;" id="myRewardsSection">
+        <div class="mb-8 animate-fade-in-up opacity-0" style="animation-delay: 0.6s;" id="myRewardsSection">
             <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 shadow-xl border border-purple-500/20">
                 <h3 class="text-2xl font-bold text-white mb-6">
                     <i class="fas fa-gift text-purple-400 mr-2"></i>
@@ -591,47 +627,31 @@ function sendRewardDeliveryEmail($lead, $reward) {
             </div>
         </div>
         <?php endif; ?>
-        
-        <!-- Empfehlungsprogramm -->
-        <?php if ($referral_enabled && $selected_freebie): ?>
-        <div class="mb-8 animate-fade-in-up opacity-0" style="animation-delay: 0.6s;">
-            <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 shadow-xl border border-purple-500/20">
-                <h3 class="text-2xl font-bold text-white mb-6">
-                    <i class="fas fa-link text-purple-400 mr-2"></i>
-                    Dein Empfehlungs-Link
-                </h3>
-                
-                <div class="bg-purple-500/10 rounded-xl p-6 mb-6">
-                    <p class="text-purple-300 font-semibold mb-3">
-                        Empfehlungs-Link für: <strong><?php echo htmlspecialchars($selected_freebie['title']); ?></strong>
-                    </p>
-                    <div class="flex gap-3 flex-col sm:flex-row">
-                        <input type="text" 
-                               id="referralLink" 
-                               value="<?php echo htmlspecialchars('https://app.mehr-infos-jetzt.de/freebie/index.php?id=' . $selected_freebie['unique_id'] . '&ref=' . $lead['referral_code']); ?>" 
-                               readonly
-                               class="flex-1 bg-gray-900 text-white px-4 py-3 rounded-lg border border-purple-500/50">
-                        <button onclick="copyReferralLink()" 
-                                class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap">
-                            <i class="fas fa-copy mr-2"></i>Kopieren
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <?php endif; ?>
     </div>
     
     <script>
         const leadReferralCode = '<?php echo $lead['referral_code']; ?>';
         
-        function shareAndScroll(freebieId, uniqueId) {
+        // Scroll zum Empfehlungslink beim Teilen
+        function scrollToReferralLink(uniqueId) {
+            // Link kopieren
             const link = `https://app.mehr-infos-jetzt.de/freebie/index.php?id=${uniqueId}&ref=${leadReferralCode}`;
             navigator.clipboard.writeText(link).then(() => {
-                setTimeout(() => {
-                    window.location.href = window.location.pathname + '?freebie=' + freebieId;
-                }, 600);
-            }).catch(() => alert('Bitte kopiere den Link manuell'));
+                // Smooth Scroll zum Empfehlungslink
+                const section = document.getElementById('referralLinkSection');
+                if (section) {
+                    section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    
+                    // Highlight-Effekt
+                    section.style.transform = 'scale(1.02)';
+                    section.style.transition = 'transform 0.3s';
+                    setTimeout(() => {
+                        section.style.transform = 'scale(1)';
+                    }, 300);
+                }
+            }).catch(() => {
+                alert('Bitte kopiere den Link manuell');
+            });
         }
         
         function copyReferralLink() {
@@ -640,13 +660,14 @@ function sendRewardDeliveryEmail($lead, $reward) {
             try {
                 document.execCommand('copy');
                 const btn = event.target.closest('button');
+                const originalHTML = btn.innerHTML;
                 btn.innerHTML = '<i class="fas fa-check mr-2"></i>Kopiert!';
-                btn.classList.add('bg-green-600');
-                btn.classList.remove('bg-purple-600');
+                btn.classList.remove('bg-green-600');
+                btn.classList.add('bg-green-700');
                 setTimeout(() => {
-                    btn.innerHTML = '<i class="fas fa-copy mr-2"></i>Kopieren';
-                    btn.classList.remove('bg-green-600');
-                    btn.classList.add('bg-purple-600');
+                    btn.innerHTML = originalHTML;
+                    btn.classList.remove('bg-green-700');
+                    btn.classList.add('bg-green-600');
                 }, 2000);
             } catch (err) {
                 alert('Bitte kopiere den Link manuell');
