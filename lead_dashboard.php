@@ -219,13 +219,13 @@ $course_section_title = "Meine Kurse";
 
 // Navigation Menu Items
 $menu_items = [
-    'dashboard' => ['icon' => '📊', 'label' => 'Dashboard', 'show' => true],
-    'kurse' => ['icon' => '🎓', 'label' => 'Meine Kurse', 'show' => true],
-    'belohnungen' => ['icon' => '🎁', 'label' => 'Meine Belohnungen', 'show' => $referral_enabled && !empty($delivered_rewards)],
-    'videoanleitung' => ['icon' => '🎥', 'label' => 'Videoanleitung', 'show' => $referral_enabled],
-    'empfehlen' => ['icon' => '🚀', 'label' => 'Empfehlen', 'show' => $referral_enabled],
-    'anleitung' => ['icon' => '📖', 'label' => 'So funktioniert\'s', 'show' => true],
-    'social' => ['icon' => '🤖', 'label' => 'KI Social Assistant', 'show' => $referral_enabled],
+    'dashboard' => ['icon' => 'fa-home', 'label' => 'Dashboard', 'show' => true],
+    'kurse' => ['icon' => 'fa-graduation-cap', 'label' => 'Meine Kurse', 'show' => true],
+    'belohnungen' => ['icon' => 'fa-gift', 'label' => 'Meine Belohnungen', 'show' => $referral_enabled && !empty($delivered_rewards)],
+    'videoanleitung' => ['icon' => 'fa-video', 'label' => 'Videoanleitung', 'show' => $referral_enabled],
+    'empfehlen' => ['icon' => 'fa-share-alt', 'label' => 'Empfehlen', 'show' => $referral_enabled],
+    'anleitung' => ['icon' => 'fa-book-open', 'label' => 'So funktioniert\'s', 'show' => true],
+    'social' => ['icon' => 'fa-robot', 'label' => 'KI Social Assistant', 'show' => $referral_enabled],
 ];
 ?>
 <!DOCTYPE html>
@@ -234,6 +234,7 @@ $menu_items = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($company_name); ?> - Lead Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -496,6 +497,10 @@ $menu_items = [
             to { opacity: 1; transform: translateY(0); }
         }
         .animate-fade-in-up { animation: fadeInUp 0.6s ease-out forwards; }
+        .sidebar-item { transition: all 0.3s; }
+        .sidebar-item:hover { transform: translateX(4px); }
+        @keyframes pulse { 0%, 100% { box-shadow: 0 2px 10px rgba(139, 92, 246, 0.2); } 50% { box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4); } }
+        .reward-new { animation: pulse 2s infinite; }
     </style>
 </head>
 <body>
@@ -527,7 +532,7 @@ $menu_items = [
                 <a href="?page=<?php echo $page; ?><?php echo $selected_freebie_id ? '&freebie=' . $selected_freebie_id : ''; ?>" 
                    class="nav-item <?php echo $current_page === $page ? 'active' : ''; ?>" 
                    onclick="closeSidebarOnMobile()">
-                    <span class="nav-icon"><?php echo $item['icon']; ?></span>
+                    <span class="nav-icon"><i class="fas <?php echo $item['icon']; ?>"></i></span>
                     <span><?php echo $item['label']; ?></span>
                 </a>
                 <?php endif; ?>
@@ -554,10 +559,10 @@ $menu_items = [
                 include $content_file;
             } else {
                 // Fallback: Dashboard-Inline-Content
-                echo '<div style="text-align:center;padding:60px 20px;">';
-                echo '<h2 style="color:white;font-size:24px;margin-bottom:16px;">Seite nicht gefunden</h2>';
-                echo '<p style="color:#888;">Die angeforderte Seite existiert noch nicht.</p>';
-                echo '<p style="color:#888;margin-top:8px;">Aktuelle Seite: ' . htmlspecialchars($current_page) . '</p>';
+                echo '<div class="text-center py-16">';
+                echo '<h2 class="text-white text-2xl font-bold mb-4">Seite nicht gefunden</h2>';
+                echo '<p class="text-gray-400">Die angeforderte Seite existiert noch nicht.</p>';
+                echo '<p class="text-gray-500 mt-2 text-sm">Aktuelle Seite: ' . htmlspecialchars($current_page) . '</p>';
                 echo '</div>';
             }
             ?>
@@ -595,11 +600,12 @@ $menu_items = [
         
         function copyCode(code, button) {
             navigator.clipboard.writeText(code).then(() => {
+                const originalHTML = button.innerHTML;
                 button.innerHTML = '<i class="fas fa-check mr-2"></i>Kopiert!';
-                button.style.background = '#10b981';
+                button.classList.add('bg-green-700');
                 setTimeout(() => {
-                    button.innerHTML = '<i class="fas fa-copy mr-2"></i>Code kopieren';
-                    button.style.background = '';
+                    button.innerHTML = originalHTML;
+                    button.classList.remove('bg-green-700');
                 }, 2000);
             }).catch(() => alert('Bitte kopiere den Code manuell'));
         }
@@ -613,11 +619,11 @@ $menu_items = [
                 document.execCommand('copy');
                 const btn = event.target.closest('button');
                 const originalHTML = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-check"></i> Kopiert!';
-                btn.style.background = '#10b981';
+                btn.innerHTML = '<i class="fas fa-check mr-2"></i>Kopiert!';
+                btn.classList.add('bg-green-600');
                 setTimeout(() => {
                     btn.innerHTML = originalHTML;
-                    btn.style.background = '';
+                    btn.classList.remove('bg-green-600');
                 }, 2000);
             } catch (err) {
                 alert('Bitte kopiere den Link manuell');
@@ -626,8 +632,11 @@ $menu_items = [
         
         // Funktion für Teilen-Button in Kursen
         function scrollToReferralLink(freebieId) {
-            // Zur Empfehlen-Seite wechseln
             window.location.href = '?page=empfehlen<?php echo $selected_freebie_id ? '&freebie=' . $selected_freebie_id : ''; ?>';
+        }
+        
+        function toggleMobileMenu() {
+            toggleSidebar();
         }
     </script>
 </body>
