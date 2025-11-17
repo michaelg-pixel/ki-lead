@@ -28,7 +28,7 @@ if (!isset($lead) || !isset($pdo)) {
             <div class="h-48 bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center relative overflow-hidden">
                 <?php if (!empty($freebie['mockup_url'])): ?>
                 <img src="<?php echo htmlspecialchars($freebie['mockup_url']); ?>" 
-                     class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" 
+                     class="w-full h-full object-contain group-hover:scale-110 transition-transform duration-300" 
                      alt="<?php echo htmlspecialchars($freebie['title']); ?>">
                 <?php else: ?>
                 <i class="fas fa-graduation-cap text-white text-6xl group-hover:scale-110 transition-transform duration-300"></i>
