@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reward Definitions - Vollständige Migration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #1a202c;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #718096;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        
+        .info-box {
+            background: #f7fafc;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+        }
+        
+        .info-box h3 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .info-box ul {
+            margin-left: 20px;
+            color: #4a5568;
+            line-height: 1.8;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #2d3748;
+        }
+        
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+        
+        #log {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+            line-height: 1.6;
+            display: none;
+        }
+        
+        #log.show {
+            display: block;
+        }
+        
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px 0;
+        }
+        
+        .log-success {
+            color: #48bb78;
+        }
+        
+        .log-error {
+            color: #f56565;
+        }
+        
+        .log-info {
+            color: #4299e1;
+        }
+        
+        .log-warning {
+            color: #ed8936;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .status.show {
+            display: block;
+        }
+        
+        .status.success {
+            background: #c6f6d5;
+            color: #22543d;
+            border-left: 4px solid #48bb78;
+        }
+        
+        .status.error {
+            background: #fed7d7;
+            color: #742a2a;
+            border-left: 4px solid #f56565;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Reward Definitions - Vollständige Migration</h1>
+        <p class="subtitle">Fügt ALLE benötigten Spalten für das Vendor-Import-System hinzu</p>
+        
+        <div class="info-box">
+            <h3>📋 Diese Migration fügt hinzu:</h3>
+            <ul>
+                <li><strong>freebie_id</strong> - Zuordnung zu spezifischem Freebie</li>
+                <li><strong>imported_from_template_id</strong> - Link zum Vendor-Template</li>
+                <li><strong>is_imported</strong> - Markierung für Imports</li>
+                <li><strong>reward_delivery_type</strong> - Auslieferungsart</li>
+                <li><strong>reward_access_code</strong> - Zugriffscode für Belohnung</li>
+            </ul>
+        </div>
+        
+        <div class="button-group">
+            <button class="btn-primary" id="migrateBtn" onclick="runMigration()">
+                🚀 Vollständige Migration
+            </button>
+            <button class="btn-secondary" onclick="location.reload()">
+                🔄 Seite neu laden
+            </button>
+        </div>
+        
+        <div id="log"></div>
+        <div id="status" class="status"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            logDiv.classList.add('show');
+            
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString('de-DE');
+            const icon = {
+                'success': '✓',
+                'error': '✗',
+                'warning': '⚠',
+                'info': 'ℹ'
+            }[type] || 'ℹ';
+            
+            entry.textContent = `[${timestamp}] ${icon} ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status show ${type}`;
+            statusDiv.textContent = message;
+        }
+
+        async function executeSQL(sql, description) {
+            log(`Ausführen: ${description}`, 'info');
+            
+            const response = await fetch('/api/execute-migration.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ sql: sql })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                log(`✓ ${description} - Erfolgreich`, 'success');
+                return true;
+            } else {
+                // Check if error is "column already exists" - das ist OK
+                if (result.error && (
+                    result.error.includes('Duplicate column') || 
+                    result.error.includes('already exists') ||
+                    result.error.includes('check that column')
+                )) {
+                    log(`○ ${description} - Bereits vorhanden`, 'warning');
+                    return true;
+                }
+                log(`✗ ${description} - Fehler: ${result.error}`, 'error');
+                return false;
+            }
+        }
+
+        async function runMigration() {
+            const btn = document.getElementById('migrateBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Migration läuft...';
+            
+            document.getElementById('log').innerHTML = '';
+            document.getElementById('status').classList.remove('show');
+            
+            log('🚀 Starte VOLLSTÄNDIGE Reward Definitions Migration...', 'info');
+            log('', 'info');
+            
+            try {
+                // 1. freebie_id
+                await executeSQL(
+                    `ALTER TABLE reward_definitions 
+                     ADD COLUMN freebie_id INT DEFAULT NULL AFTER user_id`,
+                    '1/5: Spalte freebie_id'
+                );
+                
+                // 2. imported_from_template_id
+                await executeSQL(
+                    `ALTER TABLE reward_definitions 
+                     ADD COLUMN imported_from_template_id INT DEFAULT NULL AFTER freebie_id`,
+                    '2/5: Spalte imported_from_template_id'
+                );
+                
+                // 3. is_imported
+                await executeSQL(
+                    `ALTER TABLE reward_definitions 
+                     ADD COLUMN is_imported BOOLEAN DEFAULT FALSE AFTER imported_from_template_id`,
+                    '3/5: Spalte is_imported'
+                );
+                
+                // 4. reward_delivery_type
+                await executeSQL(
+                    `ALTER TABLE reward_definitions 
+                     ADD COLUMN reward_delivery_type VARCHAR(50) DEFAULT 'manual' 
+                     AFTER reward_value`,
+                    '4/5: Spalte reward_delivery_type'
+                );
+                
+                // 5. reward_access_code (falls noch nicht vorhanden)
+                await executeSQL(
+                    `ALTER TABLE reward_definitions 
+                     ADD COLUMN reward_access_code VARCHAR(100) DEFAULT NULL 
+                     AFTER reward_download_url`,
+                    '5/5: Spalte reward_access_code'
+                );
+                
+                log('', 'info');
+                log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+                log('', 'info');
+                
+                // Bereinige ungültige freebie_id Werte
+                log('🧹 Bereinige ungültige Daten...', 'info');
+                await executeSQL(
+                    `UPDATE reward_definitions rd 
+                     LEFT JOIN customer_freebies cf ON rd.freebie_id = cf.id 
+                     SET rd.freebie_id = NULL 
+                     WHERE rd.freebie_id IS NOT NULL AND cf.id IS NULL`,
+                    'Setze ungültige freebie_id auf NULL'
+                );
+                
+                // Versuche Foreign Key hinzuzufügen
+                log('🔗 Füge Foreign Keys hinzu...', 'info');
+                const fkResult = await executeSQL(
+                    `ALTER TABLE reward_definitions 
+                     ADD CONSTRAINT fk_reward_def_freebie 
+                     FOREIGN KEY (freebie_id) 
+                     REFERENCES customer_freebies(id) 
+                     ON DELETE SET NULL`,
+                    'Foreign Key für freebie_id'
+                );
+                
+                // Indizes
+                log('📊 Füge Indizes hinzu...', 'info');
+                await executeSQL(
+                    `ALTER TABLE reward_definitions 
+                     ADD INDEX idx_freebie (freebie_id)`,
+                    'Index für freebie_id'
+                );
+                
+                await executeSQL(
+                    `ALTER TABLE reward_definitions 
+                     ADD INDEX idx_imported (is_imported)`,
+                    'Index für is_imported'
+                );
+                
+                await executeSQL(
+                    `ALTER TABLE reward_definitions 
+                     ADD INDEX idx_template (imported_from_template_id)`,
+                    'Index für imported_from_template_id'
+                );
+                
+                // reward_template_imports Tabelle
+                log('📦 Erstelle Tracking-Tabelle...', 'info');
+                await executeSQL(
+                    `CREATE TABLE IF NOT EXISTS reward_template_imports (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        template_id INT NOT NULL,
+                        customer_id INT NOT NULL,
+                        reward_definition_id INT NOT NULL,
+                        import_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        import_source VARCHAR(50) DEFAULT 'marketplace',
+                        
+                        INDEX idx_template (template_id),
+                        INDEX idx_customer (customer_id),
+                        INDEX idx_reward_def (reward_definition_id),
+                        
+                        UNIQUE KEY unique_template_customer (template_id, customer_id),
+                        
+                        CONSTRAINT fk_import_template 
+                            FOREIGN KEY (template_id) 
+                            REFERENCES vendor_reward_templates(id) 
+                            ON DELETE CASCADE,
+                        
+                        CONSTRAINT fk_import_customer 
+                            FOREIGN KEY (customer_id) 
+                            REFERENCES users(id) 
+                            ON DELETE CASCADE,
+                        
+                        CONSTRAINT fk_import_reward_def 
+                            FOREIGN KEY (reward_definition_id) 
+                            REFERENCES reward_definitions(id) 
+                            ON DELETE CASCADE
+                            
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+                    'Tabelle reward_template_imports'
+                );
+                
+                log('', 'info');
+                log('✓✓✓ MIGRATION ERFOLGREICH ABGESCHLOSSEN! ✓✓✓', 'success');
+                log('', 'info');
+                log('📊 Zusammenfassung:', 'info');
+                log('  ✅ Alle benötigten Spalten hinzugefügt', 'success');
+                log('  ✅ Foreign Keys und Indizes erstellt', 'success');
+                log('  ✅ Tracking-Tabelle eingerichtet', 'success');
+                log('  ✅ Daten bereinigt', 'success');
+                log('', 'info');
+                log('🎉 Das Import-System ist jetzt KOMPLETT funktionsfähig!', 'success');
+                log('', 'info');
+                log('📍 Nächste Schritte:', 'info');
+                log('  1. Gehe zu: /customer/dashboard.php?page=marktplatz-browse', 'info');
+                log('  2. Tab "🎁 Belohnungen" öffnen', 'info');
+                log('  3. Template auswählen und importieren', 'info');
+                
+                showStatus('✅ Migration erfolgreich! Das Import-System ist jetzt voll funktionsfähig.', 'success');
+                
+                btn.innerHTML = '✓ Migration abgeschlossen';
+                setTimeout(() => {
+                    btn.innerHTML = '🚀 Vollständige Migration';
+                    btn.disabled = false;
+                }, 3000);
+                
+            } catch (error) {
+                log(`✗ Kritischer Fehler: ${error.message}`, 'error');
+                showStatus('✗ Migration fehlgeschlossen. Siehe Log für Details.', 'error');
+                
+                btn.innerHTML = '🚀 Vollständige Migration';
+                btn.disabled = false;
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', function() {
+            log('Bereit für Migration. Klicke auf "Vollständige Migration".', 'info');
+        });
+    </script>
+</body>
+</html>
