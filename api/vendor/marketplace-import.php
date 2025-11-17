@@ -46,8 +46,9 @@ try {
     
     try {
         // 1. Prüfe ob Template existiert und veröffentlicht ist
+        // KORRIGIERT: Verwende nur Felder, die definitiv existieren
         $stmt = $pdo->prepare("
-            SELECT vrt.*, u.email as vendor_email, u.first_name as vendor_first_name 
+            SELECT vrt.*, u.email as vendor_email 
             FROM vendor_reward_templates vrt
             JOIN users u ON vrt.vendor_id = u.id
             WHERE vrt.id = ? AND vrt.is_published = 1
@@ -78,16 +79,16 @@ try {
             'imported_from_template_id' => $template_id,
             'is_imported' => 1,
             'tier_level' => $template['suggested_tier_level'] ?? 1,
-            'tier_name' => $template['template_name'],
-            'tier_description' => $template['template_description'],
+            'tier_name' => $template['template_name'] ?? 'Importierte Belohnung',
+            'tier_description' => $template['template_description'] ?? null,
             'required_referrals' => $template['suggested_referrals_required'] ?? 3,
-            'reward_type' => $template['reward_type'],
-            'reward_title' => $template['reward_title'],
-            'reward_description' => $template['reward_description'],
-            'reward_value' => $template['reward_value'],
+            'reward_type' => $template['reward_type'] ?? 'other',
+            'reward_title' => $template['reward_title'] ?? $template['template_name'],
+            'reward_description' => $template['reward_description'] ?? null,
+            'reward_value' => $template['reward_value'] ?? null,
             'reward_delivery_type' => $template['reward_delivery_type'] ?? 'manual',
-            'reward_instructions' => $template['reward_instructions'],
-            'reward_download_url' => $template['reward_download_url'],
+            'reward_instructions' => $template['reward_instructions'] ?? null,
+            'reward_download_url' => $template['reward_download_url'] ?? null,
             'reward_icon' => $template['reward_icon'] ?? '🎁',
             'reward_color' => $template['reward_color'] ?? '#667eea'
         ];
@@ -212,20 +213,19 @@ try {
     
     http_response_code(500);
     
-    // Gib detaillierte Fehlermeldung im Entwicklungsmodus
+    // Gib detaillierte Fehlermeldung
     $errorDetails = 'Datenbankfehler beim Import';
     $debugInfo = null;
     
     if (strpos($e->getMessage(), 'Unknown column') !== false) {
         preg_match("/Unknown column '([^']+)'/", $e->getMessage(), $matches);
         $missingColumn = $matches[1] ?? 'unbekannt';
-        $errorDetails = "Fehlende Datenbank-Spalte: '$missingColumn'. Bitte führe die Migration aus.";
+        $errorDetails = "Fehlende Datenbank-Spalte: '$missingColumn'";
         $debugInfo = $e->getMessage();
     } elseif (strpos($e->getMessage(), "Table") !== false && strpos($e->getMessage(), "doesn't exist") !== false) {
-        $errorDetails = 'Fehlende Datenbank-Tabelle. Bitte führe die Migration aus.';
+        $errorDetails = 'Fehlende Datenbank-Tabelle';
         $debugInfo = $e->getMessage();
     } else {
-        // Andere DB-Fehler
         $debugInfo = $e->getMessage();
     }
     
