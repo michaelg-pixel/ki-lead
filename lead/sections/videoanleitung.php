@@ -1,7 +1,7 @@
 <?php
 /**
  * Lead Dashboard - Videoanleitung Sektion
- * + Video-Management für Kunden
+ * + Video-Management NUR für Admin (michael.gluska@gmail.com)
  * + Dynamischer Video-Player mit Kategorien
  */
 if (!isset($lead) || !isset($pdo)) {
@@ -25,10 +25,19 @@ if ($selected_freebie_id) {
     }
 }
 
-// Prüfen ob der eingeloggte Benutzer der Kunde ist (für Admin-Button)
-$is_customer = false;
-if (isset($_SESSION['user_id']) && $_SESSION['user_id'] == $customer_id) {
-    $is_customer = true;
+// Prüfen ob der eingeloggte Benutzer der Admin ist (NUR michael.gluska@gmail.com)
+$is_admin = false;
+if (isset($_SESSION['user_id'])) {
+    try {
+        $stmt = $pdo->prepare("SELECT email FROM users WHERE id = ?");
+        $stmt->execute([$_SESSION['user_id']]);
+        $user_email = $stmt->fetchColumn();
+        if ($user_email === 'michael.gluska@gmail.com') {
+            $is_admin = true;
+        }
+    } catch (PDOException $e) {
+        error_log("Fehler beim Prüfen der Admin-Rechte: " . $e->getMessage());
+    }
 }
 
 // Vimeo URL in Embed-URL konvertieren
@@ -53,14 +62,14 @@ $color_classes = [
 ?>
 
 <div class="animate-fade-in-up opacity-0">
-    <!-- Header mit Admin-Button -->
+    <!-- Header mit Admin-Button (NUR für michael.gluska@gmail.com) -->
     <div class="flex justify-between items-center mb-8">
         <h2 class="text-3xl font-bold text-white">
             <i class="fas fa-video text-purple-400 mr-3"></i>
             Videoanleitung
         </h2>
         
-        <?php if ($is_customer): ?>
+        <?php if ($is_admin): ?>
         <button onclick="openVideoModal()" 
                 class="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-all shadow-lg">
             <i class="fas fa-plus-circle mr-2"></i>Video hinzufügen
@@ -74,7 +83,7 @@ $color_classes = [
         <div class="text-6xl mb-4">🎥</div>
         <h3 class="text-white text-2xl font-bold mb-2">Noch keine Videos verfügbar</h3>
         <p class="text-gray-400 mb-6">Videos werden hier angezeigt, sobald sie hinzugefügt wurden</p>
-        <?php if ($is_customer): ?>
+        <?php if ($is_admin): ?>
         <button onclick="openVideoModal()" 
                 class="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-xl font-semibold transition-all">
             <i class="fas fa-plus-circle mr-2"></i>Erstes Video hinzufügen
@@ -122,7 +131,7 @@ $color_classes = [
             <div class="h-48 bg-gradient-to-br <?php echo $color_classes[$video['category_color']] ?? $color_classes['purple']; ?> flex items-center justify-center relative overflow-hidden">
                 <i class="fas <?php echo htmlspecialchars($video['category_icon']); ?> text-white text-6xl group-hover:scale-110 transition-transform duration-300"></i>
                 
-                <?php if ($is_customer): ?>
+                <?php if ($is_admin): ?>
                 <div class="absolute top-3 right-3 flex gap-2">
                     <button onclick="event.stopPropagation(); editVideo(<?php echo htmlspecialchars(json_encode($video)); ?>)" 
                             class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm transition-all">
@@ -160,8 +169,8 @@ $color_classes = [
     </div>
 </div>
 
-<?php if ($is_customer): ?>
-<!-- Video-Management Modal -->
+<?php if ($is_admin): ?>
+<!-- Video-Management Modal (NUR für Admin sichtbar) -->
 <div id="videoModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
     <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-purple-500/20">
         <div class="sticky top-0 bg-gradient-to-r from-purple-600 to-blue-600 p-6 rounded-t-2xl">
