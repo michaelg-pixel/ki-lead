@@ -51,6 +51,16 @@ try {
     die('Datenbankfehler beim Laden des Freebies: ' . $e->getMessage());
 }
 
+// Rechtstexte laden
+$legal_texts = [];
+try {
+    $stmt = $pdo->prepare("SELECT impressum, datenschutz FROM legal_texts WHERE user_id = ? LIMIT 1");
+    $stmt->execute([$customer_id]);
+    $legal_texts = $stmt->fetch(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Fehler beim Laden der Rechtstexte: " . $e->getMessage());
+}
+
 // Form-Submit
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
     $email = trim($_POST['email']);
@@ -258,6 +268,7 @@ $company_name = $freebie['company_name'] ?? 'Dashboard';
             background: linear-gradient(135deg, <?php echo $primary_color; ?>, color-mix(in srgb, <?php echo $primary_color; ?> 80%, black));
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             padding: 20px;
@@ -424,6 +435,38 @@ $company_name = $freebie['company_name'] ?? 'Dashboard';
             text-align: center;
         }
         
+        .legal-footer {
+            margin-top: 20px;
+            padding-top: 16px;
+            text-align: center;
+        }
+        
+        .legal-links {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .legal-link {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            font-size: 12px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .legal-link:hover {
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: underline;
+        }
+        
+        .legal-link i {
+            font-size: 10px;
+        }
+        
         @media (max-width: 768px) {
             .container {
                 padding: 40px 24px;
@@ -497,5 +540,24 @@ $company_name = $freebie['company_name'] ?? 'Dashboard';
             🔒 Deine Daten sind bei uns sicher. Wir geben sie nicht weiter.
         </p>
     </div>
+    
+    <!-- Rechtstexte Footer -->
+    <?php if (!empty($legal_texts['impressum']) || !empty($legal_texts['datenschutz'])): ?>
+    <div class="legal-footer">
+        <div class="legal-links">
+            <?php if (!empty($legal_texts['impressum'])): ?>
+            <a href="#" onclick="window.open('/legal-pages/impressum.php?customer=<?php echo $customer_id; ?>', '_blank'); return false;" class="legal-link">
+                <i class="fas fa-info-circle"></i> Impressum
+            </a>
+            <?php endif; ?>
+            
+            <?php if (!empty($legal_texts['datenschutz'])): ?>
+            <a href="#" onclick="window.open('/legal-pages/datenschutz.php?customer=<?php echo $customer_id; ?>', '_blank'); return false;" class="legal-link">
+                <i class="fas fa-shield-alt"></i> Datenschutzerklärung
+            </a>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endif; ?>
 </body>
 </html>
