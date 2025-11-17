@@ -26,8 +26,7 @@ if (!isset($_SESSION['lead_id'])) {
         <div class="container">
             <div class="icon">🔒</div>
             <h1>Session abgelaufen</h1>
-            <p>Deine Sitzung ist abgelaufen oder du bist nicht eingeloggt. Bitte registriere dich erneut über den Link, den du erhalten hast.</p>
-            <p style="font-size: 14px; color: #999;">Wenn du keinen Link hast, kontaktiere bitte den Support.</p>
+            <p>Deine Sitzung ist abgelaufen. Bitte registriere dich erneut über den Link, den du erhalten hast.</p>
         </div>
     </body>
     </html>
@@ -51,14 +50,18 @@ $stmt->close();
 
 if (!$lead) {
     session_destroy();
-    die("Lead nicht gefunden. Bitte registriere dich erneut.");
+    die("Lead nicht gefunden.");
 }
 
-// Freebies laden mit korrekter Lektionen-Anzahl
+// Freebies laden mit ALLEN Feldern
 $freebies = [];
 $stmt = $conn->prepare("
     SELECT 
-        cf.*, 
+        cf.id,
+        cf.name,
+        cf.description,
+        cf.mockup_image,
+        cf.customer_id,
         lfa.granted_at,
         (
             SELECT COUNT(*) 
@@ -66,8 +69,7 @@ $stmt = $conn->prepare("
             INNER JOIN freebie_course_modules fcm ON fcl.module_id = fcm.id
             INNER JOIN freebie_courses fc ON fcm.course_id = fc.id
             WHERE fc.freebie_id = cf.id
-        ) as total_lessons,
-        0 as user_progress
+        ) as total_lessons
     FROM customer_freebies cf
     INNER JOIN lead_freebie_access lfa ON cf.id = lfa.freebie_id
     WHERE lfa.lead_id = ?
@@ -81,32 +83,34 @@ while ($row = $result->fetch_assoc()) {
 }
 $stmt->close();
 
+// Referral-System
 $referral_enabled = false;
 $referral_link = '';
 $referral_stats = ['total' => 0, 'pending' => 0];
 
-// Referral-System prüfen
-$stmt = $conn->prepare("SELECT referral_enabled FROM users WHERE id = ?");
-$stmt->bind_param("i", $lead['user_id']);
-$stmt->execute();
-$user_data = $stmt->get_result()->fetch_assoc();
-$stmt->close();
-
-if ($user_data && $user_data['referral_enabled']) {
-    $referral_enabled = true;
-    $referral_link = SITE_URL . '/lead_register.php?freebie=' . $lead['freebie_id'] . '&customer=' . $lead['user_id'] . '&ref=' . $lead['referral_code'];
-    
-    $stmt = $conn->prepare("
-        SELECT 
-            COUNT(*) as total,
-            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending
-        FROM lead_referrals 
-        WHERE referrer_id = ?
-    ");
-    $stmt->bind_param("i", $lead_id);
+if (!empty($lead['user_id'])) {
+    $stmt = $conn->prepare("SELECT referral_enabled FROM users WHERE id = ?");
+    $stmt->bind_param("i", $lead['user_id']);
     $stmt->execute();
-    $referral_stats = $stmt->get_result()->fetch_assoc();
+    $user_data = $stmt->get_result()->fetch_assoc();
     $stmt->close();
+
+    if ($user_data && $user_data['referral_enabled']) {
+        $referral_enabled = true;
+        $referral_link = SITE_URL . '/lead_register.php?freebie=' . $lead['freebie_id'] . '&customer=' . $lead['user_id'] . '&ref=' . $lead['referral_code'];
+        
+        $stmt = $conn->prepare("
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending
+            FROM lead_referrals 
+            WHERE referrer_id = ?
+        ");
+        $stmt->bind_param("i", $lead_id);
+        $stmt->execute();
+        $referral_stats = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+    }
 }
 
 $current_page = $_GET['page'] ?? 'dashboard';
@@ -137,7 +141,7 @@ if ($referral_enabled) {
         .logout-btn { float: right; background: #ff4757; color: white; border: none; padding: 12px 24px; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 600; text-decoration: none; display: inline-block; transition: all 0.3s ease; }
         .logout-btn:hover { background: #ee5a6f; transform: translateY(-2px); }
         .nav-tabs { background: white; border-radius: 20px; padding: 20px; margin-bottom: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); display: flex; gap: 10px; flex-wrap: wrap; }
-        .nav-tab { padding: 12px 24px; background: #f8f9fa; color: #666; border-radius: 12px; font-size: 15px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; transition: all 0.3s ease; }
+        .nav-tab { padding: 12px 24px; background: #f8f9fa; color: #666; border-radius: 12px; font-size: 15px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; transition: all 0.3s ease; border: none; cursor: pointer; }
         .nav-tab:hover { background: #e9ecef; color: #333; }
         .nav-tab.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
         .content { background: white; border-radius: 20px; padding: 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
@@ -146,10 +150,11 @@ if ($referral_enabled) {
         .freebie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 25px; margin-top: 30px; }
         .freebie-card { background: white; border: 2px solid #e9ecef; border-radius: 16px; overflow: hidden; transition: all 0.3s ease; cursor: pointer; }
         .freebie-card:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(0,0,0,0.15); border-color: #667eea; }
-        .freebie-mockup { width: 100%; height: 200px; object-fit: cover; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .freebie-mockup { width: 100%; height: 200px; object-fit: cover; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-size: 48px; }
         .freebie-content { padding: 25px; }
         .freebie-title { font-size: 20px; font-weight: 700; color: #333; margin-bottom: 10px; }
-        .freebie-description { font-size: 14px; color: #666; line-height: 1.6; margin-bottom: 20px; }
+        .freebie-description { font-size: 14px; color: #666; line-height: 1.6; margin-bottom: 20px; min-height: 60px; }
+        .freebie-meta { display: flex; justify-content: space-between; align-items: center; padding-top: 15px; border-top: 1px solid #e9ecef; }
         .lesson-count { display: flex; align-items: center; gap: 8px; color: #666; font-size: 14px; }
         .lesson-count i { color: #667eea; }
         .start-btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 15px; transition: all 0.3s ease; }
@@ -161,7 +166,7 @@ if ($referral_enabled) {
         .referral-link-box { background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 12px; padding: 20px; margin: 30px 0; }
         .referral-link-box h3 { margin-bottom: 15px; color: #333; }
         .link-input-group { display: flex; gap: 10px; }
-        .link-input { flex: 1; padding: 12px 15px; border: 1px solid #dee2e6; border-radius: 8px; font-size: 14px; font-family: monospace; }
+        .link-input { flex: 1; padding: 12px 15px; border: 1px solid #dee2e6; border-radius: 8px; font-size: 13px; font-family: monospace; }
         .copy-btn { background: #667eea; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
         .copy-btn:hover { background: #5568d3; }
         .copy-btn.copied { background: #2ecc71; }
@@ -187,7 +192,7 @@ if ($referral_enabled) {
     <div class="container">
         <div class="header">
             <a href="lead_logout.php" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Abmelden</a>
-            <h1>Willkommen<?php echo $lead['name'] ? ', ' . htmlspecialchars($lead['name']) : ''; ?>!</h1>
+            <h1>Willkommen<?php echo !empty($lead['name']) ? ', ' . htmlspecialchars($lead['name']) : ''; ?>!</h1>
             <p>E-Mail: <?php echo htmlspecialchars($lead['email']); ?></p>
         </div>
         
@@ -232,16 +237,20 @@ if ($referral_enabled) {
                                 <?php if (!empty($freebie['mockup_image'])): ?>
                                     <img src="<?php echo htmlspecialchars($freebie['mockup_image']); ?>" alt="<?php echo htmlspecialchars($freebie['name']); ?>" class="freebie-mockup">
                                 <?php else: ?>
-                                    <div class="freebie-mockup"></div>
+                                    <div class="freebie-mockup">
+                                        <i class="fas fa-graduation-cap"></i>
+                                    </div>
                                 <?php endif; ?>
                                 
                                 <div class="freebie-content">
-                                    <div class="freebie-title"><?php echo htmlspecialchars($freebie['name']); ?></div>
-                                    <div class="freebie-description"><?php echo htmlspecialchars($freebie['description'] ?? ''); ?></div>
-                                    <span class="lesson-count">
-                                        <i class="fas fa-play-circle"></i>
-                                        <?php echo $freebie['total_lessons']; ?> Lektionen
-                                    </span>
+                                    <div class="freebie-title"><?php echo htmlspecialchars($freebie['name'] ?? 'Unbenannter Kurs'); ?></div>
+                                    <div class="freebie-description"><?php echo htmlspecialchars($freebie['description'] ?? 'Keine Beschreibung verfügbar'); ?></div>
+                                    <div class="freebie-meta">
+                                        <span class="lesson-count">
+                                            <i class="fas fa-play-circle"></i>
+                                            <?php echo $freebie['total_lessons']; ?> Lektionen
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         <?php endforeach; ?>
@@ -266,16 +275,20 @@ if ($referral_enabled) {
                                 <?php if (!empty($freebie['mockup_image'])): ?>
                                     <img src="<?php echo htmlspecialchars($freebie['mockup_image']); ?>" alt="<?php echo htmlspecialchars($freebie['name']); ?>" class="freebie-mockup">
                                 <?php else: ?>
-                                    <div class="freebie-mockup"></div>
+                                    <div class="freebie-mockup">
+                                        <i class="fas fa-graduation-cap"></i>
+                                    </div>
                                 <?php endif; ?>
                                 
                                 <div class="freebie-content">
-                                    <div class="freebie-title"><?php echo htmlspecialchars($freebie['name']); ?></div>
-                                    <div class="freebie-description"><?php echo htmlspecialchars($freebie['description'] ?? ''); ?></div>
-                                    <span class="lesson-count">
-                                        <i class="fas fa-play-circle"></i>
-                                        <?php echo $freebie['total_lessons']; ?> Lektionen
-                                    </span>
+                                    <div class="freebie-title"><?php echo htmlspecialchars($freebie['name'] ?? 'Unbenannter Kurs'); ?></div>
+                                    <div class="freebie-description"><?php echo htmlspecialchars($freebie['description'] ?? 'Keine Beschreibung verfügbar'); ?></div>
+                                    <div class="freebie-meta">
+                                        <span class="lesson-count">
+                                            <i class="fas fa-play-circle"></i>
+                                            <?php echo $freebie['total_lessons']; ?> Lektionen
+                                        </span>
+                                    </div>
                                     <button class="start-btn" onclick="window.location.href='customer/view_freebie.php?id=<?php echo $freebie['id']; ?>'">
                                         Starten
                                     </button>
@@ -289,7 +302,7 @@ if ($referral_enabled) {
             <?php if ($referral_enabled): ?>
             <div class="page-content <?php echo $current_page === 'empfehlen' ? 'active' : ''; ?>">
                 <h2><i class="fas fa-share-alt"></i> Freunde empfehlen</h2>
-                <p style="color: #666; margin-top: 10px;">Teile deinen persönlichen Link und verdiene Belohnungen!</p>
+                <p style="color: #666; margin-top: 10px; margin-bottom: 30px;">Teile deinen persönlichen Link und verdiene Belohnungen!</p>
                 
                 <div class="referral-link-box">
                     <h3>Dein persönlicher Empfehlungslink:</h3>
@@ -297,6 +310,9 @@ if ($referral_enabled) {
                         <input type="text" class="link-input" value="<?php echo htmlspecialchars($referral_link); ?>" id="referralLink" readonly>
                         <button class="copy-btn" onclick="copyReferralLink()"><i class="fas fa-copy"></i> Kopieren</button>
                     </div>
+                    <p style="font-size: 13px; color: #666; margin-top: 10px;">
+                        <i class="fas fa-info-circle"></i> Teile diesen Link mit Freunden, Familie oder in deinen Social Media Kanälen.
+                    </p>
                 </div>
                 
                 <div class="stats-grid">
@@ -308,6 +324,18 @@ if ($referral_enabled) {
                         <div class="stat-value"><?php echo $referral_stats['total'] - $referral_stats['pending']; ?></div>
                         <div class="stat-label">Aktive Empfehlungen</div>
                     </div>
+                    <div class="stat-card">
+                        <div class="stat-value"><?php echo $referral_stats['pending']; ?></div>
+                        <div class="stat-label">Ausstehend</div>
+                    </div>
+                </div>
+                
+                <div style="background: #f0f9ff; border-left: 4px solid #3b82f6; padding: 20px; border-radius: 8px; margin-top: 30px;">
+                    <h4 style="color: #1e40af; margin-bottom: 10px;"><i class="fas fa-lightbulb"></i> Tipp</h4>
+                    <p style="color: #1e40af; font-size: 14px; line-height: 1.6;">
+                        Je mehr Personen du erfolgreich empfiehlst, desto bessere Belohnungen erhältst du! 
+                        Teile deinen Link überall wo es erlaubt ist.
+                    </p>
                 </div>
             </div>
             <?php endif; ?>
