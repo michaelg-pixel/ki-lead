@@ -5,20 +5,16 @@ ini_set('display_errors', 1);
 
 require_once 'config.php';
 
-// Session-Prüfung
 if (!isset($_SESSION['lead_id'])) {
-    echo '<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>Session abgelaufen</title></head><body style="font-family: sans-serif; text-align: center; padding: 100px;"><h1>🔒 Session abgelaufen</h1><p>Bitte registriere dich erneut.</p></body></html>';
+    echo '<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>Session abgelaufen</title></head><body style="font-family:sans-serif;text-align:center;padding:100px"><h1>🔒 Session abgelaufen</h1><p>Bitte registriere dich erneut.</p></body></html>';
     exit();
 }
 
 $lead_id = $_SESSION['lead_id'];
 $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
-if ($conn->connect_error) {
-    die("Verbindung fehlgeschlagen: " . $conn->connect_error);
-}
+if ($conn->connect_error) die("Verbindung fehlgeschlagen");
 $conn->set_charset("utf8mb4");
 
-// Lead-Daten
 $stmt = $conn->prepare("SELECT * FROM lead_users WHERE id = ?");
 $stmt->bind_param("i", $lead_id);
 $stmt->execute();
@@ -30,14 +26,14 @@ if (!$lead) {
     die("Lead nicht gefunden.");
 }
 
-// Freebies laden - MIT ALLEN MÖGLICHEN SPALTENNAMEN
+// Freebies mit KORREKTEN Spaltennamen
 $freebies = [];
 $stmt = $conn->prepare("
     SELECT 
         cf.id,
-        cf.freebie_name as name,
-        cf.description,
-        cf.mockup_url as mockup_image,
+        cf.headline as name,
+        cf.subheadline as description,
+        cf.mockup_image_url as mockup_image,
         cf.customer_id,
         lfa.granted_at,
         (
@@ -60,7 +56,6 @@ while ($row = $result->fetch_assoc()) {
 }
 $stmt->close();
 
-// Referral-System
 $referral_enabled = false;
 $referral_link = '';
 $referral_stats = ['total' => 0, 'pending' => 0];
