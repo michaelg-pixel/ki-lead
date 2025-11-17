@@ -214,6 +214,9 @@ if ($referral_enabled && $customer_id) {
     }
 }
 
+// Variablen für kurse.php Sektion
+$course_section_title = "Meine Kurse";
+
 // Navigation Menu Items
 $menu_items = [
     'dashboard' => ['icon' => '📊', 'label' => 'Dashboard', 'show' => true],
@@ -619,6 +622,12 @@ $menu_items = [
             } catch (err) {
                 alert('Bitte kopiere den Link manuell');
             }
+        }
+        
+        // Funktion für Teilen-Button in Kursen
+        function scrollToReferralLink(freebieId) {
+            // Zur Empfehlen-Seite wechseln
+            window.location.href = '?page=empfehlen<?php echo $selected_freebie_id ? '&freebie=' . $selected_freebie_id : ''; ?>';
         }
     </script>
 </body>
