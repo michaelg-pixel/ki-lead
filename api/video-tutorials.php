@@ -3,7 +3,7 @@
  * API für Video-Tutorial-Verwaltung
  * CRUD Operationen für Vimeo-Videos in Videoanleitung
  * NUR für Admin (michael.gluska@gmail.com)
- * Unterstützt GLOBALE Videos (freebie_id = 0)
+ * Globale Videos (freebie_id = 0) sind für ALLE Leads ALLER Customers sichtbar
  */
 
 require_once __DIR__ . '/../config/database.php';
@@ -54,29 +54,23 @@ try {
             description TEXT,
             sort_order INT DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            INDEX idx_customer_freebie (customer_id, freebie_id)
+            INDEX idx_freebie (freebie_id)
         )
     ");
 } catch (PDOException $e) {
     error_log("Fehler beim Erstellen der video_tutorials Tabelle: " . $e->getMessage());
 }
 
-// GET: Alle Videos für ein Freebie laden (nur für Admin)
+// GET: Alle globalen Videos laden (nur für Admin)
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'list') {
-    $freebie_id = isset($_GET['freebie_id']) ? (int)$_GET['freebie_id'] : -1;
-    
-    if ($freebie_id < 0) {
-        echo json_encode(['error' => 'Freebie ID fehlt']);
-        exit;
-    }
-    
     try {
+        // Zeige alle globalen Videos (freebie_id = 0)
         $stmt = $pdo->prepare("
             SELECT * FROM video_tutorials 
-            WHERE customer_id = ? AND freebie_id = ? 
+            WHERE freebie_id = 0 
             ORDER BY sort_order ASC, id ASC
         ");
-        $stmt->execute([$user_id, $freebie_id]);
+        $stmt->execute();
         $videos = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         echo json_encode(['success' => true, 'videos' => $videos]);
@@ -91,8 +85,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'list') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'create') {
     $data = json_decode(file_get_contents('php://input'), true);
     
-    // freebie_id kann 0 sein für globale Videos
-    $freebie_id = isset($data['freebie_id']) ? (int)$data['freebie_id'] : -1;
+    // freebie_id muss 0 sein für globale Videos
+    $freebie_id = isset($data['freebie_id']) ? (int)$data['freebie_id'] : 0;
     $category_name = $data['category_name'] ?? '';
     $category_icon = $data['category_icon'] ?? 'fa-video';
     $category_color = $data['category_color'] ?? 'purple';
@@ -100,9 +94,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'create') {
     $description = $data['description'] ?? '';
     $sort_order = (int)($data['sort_order'] ?? 0);
     
-    // Validierung: freebie_id muss >= 0 sein (0 = global, >0 = spezifisch)
-    if ($freebie_id < 0 || !$category_name || !$vimeo_url) {
-        echo json_encode(['error' => 'Pflichtfelder fehlen (freebie_id >= 0 erforderlich)']);
+    if (!$category_name || !$vimeo_url) {
+        echo json_encode(['error' => 'Pflichtfelder fehlen (category_name und vimeo_url erforderlich)']);
         exit;
     }
     
@@ -119,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'create') {
         echo json_encode([
             'success' => true, 
             'video_id' => $video_id,
-            'message' => $freebie_id === 0 ? 'Globales Video erstellt' : 'Freebie-spezifisches Video erstellt'
+            'message' => $freebie_id === 0 ? 'Globales Video für alle Leads erstellt' : 'Video erstellt'
         ]);
     } catch (PDOException $e) {
         http_response_code(500);
@@ -146,13 +139,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'update') {
     }
     
     try {
+        // Update ohne customer_id Check - Admin kann alle Videos bearbeiten
         $stmt = $pdo->prepare("
             UPDATE video_tutorials 
             SET category_name = ?, category_icon = ?, category_color = ?, 
                 vimeo_url = ?, description = ?, sort_order = ? 
-            WHERE id = ? AND customer_id = ?
+            WHERE id = ?
         ");
-        $stmt->execute([$category_name, $category_icon, $category_color, $vimeo_url, $description, $sort_order, $video_id, $user_id]);
+        $stmt->execute([$category_name, $category_icon, $category_color, $vimeo_url, $description, $sort_order, $video_id]);
         
         echo json_encode(['success' => true]);
     } catch (PDOException $e) {
@@ -173,8 +167,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'delete') {
     }
     
     try {
-        $stmt = $pdo->prepare("DELETE FROM video_tutorials WHERE id = ? AND customer_id = ?");
-        $stmt->execute([$video_id, $user_id]);
+        // Delete ohne customer_id Check - Admin kann alle Videos löschen
+        $stmt = $pdo->prepare("DELETE FROM video_tutorials WHERE id = ?");
+        $stmt->execute([$video_id]);
         
         echo json_encode(['success' => true]);
     } catch (PDOException $e) {
