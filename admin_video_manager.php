@@ -2,7 +2,7 @@
 /**
  * Video-Management für Admin
  * Direkter Zugriff für michael.gluska@gmail.com
- * Videos sind für ALLE Leads sichtbar
+ * GLOBALE Videos sind für ALLE Leads sichtbar (freebie_id = 0)
  */
 
 require_once __DIR__ . '/config/database.php';
@@ -32,27 +32,15 @@ try {
     die('Fehler: ' . $e->getMessage());
 }
 
-// Freebie-ID aus URL
-$selected_freebie_id = isset($_GET['freebie']) ? (int)$_GET['freebie'] : null;
-
-if (!$selected_freebie_id) {
-    echo '<div style="padding: 40px; font-family: Arial;">';
-    echo '<h3>Bitte Freebie-ID angeben</h3>';
-    echo '<p>Beispiel: <a href="?freebie=7" style="color: #667eea;">admin_video_manager.php?freebie=7</a></p>';
-    echo '<a href="/customer/dashboard.php" style="color: #667eea;">Zurück zum Dashboard</a>';
-    echo '</div>';
-    exit;
-}
-
-// Videos laden - diese sind für ALLE Leads sichtbar
+// GLOBALE Videos laden - freebie_id = 0 bedeutet für ALLE Leads sichtbar
 $videos = [];
 try {
     $stmt = $pdo->prepare("
         SELECT * FROM video_tutorials 
-        WHERE customer_id = ? AND freebie_id = ? 
+        WHERE customer_id = ? AND freebie_id = 0 
         ORDER BY sort_order ASC, id ASC
     ");
-    $stmt->execute([$customer_id, $selected_freebie_id]);
+    $stmt->execute([$customer_id]);
     $videos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     error_log("Fehler beim Laden der Videos: " . $e->getMessage());
@@ -81,7 +69,7 @@ $color_classes = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video-Management - <?php echo htmlspecialchars($company_name); ?></title>
+    <title>Globale Video-Verwaltung - <?php echo htmlspecialchars($company_name); ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -109,9 +97,12 @@ $color_classes = [
                 <div>
                     <h1 class="text-4xl font-bold text-white mb-2">
                         <i class="fas fa-video text-purple-400 mr-3"></i>
-                        Video-Management
+                        Globale Video-Verwaltung
                     </h1>
-                    <p class="text-gray-400">Freebie ID: <?php echo $selected_freebie_id; ?> | Diese Videos sind für alle Leads sichtbar</p>
+                    <p class="text-gray-400">
+                        <i class="fas fa-globe mr-2"></i>
+                        Diese Videos sind für <strong>ALLE Leads</strong> auf dem Lead-Dashboard sichtbar
+                    </p>
                 </div>
                 <button onclick="openVideoModal()" 
                         class="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-all shadow-lg">
@@ -124,8 +115,8 @@ $color_classes = [
         <!-- Keine Videos -->
         <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-12 text-center shadow-xl border border-purple-500/20">
             <div class="text-6xl mb-4">🎥</div>
-            <h3 class="text-white text-2xl font-bold mb-2">Noch keine Videos vorhanden</h3>
-            <p class="text-gray-400 mb-6">Füge dein erstes Video hinzu - es wird für alle Leads dieses Freebies sichtbar sein</p>
+            <h3 class="text-white text-2xl font-bold mb-2">Noch keine globalen Videos vorhanden</h3>
+            <p class="text-gray-400 mb-6">Füge dein erstes globales Video hinzu - es wird für alle Leads auf dem Dashboard sichtbar sein</p>
             <button onclick="openVideoModal()" 
                     class="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-xl font-semibold transition-all">
                 <i class="fas fa-plus-circle mr-2"></i>Erstes Video hinzufügen
@@ -203,7 +194,7 @@ $color_classes = [
                 <div class="flex justify-between items-center">
                     <h3 class="text-white text-2xl font-bold">
                         <i class="fas fa-video mr-2"></i>
-                        <span id="modalTitle">Video hinzufügen</span>
+                        <span id="modalTitle">Globales Video hinzufügen</span>
                     </h3>
                     <button onclick="closeVideoModal()" class="text-white hover:text-gray-300 text-2xl">
                         <i class="fas fa-times"></i>
@@ -307,7 +298,7 @@ function openVideoModal() {
     document.getElementById('videoModal').classList.remove('hidden');
     document.getElementById('videoForm').reset();
     document.getElementById('videoId').value = '';
-    document.getElementById('modalTitle').textContent = 'Video hinzufügen';
+    document.getElementById('modalTitle').textContent = 'Globales Video hinzufügen';
     document.querySelectorAll('.icon-selector').forEach(btn => btn.classList.remove('bg-purple-600'));
     document.querySelectorAll('.icon-selector')[0].classList.add('bg-purple-600');
     document.querySelectorAll('.color-selector').forEach(btn => btn.classList.remove('border-white'));
@@ -336,7 +327,7 @@ function selectColor(color) {
 
 function editVideo(video) {
     openVideoModal();
-    document.getElementById('modalTitle').textContent = 'Video bearbeiten';
+    document.getElementById('modalTitle').textContent = 'Globales Video bearbeiten';
     document.getElementById('videoId').value = video.id;
     document.getElementById('categoryName').value = video.category_name;
     document.getElementById('vimeoUrl').value = video.vimeo_url;
@@ -391,7 +382,7 @@ document.getElementById('videoForm').addEventListener('submit', async function(e
     const action = videoId ? 'update' : 'create';
     
     const data = {
-        freebie_id: <?php echo $selected_freebie_id; ?>,
+        freebie_id: 0, // GLOBAL für alle Leads
         category_name: document.getElementById('categoryName').value,
         vimeo_url: document.getElementById('vimeoUrl').value,
         description: document.getElementById('description').value,
