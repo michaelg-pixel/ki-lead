@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reward Definitions - Diagnose</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 900px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #1a202c;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #718096;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #2d3748;
+        }
+        
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+        
+        #result {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 500px;
+            overflow-y: auto;
+            line-height: 1.6;
+            display: none;
+        }
+        
+        #result.show {
+            display: block;
+        }
+        
+        .column-list {
+            margin-top: 20px;
+        }
+        
+        .column-item {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .column-exists {
+            background: rgba(72, 187, 120, 0.1);
+            color: #48bb78;
+        }
+        
+        .column-missing {
+            background: rgba(245, 101, 101, 0.1);
+            color: #f56565;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .status-box {
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .status-box.show {
+            display: block;
+        }
+        
+        .status-box.error {
+            background: #fed7d7;
+            color: #742a2a;
+            border-left: 4px solid #f56565;
+        }
+        
+        .status-box.success {
+            background: #c6f6d5;
+            color: #22543d;
+            border-left: 4px solid #48bb78;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Reward Definitions - Diagnose</h1>
+        <p class="subtitle">Prüft welche Spalten in der reward_definitions Tabelle vorhanden sind</p>
+        
+        <div class="button-group">
+            <button class="btn-primary" id="diagnoseBtn" onclick="runDiagnose()">
+                🔍 Diagnose starten
+            </button>
+            <button class="btn-secondary" onclick="location.reload()">
+                🔄 Seite neu laden
+            </button>
+        </div>
+        
+        <div id="result"></div>
+        <div id="status" class="status-box"></div>
+    </div>
+
+    <script>
+        // Alle benötigten Spalten für den Import
+        const requiredColumns = [
+            'id',
+            'user_id',
+            'freebie_id',
+            'imported_from_template_id',
+            'is_imported',
+            'tier_level',
+            'tier_name',
+            'tier_description',
+            'required_referrals',
+            'reward_type',
+            'reward_title',
+            'reward_description',
+            'reward_value',
+            'reward_delivery_type',
+            'reward_download_url',
+            'reward_access_code',
+            'reward_instructions',
+            'reward_icon',
+            'reward_color',
+            'reward_badge_image',
+            'is_active',
+            'is_featured',
+            'auto_deliver',
+            'notification_subject',
+            'notification_body',
+            'sort_order',
+            'created_at',
+            'updated_at'
+        ];
+
+        async function runDiagnose() {
+            const btn = document.getElementById('diagnoseBtn');
+            const resultDiv = document.getElementById('result');
+            const statusDiv = document.getElementById('status');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Diagnose läuft...';
+            resultDiv.innerHTML = '';
+            statusDiv.classList.remove('show');
+            
+            try {
+                // Hole Tabellen-Struktur
+                const response = await fetch('/api/execute-migration.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        sql: 'DESCRIBE reward_definitions' 
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Fehler beim Abrufen der Tabellenstruktur');
+                }
+                
+                // Parse die Spalten (die kommen als String zurück)
+                // Wir müssen eine andere Methode verwenden
+                const checkResponse = await fetch('/api/execute-migration.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        sql: `SELECT COLUMN_NAME 
+                              FROM INFORMATION_SCHEMA.COLUMNS 
+                              WHERE TABLE_SCHEMA = DATABASE() 
+                              AND TABLE_NAME = 'reward_definitions'` 
+                    })
+                });
+                
+                const checkResult = await checkResponse.json();
+                
+                // Da wir die Daten nicht direkt bekommen, erstellen wir SQL um jede Spalte zu prüfen
+                const existingColumns = [];
+                const missingColumns = [];
+                
+                resultDiv.classList.add('show');
+                resultDiv.innerHTML = '<div style="color: #4299e1;">🔍 Prüfe Spalten...</div>\n\n';
+                
+                for (const column of requiredColumns) {
+                    const checkSql = `SELECT COUNT(*) as col_exists 
+                                      FROM INFORMATION_SCHEMA.COLUMNS 
+                                      WHERE TABLE_SCHEMA = DATABASE() 
+                                      AND TABLE_NAME = 'reward_definitions' 
+                                      AND COLUMN_NAME = '${column}'`;
+                    
+                    const colResponse = await fetch('/api/execute-migration.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ sql: checkSql })
+                    });
+                    
+                    const colResult = await colResponse.json();
+                    
+                    if (colResult.success) {
+                        existingColumns.push(column);
+                        resultDiv.innerHTML += `<div style="color: #48bb78;">✓ ${column}</div>`;
+                    } else {
+                        missingColumns.push(column);
+                        resultDiv.innerHTML += `<div style="color: #f56565;">✗ ${column} - FEHLT!</div>`;
+                    }
+                }
+                
+                resultDiv.innerHTML += '\n<div style="color: #4299e1; margin-top: 20px;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>\n';
+                resultDiv.innerHTML += `<div style="color: #48bb78;">✓ Vorhanden: ${existingColumns.length} Spalten</div>`;
+                resultDiv.innerHTML += `<div style="color: #f56565;">✗ Fehlend: ${missingColumns.length} Spalten</div>\n\n`;
+                
+                if (missingColumns.length > 0) {
+                    resultDiv.innerHTML += '<div style="color: #ed8936; margin-top: 15px;">⚠️ FEHLENDE SPALTEN:</div>';
+                    missingColumns.forEach(col => {
+                        resultDiv.innerHTML += `<div style="color: #f56565; margin-left: 20px;">• ${col}</div>`;
+                    });
+                    
+                    resultDiv.innerHTML += '\n<div style="color: #4299e1; margin-top: 20px;">📋 SQL-BEFEHLE ZUM HINZUFÜGEN:</div>\n';
+                    
+                    // Generiere SQL-Befehle für fehlende Spalten
+                    const sqlCommands = [];
+                    missingColumns.forEach(col => {
+                        let sqlCommand = '';
+                        switch(col) {
+                            case 'freebie_id':
+                                sqlCommand = 'ALTER TABLE reward_definitions ADD COLUMN freebie_id INT DEFAULT NULL AFTER user_id';
+                                break;
+                            case 'imported_from_template_id':
+                                sqlCommand = 'ALTER TABLE reward_definitions ADD COLUMN imported_from_template_id INT DEFAULT NULL AFTER freebie_id';
+                                break;
+                            case 'is_imported':
+                                sqlCommand = 'ALTER TABLE reward_definitions ADD COLUMN is_imported BOOLEAN DEFAULT FALSE AFTER imported_from_template_id';
+                                break;
+                            case 'reward_delivery_type':
+                                sqlCommand = 'ALTER TABLE reward_definitions ADD COLUMN reward_delivery_type VARCHAR(50) DEFAULT \'manual\' AFTER reward_value';
+                                break;
+                            case 'reward_access_code':
+                                sqlCommand = 'ALTER TABLE reward_definitions ADD COLUMN reward_access_code VARCHAR(100) DEFAULT NULL AFTER reward_download_url';
+                                break;
+                            default:
+                                sqlCommand = `-- Bitte prüfen: ${col}`;
+                        }
+                        sqlCommands.push(sqlCommand);
+                        resultDiv.innerHTML += `<div style="color: #cbd5e0; margin-left: 20px; margin-top: 5px;">${sqlCommand}</div>`;
+                    });
+                    
+                    statusDiv.className = 'status-box show error';
+                    statusDiv.innerHTML = `
+                        ⚠️ Es fehlen ${missingColumns.length} Spalte(n)!<br><br>
+                        <strong>Lösung:</strong> Führe die Migration erneut aus oder kopiere die SQL-Befehle oben.
+                    `;
+                } else {
+                    statusDiv.className = 'status-box show success';
+                    statusDiv.innerHTML = '✓ Alle benötigten Spalten sind vorhanden! Der Import sollte funktionieren.';
+                }
+                
+                btn.innerHTML = '✓ Diagnose abgeschlossen';
+                setTimeout(() => {
+                    btn.innerHTML = '🔍 Diagnose starten';
+                    btn.disabled = false;
+                }, 3000);
+                
+            } catch (error) {
+                resultDiv.classList.add('show');
+                resultDiv.innerHTML = `<div style="color: #f56565;">✗ Fehler: ${error.message}</div>`;
+                
+                statusDiv.className = 'status-box show error';
+                statusDiv.textContent = '✗ Diagnose fehlgeschlagen. Bist du als Admin eingeloggt?';
+                
+                btn.innerHTML = '🔍 Diagnose starten';
+                btn.disabled = false;
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', function() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.classList.add('show');
+            resultDiv.innerHTML = '<div style="color: #4299e1;">Bereit für Diagnose. Klicke auf "Diagnose starten".</div>';
+        });
+    </script>
+</body>
+</html>
