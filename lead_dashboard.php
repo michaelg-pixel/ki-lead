@@ -5,7 +5,7 @@ ini_set('display_errors', 1);
 
 require_once 'config.php';
 
-// Session-Prüfung - zeige Meldung statt Umleitung
+// Session-Prüfung
 if (!isset($_SESSION['lead_id'])) {
     ?>
     <!DOCTYPE html>
@@ -20,8 +20,6 @@ if (!isset($_SESSION['lead_id'])) {
             .icon { font-size: 80px; margin-bottom: 20px; }
             h1 { font-size: 28px; color: #333; margin-bottom: 16px; }
             p { font-size: 16px; color: #666; line-height: 1.6; margin-bottom: 30px; }
-            .btn { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 600; transition: all 0.3s; }
-            .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4); }
         </style>
     </head>
     <body>
@@ -56,15 +54,22 @@ if (!$lead) {
     die("Lead nicht gefunden. Bitte registriere dich erneut.");
 }
 
-// Freebies laden, zu denen der Lead Zugang hat
+// Freebies laden mit korrekter Lektionen-Anzahl
 $freebies = [];
 $stmt = $conn->prepare("
-    SELECT f.*, 
-           lfa.granted_at,
-           (SELECT COUNT(*) FROM freebie_lessons WHERE freebie_id = f.id) as total_lessons,
-           0 as user_progress
-    FROM customer_freebies f
-    INNER JOIN lead_freebie_access lfa ON f.id = lfa.freebie_id
+    SELECT 
+        cf.*, 
+        lfa.granted_at,
+        (
+            SELECT COUNT(*) 
+            FROM freebie_course_lessons fcl
+            INNER JOIN freebie_course_modules fcm ON fcl.module_id = fcm.id
+            INNER JOIN freebie_courses fc ON fcm.course_id = fc.id
+            WHERE fc.freebie_id = cf.id
+        ) as total_lessons,
+        0 as user_progress
+    FROM customer_freebies cf
+    INNER JOIN lead_freebie_access lfa ON cf.id = lfa.freebie_id
     WHERE lfa.lead_id = ?
     ORDER BY lfa.granted_at DESC
 ");
@@ -91,7 +96,6 @@ if ($user_data && $user_data['referral_enabled']) {
     $referral_enabled = true;
     $referral_link = SITE_URL . '/lead_register.php?freebie=' . $lead['freebie_id'] . '&customer=' . $lead['user_id'] . '&ref=' . $lead['referral_code'];
     
-    // Referral-Statistiken
     $stmt = $conn->prepare("
         SELECT 
             COUNT(*) as total,
@@ -224,7 +228,7 @@ if ($referral_enabled) {
                 <?php else: ?>
                     <div class="freebie-grid">
                         <?php foreach ($freebies as $freebie): ?>
-                            <div class="freebie-card" onclick="window.location.href='freebie_view.php?id=<?php echo $freebie['id']; ?>'">
+                            <div class="freebie-card" onclick="window.location.href='customer/view_freebie.php?id=<?php echo $freebie['id']; ?>'">
                                 <?php if (!empty($freebie['mockup_image'])): ?>
                                     <img src="<?php echo htmlspecialchars($freebie['mockup_image']); ?>" alt="<?php echo htmlspecialchars($freebie['name']); ?>" class="freebie-mockup">
                                 <?php else: ?>
@@ -272,7 +276,7 @@ if ($referral_enabled) {
                                         <i class="fas fa-play-circle"></i>
                                         <?php echo $freebie['total_lessons']; ?> Lektionen
                                     </span>
-                                    <button class="start-btn" onclick="window.location.href='freebie_view.php?id=<?php echo $freebie['id']; ?>'">
+                                    <button class="start-btn" onclick="window.location.href='customer/view_freebie.php?id=<?php echo $freebie['id']; ?>'">
                                         Starten
                                     </button>
                                 </div>
