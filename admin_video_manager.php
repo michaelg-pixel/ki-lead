@@ -12,7 +12,7 @@ $pdo = getDBConnection();
 
 // Nur für eingeloggte Benutzer
 if (!isset($_SESSION['user_id'])) {
-    header('Location: /');
+    header('Location: /public/login.php');
     exit;
 }
 
@@ -24,7 +24,7 @@ try {
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$user || $user['email'] !== 'michael.gluska@gmail.com') {
-        die('<div style="padding: 40px; text-align: center; font-family: Arial;"><h2 style="color: #ff6b6b;">⛔ Zugriff verweigert</h2><p>Diese Seite ist nur für den Administrator (michael.gluska@gmail.com) zugänglich.</p><a href="/dashboard.php" style="color: #667eea;">Zurück zum Dashboard</a></div>');
+        die('<div style="padding: 40px; text-align: center; font-family: Arial;"><h2 style="color: #ff6b6b;">⛔ Zugriff verweigert</h2><p>Diese Seite ist nur für den Administrator (michael.gluska@gmail.com) zugänglich.</p><a href="/customer/dashboard.php" style="color: #667eea;">Zurück zum Dashboard</a></div>');
     }
     
     $company_name = $user['company_name'] ?? 'Dashboard';
@@ -39,7 +39,7 @@ if (!$selected_freebie_id) {
     echo '<div style="padding: 40px; font-family: Arial;">';
     echo '<h3>Bitte Freebie-ID angeben</h3>';
     echo '<p>Beispiel: <a href="?freebie=7" style="color: #667eea;">admin_video_manager.php?freebie=7</a></p>';
-    echo '<a href="/dashboard.php" style="color: #667eea;">Zurück zum Dashboard</a>';
+    echo '<a href="/customer/dashboard.php" style="color: #667eea;">Zurück zum Dashboard</a>';
     echo '</div>';
     exit;
 }
@@ -102,7 +102,7 @@ $color_classes = [
     <div class="container">
         <!-- Header -->
         <div class="mb-8">
-            <a href="/dashboard.php" class="inline-flex items-center text-purple-400 hover:text-purple-300 mb-4 text-sm">
+            <a href="/customer/dashboard.php" class="inline-flex items-center text-purple-400 hover:text-purple-300 mb-4 text-sm">
                 <i class="fas fa-arrow-left mr-2"></i>Zurück zum Dashboard
             </a>
             <div class="flex justify-between items-center flex-wrap gap-4">
