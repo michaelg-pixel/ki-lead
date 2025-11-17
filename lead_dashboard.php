@@ -1,9 +1,8 @@
 <?php
 /**
- * Lead Dashboard - Modern Dark Mode Design
+ * Lead Dashboard - Modern Dark Mode Design mit Menü-Navigation
  * + AUTO-DELIVERY: Automatische Belohnungsauslieferung mit Email
- * + REDESIGN: Gleiches Design wie Customer Dashboard
- * + BELOHNUNGSSTUFEN: Prominente Anzeige aller verfügbaren Belohnungen
+ * + MENÜ-NAVIGATION: Verschiedene Sektionen ladbar
  * + EMPFEHLUNGSLINK: Über Belohnungen + Auto-Scroll beim Teilen
  */
 
@@ -190,7 +189,24 @@ if ($referral_enabled && $customer_id) {
 $company_name = $lead['company_name'] ?? 'Dashboard';
 $course_section_title = count($freebies_with_courses) > 1 ? 'Deine Kurse' : 'Dein Kurs';
 
-// Helper Functions bleiben gleich...
+// ===== MENÜ-NAVIGATION =====
+$current_page = $_GET['page'] ?? 'dashboard';
+
+$menu_items = [
+    'dashboard' => ['icon' => 'fa-home', 'label' => 'Dashboard'],
+    'kurse' => ['icon' => 'fa-graduation-cap', 'label' => 'Meine Kurse'],
+    'anleitung' => ['icon' => 'fa-book-open', 'label' => 'So funktioniert\'s'],
+];
+
+if ($referral_enabled) {
+    $menu_items['empfehlen'] = ['icon' => 'fa-share-alt', 'label' => 'Empfehlen'];
+    if (!empty($delivered_rewards)) {
+        $menu_items['belohnungen'] = ['icon' => 'fa-gift', 'label' => 'Meine Belohnungen'];
+    }
+    $menu_items['social'] = ['icon' => 'fa-robot', 'label' => 'KI Social Assistant'];
+}
+
+// Helper Functions
 function checkAndTriggerRewardWebhooks($pdo, $lead_id, $customer_id) {
     try {
         $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM lead_referrals WHERE referrer_id = ? AND (status = 'active' OR status = 'converted')");
@@ -272,9 +288,6 @@ function sendRewardDeliveryEmail($lead, $reward) {
             to { opacity: 1; transform: translateY(0); }
         }
         .animate-fade-in-up { animation: fadeInUp 0.6s ease-out forwards; }
-        .stat-card:nth-child(1) { animation-delay: 0.1s; }
-        .stat-card:nth-child(2) { animation-delay: 0.2s; }
-        .stat-card:nth-child(3) { animation-delay: 0.3s; }
         @keyframes pulse { 0%, 100% { box-shadow: 0 2px 10px rgba(139, 92, 246, 0.2); } 50% { box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4); } }
         .reward-new { animation: pulse 2s infinite; }
         @keyframes shimmer {
@@ -286,9 +299,7 @@ function sendRewardDeliveryEmail($lead, $reward) {
             background-size: 1000px 100%;
             animation: shimmer 3s infinite;
         }
-        html {
-            scroll-behavior: smooth;
-        }
+        html { scroll-behavior: smooth; }
     </style>
 </head>
 <body class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 min-h-screen">
@@ -315,343 +326,47 @@ function sendRewardDeliveryEmail($lead, $reward) {
     
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        <!-- Willkommen -->
-        <div class="mb-8 animate-fade-in-up opacity-0">
-            <div class="bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-8 shadow-2xl">
-                <h2 class="text-3xl md:text-4xl font-bold text-white mb-2">
-                    Willkommen zurück, <?php echo htmlspecialchars($lead['name']); ?>! 👋
-                </h2>
-                <p class="text-purple-100 text-lg">
-                    Deine Kurse und Belohnungen warten auf dich.
-                </p>
-            </div>
-        </div>
-        
-        <!-- Stats -->
-        <?php if ($referral_enabled): ?>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="stat-card bg-gradient-to-br from-green-500 to-green-700 rounded-2xl p-6 shadow-xl animate-fade-in-up opacity-0">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="bg-white/20 backdrop-blur-sm rounded-xl p-3">
-                        <i class="fas fa-users text-white text-2xl"></i>
-                    </div>
-                </div>
-                <div class="text-white">
-                    <div class="text-5xl font-bold mb-2"><?php echo $total_referrals; ?></div>
-                    <div class="text-green-100 text-sm font-medium">Gesamt Empfehlungen</div>
-                </div>
-            </div>
-            
-            <div class="stat-card bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-6 shadow-xl animate-fade-in-up opacity-0">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="bg-white/20 backdrop-blur-sm rounded-xl p-3">
-                        <i class="fas fa-check-circle text-white text-2xl"></i>
-                    </div>
-                </div>
-                <div class="text-white">
-                    <div class="text-5xl font-bold mb-2"><?php echo $successful_referrals; ?></div>
-                    <div class="text-blue-100 text-sm font-medium">Erfolgreiche Empfehlungen</div>
-                </div>
-            </div>
-            
-            <div class="stat-card bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl p-6 shadow-xl animate-fade-in-up opacity-0">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="bg-white/20 backdrop-blur-sm rounded-xl p-3">
-                        <i class="fas fa-gift text-white text-2xl"></i>
-                    </div>
-                </div>
-                <div class="text-white">
-                    <div class="text-5xl font-bold mb-2"><?php echo count($delivered_rewards); ?></div>
-                    <div class="text-purple-100 text-sm font-medium">Erhaltene Belohnungen</div>
-                </div>
-            </div>
-        </div>
-        <?php endif; ?>
-        
-        <!-- Kurse -->
-        <div class="mb-8 animate-fade-in-up opacity-0" style="animation-delay: 0.3s;">
-            <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 shadow-xl border border-purple-500/20">
-                <h3 class="text-2xl font-bold text-white mb-6">
-                    <i class="fas fa-graduation-cap text-purple-400 mr-2"></i>
-                    <?php echo $course_section_title; ?>
-                </h3>
-                
-                <?php if (empty($freebies_with_courses)): ?>
-                <div class="text-center py-12">
-                    <div class="text-6xl mb-4">📭</div>
-                    <p class="text-gray-400 text-lg">Noch keine Kurse verfügbar</p>
-                </div>
-                <?php else: ?>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <?php foreach ($freebies_with_courses as $freebie): ?>
-                    <div class="bg-gray-800/50 rounded-xl overflow-hidden border border-gray-700 hover:border-purple-500 transition-all group">
-                        <div class="h-48 bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
-                            <?php if (!empty($freebie['mockup_url'])): ?>
-                            <img src="<?php echo htmlspecialchars($freebie['mockup_url']); ?>" class="w-full h-full object-cover" alt="">
-                            <?php else: ?>
-                            <i class="fas fa-graduation-cap text-white text-6xl"></i>
-                            <?php endif; ?>
-                        </div>
-                        <div class="p-6">
-                            <h4 class="text-white font-bold text-lg mb-2"><?php echo htmlspecialchars($freebie['title']); ?></h4>
-                            <?php if (!empty($freebie['description'])): ?>
-                            <p class="text-gray-400 text-sm mb-4 line-clamp-2"><?php echo htmlspecialchars(substr($freebie['description'], 0, 120)); ?></p>
-                            <?php endif; ?>
-                            <div class="flex gap-2">
-                                <?php if (!empty($freebie['course_id'])): ?>
-                                <a href="/customer/freebie-course-player.php?id=<?php echo $freebie['course_id']; ?>&email=<?php echo urlencode($lead['email']); ?>" 
-                                   class="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white text-center px-4 py-3 rounded-lg font-semibold transition-all">
-                                    <i class="fas fa-play-circle mr-2"></i>Kurs starten
-                                </a>
-                                <?php endif; ?>
-                                <?php if ($referral_enabled): ?>
-                                <button onclick="scrollToReferralLink('<?php echo htmlspecialchars($freebie['unique_id']); ?>')" 
-                                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-semibold transition-all">
-                                    <i class="fas fa-share-alt"></i>
-                                </button>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-                <?php endif; ?>
-            </div>
-        </div>
-        
-        <!-- Empfehlungslink - JETZT ÜBER BELOHNUNGEN -->
-        <?php if ($referral_enabled && $selected_freebie): ?>
-        <div id="referralLinkSection" class="mb-8 animate-fade-in-up opacity-0" style="animation-delay: 0.4s;">
-            <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 shadow-xl border border-green-500/20">
-                <h3 class="text-2xl font-bold text-white mb-6">
-                    <i class="fas fa-link text-green-400 mr-2"></i>
-                    Dein Empfehlungs-Link
-                </h3>
-                
-                <div class="bg-green-500/10 rounded-xl p-6">
-                    <p class="text-green-300 font-semibold mb-3">
-                        📢 Teile diesen Link und verdiene Belohnungen!
-                    </p>
-                    <p class="text-gray-400 text-sm mb-4">
-                        Empfehlungs-Link für: <strong class="text-white"><?php echo htmlspecialchars($selected_freebie['title']); ?></strong>
-                    </p>
-                    <div class="flex gap-3 flex-col sm:flex-row">
-                        <input type="text" 
-                               id="referralLink" 
-                               value="<?php echo htmlspecialchars('https://app.mehr-infos-jetzt.de/freebie/index.php?id=' . $selected_freebie['unique_id'] . '&ref=' . $lead['referral_code']); ?>" 
-                               readonly
-                               class="flex-1 bg-gray-900 text-white px-4 py-3 rounded-lg border border-green-500/50">
-                        <button onclick="copyReferralLink()" 
-                                class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap">
-                            <i class="fas fa-copy mr-2"></i>Link kopieren
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <?php endif; ?>
-        
-        <!-- Belohnungsstufen -->
-        <?php if ($referral_enabled && !empty($reward_tiers)): ?>
-        <div class="mb-8 animate-fade-in-up opacity-0" style="animation-delay: 0.5s;">
-            <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 shadow-xl border border-yellow-500/20">
-                <div class="flex items-center justify-between mb-6">
-                    <h3 class="text-2xl font-bold text-white">
-                        <i class="fas fa-trophy text-yellow-400 mr-2"></i>
-                        Belohnungsstufen
-                    </h3>
-                    <div class="bg-purple-600 text-white px-4 py-2 rounded-full font-bold">
-                        <?php echo count(array_filter($reward_tiers, function($t) use ($successful_referrals) { 
-                            return $successful_referrals >= $t['required_referrals']; 
-                        })); ?> / <?php echo count($reward_tiers); ?> freigeschaltet
-                    </div>
-                </div>
-                
-                <div class="space-y-4">
-                    <?php 
-                    $delivered_reward_ids = array_column($delivered_rewards, 'reward_id');
-                    foreach ($reward_tiers as $tier): 
-                        $is_unlocked = $successful_referrals >= $tier['required_referrals'];
-                        $is_delivered = in_array($tier['id'], $delivered_reward_ids);
-                        $progress_percent = min(100, ($successful_referrals / $tier['required_referrals']) * 100);
-                        $icon_class = $tier['reward_icon'] ?? 'fa-gift';
-                        $color = $tier['reward_color'] ?? '#8B5CF6';
-                    ?>
-                    <div class="bg-gray-800/50 rounded-xl p-6 border-2 <?php echo $is_unlocked ? 'border-green-500 reward-unlocked' : 'border-gray-700'; ?> transition-all">
-                        <div class="flex items-start gap-4">
-                            <!-- Icon -->
-                            <div class="flex-shrink-0">
-                                <div class="w-16 h-16 rounded-xl flex items-center justify-center" style="background: <?php echo $color; ?>20;">
-                                    <i class="fas <?php echo $icon_class; ?> text-3xl" style="color: <?php echo $color; ?>;"></i>
-                                </div>
-                            </div>
-                            
-                            <!-- Content -->
-                            <div class="flex-1 min-w-0">
-                                <!-- Badge & Title -->
-                                <div class="flex items-center flex-wrap gap-2 mb-2">
-                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold" 
-                                          style="background: <?php echo $color; ?>; color: white;">
-                                        <?php echo htmlspecialchars($tier['tier_name']); ?>
-                                    </span>
-                                    <?php if ($is_delivered): ?>
-                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-purple-600 text-white">
-                                        <i class="fas fa-check-circle mr-1"></i>Erhalten
-                                    </span>
-                                    <?php elseif ($is_unlocked): ?>
-                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-600 text-white animate-pulse">
-                                        <i class="fas fa-star mr-1"></i>Freigeschaltet!
-                                    </span>
-                                    <?php endif; ?>
-                                </div>
-                                
-                                <h4 class="text-white font-bold text-xl mb-1">
-                                    <?php echo htmlspecialchars($tier['reward_title']); ?>
-                                </h4>
-                                
-                                <?php if (!empty($tier['reward_description'])): ?>
-                                <p class="text-gray-400 text-sm mb-3">
-                                    <?php echo htmlspecialchars($tier['reward_description']); ?>
-                                </p>
-                                <?php endif; ?>
-                                
-                                <?php if (!empty($tier['reward_value'])): ?>
-                                <p class="text-sm font-semibold mb-3" style="color: <?php echo $color; ?>;">
-                                    💎 <?php echo htmlspecialchars($tier['reward_value']); ?>
-                                </p>
-                                <?php endif; ?>
-                                
-                                <!-- Progress -->
-                                <div class="mb-2">
-                                    <div class="flex items-center justify-between text-sm mb-1">
-                                        <span class="text-gray-400">
-                                            <?php echo $tier['required_referrals']; ?> Empfehlungen erforderlich
-                                        </span>
-                                        <span class="font-bold" style="color: <?php echo $color; ?>;">
-                                            <?php echo $successful_referrals; ?> / <?php echo $tier['required_referrals']; ?>
-                                        </span>
-                                    </div>
-                                    <div class="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
-                                        <div class="h-3 rounded-full transition-all duration-500" 
-                                             style="width: <?php echo $progress_percent; ?>%; background: linear-gradient(90deg, <?php echo $color; ?>, <?php echo $color; ?>cc);"></div>
-                                    </div>
-                                </div>
-                                
-                                <?php if (!$is_unlocked): ?>
-                                <p class="text-gray-500 text-xs">
-                                    <i class="fas fa-info-circle mr-1"></i>
-                                    Noch <?php echo $tier['required_referrals'] - $successful_referrals; ?> Empfehlung<?php echo ($tier['required_referrals'] - $successful_referrals) != 1 ? 'en' : ''; ?> bis zur Freischaltung
-                                </p>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
+        <!-- Navigation Menü -->
+        <div class="mb-8">
+            <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-4 shadow-xl border border-purple-500/20">
+                <div class="flex gap-2 overflow-x-auto">
+                    <?php foreach ($menu_items as $page => $item): ?>
+                    <a href="?page=<?php echo $page; ?>&freebie=<?php echo $selected_freebie_id; ?>" 
+                       class="<?php echo $current_page === $page ? 'bg-purple-600' : 'bg-gray-700 hover:bg-gray-600'; ?> text-white px-4 py-3 rounded-lg font-semibold transition-all whitespace-nowrap">
+                        <i class="fas <?php echo $item['icon']; ?> mr-2"></i>
+                        <?php echo $item['label']; ?>
+                    </a>
                     <?php endforeach; ?>
                 </div>
             </div>
         </div>
-        <?php endif; ?>
         
-        <!-- Meine erhaltenen Belohnungen -->
-        <?php if ($referral_enabled && !empty($delivered_rewards)): ?>
-        <div class="mb-8 animate-fade-in-up opacity-0" style="animation-delay: 0.6s;" id="myRewardsSection">
-            <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 shadow-xl border border-purple-500/20">
-                <h3 class="text-2xl font-bold text-white mb-6">
-                    <i class="fas fa-gift text-purple-400 mr-2"></i>
-                    Meine erhaltenen Belohnungen
-                    <span class="bg-purple-600 text-white px-3 py-1 rounded-full text-sm ml-3"><?php echo count($delivered_rewards); ?></span>
-                </h3>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <?php foreach ($delivered_rewards as $reward): 
-                        $is_new = (time() - strtotime($reward['delivered_at'])) < 86400;
-                    ?>
-                    <div class="bg-gray-800/50 rounded-xl p-6 border border-purple-500/30 <?php echo $is_new ? 'reward-new' : ''; ?>">
-                        <?php if ($is_new): ?>
-                        <div class="inline-block bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold mb-4">
-                            ✨ NEU
-                        </div>
-                        <?php endif; ?>
-                        
-                        <div class="flex items-center gap-4 mb-4">
-                            <div style="color: <?php echo htmlspecialchars($reward['reward_color'] ?? '#8B5CF6'); ?>;" class="text-4xl">
-                                <i class="fas <?php echo htmlspecialchars($reward['reward_icon'] ?? 'fa-gift'); ?>"></i>
-                            </div>
-                            <div>
-                                <?php if (!empty($reward['tier_name'])): ?>
-                                <div class="inline-block px-3 py-1 rounded-full text-xs font-bold mb-2" style="background: <?php echo htmlspecialchars($reward['reward_color'] ?? '#8B5CF6'); ?>20; color: <?php echo htmlspecialchars($reward['reward_color'] ?? '#8B5CF6'); ?>;">
-                                    <?php echo htmlspecialchars($reward['tier_name']); ?>
-                                </div>
-                                <?php endif; ?>
-                                <h4 class="text-white font-bold text-lg"><?php echo htmlspecialchars($reward['reward_title']); ?></h4>
-                            </div>
-                        </div>
-                        
-                        <?php if (!empty($reward['delivery_url'])): ?>
-                        <div class="bg-green-500/10 border-l-4 border-green-500 p-4 rounded mb-4">
-                            <p class="text-green-300 font-semibold mb-2">🔗 Download-Link:</p>
-                            <a href="<?php echo htmlspecialchars($reward['delivery_url']); ?>" target="_blank" 
-                               class="inline-block bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold transition-all">
-                                <i class="fas fa-download mr-2"></i>Jetzt herunterladen
-                            </a>
-                        </div>
-                        <?php endif; ?>
-                        
-                        <?php if (!empty($reward['access_code'])): ?>
-                        <div class="bg-yellow-500/10 border-l-4 border-yellow-500 p-4 rounded mb-4">
-                            <p class="text-yellow-300 font-semibold mb-2">🔑 Zugriffscode:</p>
-                            <div class="bg-gray-900 p-3 rounded font-mono text-yellow-300 text-center text-lg font-bold">
-                                <?php echo htmlspecialchars($reward['access_code']); ?>
-                            </div>
-                            <button onclick="copyCode('<?php echo htmlspecialchars($reward['access_code']); ?>', this)" 
-                                    class="w-full mt-2 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-semibold transition-all">
-                                <i class="fas fa-copy mr-2"></i>Code kopieren
-                            </button>
-                        </div>
-                        <?php endif; ?>
-                        
-                        <?php if (!empty($reward['delivery_instructions'])): ?>
-                        <div class="bg-blue-500/10 border-l-4 border-blue-500 p-4 rounded">
-                            <p class="text-blue-300 font-semibold mb-2">📋 Einlöse-Anweisungen:</p>
-                            <p class="text-gray-300 text-sm"><?php echo nl2br(htmlspecialchars($reward['delivery_instructions'])); ?></p>
-                        </div>
-                        <?php endif; ?>
-                        
-                        <div class="text-gray-500 text-xs mt-4 pt-4 border-t border-gray-700">
-                            <i class="fas fa-clock mr-1"></i>
-                            Erhalten am <?php echo date('d.m.Y \u\m H:i', strtotime($reward['delivered_at'])); ?> Uhr
-                        </div>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-        </div>
-        <?php endif; ?>
+        <?php
+        // Sektion laden
+        $section_file = __DIR__ . '/lead/sections/' . $current_page . '.php';
+        if (file_exists($section_file) && $current_page !== 'dashboard') {
+            include $section_file;
+        } else {
+            // Dashboard Ansicht
+            include __DIR__ . '/lead/sections/dashboard.php';
+        }
+        ?>
     </div>
     
     <script>
         const leadReferralCode = '<?php echo $lead['referral_code']; ?>';
         
-        // Scroll zum Empfehlungslink beim Teilen
         function scrollToReferralLink(uniqueId) {
-            // Link kopieren
             const link = `https://app.mehr-infos-jetzt.de/freebie/index.php?id=${uniqueId}&ref=${leadReferralCode}`;
             navigator.clipboard.writeText(link).then(() => {
-                // Smooth Scroll zum Empfehlungslink
                 const section = document.getElementById('referralLinkSection');
                 if (section) {
                     section.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    
-                    // Highlight-Effekt
                     section.style.transform = 'scale(1.02)';
                     section.style.transition = 'transform 0.3s';
-                    setTimeout(() => {
-                        section.style.transform = 'scale(1)';
-                    }, 300);
+                    setTimeout(() => { section.style.transform = 'scale(1)'; }, 300);
                 }
-            }).catch(() => {
-                alert('Bitte kopiere den Link manuell');
-            });
+            }).catch(() => alert('Bitte kopiere den Link manuell'));
         }
         
         function copyReferralLink() {
