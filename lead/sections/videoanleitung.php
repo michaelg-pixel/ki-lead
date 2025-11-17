@@ -17,6 +17,9 @@ if (!$effective_customer_id) {
     return;
 }
 
+// DEBUG: Zeige die customer_id
+$debug_mode = true; // Setze auf false wenn Problem gelöst ist
+
 // GLOBALE Videos laden - freebie_id = 0 bedeutet für ALLE Leads sichtbar
 $videos = [];
 try {
@@ -27,6 +30,20 @@ try {
     ");
     $stmt->execute([$effective_customer_id]);
     $videos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // DEBUG: Zeige Abfrage-Ergebnis
+    if ($debug_mode) {
+        error_log("DEBUG Videoanleitung: customer_id = " . $effective_customer_id);
+        error_log("DEBUG Videoanleitung: Videos gefunden = " . count($videos));
+        
+        // Zeige ALLE Videos in der Datenbank
+        $stmt_all = $pdo->query("SELECT id, customer_id, freebie_id, category_name FROM video_tutorials");
+        $all_videos = $stmt_all->fetchAll(PDO::FETCH_ASSOC);
+        error_log("DEBUG Videoanleitung: ALLE Videos in DB = " . count($all_videos));
+        foreach ($all_videos as $v) {
+            error_log("  - Video ID {$v['id']}: customer_id={$v['customer_id']}, freebie_id={$v['freebie_id']}, name={$v['category_name']}");
+        }
+    }
 } catch (PDOException $e) {
     error_log("Fehler beim Laden der Videos: " . $e->getMessage());
     $videos = [];
@@ -53,6 +70,33 @@ $color_classes = [
 ?>
 
 <div class="animate-fade-in-up opacity-0">
+    <!-- DEBUG INFO (nur im Debug-Modus) -->
+    <?php if ($debug_mode): ?>
+    <div class="bg-yellow-600/20 border border-yellow-600/30 rounded-xl p-4 mb-6">
+        <h4 class="text-yellow-300 font-bold mb-2">🐛 DEBUG INFO</h4>
+        <p class="text-yellow-200 text-sm">Customer ID: <?php echo $effective_customer_id; ?></p>
+        <p class="text-yellow-200 text-sm">Videos gefunden: <?php echo count($videos); ?></p>
+        <p class="text-yellow-200 text-sm">Lead Email: <?php echo htmlspecialchars($lead['email'] ?? 'N/A'); ?></p>
+        <?php
+        // Zeige alle Videos in der DB
+        try {
+            $stmt_debug = $pdo->query("SELECT id, customer_id, freebie_id, category_name FROM video_tutorials ORDER BY id DESC LIMIT 5");
+            $debug_videos = $stmt_debug->fetchAll(PDO::FETCH_ASSOC);
+            if (!empty($debug_videos)) {
+                echo '<p class="text-yellow-200 text-sm mt-2 font-bold">Alle Videos in DB:</p>';
+                echo '<ul class="text-yellow-200 text-xs">';
+                foreach ($debug_videos as $dv) {
+                    echo '<li>ID ' . $dv['id'] . ': customer_id=' . $dv['customer_id'] . ', freebie_id=' . $dv['freebie_id'] . ', ' . htmlspecialchars($dv['category_name']) . '</li>';
+                }
+                echo '</ul>';
+            }
+        } catch (Exception $e) {
+            echo '<p class="text-red-300 text-xs">Debug-Fehler: ' . htmlspecialchars($e->getMessage()) . '</p>';
+        }
+        ?>
+    </div>
+    <?php endif; ?>
+    
     <!-- Header -->
     <div class="mb-8">
         <h2 class="text-3xl font-bold text-white mb-2">
