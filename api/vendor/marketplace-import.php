@@ -38,6 +38,9 @@ try {
     $template_id = (int)$input['template_id'];
     $freebie_id = !empty($input['freebie_id']) ? (int)$input['freebie_id'] : null;
     
+    // Log für Debugging
+    error_log("Import Request - User: $user_id, Template: $template_id, Freebie: " . ($freebie_id ?? 'NULL'));
+    
     // Transaction starten
     $pdo->beginTransaction();
     
@@ -56,66 +59,96 @@ try {
             throw new Exception('Template nicht gefunden oder nicht veröffentlicht');
         }
         
+        error_log("Template gefunden: " . $template['template_name']);
+        
         // 2. Prüfe ob bereits importiert für diese Kombination
         $checkStmt = $pdo->prepare("
             SELECT id FROM reward_template_imports 
-            WHERE template_id = ? AND customer_id = ? AND freebie_id <=> ?
+            WHERE template_id = ? AND customer_id = ?
         ");
-        $checkStmt->execute([$template_id, $user_id, $freebie_id]);
+        $checkStmt->execute([$template_id, $user_id]);
         if ($checkStmt->fetch()) {
-            throw new Exception('Template wurde bereits für dieses Freebie importiert');
+            throw new Exception('Template wurde bereits importiert');
         }
         
-        // 3. Kopiere Template in reward_definitions
-        $insertStmt = $pdo->prepare("
-            INSERT INTO reward_definitions (
-                user_id,
-                freebie_id,
-                imported_from_template_id,
-                is_imported,
-                tier_level,
-                tier_name,
-                tier_description,
-                required_referrals,
-                reward_type,
-                reward_title,
-                reward_description,
-                reward_value,
-                reward_delivery_type,
-                reward_instructions,
-                reward_download_url,
-                reward_icon,
-                reward_color,
-                is_active,
-                is_featured,
-                auto_deliver,
-                created_at
-            ) VALUES (
-                ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, 0, NOW()
-            )
-        ");
+        // 3. Bereite Daten vor
+        $insertData = [
+            'user_id' => $user_id,
+            'freebie_id' => $freebie_id,
+            'imported_from_template_id' => $template_id,
+            'is_imported' => 1,
+            'tier_level' => $template['suggested_tier_level'] ?? 1,
+            'tier_name' => $template['template_name'],
+            'tier_description' => $template['template_description'],
+            'required_referrals' => $template['suggested_referrals_required'] ?? 3,
+            'reward_type' => $template['reward_type'],
+            'reward_title' => $template['reward_title'],
+            'reward_description' => $template['reward_description'],
+            'reward_value' => $template['reward_value'],
+            'reward_delivery_type' => $template['reward_delivery_type'] ?? 'manual',
+            'reward_instructions' => $template['reward_instructions'],
+            'reward_download_url' => $template['reward_download_url'],
+            'reward_icon' => $template['reward_icon'] ?? '🎁',
+            'reward_color' => $template['reward_color'] ?? '#667eea'
+        ];
         
-        $success = $insertStmt->execute([
-            $user_id,
-            $freebie_id,
-            $template_id,
-            $template['suggested_tier_level'] ?? 1,
-            $template['template_name'],
-            $template['template_description'],
-            $template['suggested_referrals_required'] ?? 3,
-            $template['reward_type'],
-            $template['reward_title'],
-            $template['reward_description'],
-            $template['reward_value'],
-            $template['reward_delivery_type'] ?? 'manual',
-            $template['reward_instructions'],
-            $template['reward_download_url'],
-            $template['reward_icon'] ?? '🎁',
-            $template['reward_color'] ?? '#667eea'
-        ]);
+        error_log("Insert Data prepared: " . json_encode($insertData));
+        
+        // 4. Kopiere Template in reward_definitions
+        $sql = "INSERT INTO reward_definitions (
+            user_id,
+            freebie_id,
+            imported_from_template_id,
+            is_imported,
+            tier_level,
+            tier_name,
+            tier_description,
+            required_referrals,
+            reward_type,
+            reward_title,
+            reward_description,
+            reward_value,
+            reward_delivery_type,
+            reward_instructions,
+            reward_download_url,
+            reward_icon,
+            reward_color,
+            is_active,
+            created_at
+        ) VALUES (
+            :user_id,
+            :freebie_id,
+            :imported_from_template_id,
+            :is_imported,
+            :tier_level,
+            :tier_name,
+            :tier_description,
+            :required_referrals,
+            :reward_type,
+            :reward_title,
+            :reward_description,
+            :reward_value,
+            :reward_delivery_type,
+            :reward_instructions,
+            :reward_download_url,
+            :reward_icon,
+            :reward_color,
+            1,
+            NOW()
+        )";
+        
+        $insertStmt = $pdo->prepare($sql);
+        
+        // Bind Parameters
+        foreach ($insertData as $key => $value) {
+            $insertStmt->bindValue(":$key", $value);
+        }
+        
+        $success = $insertStmt->execute();
         
         if (!$success) {
             $errorInfo = $insertStmt->errorInfo();
+            error_log("Insert Error: " . json_encode($errorInfo));
             throw new Exception('Fehler beim Einfügen: ' . ($errorInfo[2] ?? 'Unbekannter Fehler'));
         }
         
@@ -125,7 +158,9 @@ try {
             throw new Exception('Keine ID nach Insert erhalten');
         }
         
-        // 4. Log Import in reward_template_imports
+        error_log("Reward Definition created with ID: $reward_definition_id");
+        
+        // 5. Log Import in reward_template_imports
         $importLogStmt = $pdo->prepare("
             INSERT INTO reward_template_imports (
                 template_id,
@@ -138,7 +173,9 @@ try {
         
         $importLogStmt->execute([$template_id, $user_id, $reward_definition_id]);
         
-        // 5. Update Counter in vendor_reward_templates
+        error_log("Import logged successfully");
+        
+        // 6. Update Counter in vendor_reward_templates
         $updateStmt = $pdo->prepare("
             UPDATE vendor_reward_templates 
             SET times_imported = times_imported + 1,
@@ -147,7 +184,11 @@ try {
         ");
         $updateStmt->execute([$template_id]);
         
+        error_log("Template counter updated");
+        
         $pdo->commit();
+        
+        error_log("Transaction committed successfully");
         
         echo json_encode([
             'success' => true,
@@ -159,6 +200,7 @@ try {
         
     } catch (Exception $e) {
         $pdo->rollBack();
+        error_log("Transaction rolled back: " . $e->getMessage());
         throw $e;
     }
     
@@ -166,24 +208,42 @@ try {
     error_log('Marketplace Import PDO Error: ' . $e->getMessage());
     error_log('Error Code: ' . $e->getCode());
     error_log('SQL State: ' . ($e->errorInfo[0] ?? 'N/A'));
+    error_log('Stack Trace: ' . $e->getTraceAsString());
     
     http_response_code(500);
     
-    // Gib mehr Details im Entwicklungsmodus
-    $errorDetails = 'Datenbankfehler';
+    // Gib detaillierte Fehlermeldung im Entwicklungsmodus
+    $errorDetails = 'Datenbankfehler beim Import';
+    $debugInfo = null;
+    
     if (strpos($e->getMessage(), 'Unknown column') !== false) {
-        $errorDetails = 'Fehlende Datenbank-Spalte. Bitte führe die Migration aus: /database/migrations/browser/migrate-vendor-reward-import.html';
+        preg_match("/Unknown column '([^']+)'/", $e->getMessage(), $matches);
+        $missingColumn = $matches[1] ?? 'unbekannt';
+        $errorDetails = "Fehlende Datenbank-Spalte: '$missingColumn'. Bitte führe die Migration aus.";
+        $debugInfo = $e->getMessage();
     } elseif (strpos($e->getMessage(), "Table") !== false && strpos($e->getMessage(), "doesn't exist") !== false) {
-        $errorDetails = 'Fehlende Datenbank-Tabelle. Bitte führe die Migration aus: /database/migrations/browser/migrate-vendor-reward-import.html';
+        $errorDetails = 'Fehlende Datenbank-Tabelle. Bitte führe die Migration aus.';
+        $debugInfo = $e->getMessage();
+    } else {
+        // Andere DB-Fehler
+        $debugInfo = $e->getMessage();
     }
     
     echo json_encode([
         'success' => false, 
         'error' => $errorDetails,
-        'debug_info' => $_SESSION['role'] === 'admin' ? $e->getMessage() : null
+        'debug_info' => $_SESSION['role'] === 'admin' ? $debugInfo : null,
+        'sql_state' => $e->errorInfo[0] ?? null,
+        'error_code' => $e->getCode()
     ]);
 } catch (Exception $e) {
     error_log('Marketplace Import Error: ' . $e->getMessage());
+    error_log('Stack Trace: ' . $e->getTraceAsString());
+    
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    echo json_encode([
+        'success' => false, 
+        'error' => $e->getMessage(),
+        'trace' => $_SESSION['role'] === 'admin' ? $e->getTraceAsString() : null
+    ]);
 }
