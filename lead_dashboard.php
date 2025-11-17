@@ -1,101 +1,236 @@
 <?php
+/**
+ * Lead Dashboard - Modern mit Sidebar-Navigation & KI Social Assistant
+ * + AUTO-DELIVERY: Automatische Belohnungsauslieferung
+ * + SIDEBAR MENÜ: Navigation wie im Customer-Dashboard
+ * + KI SOCIAL ASSISTANT: Für Social Media Posting
+ */
+
+require_once __DIR__ . '/config/database.php';
 session_start();
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
 
-require_once 'config.php';
+$pdo = getDBConnection();
 
-if (!isset($_SESSION['lead_id'])) {
-    echo '<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>Session abgelaufen</title></head><body style="font-family:sans-serif;text-align:center;padding:100px"><h1>🔒 Session abgelaufen</h1><p>Bitte registriere dich erneut.</p></body></html>';
-    exit();
-}
-
-$lead_id = $_SESSION['lead_id'];
-$conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
-if ($conn->connect_error) die("Verbindung fehlgeschlagen");
-$conn->set_charset("utf8mb4");
-
-$stmt = $conn->prepare("SELECT * FROM lead_users WHERE id = ?");
-$stmt->bind_param("i", $lead_id);
-$stmt->execute();
-$lead = $stmt->get_result()->fetch_assoc();
-$stmt->close();
-
-if (!$lead) {
-    session_destroy();
-    die("Lead nicht gefunden.");
-}
-
-// Freebies mit KORREKTEN Spaltennamen
-$freebies = [];
-$stmt = $conn->prepare("
-    SELECT 
-        cf.id,
-        cf.headline as name,
-        cf.subheadline as description,
-        cf.mockup_image_url as mockup_image,
-        cf.customer_id,
-        cf.unique_id,
-        lfa.granted_at,
-        (
-            SELECT COUNT(*) 
-            FROM freebie_course_lessons fcl
-            INNER JOIN freebie_course_modules fcm ON fcl.module_id = fcm.id
-            INNER JOIN freebie_courses fc ON fcm.course_id = fc.id
-            WHERE fc.freebie_id = cf.id
-        ) as total_lessons
-    FROM customer_freebies cf
-    INNER JOIN lead_freebie_access lfa ON cf.id = lfa.freebie_id
-    WHERE lfa.lead_id = ?
-    ORDER BY lfa.granted_at DESC
-");
-$stmt->bind_param("i", $lead_id);
-$stmt->execute();
-$result = $stmt->get_result();
-while ($row = $result->fetch_assoc()) {
-    $freebies[] = $row;
-}
-$stmt->close();
-
-$referral_enabled = false;
-$referral_link = '';
-$referral_stats = ['total' => 0, 'pending' => 0];
-
-if (!empty($lead['user_id'])) {
-    $stmt = $conn->prepare("SELECT referral_enabled FROM users WHERE id = ?");
-    $stmt->bind_param("i", $lead['user_id']);
-    $stmt->execute();
-    $user_data = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
-
-    if ($user_data && $user_data['referral_enabled']) {
-        $referral_enabled = true;
+// Token-Login
+if (isset($_GET['token']) && !isset($_SESSION['lead_id'])) {
+    $token = $_GET['token'];
+    $freebie_param = isset($_GET['freebie']) ? (int)$_GET['freebie'] : null;
+    
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM lead_login_tokens WHERE token = ? AND expires_at > NOW()");
+        $stmt->execute([$token]);
+        $token_data = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        // Link zur Freebie-Landingpage statt direkt zur Registrierung
-        if (!empty($freebies) && !empty($freebies[0]['unique_id'])) {
-            $referral_link = SITE_URL . '/freebie/?id=' . $freebies[0]['unique_id'] . '&ref=' . $lead['referral_code'];
+        if ($token_data) {
+            if ($token_data['used_at'] === null) {
+                $stmt = $pdo->prepare("UPDATE lead_login_tokens SET used_at = NOW() WHERE id = ?");
+                $stmt->execute([$token_data['id']]);
+            }
+            
+            $stmt = $pdo->prepare("SELECT id FROM lead_users WHERE email = ? AND user_id = ?");
+            $stmt->execute([$token_data['email'], $token_data['customer_id']]);
+            $existing_lead = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($existing_lead) {
+                $lead_id = $existing_lead['id'];
+            } else {
+                $referral_code = strtoupper(substr(md5($token_data['email'] . time()), 0, 8));
+                $referrer_id = null;
+                
+                if (!empty($token_data['referral_code'])) {
+                    $stmt = $pdo->prepare("SELECT id FROM lead_users WHERE referral_code = ? AND user_id = ?");
+                    $stmt->execute([$token_data['referral_code'], $token_data['customer_id']]);
+                    $referrer = $stmt->fetch(PDO::FETCH_ASSOC);
+                    if ($referrer) $referrer_id = $referrer['id'];
+                }
+                
+                $stmt = $pdo->prepare("INSERT INTO lead_users (name, email, user_id, freebie_id, referral_code, referrer_id, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'active', NOW())");
+                $stmt->execute([$token_data['name'] ?: 'Lead', $token_data['email'], $token_data['customer_id'], $token_data['freebie_id'], $referral_code, $referrer_id]);
+                $lead_id = $pdo->lastInsertId();
+                
+                if ($referrer_id) {
+                    try {
+                        $stmt = $pdo->prepare("INSERT INTO lead_referrals (referrer_id, referred_email, referred_name, freebie_id, status, invited_at) VALUES (?, ?, ?, ?, 'active', NOW())");
+                        $stmt->execute([$referrer_id, $token_data['email'], $token_data['name'] ?: 'Lead', $token_data['freebie_id']]);
+                    } catch (PDOException $e) {
+                        error_log("Fehler beim Erstellen des Referral-Eintrags: " . $e->getMessage());
+                    }
+                }
+            }
+            
+            $_SESSION['lead_id'] = $lead_id;
+            $_SESSION['lead_email'] = $token_data['email'];
+            $_SESSION['lead_customer_id'] = $token_data['customer_id'];
+            $_SESSION['lead_freebie_id'] = $token_data['freebie_id'];
+            
+            $redirect_freebie = $freebie_param ?: $token_data['freebie_id'];
+            header('Location: /lead_dashboard.php?page=dashboard&freebie=' . $redirect_freebie);
+            exit;
         } else {
-            $referral_link = SITE_URL . '/lead_register.php?freebie=' . $lead['freebie_id'] . '&customer=' . $lead['user_id'] . '&ref=' . $lead['referral_code'];
+            header('Location: /lead_token_expired.php');
+            exit;
         }
-        
-        $stmt = $conn->prepare("SELECT COUNT(*) as total, SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending FROM lead_referrals WHERE referrer_id = ?");
-        $stmt->bind_param("i", $lead_id);
-        $stmt->execute();
-        $referral_stats = $stmt->get_result()->fetch_assoc();
-        $stmt->close();
+    } catch (PDOException $e) {
+        error_log("Login-Token-Fehler: " . $e->getMessage());
+        header('Location: /lead_token_expired.php');
+        exit;
     }
 }
 
+if (!isset($_SESSION['lead_id'])) {
+    header('Location: /lead_login.php');
+    exit;
+}
+
+$lead_id = $_SESSION['lead_id'];
+
+try {
+    $stmt = $pdo->prepare("SELECT lu.*, u.referral_enabled, u.ref_code, u.company_name FROM lead_users lu LEFT JOIN users u ON lu.user_id = u.id WHERE lu.id = ?");
+    $stmt->execute([$lead_id]);
+    $lead = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$lead) {
+        session_destroy();
+        header('Location: /lead_login.php');
+        exit;
+    }
+} catch (PDOException $e) {
+    die('Fehler beim Laden der Lead-Daten: ' . $e->getMessage());
+}
+
+$customer_id = $lead['user_id'];
+$referral_enabled = (int)($lead['referral_enabled'] ?? 0);
+$company_name = $lead['company_name'] ?? 'Dashboard';
+
+// Aktive Seite
 $current_page = $_GET['page'] ?? 'dashboard';
-$menu_items = ['dashboard' => ['icon' => '📊', 'label' => 'Dashboard'], 'kurse' => ['icon' => '🎓', 'label' => 'Meine Kurse']];
-if ($referral_enabled) $menu_items['empfehlen'] = ['icon' => '🚀', 'label' => 'Empfehlen'];
+$selected_freebie_id = isset($_GET['freebie']) ? (int)$_GET['freebie'] : null;
+
+// Freebies laden mit lead_freebie_access
+$freebies_with_courses = [];
+try {
+    $stmt = $pdo->query("SHOW TABLES LIKE 'lead_freebie_access'");
+    $table_exists = $stmt->rowCount() > 0;
+    
+    if ($table_exists) {
+        $stmt = $pdo->prepare("SELECT freebie_id FROM lead_freebie_access WHERE lead_id = ?");
+        $stmt->execute([$lead_id]);
+        $freebie_ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        if (!empty($freebie_ids)) {
+            $placeholders = implode(',', array_fill(0, count($freebie_ids), '?'));
+            $stmt = $pdo->prepare("
+                SELECT 
+                    cf.id as freebie_id, 
+                    cf.unique_id, 
+                    COALESCE(NULLIF(cf.headline, ''), f.name, 'Freebie') as title, 
+                    COALESCE(NULLIF(cf.subheadline, ''), f.description, '') as description, 
+                    COALESCE(NULLIF(cf.mockup_image_url, ''), f.mockup_image_url) as mockup_url, 
+                    fc.id as course_id 
+                FROM customer_freebies cf 
+                LEFT JOIN freebies f ON cf.template_id = f.id 
+                LEFT JOIN freebie_courses fc ON cf.id = fc.freebie_id 
+                WHERE cf.customer_id = ? AND cf.id IN ($placeholders)
+            ");
+            $params = array_merge([$customer_id], $freebie_ids);
+            $stmt->execute($params);
+            $freebies_with_courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+    } else {
+        if (!empty($lead['freebie_id'])) {
+            $stmt = $pdo->prepare("
+                SELECT 
+                    cf.id as freebie_id, 
+                    cf.unique_id, 
+                    COALESCE(NULLIF(cf.headline, ''), f.name, 'Freebie') as title, 
+                    COALESCE(NULLIF(cf.subheadline, ''), f.description, '') as description, 
+                    COALESCE(NULLIF(cf.mockup_image_url, ''), f.mockup_image_url) as mockup_url, 
+                    fc.id as course_id 
+                FROM customer_freebies cf 
+                LEFT JOIN freebies f ON cf.template_id = f.id 
+                LEFT JOIN freebie_courses fc ON cf.id = fc.freebie_id 
+                WHERE cf.customer_id = ? AND cf.id = ?
+            ");
+            $stmt->execute([$customer_id, $lead['freebie_id']]);
+            $freebies_with_courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+    }
+} catch (PDOException $e) {
+    error_log("Fehler beim Laden der Freebies: " . $e->getMessage());
+}
+
+if (!$selected_freebie_id && !empty($freebies_with_courses)) {
+    $selected_freebie_id = $freebies_with_courses[0]['freebie_id'];
+}
+
+$selected_freebie = null;
+if ($selected_freebie_id) {
+    foreach ($freebies_with_courses as $freebie) {
+        if ($freebie['freebie_id'] == $selected_freebie_id) {
+            $selected_freebie = $freebie;
+            break;
+        }
+    }
+}
+
+// Empfehlungsdaten
+$referrals = [];
+$delivered_rewards = [];
+$total_referrals = 0;
+$successful_referrals = 0;
+
+if ($referral_enabled && $selected_freebie_id) {
+    try {
+        $stmt = $pdo->prepare("SELECT referred_name as name, referred_email as email, status, invited_at as registered_at FROM lead_referrals WHERE referrer_id = ? ORDER BY invited_at DESC");
+        $stmt->execute([$lead_id]);
+        $referrals = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $total_referrals = count($referrals);
+        $successful_referrals = count(array_filter($referrals, function($r) {
+            return $r['status'] === 'active' || $r['status'] === 'converted';
+        }));
+        
+        try {
+            $stmt = $pdo->prepare("SELECT rd.*, rdef.tier_name, rdef.reward_icon, rdef.reward_color FROM reward_deliveries rd LEFT JOIN reward_definitions rdef ON rd.reward_id = rdef.id WHERE rd.lead_id = ? ORDER BY rd.delivered_at DESC");
+            $stmt->execute([$lead_id]);
+            $delivered_rewards = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("reward_deliveries Tabelle fehlt noch: " . $e->getMessage());
+        }
+    } catch (PDOException $e) {
+        error_log("Fehler beim Laden der Empfehlungen: " . $e->getMessage());
+    }
+}
+
+// Belohnungsstufen laden
+$reward_tiers = [];
+if ($referral_enabled && $customer_id) {
+    try {
+        $stmt = $pdo->prepare("SELECT id, tier_level, tier_name, tier_description, required_referrals, reward_type, reward_title, reward_description, reward_icon, reward_color, reward_value FROM reward_definitions WHERE user_id = ? AND is_active = 1 ORDER BY tier_level ASC");
+        $stmt->execute([$customer_id]);
+        $reward_tiers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log("Fehler beim Laden der Belohnungen: " . $e->getMessage());
+    }
+}
+
+// Navigation Menu Items
+$menu_items = [
+    'dashboard' => ['icon' => '📊', 'label' => 'Dashboard', 'show' => true],
+    'kurse' => ['icon' => '🎓', 'label' => 'Meine Kurse', 'show' => true],
+    'belohnungen' => ['icon' => '🎁', 'label' => 'Meine Belohnungen', 'show' => $referral_enabled && !empty($delivered_rewards)],
+    'videoanleitung' => ['icon' => '🎥', 'label' => 'Videoanleitung', 'show' => $referral_enabled],
+    'empfehlen' => ['icon' => '🚀', 'label' => 'Empfehlen', 'show' => $referral_enabled],
+    'anleitung' => ['icon' => '📖', 'label' => 'So funktioniert\'s', 'show' => true],
+    'social' => ['icon' => '🤖', 'label' => 'KI Social Assistant', 'show' => $referral_enabled],
+];
 ?>
 <!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mein Dashboard</title>
+    <title><?php echo htmlspecialchars($company_name); ?> - Lead Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -159,6 +294,7 @@ if ($referral_enabled) $menu_items['empfehlen'] = ['icon' => '🚀', 'label' => 
             align-items: center;
             justify-content: center;
             border-radius: 8px;
+            border: none;
         }
         
         /* Sidebar */
@@ -316,205 +452,6 @@ if ($referral_enabled) $menu_items['empfehlen'] = ['icon' => '🚀', 'label' => 
             -webkit-overflow-scrolling: touch;
         }
         
-        /* Content Styles */
-        .page-header {
-            margin-bottom: 32px;
-        }
-        
-        .page-header h2 {
-            font-size: 28px;
-            color: white;
-            margin-bottom: 8px;
-        }
-        
-        .page-header p {
-            font-size: 14px;
-            color: #888;
-        }
-        
-        /* Stats Grid */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 32px;
-        }
-        
-        .stat-card {
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
-            border: 1px solid rgba(102, 126, 234, 0.2);
-            padding: 24px;
-            border-radius: 16px;
-            text-align: center;
-        }
-        
-        .stat-value {
-            font-size: 36px;
-            font-weight: 700;
-            color: #667eea;
-            margin-bottom: 8px;
-        }
-        
-        .stat-label {
-            font-size: 14px;
-            color: #888;
-        }
-        
-        /* Freebie Grid */
-        .freebie-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 24px;
-        }
-        
-        .freebie-card {
-            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 16px;
-            overflow: hidden;
-            transition: all 0.3s;
-            cursor: pointer;
-        }
-        
-        .freebie-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
-            border-color: rgba(102, 126, 234, 0.5);
-        }
-        
-        .freebie-mockup {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 48px;
-        }
-        
-        .freebie-content {
-            padding: 24px;
-        }
-        
-        .freebie-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: white;
-            margin-bottom: 8px;
-        }
-        
-        .freebie-description {
-            font-size: 14px;
-            color: #888;
-            line-height: 1.6;
-            margin-bottom: 16px;
-            min-height: 60px;
-        }
-        
-        .freebie-meta {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #667eea;
-            font-size: 14px;
-        }
-        
-        .start-btn {
-            width: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 10px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 16px;
-            transition: all 0.3s;
-        }
-        
-        .start-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-        }
-        
-        /* Referral Box */
-        .referral-box {
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
-            border: 2px dashed rgba(102, 126, 234, 0.3);
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 32px;
-        }
-        
-        .referral-box h3 {
-            color: white;
-            margin-bottom: 16px;
-            font-size: 18px;
-        }
-        
-        .link-input-group {
-            display: flex;
-            gap: 12px;
-        }
-        
-        .link-input {
-            flex: 1;
-            padding: 12px 16px;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px;
-            color: white;
-            font-size: 13px;
-            font-family: monospace;
-        }
-        
-        .copy-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-        
-        .copy-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-        }
-        
-        .copy-btn.copied {
-            background: #2ecc71;
-        }
-        
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-        }
-        
-        .empty-state i {
-            font-size: 64px;
-            color: #667eea;
-            margin-bottom: 20px;
-            opacity: 0.5;
-        }
-        
-        .empty-state h3 {
-            font-size: 24px;
-            color: white;
-            margin-bottom: 10px;
-        }
-        
-        .empty-state p {
-            font-size: 16px;
-            color: #888;
-        }
-        
         /* Responsive */
         @media (max-width: 768px) {
             body {
@@ -549,19 +486,13 @@ if ($referral_enabled) $menu_items['empfehlen'] = ['icon' => '🚀', 'label' => 
             .content-area {
                 padding: 20px;
             }
-            
-            .freebie-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .link-input-group {
-                flex-direction: column;
-            }
         }
+        
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up { animation: fadeInUp 0.6s ease-out forwards; }
     </style>
 </head>
 <body>
@@ -569,7 +500,7 @@ if ($referral_enabled) $menu_items['empfehlen'] = ['icon' => '🚀', 'label' => 
     <div class="mobile-header">
         <div class="mobile-logo">
             <div class="mobile-logo-icon">🌟</div>
-            <div class="mobile-logo-text">Mein Dashboard</div>
+            <div class="mobile-logo-text"><?php echo htmlspecialchars($company_name); ?></div>
         </div>
         <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
     </div>
@@ -582,17 +513,21 @@ if ($referral_enabled) $menu_items['empfehlen'] = ['icon' => '🚀', 'label' => 
         <div class="logo">
             <div class="logo-icon">🌟</div>
             <div class="logo-text">
-                <h1>Mein Dashboard</h1>
+                <h1><?php echo htmlspecialchars($company_name); ?></h1>
                 <p>Lead Portal</p>
             </div>
         </div>
         
         <nav class="nav-menu">
             <?php foreach ($menu_items as $page => $item): ?>
-                <a href="?page=<?php echo $page; ?>" class="nav-item <?php echo $current_page === $page ? 'active' : ''; ?>" onclick="closeSidebarOnMobile()">
+                <?php if ($item['show']): ?>
+                <a href="?page=<?php echo $page; ?><?php echo $selected_freebie_id ? '&freebie=' . $selected_freebie_id : ''; ?>" 
+                   class="nav-item <?php echo $current_page === $page ? 'active' : ''; ?>" 
+                   onclick="closeSidebarOnMobile()">
                     <span class="nav-icon"><?php echo $item['icon']; ?></span>
                     <span><?php echo $item['label']; ?></span>
                 </a>
+                <?php endif; ?>
             <?php endforeach; ?>
         </nav>
         
@@ -602,136 +537,27 @@ if ($referral_enabled) $menu_items['empfehlen'] = ['icon' => '🚀', 'label' => 
                 <div class="user-name"><?php echo htmlspecialchars($lead['name'] ?? 'Lead'); ?></div>
                 <div class="user-email"><?php echo htmlspecialchars($lead['email']); ?></div>
             </div>
-            <a href="lead_logout.php" class="logout-btn" title="Abmelden">🚪</a>
+            <a href="/lead_logout.php" class="logout-btn" title="Abmelden">🚪</a>
         </div>
     </div>
     
     <!-- Main Content -->
     <div class="main-content">
         <div class="content-area">
-            <?php if ($current_page === 'dashboard'): ?>
-                <div class="page-header">
-                    <h2>Willkommen zurück<?php echo !empty($lead['name']) ? ', ' . htmlspecialchars($lead['name']) : ''; ?>! 👋</h2>
-                    <p>Hier ist deine Übersicht über deine Kurse und Empfehlungen</p>
-                </div>
-                
-                <?php if ($referral_enabled): ?>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-value"><?php echo $referral_stats['total']; ?></div>
-                        <div class="stat-label">Empfehlungen gesamt</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value"><?php echo $referral_stats['total'] - $referral_stats['pending']; ?></div>
-                        <div class="stat-label">Aktive Empfehlungen</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value"><?php echo count($freebies); ?></div>
-                        <div class="stat-label">Verfügbare Kurse</div>
-                    </div>
-                </div>
-                <?php endif; ?>
-                
-                <div class="page-header" style="margin-top: 40px;">
-                    <h2>Deine Kurse 🎓</h2>
-                </div>
-                
-                <?php if (empty($freebies)): ?>
-                    <div class="empty-state">
-                        <i class="fas fa-inbox"></i>
-                        <h3>Noch keine Kurse verfügbar</h3>
-                        <p>Neue Kurse werden hier erscheinen, sobald sie verfügbar sind.</p>
-                    </div>
-                <?php else: ?>
-                    <div class="freebie-grid">
-                        <?php foreach ($freebies as $freebie): ?>
-                            <div class="freebie-card" onclick="window.location.href='customer/view_freebie.php?id=<?php echo $freebie['id']; ?>'">
-                                <?php if (!empty($freebie['mockup_image'])): ?>
-                                    <img src="<?php echo htmlspecialchars($freebie['mockup_image']); ?>" alt="<?php echo htmlspecialchars($freebie['name'] ?? 'Kurs'); ?>" class="freebie-mockup">
-                                <?php else: ?>
-                                    <div class="freebie-mockup"><i class="fas fa-graduation-cap"></i></div>
-                                <?php endif; ?>
-                                
-                                <div class="freebie-content">
-                                    <div class="freebie-title"><?php echo htmlspecialchars($freebie['name'] ?? 'Unbenannter Kurs'); ?></div>
-                                    <div class="freebie-description"><?php echo htmlspecialchars($freebie['description'] ?? 'Keine Beschreibung'); ?></div>
-                                    <div class="freebie-meta">
-                                        <i class="fas fa-play-circle"></i>
-                                        <?php echo $freebie['total_lessons']; ?> Lektionen
-                                    </div>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-                
-            <?php elseif ($current_page === 'kurse'): ?>
-                <div class="page-header">
-                    <h2>Meine Kurse 🎓</h2>
-                    <p>Alle deine verfügbaren Kurse im Überblick</p>
-                </div>
-                
-                <?php if (empty($freebies)): ?>
-                    <div class="empty-state">
-                        <i class="fas fa-graduation-cap"></i>
-                        <h3>Noch keine Kurse verfügbar</h3>
-                        <p>Neue Kurse werden hier erscheinen.</p>
-                    </div>
-                <?php else: ?>
-                    <div class="freebie-grid">
-                        <?php foreach ($freebies as $freebie): ?>
-                            <div class="freebie-card">
-                                <?php if (!empty($freebie['mockup_image'])): ?>
-                                    <img src="<?php echo htmlspecialchars($freebie['mockup_image']); ?>" alt="Kurs" class="freebie-mockup">
-                                <?php else: ?>
-                                    <div class="freebie-mockup"><i class="fas fa-graduation-cap"></i></div>
-                                <?php endif; ?>
-                                
-                                <div class="freebie-content">
-                                    <div class="freebie-title"><?php echo htmlspecialchars($freebie['name'] ?? 'Kurs'); ?></div>
-                                    <div class="freebie-description"><?php echo htmlspecialchars($freebie['description'] ?? ''); ?></div>
-                                    <div class="freebie-meta">
-                                        <i class="fas fa-play-circle"></i>
-                                        <?php echo $freebie['total_lessons']; ?> Lektionen
-                                    </div>
-                                    <button class="start-btn" onclick="window.location.href='customer/view_freebie.php?id=<?php echo $freebie['id']; ?>'">
-                                        Kurs starten
-                                    </button>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-                
-            <?php elseif ($current_page === 'empfehlen' && $referral_enabled): ?>
-                <div class="page-header">
-                    <h2>Freunde empfehlen 🚀</h2>
-                    <p>Teile deinen persönlichen Link und zeige deinen Freunden dieses großartige Angebot!</p>
-                </div>
-                
-                <div class="referral-box">
-                    <h3>Dein Empfehlungslink:</h3>
-                    <div class="link-input-group">
-                        <input type="text" class="link-input" value="<?php echo htmlspecialchars($referral_link); ?>" id="referralLink" readonly>
-                        <button class="copy-btn" onclick="copyReferralLink()"><i class="fas fa-copy"></i> Kopieren</button>
-                    </div>
-                </div>
-                
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-value"><?php echo $referral_stats['total']; ?></div>
-                        <div class="stat-label">Empfehlungen gesamt</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value"><?php echo $referral_stats['total'] - $referral_stats['pending']; ?></div>
-                        <div class="stat-label">Aktive Empfehlungen</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value"><?php echo $referral_stats['pending']; ?></div>
-                        <div class="stat-label">Ausstehend</div>
-                    </div>
-                </div>
-            <?php endif; ?>
+            <?php
+            // Content laden basierend auf Seite
+            $content_file = __DIR__ . '/lead/sections/' . $current_page . '.php';
+            if (file_exists($content_file)) {
+                include $content_file;
+            } else {
+                // Fallback: Dashboard-Inline-Content
+                echo '<div style="text-align:center;padding:60px 20px;">';
+                echo '<h2 style="color:white;font-size:24px;margin-bottom:16px;">Seite nicht gefunden</h2>';
+                echo '<p style="color:#888;">Die angeforderte Seite existiert noch nicht.</p>';
+                echo '<p style="color:#888;margin-top:8px;">Aktuelle Seite: ' . htmlspecialchars($current_page) . '</p>';
+                echo '</div>';
+            }
+            ?>
         </div>
     </div>
     
@@ -764,20 +590,36 @@ if ($referral_enabled) $menu_items['empfehlen'] = ['icon' => '🚀', 'label' => 
             }
         });
         
+        function copyCode(code, button) {
+            navigator.clipboard.writeText(code).then(() => {
+                button.innerHTML = '<i class="fas fa-check mr-2"></i>Kopiert!';
+                button.style.background = '#10b981';
+                setTimeout(() => {
+                    button.innerHTML = '<i class="fas fa-copy mr-2"></i>Code kopieren';
+                    button.style.background = '';
+                }, 2000);
+            }).catch(() => alert('Bitte kopiere den Code manuell'));
+        }
+        
         function copyReferralLink() {
             const input = document.getElementById('referralLink');
-            const button = event.target.closest('.copy-btn');
+            if (!input) return;
+            
             input.select();
-            document.execCommand('copy');
-            const originalHTML = button.innerHTML;
-            button.innerHTML = '<i class="fas fa-check"></i> Kopiert!';
-            button.classList.add('copied');
-            setTimeout(() => {
-                button.innerHTML = originalHTML;
-                button.classList.remove('copied');
-            }, 2000);
+            try {
+                document.execCommand('copy');
+                const btn = event.target.closest('button');
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> Kopiert!';
+                btn.style.background = '#10b981';
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.style.background = '';
+                }, 2000);
+            } catch (err) {
+                alert('Bitte kopiere den Link manuell');
+            }
         }
     </script>
 </body>
 </html>
-<?php $conn->close(); ?>
