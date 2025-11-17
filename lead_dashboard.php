@@ -1,12 +1,14 @@
 <?php
 /**
  * Lead Dashboard - Token-basiertes System mit Multi-Freebie Support
+ * + AUTO-DELIVERY: Automatische Belohnungsauslieferung mit Email
  * - Automatische Lead-Erstellung beim ersten Token-Aufruf
  * - Referral-Code-Tracking
  * - Empfehlungsprogramm mit Belohnungen
  * - Webhook-System für Belohnungsstufen
  * - UNTERSTÜTZT: customer_freebies UND freebies (Templates)
  * - MULTI-FREEBIE: Lead hat Zugang zu mehreren Freebies
+ * - ERWEITERT: Automatische Email-Benachrichtigung bei Belohnungsfreischaltung
  */
 
 require_once __DIR__ . '/config/database.php';
@@ -95,7 +97,7 @@ if (isset($_GET['token']) && !isset($_SESSION['lead_id'])) {
                             $token_data['freebie_id']
                         ]);
                         
-                        // Webhook für neuen Referral auslösen
+                        // Webhook für neuen Referral auslösen + Auto-Delivery prüfen
                         checkAndTriggerRewardWebhooks($pdo, $referrer_id, $token_data['customer_id']);
                         
                     } catch (PDOException $e) {
@@ -285,6 +287,7 @@ if ($selected_freebie_id) {
 // ===== EMPFEHLUNGSDATEN FÜR GEWÄHLTES FREEBIE =====
 $referrals = [];
 $claimed_rewards = [];
+$delivered_rewards = []; // NEU: Ausgelieferte Belohnungen
 $total_referrals = 0;
 $successful_referrals = 0;
 
@@ -305,7 +308,7 @@ if ($referral_enabled && $selected_freebie_id) {
             return $r['status'] === 'active' || $r['status'] === 'converted';
         }));
         
-        // Eingelöste Belohnungen
+        // Eingelöste Belohnungen (alte Tabelle für Kompatibilität)
         $stmt = $pdo->prepare("
             SELECT reward_id, reward_name, claimed_at 
             FROM referral_claimed_rewards 
@@ -314,6 +317,26 @@ if ($referral_enabled && $selected_freebie_id) {
         ");
         $stmt->execute([$lead_id]);
         $claimed_rewards = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // NEU: Ausgelieferte Belohnungen mit allen Details
+        try {
+            $stmt = $pdo->prepare("
+                SELECT 
+                    rd.*,
+                    rdef.tier_name,
+                    rdef.reward_icon,
+                    rdef.reward_color
+                FROM reward_deliveries rd
+                LEFT JOIN reward_definitions rdef ON rd.reward_id = rdef.id
+                WHERE rd.lead_id = ?
+                ORDER BY rd.delivered_at DESC
+            ");
+            $stmt->execute([$lead_id]);
+            $delivered_rewards = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            // Tabelle reward_deliveries existiert noch nicht
+            error_log("reward_deliveries Tabelle fehlt noch: " . $e->getMessage());
+        }
         
     } catch (PDOException $e) {
         error_log("Fehler beim Laden der Empfehlungen: " . $e->getMessage());
@@ -353,7 +376,8 @@ $primary_color = '#8B5CF6';
 $company_name = $lead['company_name'] ?? 'Dashboard';
 
 /**
- * Prüft ob neue Belohnungsstufen erreicht wurden und triggert Webhooks
+ * Prüft ob neue Belohnungsstufen erreicht wurden und liefert sie automatisch aus
+ * ERWEITERT: Mit Email-Benachrichtigung und Tracking
  */
 function checkAndTriggerRewardWebhooks($pdo, $lead_id, $customer_id) {
     try {
@@ -366,22 +390,26 @@ function checkAndTriggerRewardWebhooks($pdo, $lead_id, $customer_id) {
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         $successful_referrals = $result['count'];
         
-        // Belohnungsstufen laden die erreicht aber noch nicht claimed sind
+        // Belohnungsstufen laden die erreicht aber noch nicht delivered sind
         $stmt = $pdo->prepare("
-            SELECT * FROM reward_definitions 
-            WHERE user_id = ? 
-            AND is_active = 1 
-            AND required_referrals <= ?
-            AND id NOT IN (
-                SELECT reward_id FROM referral_claimed_rewards WHERE lead_id = ?
+            SELECT rd.* FROM reward_definitions rd
+            WHERE rd.user_id = ? 
+            AND rd.is_active = 1 
+            AND rd.required_referrals <= ?
+            AND rd.id NOT IN (
+                SELECT reward_id FROM reward_deliveries WHERE lead_id = ?
             )
-            ORDER BY tier_level ASC
+            ORDER BY rd.tier_level ASC
         ");
         $stmt->execute([$customer_id, $successful_referrals, $lead_id]);
         $unlocked_rewards = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Webhook für jede erreichte Stufe auslösen
+        // Für jede erreichte Stufe: Ausliefern + Email senden
         foreach ($unlocked_rewards as $reward) {
+            // Belohnung ausliefern
+            deliverReward($pdo, $lead_id, $customer_id, $reward);
+            
+            // Webhook für alte Kompatibilität
             triggerRewardWebhook($pdo, $lead_id, $customer_id, $reward);
         }
         
@@ -391,7 +419,180 @@ function checkAndTriggerRewardWebhooks($pdo, $lead_id, $customer_id) {
 }
 
 /**
- * Löst Webhook für erreichte Belohnungsstufe aus
+ * Liefert eine Belohnung aus und sendet Email-Benachrichtigung
+ */
+function deliverReward($pdo, $lead_id, $customer_id, $reward) {
+    try {
+        // Lead-Daten laden
+        $stmt = $pdo->prepare("
+            SELECT lu.*, u.company_name 
+            FROM lead_users lu
+            LEFT JOIN users u ON lu.user_id = u.id
+            WHERE lu.id = ?
+        ");
+        $stmt->execute([$lead_id]);
+        $lead = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$lead) return;
+        
+        // In reward_deliveries speichern
+        $stmt = $pdo->prepare("
+            INSERT INTO reward_deliveries (
+                lead_id, reward_id, user_id, reward_type, reward_title,
+                reward_value, delivery_url, access_code, delivery_instructions,
+                delivered_at, delivery_status, email_sent
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 'delivered', 0)
+        ");
+        $stmt->execute([
+            $lead_id,
+            $reward['id'],
+            $customer_id,
+            $reward['reward_type'],
+            $reward['reward_title'],
+            $reward['reward_value'],
+            $reward['reward_download_url'] ?? null,
+            $reward['reward_access_code'] ?? null,
+            $reward['reward_instructions'] ?? null
+        ]);
+        
+        $delivery_id = $pdo->lastInsertId();
+        
+        // Email senden wenn auto_deliver aktiv
+        if ($reward['auto_deliver'] && $delivery_id) {
+            $email_sent = sendRewardDeliveryEmail($lead, $reward);
+            
+            if ($email_sent) {
+                // Email-Status aktualisieren
+                $stmt = $pdo->prepare("
+                    UPDATE reward_deliveries 
+                    SET email_sent = 1, email_sent_at = NOW()
+                    WHERE id = ?
+                ");
+                $stmt->execute([$delivery_id]);
+            }
+        }
+        
+    } catch (PDOException $e) {
+        error_log("Delivery Error: " . $e->getMessage());
+    }
+}
+
+/**
+ * Sendet Email-Benachrichtigung mit Belohnungsdetails
+ */
+function sendRewardDeliveryEmail($lead, $reward) {
+    $subject = "🎁 Du hast eine Belohnung freigeschaltet!";
+    
+    // Belohnungsdetails formatieren
+    $reward_details = '';
+    
+    if (!empty($reward['reward_download_url'])) {
+        $reward_details .= "
+        <div style='background: #f0fdf4; border-left: 4px solid #22c55e; padding: 15px; border-radius: 6px; margin: 15px 0;'>
+            <p style='margin: 0 0 10px 0; font-weight: bold; color: #166534;'>🔗 Download-Link:</p>
+            <a href='{$reward['reward_download_url']}' 
+               style='display: inline-block; background: #22c55e; color: white; padding: 12px 24px; 
+                      text-decoration: none; border-radius: 8px; font-weight: bold;'>
+                <i class='fas fa-download'></i> Jetzt herunterladen
+            </a>
+        </div>
+        ";
+    }
+    
+    if (!empty($reward['reward_access_code'])) {
+        $reward_details .= "
+        <div style='background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 6px; margin: 15px 0;'>
+            <p style='margin: 0 0 10px 0; font-weight: bold; color: #92400e;'>🔑 Zugriffscode:</p>
+            <code style='font-size: 18px; background: white; padding: 8px 16px; border-radius: 6px; 
+                         display: inline-block; font-family: monospace; color: #92400e;'>
+                {$reward['reward_access_code']}
+            </code>
+        </div>
+        ";
+    }
+    
+    if (!empty($reward['reward_instructions'])) {
+        $reward_details .= "
+        <div style='background: #e0e7ff; border-left: 4px solid #6366f1; padding: 15px; border-radius: 6px; margin: 15px 0;'>
+            <p style='margin: 0 0 10px 0; font-weight: bold; color: #3730a3;'>📋 Einlöse-Anweisungen:</p>
+            <p style='margin: 0; color: #3730a3;'>" . nl2br(htmlspecialchars($reward['reward_instructions'])) . "</p>
+        </div>
+        ";
+    }
+    
+    $message = "
+    <html>
+    <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
+        <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
+            <div style='background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%); 
+                        padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0;'>
+                <h1 style='color: white; margin: 0; font-size: 32px;'>🎉 Glückwunsch!</h1>
+                <p style='color: rgba(255,255,255,0.9); margin: 10px 0 0 0;'>
+                    Du hast eine Belohnung freigeschaltet!
+                </p>
+            </div>
+            
+            <div style='background: white; padding: 30px; border-radius: 0 0 12px 12px; 
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.1);'>
+                
+                <p style='font-size: 16px;'>Hallo " . htmlspecialchars($lead['name']) . ",</p>
+                
+                <p>durch deine erfolgreichen Empfehlungen hast du folgende Belohnung freigeschaltet:</p>
+                
+                <div style='background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%); 
+                            padding: 24px; border-radius: 12px; margin: 20px 0; text-align: center;'>
+                    <h2 style='color: white; margin: 0 0 8px 0; font-size: 24px;'>
+                        " . htmlspecialchars($reward['reward_title']) . "
+                    </h2>
+                    " . (!empty($reward['reward_description']) ? "
+                    <p style='color: rgba(255,255,255,0.9); margin: 0; font-size: 14px;'>
+                        " . htmlspecialchars($reward['reward_description']) . "
+                    </p>
+                    " : "") . "
+                    " . (!empty($reward['reward_value']) ? "
+                    <p style='color: white; margin: 12px 0 0 0; font-size: 20px; font-weight: bold;'>
+                        " . htmlspecialchars($reward['reward_value']) . "
+                    </p>
+                    " : "") . "
+                </div>
+                
+                " . $reward_details . "
+                
+                <div style='text-align: center; margin: 30px 0;'>
+                    <a href='https://app.mehr-infos-jetzt.de/lead_dashboard.php' 
+                       style='display: inline-block; background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%); 
+                              color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; 
+                              font-weight: bold; font-size: 16px;'>
+                        🎯 Zum Dashboard
+                    </a>
+                </div>
+                
+                <div style='background: #f5f7fa; padding: 20px; border-radius: 8px; margin-top: 30px;'>
+                    <p style='margin: 0; font-size: 14px; color: #6b7280;'>
+                        <strong style='color: #374151;'>💡 Tipp:</strong> 
+                        Empfiehl weiter und schalte noch mehr Belohnungen frei!
+                    </p>
+                </div>
+                
+                <p style='color: #888; font-size: 14px; margin-top: 30px; text-align: center;'>
+                    Viel Spaß mit deiner Belohnung! 🎁<br>
+                    " . htmlspecialchars($lead['company_name'] ?? 'Dein Team') . "
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    ";
+    
+    $headers = "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+    $headers .= "From: " . ($lead['company_name'] ?? 'KI Leadsystem') . " <noreply@mehr-infos-jetzt.de>\r\n";
+    
+    return mail($lead['email'], $subject, $message, $headers);
+}
+
+/**
+ * Löst Webhook für erreichte Belohnungsstufe aus (alte Funktion für Kompatibilität)
  */
 function triggerRewardWebhook($pdo, $lead_id, $customer_id, $reward) {
     try {
@@ -448,20 +649,23 @@ function triggerRewardWebhook($pdo, $lead_id, $customer_id, $reward) {
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
         
-        // Log webhook call
         error_log("Reward Webhook sent: HTTP $http_code - Lead: {$lead['email']}, Reward: {$reward['reward_title']}");
         
-        // Als "claimed" markieren damit nicht erneut gesendet wird
-        $stmt = $pdo->prepare("
-            INSERT INTO referral_claimed_rewards 
-            (lead_id, reward_id, reward_name, claimed_at)
-            VALUES (?, ?, ?, NOW())
-        ");
-        $stmt->execute([
-            $lead_id,
-            $reward['id'],
-            $reward['reward_title']
-        ]);
+        // Als "claimed" markieren in alter Tabelle für Kompatibilität
+        try {
+            $stmt = $pdo->prepare("
+                INSERT INTO referral_claimed_rewards 
+                (lead_id, reward_id, reward_name, claimed_at)
+                VALUES (?, ?, ?, NOW())
+            ");
+            $stmt->execute([
+                $lead_id,
+                $reward['id'],
+                $reward['reward_title']
+            ]);
+        } catch (PDOException $e) {
+            // Ignorieren falls bereits vorhanden
+        }
         
     } catch (Exception $e) {
         error_log("Webhook-Trigger-Fehler: " . $e->getMessage());
@@ -888,6 +1092,110 @@ $course_section_title = count($freebies_with_courses) > 1 ? 'Deine Kurse' : 'Dei
             color: white;
         }
         
+        /* ===== DELIVERED REWARDS (NEU) ===== */
+        .rewards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        
+        .reward-delivery-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border-left: 4px solid var(--primary);
+            position: relative;
+        }
+        
+        .reward-delivery-card.new {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 2px 10px rgba(139, 92, 246, 0.2); }
+            50% { box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4); }
+        }
+        
+        .new-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: #22c55e;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .reward-detail-box {
+            background: var(--bg);
+            border: 2px solid var(--border);
+            padding: 16px;
+            border-radius: 8px;
+            margin: 12px 0;
+        }
+        
+        .reward-detail-box.download {
+            border-color: #22c55e;
+            background: #f0fdf4;
+        }
+        
+        .reward-detail-box.code {
+            border-color: #f59e0b;
+            background: #fef3c7;
+        }
+        
+        .reward-detail-box.instructions {
+            border-color: #6366f1;
+            background: #e0e7ff;
+        }
+        
+        .download-button {
+            display: inline-block;
+            background: #22c55e;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        
+        .download-button:hover {
+            background: #16a34a;
+            transform: scale(1.02);
+        }
+        
+        .code-display {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            border: 2px dashed #f59e0b;
+            margin: 8px 0;
+        }
+        
+        .copy-code-btn {
+            width: 100%;
+            padding: 8px;
+            background: #f59e0b;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .copy-code-btn:hover {
+            background: #d97706;
+        }
+        
         /* ===== REFERRALS TABLE ===== */
         .referrals-table {
             width: 100%;
@@ -965,7 +1273,7 @@ $course_section_title = count($freebies_with_courses) > 1 ? 'Deine Kurse' : 'Dei
                 justify-content: space-between;
             }
             
-            .freebie-grid {
+            .freebie-grid, .rewards-grid {
                 grid-template-columns: 1fr;
             }
             
@@ -1079,6 +1387,102 @@ $course_section_title = count($freebies_with_courses) > 1 ? 'Deine Kurse' : 'Dei
             <?php endif; ?>
         </div>
         
+        <!-- NEU: Meine Belohnungen (Ausgeliefert) -->
+        <?php if ($referral_enabled && !empty($delivered_rewards)): ?>
+        <div class="section" id="myRewardsSection">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span class="section-icon">🎁</span>
+                    Meine Belohnungen
+                    <span style="background: var(--primary); color: white; padding: 4px 12px; border-radius: 12px; 
+                                 font-size: 14px; margin-left: 12px;">
+                        <?php echo count($delivered_rewards); ?>
+                    </span>
+                </h2>
+            </div>
+            
+            <div class="rewards-grid">
+                <?php foreach ($delivered_rewards as $reward): 
+                    $is_new = (time() - strtotime($reward['delivered_at'])) < 86400; // < 24h
+                ?>
+                    <div class="reward-delivery-card <?php echo $is_new ? 'new' : ''; ?>">
+                        <?php if ($is_new): ?>
+                            <div class="new-badge">✨ NEU</div>
+                        <?php endif; ?>
+                        
+                        <div style="display: flex; align-items: flex-start; gap: 16px; margin-bottom: 16px;">
+                            <div style="font-size: 48px; color: <?php echo htmlspecialchars($reward['reward_color'] ?? $primary_color); ?>;">
+                                <i class="fas <?php echo htmlspecialchars($reward['reward_icon'] ?? 'fa-gift'); ?>"></i>
+                            </div>
+                            <div style="flex: 1;">
+                                <?php if (!empty($reward['tier_name'])): ?>
+                                    <div style="display: inline-block; background: <?php echo htmlspecialchars($reward['reward_color'] ?? $primary_color); ?>; 
+                                                color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; 
+                                                font-weight: bold; text-transform: uppercase; margin-bottom: 8px;">
+                                        <?php echo htmlspecialchars($reward['tier_name']); ?>
+                                    </div>
+                                <?php endif; ?>
+                                <h3 style="margin: 0 0 8px 0; font-size: 20px; font-weight: 700;">
+                                    <?php echo htmlspecialchars($reward['reward_title']); ?>
+                                </h3>
+                                <?php if (!empty($reward['reward_value'])): ?>
+                                    <p style="margin: 0; color: <?php echo htmlspecialchars($reward['reward_color'] ?? $primary_color); ?>; font-weight: 600; font-size: 16px;">
+                                        <?php echo htmlspecialchars($reward['reward_value']); ?>
+                                    </p>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        
+                        <?php if (!empty($reward['delivery_url'])): ?>
+                            <div class="reward-detail-box download">
+                                <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #166534;">
+                                    🔗 Download-Link:
+                                </div>
+                                <a href="<?php echo htmlspecialchars($reward['delivery_url']); ?>" 
+                                   target="_blank"
+                                   class="download-button">
+                                    <i class="fas fa-download"></i> Jetzt herunterladen
+                                </a>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <?php if (!empty($reward['access_code'])): ?>
+                            <div class="reward-detail-box code">
+                                <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #92400e;">
+                                    🔑 Zugriffscode:
+                                </div>
+                                <div class="code-display">
+                                    <?php echo htmlspecialchars($reward['access_code']); ?>
+                                </div>
+                                <button onclick="copyCode('<?php echo htmlspecialchars($reward['access_code']); ?>', this)" 
+                                        class="copy-code-btn">
+                                    <i class="fas fa-copy"></i> Code kopieren
+                                </button>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <?php if (!empty($reward['delivery_instructions'])): ?>
+                            <div class="reward-detail-box instructions">
+                                <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #3730a3;">
+                                    📋 Einlöse-Anweisungen:
+                                </div>
+                                <div style="font-size: 14px; color: #3730a3; line-height: 1.6;">
+                                    <?php echo nl2br(htmlspecialchars($reward['delivery_instructions'])); ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <div style="font-size: 12px; color: #9ca3af; margin-top: 16px; padding-top: 16px; 
+                                    border-top: 1px solid #e5e7eb;">
+                            <i class="fas fa-clock"></i> 
+                            Erhalten am <?php echo date('d.m.Y \u\m H:i', strtotime($reward['delivered_at'])); ?> Uhr
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+        
         <!-- Empfehlungsprogramm (nur wenn aktiv UND ein Freebie gewählt) -->
         <?php if ($referral_enabled && $selected_freebie): ?>
         
@@ -1136,8 +1540,8 @@ $course_section_title = count($freebies_with_courses) > 1 ? 'Deine Kurse' : 'Dei
         <div class="section">
             <div class="section-header">
                 <h2 class="section-title">
-                    <span class="section-icon">🎁</span>
-                    Deine Belohnungen
+                    <span class="section-icon">🏆</span>
+                    Verfügbare Belohnungen
                 </h2>
             </div>
             
@@ -1308,6 +1712,21 @@ $course_section_title = count($freebies_with_courses) > 1 ? 'Deine Kurse' : 'Dei
             } catch (err) {
                 alert('Bitte kopiere den Link manuell');
             }
+        }
+        
+        function copyCode(code, button) {
+            navigator.clipboard.writeText(code).then(() => {
+                const originalHTML = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-check"></i> Kopiert!';
+                button.style.background = '#22c55e';
+                
+                setTimeout(() => {
+                    button.innerHTML = originalHTML;
+                    button.style.background = '';
+                }, 2000);
+            }).catch(err => {
+                alert('Bitte kopiere den Code manuell');
+            });
         }
         
         // Beim Laden der Seite zur Belohnungs-Sektion scrollen (wenn freebie-Parameter vorhanden)
