@@ -25,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $customer_id = $_SESSION['user_id'];
+$pdo = getDBConnection();
 
 try {
     $input = json_decode(file_get_contents('php://input'), true);
@@ -34,10 +35,9 @@ try {
     }
     
     $template_id = (int)$input['id'];
-    $is_published = isset($input['is_published']) ? (bool)$input['is_published'] : false;
     
-    // Prüfe Ownership
-    $stmt = $pdo->prepare("SELECT vendor_id FROM vendor_reward_templates WHERE id = ?");
+    // Prüfe Ownership UND lade aktuellen Status
+    $stmt = $pdo->prepare("SELECT vendor_id, is_published FROM vendor_reward_templates WHERE id = ?");
     $stmt->execute([$template_id]);
     $template = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -53,14 +53,17 @@ try {
         exit;
     }
     
-    // Update
+    // Toggle den aktuellen Status (WICHTIG: Dies war das Problem!)
+    $new_status = !$template['is_published'];
+    
+    // Update mit dem getoggelte Status
     $stmt = $pdo->prepare("UPDATE vendor_reward_templates SET is_published = ? WHERE id = ?");
-    $stmt->execute([$is_published ? 1 : 0, $template_id]);
+    $stmt->execute([$new_status ? 1 : 0, $template_id]);
     
     echo json_encode([
         'success' => true,
-        'message' => $is_published ? 'Template veröffentlicht' : 'Template entveröffentlicht',
-        'is_published' => $is_published
+        'message' => $new_status ? 'Template veröffentlicht' : 'Template entveröffentlicht',
+        'is_published' => $new_status
     ]);
     
 } catch (Exception $e) {
