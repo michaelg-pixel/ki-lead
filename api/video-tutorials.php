@@ -3,6 +3,7 @@
  * API für Video-Tutorial-Verwaltung
  * CRUD Operationen für Vimeo-Videos in Videoanleitung
  * NUR für Admin (michael.gluska@gmail.com)
+ * Unterstützt GLOBALE Videos (freebie_id = 0)
  */
 
 require_once __DIR__ . '/../config/database.php';
@@ -45,7 +46,7 @@ try {
         CREATE TABLE IF NOT EXISTS video_tutorials (
             id INT PRIMARY KEY AUTO_INCREMENT,
             customer_id INT NOT NULL,
-            freebie_id INT NOT NULL,
+            freebie_id INT NOT NULL DEFAULT 0,
             category_name VARCHAR(255) NOT NULL,
             category_icon VARCHAR(50) DEFAULT 'fa-video',
             category_color VARCHAR(50) DEFAULT 'purple',
@@ -62,9 +63,9 @@ try {
 
 // GET: Alle Videos für ein Freebie laden (nur für Admin)
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'list') {
-    $freebie_id = isset($_GET['freebie_id']) ? (int)$_GET['freebie_id'] : 0;
+    $freebie_id = isset($_GET['freebie_id']) ? (int)$_GET['freebie_id'] : -1;
     
-    if (!$freebie_id) {
+    if ($freebie_id < 0) {
         echo json_encode(['error' => 'Freebie ID fehlt']);
         exit;
     }
@@ -90,7 +91,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'list') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'create') {
     $data = json_decode(file_get_contents('php://input'), true);
     
-    $freebie_id = (int)($data['freebie_id'] ?? 0);
+    // freebie_id kann 0 sein für globale Videos
+    $freebie_id = isset($data['freebie_id']) ? (int)$data['freebie_id'] : -1;
     $category_name = $data['category_name'] ?? '';
     $category_icon = $data['category_icon'] ?? 'fa-video';
     $category_color = $data['category_color'] ?? 'purple';
@@ -98,8 +100,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'create') {
     $description = $data['description'] ?? '';
     $sort_order = (int)($data['sort_order'] ?? 0);
     
-    if (!$freebie_id || !$category_name || !$vimeo_url) {
-        echo json_encode(['error' => 'Pflichtfelder fehlen']);
+    // Validierung: freebie_id muss >= 0 sein (0 = global, >0 = spezifisch)
+    if ($freebie_id < 0 || !$category_name || !$vimeo_url) {
+        echo json_encode(['error' => 'Pflichtfelder fehlen (freebie_id >= 0 erforderlich)']);
         exit;
     }
     
@@ -113,7 +116,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'create') {
         
         $video_id = $pdo->lastInsertId();
         
-        echo json_encode(['success' => true, 'video_id' => $video_id]);
+        echo json_encode([
+            'success' => true, 
+            'video_id' => $video_id,
+            'message' => $freebie_id === 0 ? 'Globales Video erstellt' : 'Freebie-spezifisches Video erstellt'
+        ]);
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(['error' => 'Fehler beim Erstellen des Videos: ' . $e->getMessage()]);
