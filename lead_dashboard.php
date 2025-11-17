@@ -4,6 +4,7 @@
  * + AUTO-DELIVERY: Automatische Belohnungsauslieferung
  * + SIDEBAR MENÜ: Navigation wie im Customer-Dashboard
  * + KI SOCIAL ASSISTANT: Für Social Media Posting
+ * + FREEBIE-FILTER: Zeigt nur Belohnungen für das aktuelle Freebie
  */
 
 require_once __DIR__ . '/config/database.php';
@@ -202,12 +203,13 @@ if ($referral_enabled && $selected_freebie_id) {
     }
 }
 
-// Belohnungsstufen laden
+// Belohnungsstufen laden - NUR für das spezifische Freebie oder allgemeine Belohnungen
 $reward_tiers = [];
-if ($referral_enabled && $customer_id) {
+if ($referral_enabled && $customer_id && $selected_freebie_id) {
     try {
-        $stmt = $pdo->prepare("SELECT id, tier_level, tier_name, tier_description, required_referrals, reward_type, reward_title, reward_description, reward_icon, reward_color, reward_value FROM reward_definitions WHERE user_id = ? AND is_active = 1 ORDER BY tier_level ASC");
-        $stmt->execute([$customer_id]);
+        // Lade nur Belohnungen die entweder für dieses spezifische Freebie sind ODER allgemein (freebie_id IS NULL)
+        $stmt = $pdo->prepare("SELECT id, tier_level, tier_name, tier_description, required_referrals, reward_type, reward_title, reward_description, reward_icon, reward_color, reward_value FROM reward_definitions WHERE user_id = ? AND is_active = 1 AND (freebie_id = ? OR freebie_id IS NULL) ORDER BY tier_level ASC");
+        $stmt->execute([$customer_id, $selected_freebie_id]);
         $reward_tiers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
         error_log("Fehler beim Laden der Belohnungen: " . $e->getMessage());
