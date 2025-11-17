@@ -110,6 +110,17 @@ if (!isset($_SESSION['backup_admin_logged_in'])) {
                 margin-bottom: 20px;
                 text-align: center;
             }
+            .forgot-password {
+                display: block;
+                text-align: center;
+                margin-top: 15px;
+                color: #667eea;
+                text-decoration: none;
+                font-size: 14px;
+            }
+            .forgot-password:hover {
+                text-decoration: underline;
+            }
         </style>
     </head>
     <body>
@@ -133,6 +144,8 @@ if (!isset($_SESSION['backup_admin_logged_in'])) {
                 
                 <button type="submit" name="login" class="btn-login">Anmelden</button>
             </form>
+            
+            <a href="password-reset.php" class="forgot-password">🔑 Passwort vergessen?</a>
         </div>
     </body>
     </html>
