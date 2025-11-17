@@ -18,7 +18,6 @@ $customer_id = isset($_GET['customer']) ? (int)$_GET['customer'] : 0;
 $ref = isset($_GET['ref']) ? trim($_GET['ref']) : ''; // Referral Code
 
 $error = '';
-$debug = '';
 
 // Freebie laden - ERST customer_freebies, DANN freebies (Templates)
 $freebie = null;
@@ -43,12 +42,6 @@ try {
         ");
         $stmt->execute([$customer_id, $freebie_id]);
         $freebie = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($freebie) {
-            $debug .= "✓ Freebie aus Templates geladen. ";
-        }
-    } else {
-        $debug .= "✓ Freebie aus 'Meine Freebies' geladen. ";
     }
     
     if (!$freebie) {
@@ -61,7 +54,7 @@ try {
 // Form-Submit
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
     $email = trim($_POST['email']);
-    $name = trim($_POST['name'] ?? '');
+    $name = 'Lead'; // Standard-Name, da kein Eingabefeld mehr
     
     if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = 'Bitte gib eine gültige E-Mail-Adresse ein.';
@@ -91,13 +84,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                         INDEX idx_status (status)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 ");
-                $debug .= "✓ lead_users Tabelle mit allen Spalten erstellt. ";
             } else {
                 // Prüfen ob created_at Spalte existiert
                 $stmt = $pdo->query("SHOW COLUMNS FROM lead_users LIKE 'created_at'");
                 if ($stmt->rowCount() === 0) {
                     $pdo->exec("ALTER TABLE lead_users ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
-                    $debug .= "✓ created_at Spalte hinzugefügt. ";
                 }
                 
                 // password_hash auf NULL setzen (SEPARAT prüfen!)
@@ -108,12 +99,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                     if ($column['Null'] === 'NO') {
                         try {
                             $pdo->exec("ALTER TABLE lead_users MODIFY COLUMN password_hash VARCHAR(255) NULL");
-                            $debug .= "✓ password_hash auf NULL gesetzt. ";
                         } catch (PDOException $e) {
-                            $debug .= "⚠ password_hash Fehler: " . $e->getMessage() . " ";
+                            // Fehler ignorieren
                         }
-                    } else {
-                        $debug .= "✓ password_hash ist bereits NULL. ";
                     }
                 }
             }
@@ -132,7 +120,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                         UNIQUE KEY unique_access (lead_id, freebie_id)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 ");
-                $debug .= "✓ lead_freebie_access Tabelle erstellt. ";
             }
             
             // Prüfen ob Lead bereits existiert
@@ -145,7 +132,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
             
             if ($existing_lead) {
                 $lead_id = $existing_lead['id'];
-                $debug .= "✓ Lead existiert bereits (ID: $lead_id). ";
             } else {
                 // Neuen Lead erstellen
                 $referral_code = strtoupper(substr(md5($email . time()), 0, 8));
@@ -161,7 +147,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                     $referrer = $stmt->fetch(PDO::FETCH_ASSOC);
                     if ($referrer) {
                         $referrer_id = $referrer['id'];
-                        $debug .= "✓ Referrer gefunden (ID: $referrer_id). ";
                     }
                 }
                 
@@ -172,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                     VALUES (?, ?, NULL, ?, ?, ?, ?, 'active', NOW())
                 ");
                 $stmt->execute([
-                    $name ?: 'Lead',
+                    $name,
                     $email,
                     $customer_id,
                     $freebie_id,
@@ -180,7 +165,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                     $referrer_id
                 ]);
                 $lead_id = $pdo->lastInsertId();
-                $debug .= "✓ Lead erstellt (ID: $lead_id, Code: $referral_code). ";
                 
                 // Referral-Eintrag erstellen
                 if ($referrer_id) {
@@ -213,12 +197,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                         $stmt->execute([
                             $referrer_id,
                             $email,
-                            $name ?: 'Lead',
+                            $name,
                             $freebie_id
                         ]);
-                        $debug .= "✓ Referral-Eintrag erstellt. ";
                     } catch (PDOException $e) {
-                        $debug .= "⚠ Referral-Fehler: " . $e->getMessage() . " ";
+                        // Fehler ignorieren
                     }
                 }
             }
@@ -231,14 +214,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                     VALUES (?, ?, NOW())
                 ");
                 $stmt->execute([$lead_id, $freebie_id]);
-                
-                if ($pdo->lastInsertId() > 0) {
-                    $debug .= "✓ Freebie-Zugang gewährt (Freebie ID: $freebie_id). ";
-                } else {
-                    $debug .= "✓ Freebie-Zugang bereits vorhanden. ";
-                }
             } catch (PDOException $e) {
-                $debug .= "⚠ Freebie-Zugang Fehler: " . $e->getMessage() . " ";
+                // Fehler ignorieren
             }
             
             // Session setzen
@@ -247,18 +224,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
             $_SESSION['lead_customer_id'] = $customer_id;
             $_SESSION['lead_freebie_id'] = $freebie_id;
             
-            $debug .= "✓ Session gesetzt. ";
-            
             // Redirect zum Dashboard
-            $redirect_url = '/lead_dashboard.php?freebie=' . $freebie_id;
-            $debug .= "→ Redirect zu: $redirect_url";
-            
-            header('Location: ' . $redirect_url);
+            header('Location: /lead_dashboard.php?freebie=' . $freebie_id);
             exit;
             
         } catch (PDOException $e) {
-            $error = 'Datenbankfehler: ' . $e->getMessage();
-            $debug .= "❌ " . $e->getMessage();
+            $error = 'Ein Fehler ist aufgetreten. Bitte versuche es erneut.';
         }
     }
 }
@@ -323,6 +294,42 @@ $company_name = $freebie['company_name'] ?? 'Dashboard';
             text-align: center;
         }
         
+        .info-box {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+        
+        .info-box h3 {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e40af;
+            margin-bottom: 8px;
+        }
+        
+        .info-box ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .info-box li {
+            font-size: 14px;
+            color: #1e40af;
+            line-height: 1.6;
+            margin-bottom: 6px;
+            padding-left: 20px;
+            position: relative;
+        }
+        
+        .info-box li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+        
         .form-group {
             margin-bottom: 20px;
         }
@@ -335,7 +342,6 @@ $company_name = $freebie['company_name'] ?? 'Dashboard';
             margin-bottom: 8px;
         }
         
-        input[type="text"],
         input[type="email"] {
             width: 100%;
             padding: 14px 16px;
@@ -345,7 +351,6 @@ $company_name = $freebie['company_name'] ?? 'Dashboard';
             transition: all 0.2s;
         }
         
-        input[type="text"]:focus,
         input[type="email"]:focus {
             outline: none;
             border-color: <?php echo $primary_color; ?>;
@@ -377,17 +382,6 @@ $company_name = $freebie['company_name'] ?? 'Dashboard';
             border-radius: 8px;
             margin-bottom: 20px;
             font-size: 14px;
-        }
-        
-        .debug {
-            background: #f0f9ff;
-            color: #1e40af;
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 12px;
-            font-family: monospace;
-            word-wrap: break-word;
         }
         
         .benefits {
@@ -450,16 +444,19 @@ $company_name = $freebie['company_name'] ?? 'Dashboard';
             <?php if ($freebie['referral_enabled']): ?>Empfehlungsprogramm<?php else: ?>Dashboard<?php endif; ?> zu erhalten.
         </p>
         
+        <div class="info-box">
+            <h3><i class="fas fa-info-circle"></i> Wichtiger Hinweis:</h3>
+            <ul>
+                <li>Verwende die E-Mail-Adresse, mit der du dich zukünftig einloggen möchtest</li>
+                <li>Speichere diese Seite als Lesezeichen für einfachen Zugang</li>
+                <li>Du erhältst bei jedem Login einen Link per E-Mail</li>
+            </ul>
+        </div>
+        
         <?php if ($error): ?>
             <div class="error">
                 <i class="fas fa-exclamation-circle"></i>
                 <?php echo htmlspecialchars($error); ?>
-            </div>
-        <?php endif; ?>
-        
-        <?php if ($debug): ?>
-            <div class="debug">
-                🔍 Debug: <?php echo htmlspecialchars($debug); ?>
             </div>
         <?php endif; ?>
         
@@ -471,14 +468,6 @@ $company_name = $freebie['company_name'] ?? 'Dashboard';
                        name="email" 
                        placeholder="deine@email.de" 
                        required>
-            </div>
-            
-            <div class="form-group">
-                <label for="name">Name (optional)</label>
-                <input type="text" 
-                       id="name" 
-                       name="name" 
-                       placeholder="Max Mustermann">
             </div>
             
             <button type="submit" class="submit-btn">
