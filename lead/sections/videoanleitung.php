@@ -168,6 +168,7 @@ $color_classes = [
             <p class="text-green-200">Entdecke alle verfügbaren Kurse und lerne mehr</p>
         </a>
     </div>
+    <?php endif; ?>
 </div>
 
 <script>
