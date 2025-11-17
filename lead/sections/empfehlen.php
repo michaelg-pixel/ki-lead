@@ -1,6 +1,7 @@
 <?php
 /**
  * Lead Dashboard - Empfehlen Sektion
+ * + BELOHNUNGSSTUFEN: Anzeige der verfügbaren Belohnungen mit Progress
  */
 if (!isset($lead) || !isset($pdo)) {
     die('Unauthorized');
@@ -66,6 +67,144 @@ if (!isset($lead) || !isset($pdo)) {
         </div>
     </div>
     
+    <!-- Belohnungsstufen -->
+    <?php if (!empty($reward_tiers)): ?>
+    <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 shadow-xl border border-purple-500/20 mb-8">
+        <h3 class="text-white text-2xl font-bold mb-6">
+            <i class="fas fa-trophy text-yellow-400 mr-2"></i>
+            Deine Belohnungsstufen
+        </h3>
+        
+        <div class="space-y-6">
+            <?php foreach ($reward_tiers as $index => $tier): 
+                $is_achieved = $successful_referrals >= $tier['required_referrals'];
+                $progress_percent = min(100, ($successful_referrals / $tier['required_referrals']) * 100);
+                $is_next = !$is_achieved && ($index == 0 || $successful_referrals >= $reward_tiers[$index-1]['required_referrals']);
+                
+                // Prüfen ob Belohnung bereits ausgeliefert wurde
+                $is_delivered = false;
+                foreach ($delivered_rewards as $delivered) {
+                    if ($delivered['reward_id'] == $tier['id']) {
+                        $is_delivered = true;
+                        break;
+                    }
+                }
+            ?>
+            <div class="bg-gray-800/50 rounded-xl p-6 border-2 <?php echo $is_achieved ? 'border-green-500' : ($is_next ? 'border-purple-500' : 'border-gray-700'); ?> relative overflow-hidden">
+                <!-- Background Gradient -->
+                <?php if ($is_achieved): ?>
+                <div class="absolute inset-0 bg-gradient-to-r from-green-500/10 to-transparent"></div>
+                <?php elseif ($is_next): ?>
+                <div class="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-transparent"></div>
+                <?php endif; ?>
+                
+                <div class="relative z-10">
+                    <div class="flex items-start justify-between mb-4 flex-wrap gap-4">
+                        <div class="flex items-center gap-4">
+                            <!-- Tier Badge -->
+                            <div class="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-white <?php echo $is_achieved ? 'bg-gradient-to-br from-green-500 to-green-700' : 'bg-gradient-to-br from-gray-600 to-gray-700'; ?> flex-shrink-0">
+                                <?php echo $tier['tier_level']; ?>
+                            </div>
+                            
+                            <div>
+                                <h4 class="text-white text-xl font-bold mb-1">
+                                    <?php echo htmlspecialchars($tier['tier_name']); ?>
+                                    <?php if ($is_delivered): ?>
+                                    <span class="text-green-400 text-sm ml-2">
+                                        <i class="fas fa-check-circle"></i> Erhalten
+                                    </span>
+                                    <?php endif; ?>
+                                </h4>
+                                <?php if (!empty($tier['tier_description'])): ?>
+                                <p class="text-gray-400 text-sm">
+                                    <?php echo htmlspecialchars($tier['tier_description']); ?>
+                                </p>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        
+                        <!-- Status Badge -->
+                        <?php if ($is_achieved): ?>
+                        <span class="px-4 py-2 bg-green-600 text-white rounded-full text-sm font-semibold whitespace-nowrap">
+                            <i class="fas fa-check mr-1"></i>Erreicht!
+                        </span>
+                        <?php elseif ($is_next): ?>
+                        <span class="px-4 py-2 bg-purple-600 text-white rounded-full text-sm font-semibold whitespace-nowrap">
+                            <i class="fas fa-rocket mr-1"></i>Nächstes Ziel
+                        </span>
+                        <?php else: ?>
+                        <span class="px-4 py-2 bg-gray-600 text-gray-300 rounded-full text-sm font-semibold whitespace-nowrap">
+                            <i class="fas fa-lock mr-1"></i>Gesperrt
+                        </span>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <!-- Reward Info -->
+                    <div class="bg-black/30 rounded-lg p-4 mb-4">
+                        <div class="flex items-start gap-4">
+                            <div class="text-3xl flex-shrink-0" style="color: <?php echo htmlspecialchars($tier['reward_color'] ?? '#667eea'); ?>">
+                                <i class="fas <?php echo htmlspecialchars($tier['reward_icon'] ?? 'fa-gift'); ?>"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h5 class="text-white font-semibold text-lg mb-1">
+                                    <?php echo htmlspecialchars($tier['reward_title']); ?>
+                                </h5>
+                                <?php if (!empty($tier['reward_value'])): ?>
+                                <div class="text-green-400 font-medium mb-2">
+                                    <i class="fas fa-tag"></i> Wert: <?php echo htmlspecialchars($tier['reward_value']); ?>
+                                </div>
+                                <?php endif; ?>
+                                <?php if (!empty($tier['reward_description'])): ?>
+                                <p class="text-gray-400 text-sm">
+                                    <?php echo htmlspecialchars($tier['reward_description']); ?>
+                                </p>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Progress Bar -->
+                    <div class="mb-3">
+                        <div class="flex justify-between text-sm mb-2">
+                            <span class="text-gray-400">
+                                <?php if ($is_achieved): ?>
+                                    <i class="fas fa-check text-green-400"></i> Stufe freigeschaltet!
+                                <?php else: ?>
+                                    <i class="fas fa-users"></i> <?php echo $successful_referrals; ?> / <?php echo $tier['required_referrals']; ?> Empfehlungen
+                                <?php endif; ?>
+                            </span>
+                            <span class="<?php echo $is_achieved ? 'text-green-400' : 'text-purple-400'; ?> font-semibold">
+                                <?php echo round($progress_percent); ?>%
+                            </span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                            <div class="h-full <?php echo $is_achieved ? 'bg-gradient-to-r from-green-500 to-green-600' : 'bg-gradient-to-r from-purple-500 to-purple-600'; ?> transition-all duration-500 rounded-full" 
+                                 style="width: <?php echo $progress_percent; ?>%"></div>
+                        </div>
+                    </div>
+                    
+                    <?php if (!$is_achieved && $is_next): ?>
+                    <div class="text-center text-sm text-gray-400 mt-3">
+                        <i class="fas fa-info-circle text-blue-400"></i>
+                        Noch <strong class="text-white"><?php echo ($tier['required_referrals'] - $successful_referrals); ?> <?php echo ($tier['required_referrals'] - $successful_referrals) == 1 ? 'Empfehlung' : 'Empfehlungen'; ?></strong> bis zur nächsten Belohnung!
+                    </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php else: ?>
+    <!-- Keine Belohnungen definiert -->
+    <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 text-center shadow-xl border border-gray-700 mb-8">
+        <div class="text-6xl mb-4">🎁</div>
+        <h3 class="text-white text-2xl font-bold mb-2">Belohnungen werden vorbereitet</h3>
+        <p class="text-gray-400">
+            Dein Anbieter konfiguriert gerade die Belohnungsstufen. Bald kannst du hier sehen, welche tollen Prämien auf dich warten!
+        </p>
+    </div>
+    <?php endif; ?>
+    
     <!-- Empfehlungen Liste -->
     <?php if (!empty($referrals)): ?>
     <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 shadow-xl border border-purple-500/20">
@@ -86,7 +225,7 @@ if (!isset($lead) || !isset($pdo)) {
                 </thead>
                 <tbody>
                     <?php foreach ($referrals as $referral): ?>
-                    <tr class="border-b border-gray-800">
+                    <tr class="border-b border-gray-800 hover:bg-gray-800/50 transition-colors">
                         <td class="text-white py-4 px-4"><?php echo htmlspecialchars($referral['name']); ?></td>
                         <td class="text-gray-400 py-4 px-4"><?php echo htmlspecialchars($referral['email']); ?></td>
                         <td class="py-4 px-4">
