@@ -6,6 +6,7 @@
  * + KI SOCIAL ASSISTANT: Für Social Media Posting
  * + FREEBIE-SPECIFIC REWARDS: Nur Belohnungen für das aktuelle Freebie
  * + FOOTER: Impressum & Datenschutz
+ * FIXED: Alle Weiterleitungen gehen jetzt zu /lead_register.php
  */
 
 require_once __DIR__ . '/config/database.php';
@@ -80,7 +81,7 @@ if (isset($_GET['token']) && !isset($_SESSION['lead_id'])) {
 }
 
 if (!isset($_SESSION['lead_id'])) {
-    header('Location: /lead_login.php');
+    header('Location: /lead_register.php');
     exit;
 }
 
@@ -93,7 +94,7 @@ try {
     
     if (!$lead) {
         session_destroy();
-        header('Location: /lead_login.php');
+        header('Location: /lead_register.php');
         exit;
     }
 } catch (PDOException $e) {
