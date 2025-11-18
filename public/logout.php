@@ -1,23 +1,17 @@
 <?php
-// Keine Ausgabe vor diesem Punkt!
-session_start();
+// Sichere Session-Konfiguration laden
+require_once '../config/security.php';
 
-// Session-Daten löschen
-$_SESSION = array();
+// Starte Session
+startSecureSession();
 
-// Session-Cookie löschen
-if (isset($_COOKIE[session_name()])) {
-    setcookie(session_name(), '', time() - 3600, '/');
-}
-
-// Session zerstören
-session_destroy();
+// Zerstöre Session sicher mit der dedizierten Funktion
+destroySecureSession();
 
 // Weiterleitung zum Login mit absolutem Pfad
-// Konstruiere die absolute URL zur login.php
 $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
 $host = $_SERVER['HTTP_HOST'];
-$login_url = $protocol . '://' . $host . '/public/login.php';
+$login_url = $protocol . '://' . $host . '/public/login.php?logout=success';
 
 header('Location: ' . $login_url);
 exit;
