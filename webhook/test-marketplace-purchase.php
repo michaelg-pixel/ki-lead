@@ -1,7 +1,7 @@
 <?php
 /**
- * MARKTPLATZ KAUFPROZESS TEST - FINALE WORKING VERSION
- * Basierend auf ECHTER Datenbankstruktur
+ * MARKTPLATZ KAUFPROZESS TEST - FINALE WORKING VERSION v2
+ * Basierend auf ECHTER Datenbankstruktur + zusätzliche Validierung
  */
 
 session_start();
@@ -37,10 +37,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception("❌ Kein Marktplatz-Freebie mit product_id '$productId' gefunden!");
         }
         
+        // WICHTIG: Dies ist die Original-Freebie-ID die wir später für copied_from_freebie_id brauchen!
+        $originalFreebieId = $freebie['id'];
+        $sellerId = $freebie['customer_id'];
+        
         $testResults[0]['status'] = 'success';
         $testResults[0]['data'] = [
-            'freebie_id' => $freebie['id'],
-            'seller_id' => $freebie['customer_id'],
+            'original_freebie_id' => $originalFreebieId,
+            'seller_id' => $sellerId,
             'headline' => $freebie['headline'],
             'price' => $freebie['marketplace_price'],
             'sales' => $freebie['marketplace_sales_count'] ?? 0
@@ -97,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             SELECT id FROM customer_freebies 
             WHERE customer_id = ? AND copied_from_freebie_id = ?
         ");
-        $stmt->execute([$buyerId, $freebie['id']]);
+        $stmt->execute([$buyerId, $originalFreebieId]);
         
         if ($stmt->fetch()) {
             throw new Exception("⚠️ Freebie wurde bereits gekauft!");
@@ -106,12 +110,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $testResults[2]['status'] = 'success';
         $testResults[2]['data'] = ['duplicate_found' => false];
         
-        // === SCHRITT 4: Freebie kopieren (MIT ALLEN PFLICHTFELDERN!) ===
+        // === SCHRITT 4: Freebie kopieren (MIT KORREKTEN IDs!) ===
         $testResults[] = ['step' => 4, 'title' => 'Freebie kopieren', 'status' => 'running'];
         
         $uniqueId = bin2hex(random_bytes(16));
         
-        // PFLICHTFELDER: customer_id, headline, cta_text, unique_id
+        // KRITISCH: Korrekte Zuordnung der IDs!
+        // - customer_id = Käufer-ID ($buyerId)
+        // - original_creator_id = Verkäufer-ID ($sellerId)
+        // - copied_from_freebie_id = Original-Freebie-ID ($originalFreebieId) ← NICHT die Käufer-ID!
+        
         $stmt = $pdo->prepare("
             INSERT INTO customer_freebies (
                 customer_id,
@@ -126,15 +134,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ");
         
         $stmt->execute([
-            $buyerId,
+            $buyerId,                    // customer_id = Käufer
             $freebie['headline'],
-            $freebie['cta_text'], // PFLICHTFELD!
+            $freebie['cta_text'],        // PFLICHTFELD!
             $uniqueId,
-            $freebie['customer_id'],
-            $freebie['id']
+            $sellerId,                   // original_creator_id = Verkäufer
+            $originalFreebieId           // copied_from_freebie_id = Original-Freebie (NICHT Käufer-ID!)
         ]);
         
         $copiedId = $pdo->lastInsertId();
+        
+        // === VALIDIERUNG: Prüfe ob die IDs korrekt gesetzt wurden ===
+        $stmt = $pdo->prepare("
+            SELECT customer_id, original_creator_id, copied_from_freebie_id
+            FROM customer_freebies WHERE id = ?
+        ");
+        $stmt->execute([$copiedId]);
+        $validation = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($validation['copied_from_freebie_id'] == $validation['customer_id']) {
+            throw new Exception("⚠️ FEHLER: copied_from_freebie_id wurde fälschlicherweise auf Käufer-ID gesetzt!");
+        }
         
         // Optionale Felder kopieren
         $optionalFields = [
@@ -166,6 +186,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $testResults[3]['status'] = 'success';
         $testResults[3]['data'] = [
             'copied_freebie_id' => $copiedId,
+            'buyer_id' => $buyerId,
+            'seller_id' => $sellerId,
+            'original_freebie_id' => $originalFreebieId,
+            'validation' => [
+                'customer_id' => $validation['customer_id'],
+                'original_creator_id' => $validation['original_creator_id'],
+                'copied_from_freebie_id' => $validation['copied_from_freebie_id'],
+                'ids_correct' => $validation['copied_from_freebie_id'] != $validation['customer_id']
+            ],
             'unique_id' => $uniqueId,
             'freebie_link' => $freebieLink
         ];
@@ -180,19 +209,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             SET marketplace_sales_count = COALESCE(marketplace_sales_count, 0) + 1
             WHERE id = ?
         ");
-        $stmt->execute([$freebie['id']]);
+        $stmt->execute([$originalFreebieId]);
         
         $testResults[4]['status'] = 'success';
         $testResults[4]['data'] = [
             'old_count' => $oldCount,
-            'new_count' => $oldCount + 1
+            'new_count' => $oldCount + 1,
+            'updated_freebie_id' => $originalFreebieId
         ];
         
         // === SCHRITT 6: Rechtstexte ===
         $testResults[] = ['step' => 6, 'title' => 'Rechtstexte prüfen', 'status' => 'running'];
         
         $stmt = $pdo->prepare("SELECT impressum, datenschutz FROM legal_texts WHERE user_id = ?");
-        $stmt->execute([$freebie['customer_id']]);
+        $stmt->execute([$sellerId]);
         $legal = $stmt->fetch(PDO::FETCH_ASSOC);
         
         $hasImpressum = $legal && !empty(trim($legal['impressum'] ?? ''));
@@ -201,7 +231,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $testResults[5]['status'] = $hasImpressum && $hasDatenschutz ? 'success' : 'warning';
         $testResults[5]['data'] = [
             'has_impressum' => $hasImpressum,
-            'has_datenschutz' => $hasDatenschutz
+            'has_datenschutz' => $hasDatenschutz,
+            'checked_for_seller_id' => $sellerId
         ];
         
         // === ERFOLG ===
@@ -251,7 +282,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🧪 Marktplatz Test - FINAL</title>
+    <title>🧪 Marktplatz Test - FINAL v2</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -269,7 +300,17 @@ try {
             box-shadow: 0 8px 32px rgba(0,0,0,0.1);
         }
         .header h1 { font-size: 36px; color: #1a1a2e; margin-bottom: 12px; }
-        .header p { color: #666; }
+        .header p { color: #666; line-height: 1.6; }
+        .header .version { 
+            display: inline-block; 
+            background: #22c55e; 
+            color: white; 
+            padding: 4px 12px; 
+            border-radius: 12px; 
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 8px;
+        }
         .test-form, .results {
             background: white;
             padding: 40px;
@@ -366,8 +407,9 @@ try {
 <body>
     <div class="container">
         <div class="header">
-            <h1>🧪 Marktplatz Test - FINAL</h1>
-            <p>Basierend auf echter Datenbankstruktur</p>
+            <h1>🧪 Marktplatz Test</h1>
+            <span class="version">v2 - Mit ID-Validierung</span>
+            <p style="margin-top: 12px;">Basierend auf echter Datenbankstruktur + zusätzliche Validierung der copied_from_freebie_id</p>
         </div>
         
         <?php if (!empty($availableFreebies)): ?>
