@@ -500,6 +500,28 @@ try {
         margin-top: 32px;
     }
     
+    .warning-banner {
+        background: rgba(251, 191, 36, 0.15);
+        border: 2px solid #fbbf24;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 24px;
+        color: #fbbf24;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+    
+    .warning-banner strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 15px;
+    }
+    
+    .warning-banner a {
+        color: white;
+        text-decoration: underline;
+    }
+    
     .marketplace-footer {
         margin-top: 48px;
         padding-top: 24px;
@@ -881,7 +903,21 @@ function saveMarketplaceSettings(event) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('✅ Einstellungen gespeichert! Dein Freebie ist jetzt im Marktplatz sichtbar.');
+            let message = '✅ Einstellungen gespeichert!';
+            
+            // Warnung über fehlende Rechtstexte anzeigen
+            if (data.warning) {
+                message += '\n\n⚠️ ' + data.warning + '\n\nMöchtest du jetzt deine Rechtstexte ausfüllen?';
+                
+                if (confirm(message)) {
+                    window.location.href = 'legal-texts.php';
+                    return;
+                }
+            } else {
+                message += ' Dein Freebie ist jetzt im Marktplatz sichtbar.';
+            }
+            
+            alert(message);
             closeMarketplaceEditor();
             location.reload();
         } else {
