@@ -23,8 +23,8 @@ $limitData = $stmt->fetch(PDO::FETCH_ASSOC);
 $freebieLimit = $limitData['freebie_limit'] ?? 0;
 $packageName = $limitData['product_name'] ?? 'Basis';
 
-// Custom Freebies zählen
-$stmt = $pdo->prepare("SELECT COUNT(*) FROM customer_freebies WHERE customer_id = ? AND freebie_type = 'custom'");
+// Custom Freebies zählen (alle die KEIN Template sind)
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM customer_freebies WHERE customer_id = ? AND template_id IS NULL");
 $stmt->execute([$customer_id]);
 $customFreebiesCount = $stmt->fetchColumn();
 
@@ -36,7 +36,7 @@ $templates = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $stmt = $pdo->prepare("
     SELECT template_id, id as customer_freebie_id, unique_id, mockup_image_url, has_course
     FROM customer_freebies 
-    WHERE customer_id = ? AND (freebie_type = 'template' OR freebie_type IS NULL)
+    WHERE customer_id = ? AND template_id IS NOT NULL
 ");
 $stmt->execute([$customer_id]);
 $customer_templates = [];
@@ -46,10 +46,10 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
     }
 }
 
-// Custom Freebies laden
+// Custom Freebies laden (ALLE die kein Template sind - inkl. Marktplatz-Käufe)
 $stmt = $pdo->prepare("
     SELECT * FROM customer_freebies 
-    WHERE customer_id = ? AND freebie_type = 'custom' 
+    WHERE customer_id = ? AND template_id IS NULL
     ORDER BY created_at DESC
 ");
 $stmt->execute([$customer_id]);
@@ -284,6 +284,18 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
     font-size: 11px;
     font-weight: 600;
     background: rgba(34, 197, 94, 0.95);
+    color: white;
+}
+
+.marketplace-badge {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(251, 146, 60, 0.95);
     color: white;
 }
 
@@ -567,7 +579,7 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <?php endif; ?>
     </div>
     
-    <!-- Tab 2: Custom Freebies - MIT LÖSCHEN-BUTTON -->
+    <!-- Tab 2: Custom Freebies - MIT LÖSCHEN-BUTTON UND MARKTPLATZ-BADGE -->
     <div id="tab-custom" class="tab-content">
         <?php if (empty($customFreebies)): ?>
             <div class="empty-state">
@@ -583,12 +595,17 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <?php foreach ($customFreebies as $custom): 
                     $bgColor = $custom['background_color'] ?? '#667eea';
                     $primaryColor = $custom['primary_color'] ?? '#667eea';
+                    $isFromMarketplace = !empty($custom['copied_from_freebie_id']);
                 ?>
                     <div class="freebie-card" 
                          data-freebie-id="<?php echo $custom['id']; ?>"
                          data-title="<?php echo htmlspecialchars(strtolower($custom['headline'])); ?>" 
                          data-description="<?php echo htmlspecialchars(strtolower($custom['subheadline'] ?? '')); ?>">
                         <div class="freebie-mockup" style="background: <?php echo htmlspecialchars($bgColor); ?>;">
+                            <?php if ($isFromMarketplace): ?>
+                                <span class="marketplace-badge">🛒 Marktplatz</span>
+                            <?php endif; ?>
+                            
                             <?php if (!empty($custom['mockup_image_url'])): ?>
                                 <img src="<?php echo htmlspecialchars($custom['mockup_image_url']); ?>" 
                                      alt="<?php echo htmlspecialchars($custom['headline']); ?>"
