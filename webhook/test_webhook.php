@@ -1,17 +1,31 @@
 <?php
 /**
  * Webhook Test Tool - Simuliert Digistore24 Marketplace-Käufe
+ * Verwendet die E-Mail des eingeloggten Users
  */
 
-require_once '../config/database.php';
-
-// Session starten für Test-Daten
 session_start();
 
-// Letzte Test-Daten aus Session holen
-$lastTestEmail = $_SESSION['last_test_email'] ?? '';
-$lastTestPassword = $_SESSION['last_test_password'] ?? '';
-$lastTestRawCode = $_SESSION['last_test_raw_code'] ?? '';
+// Prüfen ob User eingeloggt ist
+if (!isset($_SESSION['user_id'])) {
+    header('Location: /public/login.php');
+    exit;
+}
+
+require_once '../config/database.php';
+$pdo = getDBConnection();
+
+// User-Daten laden
+$stmt = $pdo->prepare("SELECT email, name FROM users WHERE id = ?");
+$stmt->execute([$_SESSION['user_id']]);
+$currentUser = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$currentUser) {
+    die('Fehler: User nicht gefunden');
+}
+
+$userEmail = $currentUser['email'];
+$userName = $currentUser['name'];
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -53,6 +67,15 @@ $lastTestRawCode = $_SESSION['last_test_raw_code'] ?? '';
             color: white;
             font-size: 24px;
             font-weight: 600;
+        }
+        
+        .user-info {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-left: auto;
+            color: white;
+            font-size: 14px;
         }
         
         .card {
@@ -142,12 +165,6 @@ $lastTestRawCode = $_SESSION['last_test_raw_code'] ?? '';
             color: #991b1b;
         }
         
-        .warning {
-            background: #fef3c7;
-            border-left: 4px solid #f59e0b;
-            color: #92400e;
-        }
-        
         .logs {
             background: #f9fafb;
             border: 1px solid #e5e7eb;
@@ -217,39 +234,6 @@ $lastTestRawCode = $_SESSION['last_test_raw_code'] ?? '';
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        
-        .access-data {
-            background: #f0fdf4;
-            border: 2px solid #10b981;
-            padding: 20px;
-            border-radius: 8px;
-            margin-top: 20px;
-        }
-        
-        .access-data h3 {
-            color: #065f46;
-            margin-bottom: 15px;
-            font-size: 18px;
-        }
-        
-        .access-data table {
-            width: 100%;
-        }
-        
-        .access-data td {
-            padding: 8px 0;
-        }
-        
-        .access-data td:first-child {
-            color: #6b7280;
-            font-weight: 500;
-        }
-        
-        .access-data td:last-child {
-            font-family: monospace;
-            font-weight: bold;
-            color: #065f46;
-        }
     </style>
 </head>
 <body>
@@ -257,12 +241,16 @@ $lastTestRawCode = $_SESSION['last_test_raw_code'] ?? '';
         <div class="header">
             <span style="font-size: 32px;">🔧</span>
             <h1>Webhook Test Tool</h1>
+            <div class="user-info">
+                👤 <?php echo htmlspecialchars($userName); ?><br>
+                📧 <?php echo htmlspecialchars($userEmail); ?>
+            </div>
         </div>
         
         <div class="card">
             <h2>📋 Test-Daten</h2>
             <div class="info-text">
-                Diese Daten werden an den Webhook gesendet:
+                <strong>✅ Wichtig:</strong> Der Test verwendet automatisch DEINE E-Mail-Adresse (<?php echo htmlspecialchars($userEmail); ?>), damit das Freebie in DEINEM Account landet!
             </div>
             <div class="test-data">
                 <pre>{
@@ -271,9 +259,9 @@ $lastTestRawCode = $_SESSION['last_test_raw_code'] ?? '';
     "product_id": "613818",
     "product_name": "Test Marketplace Produkt",
     "buyer": {
-        "email": "<?php echo $lastTestEmail ?: 'test@abnehmen-fitness.com'; ?>",
-        "first_name": "Micha",
-        "last_name": "Test"
+        "email": "<?php echo htmlspecialchars($userEmail); ?>",
+        "first_name": "<?php echo htmlspecialchars(explode(' ', $userName)[0]); ?>",
+        "last_name": "<?php echo htmlspecialchars(explode(' ', $userName)[1] ?? 'Test'); ?>"
     }
 }</pre>
             </div>
@@ -288,13 +276,8 @@ $lastTestRawCode = $_SESSION['last_test_raw_code'] ?? '';
         <div class="card">
             <h2>🎯 Test läuft...</h2>
             <div class="info-text">
-                Dieser Test simuliert einen echten Digistore24-Webhook-Call.<br>
-                <strong>Was passiert:</strong><br>
-                1. Sendet Test-Daten an den Webhook<br>
-                2. Webhook sollte über finden/erstellen<br>
-                3. Webhook sollte Freebie ID 7 zum Nutzer kopieren<br>
-                4. Webhook sollte Freebie im Nutzer-Account sehen<br>
-                5. Webhook sollte "Eigene RAW-Codes" übernehmen
+                Nach erfolgreichem Test solltest du das Freebie hier sehen:<br>
+                <strong><a href="/customer/dashboard.php?page=freebies" target="_blank">👉 Meine Freebies</a></strong>
             </div>
             <div id="result"></div>
         </div>
@@ -311,18 +294,11 @@ $lastTestRawCode = $_SESSION['last_test_raw_code'] ?? '';
             <div class="checklist">
                 <h3>Nach dem Test prüfe:</h3>
                 <ol>
-                    <li>Hat der Webhook mit HTTP 200 geantwortet?</li>
-                    <li>Wurde ein Freebie erstellt?</li>
-                    <li>Gibt es Fehler in den Webhook-Logs?</li>
-                    <li>Ist das Freebie im Customer-Dashboard?</li>
+                    <li>Hat der Webhook mit HTTP 200 geantwortet? ✅</li>
+                    <li>Wurde ein Freebie erstellt? → Prüfe in den Logs</li>
+                    <li>Ist das Freebie in deinem Dashboard sichtbar? → <a href="/customer/dashboard.php?page=freebies" target="_blank">Meine Freebies öffnen</a></li>
+                    <li>Hat das Freebie alle Inhalte (Mockup, Texte, etc.)?</li>
                 </ol>
-                
-                <div class="links">
-                    <h4>Andere Tools:</h4>
-                    <a href="real-webhook.php" target="_blank">🔍 Real-Webhook</a>
-                    <a href="webhook-test.php" target="_blank">🔧 Webhook-Test</a>
-                    <a href="digistore-tool.php" target="_blank">⚙️ Digistore-Tool</a>
-                </div>
             </div>
         </div>
     </div>
@@ -345,16 +321,16 @@ $lastTestRawCode = $_SESSION['last_test_raw_code'] ?? '';
             
             autoRefresh = true;
             
-            // Test-Daten
+            // Test-Daten mit DEINER E-Mail
             const testData = {
                 event: "payment.success",
                 order_id: "TEST-" + Date.now(),
                 product_id: "613818",
                 product_name: "Test Marketplace Produkt",
                 buyer: {
-                    email: "<?php echo $lastTestEmail ?: 'test@abnehmen-fitness.com'; ?>",
-                    first_name: "Micha",
-                    last_name: "Test"
+                    email: "<?php echo htmlspecialchars($userEmail); ?>",
+                    first_name: "<?php echo htmlspecialchars(explode(' ', $userName)[0]); ?>",
+                    last_name: "<?php echo htmlspecialchars(explode(' ', $userName)[1] ?? 'Test'); ?>"
                 }
             };
             
@@ -380,7 +356,11 @@ $lastTestRawCode = $_SESSION['last_test_raw_code'] ?? '';
                     result.innerHTML = `
                         <strong>✅ Webhook hat erfolgreich geantwortet (HTTP ${status})</strong><br><br>
                         <strong>Webhook Response:</strong><br>
-                        ${JSON.stringify(data, null, 2)}
+                        ${JSON.stringify(data, null, 2)}<br><br>
+                        <strong>👉 Nächster Schritt:</strong><br>
+                        <a href="/customer/dashboard.php?page=freebies" target="_blank" style="color: #065f46; font-weight: bold; text-decoration: underline;">
+                            Öffne jetzt "Meine Freebies" um das gekaufte Freebie zu sehen
+                        </a>
                     `;
                 } else {
                     result.className = 'error';
