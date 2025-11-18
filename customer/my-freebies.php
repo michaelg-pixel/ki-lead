@@ -24,15 +24,11 @@ if (isset($_POST['delete_freebie']) && isset($_POST['freebie_id'])) {
     }
 }
 
-// Eigene Freebies des Kunden laden
+// Eigene Freebies des Kunden laden - FIX: course_id existiert nicht in customer_freebies!
 try {
     $stmt = $conn->prepare("
-        SELECT 
-            cf.*,
-            c.title as course_title,
-            c.thumbnail as course_thumbnail
+        SELECT cf.* 
         FROM customer_freebies cf
-        LEFT JOIN courses c ON cf.course_id = c.id
         WHERE cf.customer_id = ?
         ORDER BY cf.created_at DESC
     ");
@@ -115,7 +111,7 @@ try {
                     Verwalte deine personalisierten Lead-Magneten
                 </p>
             </div>
-            <a href="freebie-editor.php" 
+            <a href="custom-freebie-editor-tabs.php" 
                class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold inline-flex items-center gap-2 transition">
                 <i class="fas fa-plus"></i> Neues Freebie erstellen
             </a>
@@ -156,7 +152,7 @@ try {
                            class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold inline-flex items-center gap-2">
                             <i class="fas fa-gift"></i> Templates durchsuchen
                         </a>
-                        <a href="freebie-editor.php" 
+                        <a href="custom-freebie-editor-tabs.php" 
                            class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold inline-flex items-center gap-2">
                             <i class="fas fa-plus"></i> Neu erstellen
                         </a>
@@ -229,7 +225,11 @@ try {
             <!-- Freebies Liste -->
             <div class="space-y-4">
                 <?php foreach ($my_freebies as $freebie): 
-                    $freebie_url = $freebie['freebie_url'] ?: ('/freebie/' . $freebie['unique_id']);
+                    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+                    $domain = $_SERVER['HTTP_HOST'];
+                    $identifier = $freebie['url_slug'] ?: $freebie['unique_id'];
+                    $freebie_url = $protocol . '://' . $domain . '/freebie/' . $identifier;
+                    
                     $primary_color = $freebie['primary_color'] ?: '#7C3AED';
                     $bg_color = $freebie['background_color'] ?: '#FFFFFF';
                     
@@ -239,9 +239,15 @@ try {
                     $layout_names = [
                         'layout1' => 'Modern',
                         'layout2' => 'Klassisch',
-                        'layout3' => 'Minimal'
+                        'layout3' => 'Minimal',
+                        'hybrid' => 'Hybrid',
+                        'centered' => 'Zentriert',
+                        'sidebar' => 'Sidebar'
                     ];
                     $layout_name = $layout_names[$freebie['layout']] ?? 'Standard';
+                    
+                    // Check if marketplace
+                    $isMarketplace = !empty($freebie['copied_from_freebie_id']);
                 ?>
                     <div class="freebie-card bg-white rounded-xl shadow-lg overflow-hidden">
                         <div class="flex flex-col md:flex-row">
@@ -250,21 +256,24 @@ try {
                             <div class="w-full md:w-64 h-48 relative" style="background: <?php echo htmlspecialchars($bg_color); ?>;">
                                 <?php if (!empty($freebie['mockup_image_url'])): ?>
                                     <img src="<?php echo htmlspecialchars($freebie['mockup_image_url']); ?>" 
-                                         alt="<?php echo htmlspecialchars($freebie['name']); ?>"
+                                         alt="<?php echo htmlspecialchars($freebie['headline']); ?>"
                                          class="w-full h-full object-cover">
-                                <?php elseif (!empty($freebie['course_thumbnail'])): ?>
-                                    <img src="../uploads/thumbnails/<?php echo htmlspecialchars($freebie['course_thumbnail']); ?>" 
-                                         alt="<?php echo htmlspecialchars($freebie['name']); ?>"
-                                         class="w-full h-full object-cover opacity-60">
                                 <?php else: ?>
                                     <div class="w-full h-full flex items-center justify-center">
                                         <span style="color: <?php echo htmlspecialchars($primary_color); ?>; font-size: 48px;">🎁</span>
                                     </div>
                                 <?php endif; ?>
                                 
-                                <!-- Layout Badge -->
-                                <div class="absolute top-3 left-3 bg-white bg-opacity-90 px-2 py-1 rounded text-xs font-semibold">
-                                    <?php echo $layout_name; ?>
+                                <!-- Badges -->
+                                <div class="absolute top-3 left-3 flex flex-col gap-2">
+                                    <div class="bg-white bg-opacity-90 px-2 py-1 rounded text-xs font-semibold">
+                                        <?php echo $layout_name; ?>
+                                    </div>
+                                    <?php if ($isMarketplace): ?>
+                                        <div class="bg-orange-500 bg-opacity-90 text-white px-2 py-1 rounded text-xs font-semibold">
+                                            🛒 Marktplatz
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                             
@@ -273,11 +282,13 @@ try {
                                 <div class="flex justify-between items-start mb-3">
                                     <div class="flex-1">
                                         <h3 class="text-xl font-bold text-gray-800 mb-1">
-                                            <?php echo htmlspecialchars($freebie['name'] ?: $freebie['headline']); ?>
-                                        </h3>
-                                        <p class="text-gray-600 text-sm">
                                             <?php echo htmlspecialchars($freebie['headline']); ?>
-                                        </p>
+                                        </h3>
+                                        <?php if (!empty($freebie['subheadline'])): ?>
+                                            <p class="text-gray-600 text-sm">
+                                                <?php echo htmlspecialchars($freebie['subheadline']); ?>
+                                            </p>
+                                        <?php endif; ?>
                                     </div>
                                     <div class="flex items-center gap-2 ml-4">
                                         <div class="w-6 h-6 rounded-full" 
@@ -288,13 +299,6 @@ try {
                                 
                                 <!-- Meta Infos -->
                                 <div class="flex flex-wrap gap-3 mb-4">
-                                    <?php if (!empty($freebie['course_title'])): ?>
-                                        <span class="stats-badge">
-                                            <i class="fas fa-graduation-cap text-purple-600"></i>
-                                            <?php echo htmlspecialchars($freebie['course_title']); ?>
-                                        </span>
-                                    <?php endif; ?>
-                                    
                                     <span class="stats-badge">
                                         <i class="fas fa-eye text-blue-600"></i>
                                         <?php echo number_format($freebie['usage_count'] ?? 0); ?> Aufrufe
@@ -304,6 +308,13 @@ try {
                                         <i class="fas fa-calendar text-gray-600"></i>
                                         <?php echo $formatted_date; ?>
                                     </span>
+                                    
+                                    <?php if ($isMarketplace): ?>
+                                        <span class="stats-badge">
+                                            <i class="fas fa-shopping-cart text-orange-600"></i>
+                                            Vom Marktplatz
+                                        </span>
+                                    <?php endif; ?>
                                 </div>
                                 
                                 <!-- URL -->
@@ -330,12 +341,12 @@ try {
                                         <i class="fas fa-eye mr-2"></i> Vorschau
                                     </a>
                                     
-                                    <a href="freebie-editor.php?id=<?php echo $freebie['id']; ?>" 
+                                    <a href="custom-freebie-editor-tabs.php?id=<?php echo $freebie['id']; ?>" 
                                        class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-semibold text-center text-sm transition">
                                         <i class="fas fa-edit mr-2"></i> Bearbeiten
                                     </a>
                                     
-                                    <button onclick="confirmDelete(<?php echo $freebie['id']; ?>, '<?php echo htmlspecialchars(addslashes($freebie['name'] ?: $freebie['headline'])); ?>')" 
+                                    <button onclick="confirmDelete(<?php echo $freebie['id']; ?>, '<?php echo htmlspecialchars(addslashes($freebie['headline'])); ?>')" 
                                             class="bg-red-100 hover:bg-red-200 text-red-600 px-4 py-2 rounded-lg font-semibold text-sm transition">
                                         <i class="fas fa-trash"></i>
                                     </button>
