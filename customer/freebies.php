@@ -410,7 +410,7 @@ $domain = $_SERVER['HTTP_HOST'];
                                 <?php else: ?>
                                     <span class="freebie-badge badge-custom">Eigenes Freebie</span>
                                 <?php endif; ?>
-                                <?php if ($freebie['has_course']): ?>
+                                <?php if (isset($freebie['has_course']) && $freebie['has_course']): ?>
                                 <span class="freebie-badge">🎓 Mit Videokurs</span>
                                 <?php endif; ?>
                             </div>
