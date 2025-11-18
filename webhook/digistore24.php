@@ -1,11 +1,12 @@
 <?php
 /**
- * Digistore24 Webhook Handler - VERSION 3.2
- * Mit Source-Tracking, Konflikt-Schutz, MARKTPLATZ-INTEGRATION und JV-TRACKING
+ * Digistore24 Webhook Handler - VERSION 3.3
+ * Mit Source-Tracking, Konflikt-Schutz, MARKTPLATZ-INTEGRATION, JV-TRACKING und VERBESSERTE COURSE-ID ÜBERTRAGUNG
  * 
  * Empfängt Kunden von Digistore24 und:
  * - Erstellt automatisch Accounts + Kurs-Zugang + Freebie-Limits
  * - Kopiert Marktplatz-Freebies automatisch in Käufer-Account
+ * - Überträgt ALLE Freebie-Felder inkl. course_id
  * - Respektiert manuelle Admin-Änderungen
  * - Speichert JV-Partner und Affiliate-Daten für Tracking
  */
@@ -242,7 +243,7 @@ function updateUserJVData($pdo, $userId, $partnerUsername, $affiliateUsername, $
  */
 function checkMarketplacePurchase($pdo, $productId) {
     $stmt = $pdo->prepare("
-        SELECT id, customer_id, headline, marketplace_price
+        SELECT id, customer_id, headline, marketplace_price, course_id
         FROM customer_freebies 
         WHERE digistore_product_id = ? 
         AND marketplace_enabled = 1
@@ -262,7 +263,8 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
         'buyer_email' => $buyerEmail,
         'product_id' => $productId,
         'freebie_id' => $sourceFreebie['id'],
-        'seller_id' => $sourceFreebie['customer_id']
+        'seller_id' => $sourceFreebie['customer_id'],
+        'source_course_id' => $sourceFreebie['course_id'] ?? null
     ], 'marketplace');
     
     // Käufer-Account finden oder erstellen
@@ -295,7 +297,7 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
         return;
     }
     
-    // FREEBIE KOPIEREN mit allen Daten
+    // FREEBIE KOPIEREN mit allen Daten (inkl. course_id)
     $copiedFreebieId = copyMarketplaceFreebie($pdo, $buyerId, $sourceFreebie['id']);
     
     // VERKAUFSZÄHLER ERHÖHEN beim Original
@@ -353,9 +355,10 @@ function createMarketplaceBuyer($pdo, $email, $name, $orderId) {
 
 /**
  * MARKTPLATZ: Kopiert ein Freebie komplett in Käufer-Account
+ * VERSION 3.3: Verbessert - überträgt ALLE Felder inkl. course_id mit Logging
  */
 function copyMarketplaceFreebie($pdo, $buyerId, $sourceFreebieId) {
-    // Original-Freebie laden
+    // Original-Freebie laden MIT ALLEN FELDERN
     $stmt = $pdo->prepare("SELECT * FROM customer_freebies WHERE id = ?");
     $stmt->execute([$sourceFreebieId]);
     $source = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -364,10 +367,21 @@ function copyMarketplaceFreebie($pdo, $buyerId, $sourceFreebieId) {
         throw new Exception('Source freebie not found');
     }
     
-    // Neues unique_id generieren
-    $uniqueId = bin2hex(random_bytes(16));
+    // DEBUG: course_id prüfen und loggen
+    $courseId = $source['course_id'] ?? null;
+    logWebhook([
+        'debug' => 'Copying marketplace freebie',
+        'source_freebie_id' => $sourceFreebieId,
+        'source_course_id' => $courseId,
+        'has_course' => !empty($courseId),
+        'buyer_id' => $buyerId
+    ], 'debug');
     
-    // Freebie kopieren
+    // Neues unique_id und url_slug generieren
+    $uniqueId = bin2hex(random_bytes(16));
+    $urlSlug = ($source['url_slug'] ?? '') . '-' . substr($uniqueId, 0, 8);
+    
+    // WICHTIG: ALLE Freebie-Felder kopieren inkl. course_id!
     $stmt = $pdo->prepare("
         INSERT INTO customer_freebies (
             customer_id,
@@ -381,6 +395,7 @@ function copyMarketplaceFreebie($pdo, $buyerId, $sourceFreebieId) {
             primary_color,
             cta_text,
             bullet_points,
+            bullet_icon_style,
             layout,
             email_field_text,
             button_text,
@@ -392,42 +407,82 @@ function copyMarketplaceFreebie($pdo, $buyerId, $sourceFreebieId) {
             email_list_id,
             course_id,
             unique_id,
+            url_slug,
             niche,
+            raw_code,
+            video_url,
+            video_format,
+            optin_display_mode,
+            popup_message,
+            cta_animation,
+            font_heading,
+            font_body,
+            font_size,
             original_creator_id,
             copied_from_freebie_id,
             marketplace_enabled,
             created_at
         ) VALUES (
-            ?, ?, 'purchased', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-            NULL, NULL, NULL, ?, ?, ?, ?, ?, 0, NOW()
+            ?, ?, 'purchased', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW()
         )
     ");
     
     $stmt->execute([
-        $buyerId,
-        $source['template_id'],
-        $source['headline'],
-        $source['subheadline'],
-        $source['preheadline'],
-        $source['mockup_image_url'],
-        $source['background_color'],
-        $source['primary_color'],
-        $source['cta_text'],
-        $source['bullet_points'],
-        $source['layout'],
-        $source['email_field_text'],
-        $source['button_text'],
-        $source['privacy_checkbox_text'],
-        $source['thank_you_headline'],
-        $source['thank_you_message'],
-        $source['course_id'],
-        $uniqueId,
-        $source['niche'],
-        $source['customer_id'], // Original-Ersteller
-        $sourceFreebieId // Original-Freebie
+        $buyerId,                                          // customer_id
+        $source['template_id'],                            // template_id
+        $source['headline'],                               // headline
+        $source['subheadline'],                            // subheadline
+        $source['preheadline'],                            // preheadline
+        $source['mockup_image_url'],                       // mockup_image_url
+        $source['background_color'],                       // background_color
+        $source['primary_color'],                          // primary_color
+        $source['cta_text'],                               // cta_text
+        $source['bullet_points'],                          // bullet_points
+        $source['bullet_icon_style'] ?? 'standard',        // bullet_icon_style
+        $source['layout'],                                 // layout
+        $source['email_field_text'],                       // email_field_text
+        $source['button_text'],                            // button_text
+        $source['privacy_checkbox_text'],                  // privacy_checkbox_text
+        $source['thank_you_headline'],                     // thank_you_headline
+        $source['thank_you_message'],                      // thank_you_message
+        $courseId,                                         // course_id - KRITISCH!
+        $uniqueId,                                         // unique_id
+        $urlSlug,                                          // url_slug
+        $source['niche'] ?? 'sonstiges',                   // niche
+        $source['raw_code'] ?? '',                         // raw_code
+        $source['video_url'] ?? '',                        // video_url
+        $source['video_format'] ?? 'widescreen',           // video_format
+        $source['optin_display_mode'] ?? 'direct',         // optin_display_mode
+        $source['popup_message'] ?? '',                    // popup_message
+        $source['cta_animation'] ?? 'none',                // cta_animation
+        $source['font_heading'] ?? 'Inter',                // font_heading
+        $source['font_body'] ?? 'Inter',                   // font_body
+        $source['font_size'] ?? null,                      // font_size (JSON)
+        $source['customer_id'],                            // original_creator_id
+        $sourceFreebieId                                   // copied_from_freebie_id
     ]);
     
     $copiedId = $pdo->lastInsertId();
+    
+    // Erfolg loggen MIT course_id Info
+    logWebhook([
+        'success' => 'Marketplace freebie copied successfully',
+        'copied_freebie_id' => $copiedId,
+        'buyer_id' => $buyerId,
+        'source_freebie_id' => $sourceFreebieId,
+        'course_id_copied' => $courseId,
+        'has_course' => !empty($courseId)
+    ], 'success');
+    
+    // Wenn course_id fehlt, explizit warnen
+    if (empty($courseId)) {
+        logWebhook([
+            'warning' => 'Source freebie has no course_id - buyer will not have course access via freebie',
+            'source_freebie_id' => $sourceFreebieId,
+            'copied_freebie_id' => $copiedId
+        ], 'warning');
+    }
     
     return $copiedId;
 }
