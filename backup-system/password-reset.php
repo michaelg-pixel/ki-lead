@@ -1,14 +1,12 @@
 <?php
 /**
  * Backup System - Passwort Reset
- * Sichere Passwort-Wiederherstellung per E-Mail via SMTP
+ * Sichere Passwort-Wiederherstellung per E-Mail
+ * Nutzt PHP's native mail() Funktion (funktioniert auf Hostinger)
  */
 
 session_start();
 require_once __DIR__ . '/config.php';
-
-// SMTP E-Mail System laden
-require_once PROJECT_ROOT . '/includes/email_smtp.php';
 
 // Admin E-Mail aus config
 $ADMIN_EMAIL = 'michael.gluska@gmail.com';
@@ -52,63 +50,68 @@ function validateResetToken($token) {
     return true;
 }
 
-// Funktion: E-Mail senden via SMTP
-function sendResetEmailViaSMTP($token) {
+// Funktion: E-Mail senden (PHP native mail() - funktioniert auf Hostinger)
+function sendResetEmailNative($token) {
     global $ADMIN_EMAIL;
     
     $resetLink = "https://" . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) . "/password-reset.php?token=" . urlencode($token);
     
-    // Nutze die bestehende SMTP-Funktion
-    // Aber mit angepasstem Template für Backup-System
-    $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+    // E-Mail-Betreff
+    $subject = '=?UTF-8?B?' . base64_encode('🔐 Backup System - Passwort zurücksetzen') . '?=';
     
-    try {
-        // Server Einstellungen
-        $mail->isSMTP();
-        $mail->Host = SMTP_HOST;
-        $mail->SMTPAuth = true;
-        $mail->Username = SMTP_USERNAME;
-        $mail->Password = SMTP_PASSWORD;
-        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port = SMTP_PORT;
-        $mail->CharSet = 'UTF-8';
-        
-        // Absender
-        $mail->setFrom(SMTP_FROM_EMAIL, 'Backup System');
-        
-        // Empfänger
-        $mail->addAddress($ADMIN_EMAIL, 'Admin');
-        
-        // Inhalt
-        $mail->isHTML(true);
-        $mail->Subject = '🔐 Backup System - Passwort zurücksetzen';
-        $mail->Body = getBackupResetEmailTemplate($resetLink);
-        
-        // Alternative Text-Version
-        $mail->AltBody = "Backup System - Passwort zurücksetzen\n\n" .
-                        "Du hast eine Anfrage zum Zurücksetzen deines Backup-Admin-Passworts gestellt.\n\n" .
-                        "Klicke auf diesen Link um dein Passwort zurückzusetzen:\n" .
-                        "$resetLink\n\n" .
-                        "⚠️ Dieser Link ist 1 Stunde gültig!\n\n" .
-                        "Falls du diese Anfrage nicht gestellt hast, ignoriere diese E-Mail.\n\n" .
-                        "---\n" .
-                        "KI Lead System - Backup Administration\n" .
-                        date('d.m.Y H:i:s');
-        
-        $mail->send();
-        
-        error_log("Backup password reset email sent to: $ADMIN_EMAIL via SMTP");
-        return true;
-        
-    } catch (Exception $e) {
-        error_log("SMTP email error: " . $mail->ErrorInfo);
-        return false;
+    // HTML E-Mail erstellen
+    $htmlBody = getBackupResetEmailTemplate($resetLink);
+    
+    // Text-Alternative
+    $textBody = "Backup System - Passwort zurücksetzen\n\n" .
+                "Du hast eine Anfrage zum Zurücksetzen deines Backup-Admin-Passworts gestellt.\n\n" .
+                "Klicke auf diesen Link um dein Passwort zurückzusetzen:\n" .
+                "$resetLink\n\n" .
+                "⚠️ Dieser Link ist 1 Stunde gültig!\n\n" .
+                "Falls du diese Anfrage nicht gestellt hast, ignoriere diese E-Mail.\n\n" .
+                "---\n" .
+                "KI Lead System - Backup Administration\n" .
+                date('d.m.Y H:i:s');
+    
+    // Boundary für Multipart-E-Mail
+    $boundary = md5(uniqid(time()));
+    
+    // Header
+    $headers = "From: Backup System <noreply@" . $_SERVER['HTTP_HOST'] . ">\r\n";
+    $headers .= "Reply-To: noreply@" . $_SERVER['HTTP_HOST'] . "\r\n";
+    $headers .= "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: multipart/alternative; boundary=\"{$boundary}\"\r\n";
+    $headers .= "X-Mailer: PHP/" . phpversion() . "\r\n";
+    
+    // E-Mail-Body (Multipart)
+    $message = "--{$boundary}\r\n";
+    $message .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    $message .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
+    $message .= $textBody . "\r\n\r\n";
+    
+    $message .= "--{$boundary}\r\n";
+    $message .= "Content-Type: text/html; charset=UTF-8\r\n";
+    $message .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
+    $message .= $htmlBody . "\r\n\r\n";
+    
+    $message .= "--{$boundary}--";
+    
+    // E-Mail senden
+    $success = mail($ADMIN_EMAIL, $subject, $message, $headers);
+    
+    if ($success) {
+        error_log("Backup password reset email sent to: $ADMIN_EMAIL");
+    } else {
+        error_log("Failed to send backup password reset email to: $ADMIN_EMAIL");
     }
+    
+    return $success;
 }
 
 // Funktion: E-Mail-Template für Backup-System
 function getBackupResetEmailTemplate($resetLink) {
     $safeResetLink = htmlspecialchars($resetLink);
+    $currentDate = date('d.m.Y H:i:s');
     
     return <<<HTML
 <!DOCTYPE html>
@@ -202,7 +205,7 @@ function getBackupResetEmailTemplate($resetLink) {
                                 app.mehr-infos-jetzt.de
                             </p>
                             <p style="margin: 10px 0 0 0; color: #9ca3af; font-size: 11px;">
-                                Versendet am: {date('d.m.Y H:i:s')}
+                                Versendet am: {$currentDate}
                             </p>
                         </td>
                     </tr>
@@ -229,15 +232,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_reset'])) {
     if ($email === $ADMIN_EMAIL) {
         $token = generateResetToken();
         
-        if (sendResetEmailViaSMTP($token)) {
+        if (sendResetEmailNative($token)) {
             $step = 'sent';
             $success = "Reset-Link wurde an $ADMIN_EMAIL gesendet!";
         } else {
-            $error = "E-Mail konnte nicht gesendet werden. Prüfe die SMTP-Konfiguration in includes/email_smtp.php";
+            $error = "E-Mail konnte nicht gesendet werden. Bitte prüfe die Server-E-Mail-Konfiguration oder verwende den manuellen Reset (siehe Dokumentation).";
         }
     } else {
         // Aus Sicherheitsgründen keine spezifische Fehlermeldung
-        $error = "Wenn diese E-Mail-Adresse registriert ist, wurde ein Reset-Link gesendet.";
+        $step = 'sent';
+        $success = "Falls diese E-Mail-Adresse registriert ist, wurde ein Reset-Link gesendet.";
     }
 }
 
@@ -282,8 +286,11 @@ if (isset($_GET['token'])) {
                     
                     $step = 'success';
                     $success = "✅ Passwort erfolgreich geändert! Du kannst dich jetzt anmelden.";
+                    
+                    // Log erstellen
+                    error_log("Backup admin password changed successfully at " . date('Y-m-d H:i:s'));
                 } else {
-                    $error = "Fehler beim Speichern des neuen Passworts. Prüfe die Dateiberechtigungen.";
+                    $error = "Fehler beim Speichern des neuen Passworts. Prüfe die Dateiberechtigungen für backup-system/config.php";
                 }
             }
         }
@@ -411,12 +418,18 @@ if (isset($_GET['token'])) {
             border-radius: 5px;
             margin-bottom: 20px;
             color: #004085;
+            font-size: 14px;
+            line-height: 1.5;
         }
         .info-box ul {
             margin: 10px 0 0 20px;
         }
         .info-box li {
             margin: 5px 0;
+        }
+        .info-box strong {
+            display: block;
+            margin-bottom: 8px;
         }
     </style>
 </head>
@@ -434,7 +447,7 @@ if (isset($_GET['token'])) {
             <form method="POST">
                 <div class="form-group">
                     <label>E-Mail-Adresse</label>
-                    <input type="email" name="email" placeholder="deine@email.de" required autofocus>
+                    <input type="email" name="email" value="<?= htmlspecialchars($ADMIN_EMAIL) ?>" required autofocus>
                 </div>
                 
                 <button type="submit" name="request_reset" class="btn">Reset-Link senden</button>
@@ -450,7 +463,7 @@ if (isset($_GET['token'])) {
             <div class="info-box">
                 <strong>Nächste Schritte:</strong>
                 <ol>
-                    <li>Prüfe dein E-Mail-Postfach (auch Spam-Ordner)</li>
+                    <li>Prüfe dein E-Mail-Postfach (auch Spam-Ordner!)</li>
                     <li>Klicke auf den Link in der E-Mail</li>
                     <li>Setze ein neues Passwort</li>
                 </ol>
