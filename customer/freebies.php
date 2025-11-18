@@ -37,11 +37,17 @@ try {
     ");
     $freebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Eigene Custom Freebies laden
+    // Eigene Custom Freebies UND gekaufte Marktplatz-Freebies laden
+    // WICHTIG: Auch Freebies ohne freebie_type (Marktplatz-Käufe) anzeigen!
     $stmt_custom = $pdo->prepare("
         SELECT * FROM customer_freebies 
-        WHERE customer_id = ? AND freebie_type = 'custom'
-        ORDER BY updated_at DESC
+        WHERE customer_id = ? 
+        AND (
+            freebie_type = 'custom' 
+            OR copied_from_freebie_id IS NOT NULL
+            OR original_creator_id IS NOT NULL
+        )
+        ORDER BY updated_at DESC, created_at DESC
     ");
     $stmt_custom->execute([$customer_id]);
     $custom_freebies = $stmt_custom->fetchAll(PDO::FETCH_ASSOC);
@@ -184,6 +190,11 @@ $domain = $_SERVER['HTTP_HOST'];
     
     .badge-custom {
         background: rgba(139, 92, 246, 0.95);
+        color: white;
+    }
+    
+    .badge-marketplace {
+        background: rgba(249, 115, 22, 0.95);
         color: white;
     }
     
@@ -387,11 +398,18 @@ $domain = $_SERVER['HTTP_HOST'];
                     
                     $date = new DateTime($freebie['updated_at'] ?: $freebie['created_at']);
                     $formattedDate = $date->format('d.m.Y');
+                    
+                    // Check ob vom Marktplatz gekauft
+                    $isMarketplace = !empty($freebie['copied_from_freebie_id']);
                 ?>
                     <div class="freebie-card">
                         <div class="freebie-preview" style="background: <?php echo htmlspecialchars($bgColor); ?>;">
                             <div class="freebie-badges">
-                                <span class="freebie-badge badge-custom">Eigenes Freebie</span>
+                                <?php if ($isMarketplace): ?>
+                                    <span class="freebie-badge badge-marketplace">🛒 Vom Marktplatz</span>
+                                <?php else: ?>
+                                    <span class="freebie-badge badge-custom">Eigenes Freebie</span>
+                                <?php endif; ?>
                                 <?php if ($freebie['has_course']): ?>
                                 <span class="freebie-badge">🎓 Mit Videokurs</span>
                                 <?php endif; ?>
