@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare("
             SELECT 
                 cf.id, 
-                cf.user_id as seller_id,
+                cf.customer_id as seller_id,
                 cf.headline,
                 cf.marketplace_price,
                 cf.digistore_product_id,
@@ -76,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // === SCHRITT 2: Käufer-Account prüfen/erstellen ===
         $testResults[] = ['step' => 2, 'title' => 'Käufer-Account prüfen/erstellen', 'status' => 'running'];
         
-        $stmt = $pdo->prepare("SELECT user_id, name, email FROM customers WHERE email = ?");
+        $stmt = $pdo->prepare("SELECT id, name, email FROM customers WHERE email = ?");
         $stmt->execute([$buyerEmail]);
         $buyer = $stmt->fetch(PDO::FETCH_ASSOC);
         
@@ -90,23 +90,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $password = 'Test' . rand(1000, 9999);
             $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
             
-            // User erstellen
+            // Customer erstellen
             $stmt = $pdo->prepare("
-                INSERT INTO users (
-                    name, email, password, role, is_active, raw_code,
-                    digistore_order_id, source, created_at
-                ) VALUES (?, ?, ?, 'customer', 1, ?, 'TEST-ORDER', 'marketplace_test', NOW())
+                INSERT INTO customers (name, email, password, role, is_active, raw_code, source, created_at)
+                VALUES (?, ?, ?, 'customer', 1, ?, 'marketplace_test', NOW())
             ");
             
             $stmt->execute([$buyerName, $buyerEmail, $hashedPassword, $rawCode]);
-            $userId = $pdo->lastInsertId();
-            
-            // Customer-Eintrag erstellen
-            $stmt = $pdo->prepare("
-                INSERT INTO customers (user_id, name, email, created_at)
-                VALUES (?, ?, ?, NOW())
-            ");
-            $stmt->execute([$userId, $buyerName, $buyerEmail]);
             $buyerId = $pdo->lastInsertId();
             
             // Standard-Limits für Marktplatz-Käufer
@@ -114,20 +104,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 INSERT INTO customer_freebie_limits (customer_id, freebie_limit, product_name, source)
                 VALUES (?, 2, 'Marktplatz Käufer', 'marketplace_test')
             ");
-            $stmt->execute([$userId]);
+            $stmt->execute([$buyerId]);
             
             $buyerCreated = true;
             $credentials = [
                 'email' => $buyerEmail,
                 'password' => $password,
                 'raw_code' => $rawCode,
-                'user_id' => $userId
+                'customer_id' => $buyerId
             ];
         } else {
-            $buyerId = $buyer['user_id'];
+            $buyerId = $buyer['id'];
             $credentials = [
                 'email' => $buyerEmail,
-                'existing_account' => true
+                'existing_account' => true,
+                'customer_id' => $buyerId
             ];
         }
         
@@ -139,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $stmt = $pdo->prepare("
             SELECT id FROM customer_freebies 
-            WHERE user_id = ? AND copied_from_freebie_id = ?
+            WHERE customer_id = ? AND copied_from_freebie_id = ?
         ");
         $stmt->execute([$buyerId, $freebie['id']]);
         $existing = $stmt->fetch();
@@ -160,7 +151,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Freebie kopieren
         $stmt = $pdo->prepare("
             INSERT INTO customer_freebies (
-                user_id,
+                customer_id,
                 template_id,
                 freebie_type,
                 headline,
@@ -194,7 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ");
         
         $stmt->execute([
-            $buyerId, // buyer's user_id
+            $buyerId, // buyer's customer_id
             $freebie['template_id'],
             $freebie['headline'],
             $freebie['subheadline'],
@@ -287,7 +278,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $buyerCreated ? 'Käufer kann sich mit den obigen Zugangsdaten einloggen' : 'Käufer kann sich mit seinem bestehenden Account einloggen',
                     'Freebie ist im Dashboard unter "Landingpages" sichtbar',
                     'Freebie kann bearbeitet und personalisiert werden',
-                    'Thank-You-Page zeigt Rechtstexte des Verkäufers'
+                    'Thank-You-Page zeigt Rechtstexte des Verkäufers',
+                    'Dashboard: https://app.mehr-infos-jetzt.de/?page=freebies'
                 ]
             ]
         ];
@@ -302,7 +294,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'status' => 'error',
             'data' => [
                 'message' => $e->getMessage(),
-                'file' => $e->getFile(),
+                'file' => basename($e->getFile()),
                 'line' => $e->getLine()
             ]
         ];
@@ -315,7 +307,7 @@ try {
     $stmt = $pdo->query("
         SELECT 
             cf.id,
-            cf.user_id as seller_id,
+            cf.customer_id as seller_id,
             cf.headline,
             cf.digistore_product_id,
             cf.marketplace_price,
@@ -627,6 +619,23 @@ try {
             font-weight: bold;
             margin-top: 4px;
         }
+        
+        .login-link {
+            display: inline-block;
+            background: white;
+            color: #16a34a;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            margin-top: 16px;
+            transition: all 0.3s;
+        }
+        
+        .login-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
     </style>
 </head>
 <body>
@@ -652,6 +661,11 @@ try {
                     </div>
                 <?php endforeach; ?>
             </div>
+        <?php elseif (empty($errors)): ?>
+            <div class="available-freebies">
+                <h3>📦 Keine Marktplatz-Freebies gefunden</h3>
+                <p style="color: #666;">Es sind aktuell keine Freebies im Marktplatz aktiv.</p>
+            </div>
         <?php endif; ?>
         
         <div class="test-form">
@@ -671,7 +685,7 @@ try {
                 
                 <div class="form-group">
                     <label>Käufer Name *</label>
-                    <input type="text" name="buyer_name" required value="<?php echo $_POST['buyer_name'] ?? 'Test Käufer'; ?>">
+                    <input type="text" name="buyer_name" required value="<?php echo $_POST['buyer_name'] ?? 'Maximilian Mustermann'; ?>">
                     <div class="hint">Name des Test-Käufers</div>
                 </div>
                 
@@ -679,7 +693,7 @@ try {
             </form>
         </div>
         
-        <?php if (!empty($errors)): ?>
+        <?php if (!empty($errors) && empty($testResults)): ?>
             <div class="error-box">
                 <h3>❌ Fehler</h3>
                 <?php foreach ($errors as $error): ?>
@@ -713,6 +727,10 @@ try {
                                         <div class="credential-label">RAW-Code:</div>
                                         <div class="credential-value"><?php echo htmlspecialchars($result['data']['login_credentials']['raw_code']); ?></div>
                                     </div>
+                                    
+                                    <a href="https://app.mehr-infos-jetzt.de/public/login.php" class="login-link" target="_blank">
+                                        🚀 Jetzt einloggen
+                                    </a>
                                 </div>
                             <?php endif; ?>
                             
