@@ -315,6 +315,7 @@ try {
         echo '<input type="hidden" name="source_id" value="' . $sourceFreebieId . '">';
         echo '<input type="hidden" name="target_id" value="' . $emptyFreebieId . '">';
         echo '<input type="hidden" name="buyer_id" value="' . $buyerId . '">';
+        echo '<input type="hidden" name="buyer_email" value="' . safeHtml($buyerEmail) . '">';
         echo '<button type="submit" class="repair-button">🔧 JETZT REPARIEREN</button>';
         echo '</form>';
         
