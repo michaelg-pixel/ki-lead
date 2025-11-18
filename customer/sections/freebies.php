@@ -1,6 +1,6 @@
 <?php
 /**
- * VERBESSERTE Freebies Section - Mit korrekten Links und Videokurs-Zugang
+ * VERBESSERTE Freebies Section - Mit korrekten Links und Videokurs-Zugang + SUCHFELD
  */
 
 global $pdo;
@@ -94,6 +94,125 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
 .btn-create:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); }
 .btn-create:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* SUCHFELD STYLES */
+.search-container {
+    margin-bottom: 32px;
+    position: relative;
+}
+
+.search-wrapper {
+    position: relative;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.search-input {
+    width: 100%;
+    padding: 16px 56px 16px 52px;
+    background: linear-gradient(135deg, #1e1e3f 0%, #2a2a4f 100%);
+    border: 2px solid rgba(102, 126, 234, 0.3);
+    border-radius: 16px;
+    font-size: 16px;
+    color: white;
+    outline: none;
+    transition: all 0.3s ease;
+}
+
+.search-input::placeholder {
+    color: #9ca3af;
+}
+
+.search-input:focus {
+    border-color: rgba(102, 126, 234, 0.6);
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+}
+
+.search-icon {
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 20px;
+    pointer-events: none;
+}
+
+.search-clear {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(102, 126, 234, 0.2);
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+    color: white;
+    transition: all 0.2s;
+}
+
+.search-clear:hover {
+    background: rgba(102, 126, 234, 0.4);
+}
+
+.search-clear.active {
+    display: flex;
+}
+
+.search-results-info {
+    text-align: center;
+    margin-top: 12px;
+    font-size: 14px;
+    color: #9ca3af;
+    display: none;
+}
+
+.search-results-info.active {
+    display: block;
+}
+
+.search-results-count {
+    color: #667eea;
+    font-weight: 600;
+}
+
+/* NO RESULTS MESSAGE */
+.no-results {
+    text-align: center;
+    padding: 60px 20px;
+    background: linear-gradient(135deg, #1e1e3f 0%, #2a2a4f 100%);
+    border: 2px dashed rgba(102, 126, 234, 0.3);
+    border-radius: 16px;
+    margin: 40px 0;
+    display: none;
+}
+
+.no-results.active {
+    display: block;
+}
+
+.no-results-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.no-results-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: white;
+    margin-bottom: 8px;
+}
+
+.no-results-text {
+    font-size: 14px;
+    color: #9ca3af;
+}
+
 .tab-header { display: flex; gap: 8px; margin-bottom: 32px; border-bottom: 2px solid rgba(255, 255, 255, 0.1); }
 .tab-btn {
     padding: 12px 24px;
@@ -125,6 +244,11 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
     transform: translateY(-8px);
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
     border-color: rgba(102, 126, 234, 0.5);
+}
+
+/* HIDE/SHOW FOR SEARCH */
+.freebie-card.hidden {
+    display: none;
 }
 
 .freebie-mockup {
@@ -260,10 +384,35 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
 .empty-text { font-size: 16px; color: #888; }
 
 @media (max-width: 768px) {
+    .freebies-container { padding: 20px 16px; }
     .freebies-grid { grid-template-columns: 1fr; }
     .limit-banner { flex-direction: column; text-align: center; }
     .freebie-actions { grid-template-columns: 1fr; }
     .freebie-actions.has-course { grid-template-columns: 1fr; }
+    
+    /* MOBILE SEARCH */
+    .search-container { margin-bottom: 24px; }
+    .search-wrapper { max-width: 100%; }
+    .search-input {
+        padding: 14px 48px 14px 44px;
+        font-size: 15px;
+        border-radius: 12px;
+    }
+    .search-icon {
+        left: 14px;
+        font-size: 18px;
+    }
+    .search-clear {
+        right: 12px;
+        width: 28px;
+        height: 28px;
+        font-size: 16px;
+    }
+    .no-results {
+        padding: 40px 20px;
+        margin: 24px 0;
+    }
+    .no-results-icon { font-size: 48px; }
 }
 </style>
 
@@ -284,6 +433,29 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <?php else: ?>
             <button class="btn-create" disabled>🔒 Limit erreicht</button>
         <?php endif; ?>
+    </div>
+    
+    <!-- SUCHFELD -->
+    <div class="search-container">
+        <div class="search-wrapper">
+            <span class="search-icon">🔍</span>
+            <input 
+                type="text" 
+                id="freebieSearch" 
+                class="search-input" 
+                placeholder="Freebies durchsuchen..." 
+                autocomplete="off"
+            >
+            <button class="search-clear" id="searchClear" aria-label="Suche löschen">×</button>
+        </div>
+        <div class="search-results-info" id="searchResultsInfo"></div>
+    </div>
+    
+    <!-- NO RESULTS MESSAGE -->
+    <div class="no-results" id="noResults">
+        <div class="no-results-icon">🔍</div>
+        <div class="no-results-title">Keine Freebies gefunden</div>
+        <div class="no-results-text">Versuche es mit anderen Suchbegriffen</div>
     </div>
     
     <!-- Tabs -->
@@ -316,7 +488,9 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     $primaryColor = $template['primary_color'] ?? '#667eea';
                     $hasCourse = $isUsed && $customerData && !empty($customerData['has_course']);
                 ?>
-                    <div class="freebie-card">
+                    <div class="freebie-card" 
+                         data-title="<?php echo htmlspecialchars(strtolower($template['headline'] ?: $template['name'])); ?>" 
+                         data-description="<?php echo htmlspecialchars(strtolower($template['subheadline'] ?? '')); ?>">
                         <div class="freebie-mockup" style="background: <?php echo htmlspecialchars($bgColor); ?>;">
                             <?php if ($isUsed): ?>
                                 <span class="freebie-badge">✓ In Verwendung</span>
@@ -410,7 +584,10 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     $bgColor = $custom['background_color'] ?? '#667eea';
                     $primaryColor = $custom['primary_color'] ?? '#667eea';
                 ?>
-                    <div class="freebie-card" data-freebie-id="<?php echo $custom['id']; ?>">
+                    <div class="freebie-card" 
+                         data-freebie-id="<?php echo $custom['id']; ?>"
+                         data-title="<?php echo htmlspecialchars(strtolower($custom['headline'])); ?>" 
+                         data-description="<?php echo htmlspecialchars(strtolower($custom['subheadline'] ?? '')); ?>">
                         <div class="freebie-mockup" style="background: <?php echo htmlspecialchars($bgColor); ?>;">
                             <?php if (!empty($custom['mockup_image_url'])): ?>
                                 <img src="<?php echo htmlspecialchars($custom['mockup_image_url']); ?>" 
@@ -479,13 +656,20 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
 </div>
 
 <script>
+// Tab-Wechsel Funktion
 function showTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById('tab-' + tabName).classList.add('active');
     event.target.classList.add('active');
+    
+    // Suche nach Tab-Wechsel neu ausführen
+    if (window.performFreebieSearch) {
+        performFreebieSearch();
+    }
 }
 
+// Link kopieren Funktion
 function copyLink(inputId) {
     const input = document.getElementById(inputId);
     if (!input) return;
@@ -518,8 +702,8 @@ function copyLink(inputId) {
     }
 }
 
+// Freebie löschen Funktion
 async function deleteFreebie(freebieId) {
-    // Bestätigung abfragen
     const confirmed = confirm('Möchtest du dieses Freebie wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.');
     
     if (!confirmed) {
@@ -540,7 +724,6 @@ async function deleteFreebie(freebieId) {
         const data = await response.json();
         
         if (data.success) {
-            // Karte mit Animation entfernen
             const card = document.querySelector(`[data-freebie-id="${freebieId}"]`);
             if (card) {
                 card.style.opacity = '0';
@@ -548,16 +731,13 @@ async function deleteFreebie(freebieId) {
                 setTimeout(() => {
                     card.remove();
                     
-                    // Prüfen ob noch Freebies vorhanden sind
                     const remainingCards = document.querySelectorAll('#tab-custom .freebie-card').length;
                     if (remainingCards === 0) {
-                        // Seite neu laden um Empty State anzuzeigen
                         location.reload();
                     }
                 }, 300);
             }
             
-            // Optional: Success-Nachricht anzeigen
             alert('✓ Freebie erfolgreich gelöscht!');
         } else {
             alert('❌ Fehler beim Löschen: ' + (data.message || 'Unbekannter Fehler'));
@@ -567,4 +747,79 @@ async function deleteFreebie(freebieId) {
         alert('❌ Fehler beim Löschen des Freebies. Bitte versuche es erneut.');
     }
 }
+
+// SUCHFUNKTION
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('freebieSearch');
+    const searchClear = document.getElementById('searchClear');
+    const searchResultsInfo = document.getElementById('searchResultsInfo');
+    const noResults = document.getElementById('noResults');
+    
+    // Alle Freebie-Karten
+    const allFreebieCards = document.querySelectorAll('.freebie-card');
+    
+    // Suche durchführen
+    window.performFreebieSearch = function() {
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        
+        // Clear Button anzeigen/verstecken
+        if (searchTerm) {
+            searchClear.classList.add('active');
+        } else {
+            searchClear.classList.remove('active');
+            searchResultsInfo.classList.remove('active');
+            noResults.classList.remove('active');
+            
+            // Alle Karten wieder anzeigen
+            allFreebieCards.forEach(card => card.classList.remove('hidden'));
+            return;
+        }
+        
+        let visibleCount = 0;
+        
+        // Durch alle Freebie-Karten filtern
+        allFreebieCards.forEach(card => {
+            const title = card.getAttribute('data-title') || '';
+            const description = card.getAttribute('data-description') || '';
+            
+            // Prüfen ob Karte im aktiven Tab ist
+            const isInActiveTab = card.closest('.tab-content.active') !== null;
+            
+            // Prüfen ob Suchbegriff in Titel oder Beschreibung vorkommt
+            if (isInActiveTab && (title.includes(searchTerm) || description.includes(searchTerm))) {
+                card.classList.remove('hidden');
+                visibleCount++;
+            } else if (isInActiveTab) {
+                card.classList.add('hidden');
+            }
+        });
+        
+        // Ergebnis-Info anzeigen
+        if (visibleCount === 0) {
+            noResults.classList.add('active');
+            searchResultsInfo.classList.remove('active');
+        } else {
+            noResults.classList.remove('active');
+            searchResultsInfo.classList.add('active');
+            searchResultsInfo.innerHTML = `<span class="search-results-count">${visibleCount}</span> ${visibleCount === 1 ? 'Freebie' : 'Freebies'} gefunden`;
+        }
+    }
+    
+    // Event Listener
+    searchInput.addEventListener('input', performFreebieSearch);
+    
+    searchClear.addEventListener('click', function() {
+        searchInput.value = '';
+        searchInput.focus();
+        performFreebieSearch();
+    });
+    
+    // Escape-Taste behandeln
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            searchInput.value = '';
+            performFreebieSearch();
+        }
+    });
+});
 </script>
