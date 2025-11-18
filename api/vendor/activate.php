@@ -2,6 +2,8 @@
 /**
  * Vendor Activation API
  * Aktiviert den Vendor-Modus für einen Customer
+ * 
+ * FIX 2025-11-18: vendor_paypal_email und vendor_bank_account entfernt (Spalten existieren nicht mehr)
  */
 
 session_start();
@@ -59,12 +61,6 @@ try {
         }
     }
     
-    if (!empty($data['paypal_email'])) {
-        if (!filter_var($data['paypal_email'], FILTER_VALIDATE_EMAIL)) {
-            $errors[] = 'Ungültige PayPal E-Mail-Adresse';
-        }
-    }
-    
     if (!empty($errors)) {
         http_response_code(400);
         echo json_encode([
@@ -97,7 +93,7 @@ try {
         exit;
     }
     
-    // Vendor-Modus aktivieren
+    // Vendor-Modus aktivieren (OHNE vendor_paypal_email und vendor_bank_account)
     $stmt = $pdo->prepare("
         UPDATE users 
         SET 
@@ -105,8 +101,6 @@ try {
             vendor_company_name = ?,
             vendor_website = ?,
             vendor_description = ?,
-            vendor_paypal_email = ?,
-            vendor_bank_account = ?,
             vendor_activated_at = NOW()
         WHERE id = ?
     ");
@@ -115,8 +109,6 @@ try {
         $data['company_name'],
         $data['website'] ?? null,
         $data['description'] ?? null,
-        $data['paypal_email'] ?? null,
-        $data['bank_account'] ?? null,
         $customer_id
     ]);
     
