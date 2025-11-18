@@ -14,7 +14,7 @@ if (!isset($customer_id)) {
 // Domain für Links
 $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
 $domain = $_SERVER['HTTP_HOST'];
-$thankyou_url = $protocol . '://' . $domain . '/public/marketplace-thankyou.php';
+$base_thankyou_url = $protocol . '://' . $domain . '/public/marketplace-thankyou.php';
 
 // Nischen-Kategorien Labels
 $nicheLabels = [
@@ -449,6 +449,11 @@ try {
         border-radius: 8px;
         padding: 16px;
         margin-bottom: 24px;
+        display: none;
+    }
+    
+    .copy-section.visible {
+        display: block;
     }
     
     .copy-section-title {
@@ -732,28 +737,29 @@ try {
             
             <div class="form-group">
                 <label class="form-label" for="digistore_product_id">
-                    🔗 DigiStore24 Checkout-Link
+                    🔗 DigiStore24 Checkout-Link oder Produkt-ID
                 </label>
                 <input 
                     type="text" 
                     id="digistore_product_id" 
                     name="digistore_product_id" 
                     class="form-input"
-                    placeholder="z.B. https://www.digistore24.com/product/12345 oder https://www.digistore24.com/redir/...">
-                <div class="form-hint">Gib hier deinen vollständigen DigiStore24 Checkout-Link oder Produkt-URL ein. Vergiss nicht, die 15% Partnerprovision einzutragen!</div>
+                    oninput="updateThankYouUrl()"
+                    placeholder="z.B. https://www.digistore24.com/product/12345 oder nur 12345">
+                <div class="form-hint">Gib hier deinen vollständigen DigiStore24 Link oder nur die Produkt-ID ein. Vergiss nicht, die 15% Partnerprovision einzutragen!</div>
             </div>
             
-            <!-- Danke-Seiten Link zum Kopieren -->
-            <div class="copy-section">
+            <!-- Dynamisch generierter Danke-Seiten Link -->
+            <div id="thankYouSection" class="copy-section">
                 <div class="copy-section-title">
                     <span>🎉</span>
-                    <span>Danke-Seiten Link für DigiStore24:</span>
+                    <span>Dieser Link für DigiStore24 "Thank You Page":</span>
                 </div>
                 <div class="copy-input-wrapper">
                     <input 
                         type="text" 
                         class="copy-input" 
-                        value="<?php echo htmlspecialchars($thankyou_url); ?>" 
+                        value="<?php echo htmlspecialchars($base_thankyou_url); ?>" 
                         readonly 
                         id="thankyouUrl">
                     <button type="button" class="copy-btn" onclick="copyThankYouUrl()">
@@ -761,7 +767,7 @@ try {
                     </button>
                 </div>
                 <div class="form-hint" style="margin-top: 8px;">
-                    Trage diesen Link als "Thank You Page" in DigiStore24 ein
+                    ✅ Dieser Link enthält bereits deine Produkt-ID! Kopiere ihn und trage ihn in DigiStore24 als "Thank You Page" ein.
                 </div>
             </div>
             
@@ -815,7 +821,55 @@ try {
 </div>
 
 <script>
+const BASE_THANKYOU_URL = '<?php echo $base_thankyou_url; ?>';
 let currentEditFreebieId = null;
+
+// Extrahiert die Produkt-ID aus verschiedenen DigiStore24-Formaten
+function extractProductId(input) {
+    if (!input || input.trim() === '') return null;
+    
+    input = input.trim();
+    
+    // Nur Zahlen
+    if (/^\d+$/.test(input)) {
+        return input;
+    }
+    
+    // Verschiedene URL-Patterns
+    const patterns = [
+        /\/product\/(\d+)/i,
+        /\/redir\/(\d+)/i,
+        /digi(?:store)?24\.com.*?(\d+)/i,
+        /(\d{4,})/i
+    ];
+    
+    for (const pattern of patterns) {
+        const match = input.match(pattern);
+        if (match) {
+            return match[1];
+        }
+    }
+    
+    return null;
+}
+
+// Aktualisiert den Thank-You-URL wenn DigiStore-Link eingegeben wird
+function updateThankYouUrl() {
+    const digistoreInput = document.getElementById('digistore_product_id').value;
+    const productId = extractProductId(digistoreInput);
+    const thankYouSection = document.getElementById('thankYouSection');
+    const thankYouInput = document.getElementById('thankyouUrl');
+    
+    if (productId) {
+        // Zeige Section und generiere vollständigen Link
+        thankYouSection.classList.add('visible');
+        thankYouInput.value = BASE_THANKYOU_URL + '?product_id=' + productId;
+    } else {
+        // Verstecke Section wenn keine valide ID
+        thankYouSection.classList.remove('visible');
+        thankYouInput.value = BASE_THANKYOU_URL;
+    }
+}
 
 // Danke-Seiten URL kopieren
 function copyThankYouUrl() {
@@ -863,6 +917,9 @@ function openMarketplaceEditor(freebieId) {
                 document.getElementById('course_lessons_count').value = freebie.course_lessons_count || '';
                 document.getElementById('course_duration').value = freebie.course_duration || '';
                 
+                // Thank-You URL aktualisieren
+                updateThankYouUrl();
+                
                 document.getElementById('marketplaceEditorModal').classList.add('active');
             }
         })
@@ -876,6 +933,7 @@ function openMarketplaceEditor(freebieId) {
 function closeMarketplaceEditor() {
     document.getElementById('marketplaceEditorModal').classList.remove('active');
     document.getElementById('marketplaceEditorForm').reset();
+    document.getElementById('thankYouSection').classList.remove('visible');
     currentEditFreebieId = null;
 }
 
