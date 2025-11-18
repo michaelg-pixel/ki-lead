@@ -1,7 +1,7 @@
 <?php
 /**
- * Enhanced Webhook Handler - VERSION 4.5
- * NEW: Copies video course data with marketplace purchases
+ * Enhanced Webhook Handler - VERSION 4.6
+ * FIX: Uses correct table names (courses, not customer_freebie_courses)
  */
 
 require_once '../config/database.php';
@@ -147,7 +147,7 @@ function getTableColumns($pdo, $table) {
 }
 
 /**
- * Kopiert Videokurs-Daten von einem Freebie zu einem anderen
+ * Kopiert Videokurs-Daten - KORRIGIERTE VERSION mit richtigen Tabellennamen
  */
 function copyCourseData($pdo, $sourceFreebieId, $newFreebieId, $newCustomerId) {
     logWebhook([
@@ -157,25 +157,37 @@ function copyCourseData($pdo, $sourceFreebieId, $newFreebieId, $newCustomerId) {
     ], 'info');
     
     try {
-        // 1. Prüfen ob Source-Freebie einen Kurs hat
-        $stmt = $pdo->prepare("SELECT * FROM customer_freebie_courses WHERE freebie_id = ?");
+        // 1. Prüfen ob Source-Freebie einen Kurs hat (via course_id)
+        $stmt = $pdo->prepare("SELECT course_id FROM customer_freebies WHERE id = ?");
         $stmt->execute([$sourceFreebieId]);
-        $sourceCourse = $stmt->fetch(PDO::FETCH_ASSOC);
+        $sourceCourseId = $stmt->fetchColumn();
         
-        if (!$sourceCourse) {
-            logWebhook(['info' => 'No course found for source freebie'], 'info');
+        if (!$sourceCourseId) {
+            logWebhook(['info' => 'No course_id found for source freebie'], 'info');
             return;
         }
         
-        logWebhook(['info' => 'Course found', 'course_id' => $sourceCourse['id']], 'info');
+        logWebhook(['info' => 'Source course_id found', 'course_id' => $sourceCourseId], 'info');
         
-        // 2. Kurs kopieren
-        $courseColumns = getTableColumns($pdo, 'customer_freebie_courses');
+        // 2. Kurs-Daten laden aus der COURSES Tabelle (nicht customer_freebie_courses)
+        $stmt = $pdo->prepare("SELECT * FROM courses WHERE id = ?");
+        $stmt->execute([$sourceCourseId]);
+        $sourceCourse = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$sourceCourse) {
+            logWebhook(['error' => 'Course not found in courses table', 'course_id' => $sourceCourseId], 'error');
+            return;
+        }
+        
+        logWebhook(['success' => 'Course found', 'course_name' => $sourceCourse['course_name'] ?? 'N/A'], 'success');
+        
+        // 3. Kurs kopieren
+        $courseColumns = getTableColumns($pdo, 'courses');
         $courseFieldsToCopy = [];
         $courseValues = [];
         
         // Blacklist für Kurs-Felder
-        $excludedCourseFields = ['id', 'customer_id', 'freebie_id', 'created_at', 'updated_at'];
+        $excludedCourseFields = ['id', 'created_at', 'updated_at'];
         
         foreach ($sourceCourse as $field => $value) {
             if (in_array($field, $courseColumns) && 
@@ -187,19 +199,13 @@ function copyCourseData($pdo, $sourceFreebieId, $newFreebieId, $newCustomerId) {
             }
         }
         
-        // Spezielle Felder setzen
-        $courseFieldsToCopy[] = 'customer_id';
-        $courseValues[] = $newCustomerId;
-        
-        $courseFieldsToCopy[] = 'freebie_id';
-        $courseValues[] = $newFreebieId;
-        
+        // created_at setzen
         $courseFieldsToCopy[] = 'created_at';
         $courseValues[] = date('Y-m-d H:i:s');
         
         // Kurs einfügen
         $placeholders = array_fill(0, count($courseValues), '?');
-        $sql = "INSERT INTO customer_freebie_courses (" . implode(', ', $courseFieldsToCopy) . ") 
+        $sql = "INSERT INTO courses (" . implode(', ', $courseFieldsToCopy) . ") 
                 VALUES (" . implode(', ', $placeholders) . ")";
         
         $stmt = $pdo->prepare($sql);
@@ -212,9 +218,15 @@ function copyCourseData($pdo, $sourceFreebieId, $newFreebieId, $newCustomerId) {
             'fields_copied' => count($courseFieldsToCopy)
         ], 'success');
         
-        // 3. Module kopieren
+        // 4. course_id in customer_freebies setzen
+        $stmt = $pdo->prepare("UPDATE customer_freebies SET course_id = ? WHERE id = ?");
+        $stmt->execute([$newCourseId, $newFreebieId]);
+        
+        logWebhook(['info' => 'course_id set in customer_freebies', 'new_freebie_id' => $newFreebieId, 'course_id' => $newCourseId], 'info');
+        
+        // 5. Module kopieren
         $stmt = $pdo->prepare("SELECT * FROM course_modules WHERE course_id = ? ORDER BY module_order");
-        $stmt->execute([$sourceCourse['id']]);
+        $stmt->execute([$sourceCourseId]);
         $sourceModules = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         $moduleMapping = []; // Alt-ID => Neu-ID
@@ -224,7 +236,7 @@ function copyCourseData($pdo, $sourceFreebieId, $newFreebieId, $newCustomerId) {
             $moduleFieldsToCopy = [];
             $moduleValues = [];
             
-            $excludedModuleFields = ['id', 'course_id', 'created_at', 'updated_at'];
+            $excludedModuleFields = ['id', 'created_at', 'updated_at'];
             
             foreach ($sourceModule as $field => $value) {
                 if (in_array($field, $moduleColumns) && 
@@ -236,8 +248,14 @@ function copyCourseData($pdo, $sourceFreebieId, $newFreebieId, $newCustomerId) {
                 }
             }
             
-            $moduleFieldsToCopy[] = 'course_id';
-            $moduleValues[] = $newCourseId;
+            // course_id auf neuen Kurs setzen
+            $courseIdIndex = array_search('course_id', $moduleFieldsToCopy);
+            if ($courseIdIndex !== false) {
+                $moduleValues[$courseIdIndex] = $newCourseId;
+            } else {
+                $moduleFieldsToCopy[] = 'course_id';
+                $moduleValues[] = $newCourseId;
+            }
             
             $moduleFieldsToCopy[] = 'created_at';
             $moduleValues[] = date('Y-m-d H:i:s');
@@ -256,13 +274,13 @@ function copyCourseData($pdo, $sourceFreebieId, $newFreebieId, $newCustomerId) {
                 'info' => 'Module copied',
                 'old_module_id' => $sourceModule['id'],
                 'new_module_id' => $newModuleId,
-                'module_name' => $sourceModule['module_name']
+                'module_name' => $sourceModule['module_name'] ?? 'N/A'
             ], 'info');
         }
         
-        // 4. Lektionen kopieren
+        // 6. Lektionen kopieren
         $stmt = $pdo->prepare("SELECT * FROM course_lessons WHERE course_id = ? ORDER BY lesson_order");
-        $stmt->execute([$sourceCourse['id']]);
+        $stmt->execute([$sourceCourseId]);
         $sourceLessons = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         foreach ($sourceLessons as $sourceLesson) {
@@ -270,7 +288,7 @@ function copyCourseData($pdo, $sourceFreebieId, $newFreebieId, $newCustomerId) {
             $lessonFieldsToCopy = [];
             $lessonValues = [];
             
-            $excludedLessonFields = ['id', 'course_id', 'module_id', 'created_at', 'updated_at'];
+            $excludedLessonFields = ['id', 'created_at', 'updated_at'];
             
             foreach ($sourceLesson as $field => $value) {
                 if (in_array($field, $lessonColumns) && 
@@ -282,13 +300,24 @@ function copyCourseData($pdo, $sourceFreebieId, $newFreebieId, $newCustomerId) {
                 }
             }
             
-            $lessonFieldsToCopy[] = 'course_id';
-            $lessonValues[] = $newCourseId;
+            // course_id auf neuen Kurs setzen
+            $courseIdIndex = array_search('course_id', $lessonFieldsToCopy);
+            if ($courseIdIndex !== false) {
+                $lessonValues[$courseIdIndex] = $newCourseId;
+            } else {
+                $lessonFieldsToCopy[] = 'course_id';
+                $lessonValues[] = $newCourseId;
+            }
             
             // Module-ID umschreiben (Alt-ID => Neu-ID)
             if (!empty($sourceLesson['module_id']) && isset($moduleMapping[$sourceLesson['module_id']])) {
-                $lessonFieldsToCopy[] = 'module_id';
-                $lessonValues[] = $moduleMapping[$sourceLesson['module_id']];
+                $moduleIdIndex = array_search('module_id', $lessonFieldsToCopy);
+                if ($moduleIdIndex !== false) {
+                    $lessonValues[$moduleIdIndex] = $moduleMapping[$sourceLesson['module_id']];
+                } else {
+                    $lessonFieldsToCopy[] = 'module_id';
+                    $lessonValues[] = $moduleMapping[$sourceLesson['module_id']];
+                }
             }
             
             $lessonFieldsToCopy[] = 'created_at';
@@ -306,12 +335,13 @@ function copyCourseData($pdo, $sourceFreebieId, $newFreebieId, $newCustomerId) {
                 'info' => 'Lesson copied',
                 'old_lesson_id' => $sourceLesson['id'],
                 'new_lesson_id' => $newLessonId,
-                'lesson_title' => $sourceLesson['lesson_title']
+                'lesson_title' => $sourceLesson['lesson_title'] ?? 'N/A'
             ], 'info');
         }
         
         logWebhook([
             'success' => 'Course data copied completely',
+            'new_course_id' => $newCourseId,
             'modules_copied' => count($sourceModules),
             'lessons_copied' => count($sourceLessons)
         ], 'success');
@@ -406,7 +436,8 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
             'info' => 'Source freebie loaded',
             'fields_count' => count($fullSourceFreebie),
             'has_bullet_points' => isset($fullSourceFreebie['bullet_points']),
-            'has_mockup' => isset($fullSourceFreebie['mockup_image_url'])
+            'has_mockup' => isset($fullSourceFreebie['mockup_image_url']),
+            'course_id' => $fullSourceFreebie['course_id'] ?? 'NULL'
         ], 'info');
         
         // 4. Tabellenstruktur prüfen - welche Spalten existieren?
@@ -422,7 +453,8 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
             'marketplace_sales_count',  // startet bei 0
             'digistore_product_id',  // wird entfernt bei Kopie
             'digistore_order_id',  // wird mit aktuellem Order-ID ersetzt
-            'freebie_type'  // WICHTIG: Nicht kopieren, da Feld möglicherweise ENUM oder zu kurz ist
+            'freebie_type',  // WICHTIG: Nicht kopieren, da Feld möglicherweise ENUM oder zu kurz ist
+            'course_id'  // WICHTIG: Wird NICHT kopiert, sondern später neu gesetzt nach Kurs-Copy
         ];
         
         // 6. ALLE Felder kopieren die existieren UND nicht ausgeschlossen sind
@@ -557,7 +589,7 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
             'fields_copied' => count($fieldsToCopy)
         ], 'success');
         
-        // 9. VIDEOKURS KOPIEREN (falls vorhanden)
+        // 9. VIDEOKURS KOPIEREN (falls vorhanden) - MIT KORRIGIERTEN TABELLENNAMEN
         copyCourseData($pdo, $sourceFreebie['id'], $newFreebieId, $buyerId);
         
         // 10. Verkaufszähler beim Original erhöhen
