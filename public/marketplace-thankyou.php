@@ -404,64 +404,33 @@ try {
             line-height: 1.6;
         }
         
-        /* Footer Styles */
-        .footer {
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 24px;
-            border-radius: 16px;
+        /* Dezenter Footer mit Rechtstexten */
+        .legal-footer {
             text-align: center;
-            max-width: 700px;
-            margin: 0 auto;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-top: 20px;
         }
         
-        .footer-title {
-            color: white;
-            font-size: 16px;
-            font-weight: 700;
-            margin-bottom: 16px;
-            opacity: 0.95;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
+        .legal-links {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.8);
         }
         
-        .footer-links {
-            display: flex;
-            justify-content: center;
-            gap: 16px;
-            flex-wrap: wrap;
-            margin-bottom: 12px;
-        }
-        
-        .footer-link {
-            color: white;
+        .legal-links a {
+            color: rgba(255, 255, 255, 0.9);
             text-decoration: none;
-            font-size: 15px;
-            font-weight: 600;
-            padding: 12px 24px;
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.2);
-            transition: all 0.3s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            margin: 0 8px;
+            transition: color 0.2s;
         }
         
-        .footer-link:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        .legal-links a:hover {
+            color: white;
+            text-decoration: underline;
         }
         
-        .footer-note {
-            color: rgba(255, 255, 255, 0.85);
-            font-size: 13px;
-            line-height: 1.5;
+        .legal-separator {
+            margin: 0 4px;
+            color: rgba(255, 255, 255, 0.6);
         }
         
         @media (max-width: 640px) {
@@ -492,20 +461,6 @@ try {
             
             .copy-input-wrapper {
                 flex-direction: column;
-            }
-            
-            .footer {
-                padding: 20px 16px;
-            }
-            
-            .footer-links {
-                flex-direction: column;
-                gap: 12px;
-            }
-            
-            .footer-link {
-                width: 100%;
-                justify-content: center;
             }
         }
     </style>
@@ -636,36 +591,19 @@ try {
         </div>
     </div>
     
-    <!-- Footer mit Rechtstexten des Verkäufers -->
+    <!-- Dezenter Footer mit Rechtstexten -->
     <?php if ($hasLegalTexts): ?>
-    <div class="footer">
-        <div class="footer-title">
-            <span>⚖️</span>
-            <span>Rechtliche Informationen</span>
-        </div>
-        <div class="footer-links">
-            <?php if ($impressumLink): ?>
-                <a href="<?php echo htmlspecialchars($impressumLink); ?>" 
-                   target="_blank" 
-                   rel="noopener noreferrer"
-                   class="footer-link">
-                    <span>📋</span>
-                    <span>Impressum</span>
-                </a>
+    <div class="legal-footer">
+        <div class="legal-links">
+            <?php if ($impressumLink && $datenschutzLink): ?>
+                <a href="<?php echo htmlspecialchars($impressumLink); ?>" target="_blank" rel="noopener noreferrer">Impressum</a>
+                <span class="legal-separator">|</span>
+                <a href="<?php echo htmlspecialchars($datenschutzLink); ?>" target="_blank" rel="noopener noreferrer">Datenschutz</a>
+            <?php elseif ($impressumLink): ?>
+                <a href="<?php echo htmlspecialchars($impressumLink); ?>" target="_blank" rel="noopener noreferrer">Impressum</a>
+            <?php elseif ($datenschutzLink): ?>
+                <a href="<?php echo htmlspecialchars($datenschutzLink); ?>" target="_blank" rel="noopener noreferrer">Datenschutz</a>
             <?php endif; ?>
-            
-            <?php if ($datenschutzLink): ?>
-                <a href="<?php echo htmlspecialchars($datenschutzLink); ?>" 
-                   target="_blank" 
-                   rel="noopener noreferrer"
-                   class="footer-link">
-                    <span>🔒</span>
-                    <span>Datenschutz</span>
-                </a>
-            <?php endif; ?>
-        </div>
-        <div class="footer-note">
-            Diese Rechtstexte stammen vom Verkäufer des Freebies
         </div>
     </div>
     <?php endif; ?>
