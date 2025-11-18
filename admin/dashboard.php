@@ -1,8 +1,15 @@
 <?php
-session_start();
+// Sichere Session-Konfiguration laden - MUSS vor session_start() sein!
+require_once __DIR__ . '/../config/security.php';
 
-// WICHTIG: Korrekte Session-Variable-Namen verwenden!
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+// Starte sichere Session mit 90-Tage Konfiguration
+startSecureSession();
+
+// Login-Check mit sicherer Funktion
+requireLogin('/public/login.php');
+
+// WICHTIG: Admin-Rollen-Prüfung
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header('Location: /public/login.php');
     exit;
 }
@@ -167,7 +174,7 @@ $page = $_GET['page'] ?? 'overview';
                 <div class="user-name"><?php echo htmlspecialchars($admin_name); ?></div>
                 <div class="user-email"><?php echo htmlspecialchars($admin_email); ?></div>
             </div>
-            <a href="/logout.php" class="logout-btn" title="Abmelden">↪</a>
+            <a href="/public/logout.php" class="logout-btn" title="Abmelden">↪</a>
         </div>
     </div>
     
