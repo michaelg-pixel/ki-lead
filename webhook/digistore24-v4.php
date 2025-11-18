@@ -1,7 +1,7 @@
 <?php
 /**
- * Enhanced Webhook Handler - VERSION 4.2
- * SMART: Kopiert nur Spalten die existieren
+ * Enhanced Webhook Handler - VERSION 4.3
+ * SMART: Kopiert ALLE existierenden Spalten dynamisch
  */
 
 require_once '../config/database.php';
@@ -147,7 +147,7 @@ function getTableColumns($pdo, $table) {
 }
 
 /**
- * MARKTPLATZ: SMART - Kopiert nur existierende Spalten
+ * MARKTPLATZ: SMART - Kopiert ALLE existierenden Felder automatisch
  */
 function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $sourceFreebie, $orderId) {
     logWebhook([
@@ -222,77 +222,144 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
         $stmt->execute([$sourceFreebie['id']]);
         $fullSourceFreebie = $stmt->fetch(PDO::FETCH_ASSOC);
         
+        logWebhook([
+            'info' => 'Source freebie loaded',
+            'fields_count' => count($fullSourceFreebie),
+            'has_bullet_points' => isset($fullSourceFreebie['bullet_points']),
+            'has_mockup' => isset($fullSourceFreebie['mockup_image_url'])
+        ], 'info');
+        
         // 4. Tabellenstruktur prüfen - welche Spalten existieren?
         $tableColumns = getTableColumns($pdo, 'customer_freebies');
         
-        // 5. Felder die wir kopieren wollen (ALLE potentiellen Felder)
-        $desiredFields = [
-            'headline',
-            'subheadline',
-            'preheadline',
-            'bullet_points',
-            'mockup_image_url',
-            'background_color',
-            'primary_color',
-            'cta_text',
-            'layout',
-            'niche',
-            'course_id',
-            'template_id'
+        // 5. Felder die NICHT kopiert werden sollen (Blacklist)
+        $excludedFields = [
+            'id',
+            'customer_id',  // wird durch $buyerId ersetzt
+            'created_at',   // wird neu gesetzt
+            'updated_at',   // wird automatisch gesetzt
+            'marketplace_enabled',  // wird auf 0 gesetzt für Kopie
+            'marketplace_sales_count',  // startet bei 0
+            'digistore_product_id',  // wird entfernt bei Kopie
+            'digistore_order_id'  // wird mit aktuellem Order-ID ersetzt
         ];
         
-        // 6. NUR die Felder kopieren die EXISTIEREN
+        // 6. ALLE Felder kopieren die existieren UND nicht ausgeschlossen sind
         $fieldsToCopy = [];
         $values = [];
         
-        // customer_id ist immer dabei
+        // customer_id setzen
         $fieldsToCopy[] = 'customer_id';
         $values[] = $buyerId;
         
-        // freebie_type
-        $fieldsToCopy[] = 'freebie_type';
-        $values[] = 'purchased';
+        // freebie_type setzen
+        if (in_array('freebie_type', $tableColumns)) {
+            $fieldsToCopy[] = 'freebie_type';
+            $values[] = 'purchased';
+        }
         
-        // Nur existierende gewünschte Felder
-        foreach ($desiredFields as $field) {
-            if (in_array($field, $tableColumns) && isset($fullSourceFreebie[$field])) {
+        // ALLE Felder aus Source-Freebie durchgehen
+        foreach ($fullSourceFreebie as $field => $value) {
+            // Nur kopieren wenn:
+            // 1. Feld existiert in Tabelle
+            // 2. Feld ist nicht in Blacklist
+            // 3. Feld haben wir nicht schon hinzugefügt
+            if (in_array($field, $tableColumns) && 
+                !in_array($field, $excludedFields) && 
+                !in_array($field, $fieldsToCopy)) {
+                
                 $fieldsToCopy[] = $field;
-                $values[] = $fullSourceFreebie[$field];
+                $values[] = $value;
             }
         }
         
-        // unique_id generieren
+        // 7. Spezielle Felder überschreiben/setzen
+        
+        // unique_id generieren (falls existiert)
         if (in_array('unique_id', $tableColumns)) {
-            $fieldsToCopy[] = 'unique_id';
-            $values[] = bin2hex(random_bytes(16));
+            // Wenn unique_id schon in $fieldsToCopy, ersetzen
+            $uniqueIdIndex = array_search('unique_id', $fieldsToCopy);
+            if ($uniqueIdIndex !== false) {
+                $values[$uniqueIdIndex] = bin2hex(random_bytes(16));
+            } else {
+                $fieldsToCopy[] = 'unique_id';
+                $values[] = bin2hex(random_bytes(16));
+            }
         }
         
         // Marketplace-spezifische Felder
         if (in_array('original_creator_id', $tableColumns)) {
-            $fieldsToCopy[] = 'original_creator_id';
-            $values[] = $fullSourceFreebie['customer_id'];
+            $originalCreatorIndex = array_search('original_creator_id', $fieldsToCopy);
+            if ($originalCreatorIndex !== false) {
+                $values[$originalCreatorIndex] = $fullSourceFreebie['customer_id'];
+            } else {
+                $fieldsToCopy[] = 'original_creator_id';
+                $values[] = $fullSourceFreebie['customer_id'];
+            }
         }
         
         if (in_array('copied_from_freebie_id', $tableColumns)) {
-            $fieldsToCopy[] = 'copied_from_freebie_id';
-            $values[] = $fullSourceFreebie['id'];
+            $copiedFromIndex = array_search('copied_from_freebie_id', $fieldsToCopy);
+            if ($copiedFromIndex !== false) {
+                $values[$copiedFromIndex] = $fullSourceFreebie['id'];
+            } else {
+                $fieldsToCopy[] = 'copied_from_freebie_id';
+                $values[] = $fullSourceFreebie['id'];
+            }
         }
         
+        // marketplace_enabled auf 0 setzen (Kopie kann nicht weiterverkauft werden)
         if (in_array('marketplace_enabled', $tableColumns)) {
-            $fieldsToCopy[] = 'marketplace_enabled';
-            $values[] = 0;
+            $marketplaceIndex = array_search('marketplace_enabled', $fieldsToCopy);
+            if ($marketplaceIndex !== false) {
+                $values[$marketplaceIndex] = 0;
+            } else {
+                $fieldsToCopy[] = 'marketplace_enabled';
+                $values[] = 0;
+            }
         }
         
+        // marketplace_sales_count auf 0 setzen
+        if (in_array('marketplace_sales_count', $tableColumns)) {
+            $salesCountIndex = array_search('marketplace_sales_count', $fieldsToCopy);
+            if ($salesCountIndex !== false) {
+                $values[$salesCountIndex] = 0;
+            } else {
+                $fieldsToCopy[] = 'marketplace_sales_count';
+                $values[] = 0;
+            }
+        }
+        
+        // digistore_order_id mit aktuellem Order-ID
         if (in_array('digistore_order_id', $tableColumns)) {
-            $fieldsToCopy[] = 'digistore_order_id';
-            $values[] = $orderId;
+            $orderIdIndex = array_search('digistore_order_id', $fieldsToCopy);
+            if ($orderIdIndex !== false) {
+                $values[$orderIdIndex] = $orderId;
+            } else {
+                $fieldsToCopy[] = 'digistore_order_id';
+                $values[] = $orderId;
+            }
+        }
+        
+        // digistore_product_id NICHT setzen (Kopie hat keine eigene Product-ID)
+        $productIdIndex = array_search('digistore_product_id', $fieldsToCopy);
+        if ($productIdIndex !== false) {
+            unset($fieldsToCopy[$productIdIndex]);
+            unset($values[$productIdIndex]);
+            $fieldsToCopy = array_values($fieldsToCopy);
+            $values = array_values($values);
         }
         
         // created_at
-        $fieldsToCopy[] = 'created_at';
-        $values[] = date('Y-m-d H:i:s');
+        $createdAtIndex = array_search('created_at', $fieldsToCopy);
+        if ($createdAtIndex !== false) {
+            $values[$createdAtIndex] = date('Y-m-d H:i:s');
+        } else {
+            $fieldsToCopy[] = 'created_at';
+            $values[] = date('Y-m-d H:i:s');
+        }
         
-        // SQL Query dynamisch bauen
+        // 8. SQL Query dynamisch bauen
         $placeholders = array_fill(0, count($values), '?');
         $sql = "INSERT INTO customer_freebies (" . implode(', ', $fieldsToCopy) . ") 
                 VALUES (" . implode(', ', $placeholders) . ")";
@@ -315,14 +382,19 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
             'fields_copied' => count($fieldsToCopy)
         ], 'success');
         
-        // Verkaufszähler erhöhen
+        // 9. Verkaufszähler beim Original erhöhen
         if (in_array('marketplace_sales_count', $tableColumns)) {
             $stmt = $pdo->prepare("
                 UPDATE customer_freebies 
-                SET marketplace_sales_count = marketplace_sales_count + 1
+                SET marketplace_sales_count = COALESCE(marketplace_sales_count, 0) + 1
                 WHERE id = ?
             ");
             $stmt->execute([$sourceFreebie['id']]);
+            
+            logWebhook([
+                'info' => 'Sales counter updated',
+                'source_freebie_id' => $sourceFreebie['id']
+            ], 'info');
         }
         
         logWebhook([
@@ -383,6 +455,11 @@ function sendMarketplaceWelcomeEmail($email, $name, $password, $rawCode, $freebi
                         🚀 Jetzt einloggen
                     </a>
                 </div>
+                
+                <p style='margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px;'>
+                    Nach dem Login findest du dein gekauftes Freebie unter:<br>
+                    <strong>Meine Freebies</strong>
+                </p>
             </div>
         </div>
     </body>
