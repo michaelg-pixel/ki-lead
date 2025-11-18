@@ -1570,7 +1570,7 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
             }
         }
 
-        // 🆕 DATENSCHUTZ CHECKBOX VALIDIERUNG
+        // 🆕 DATENSCHUTZ CHECKBOX VALIDIERUNG - FALLBACK
         function validatePrivacyPopup() {
             const checkbox = document.getElementById('privacyCheckboxPopupFallback');
             if (!checkbox.checked) {
@@ -1580,37 +1580,64 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
             return true;
         }
 
-        // 🆕 FORM SUBMIT VALIDIERUNG FÜR RAW CODE FORMULARE
+        // 🔥 VERBESSERTE FORM SUBMIT VALIDIERUNG - FÄNGT ALLE FORMULARE AB
         document.addEventListener('DOMContentLoaded', function() {
-            // Popup Raw Code Form
-            const popupCheckbox = document.getElementById('privacyCheckboxPopup');
-            if (popupCheckbox) {
-                const popupForm = popupCheckbox.closest('form');
-                if (popupForm) {
-                    popupForm.addEventListener('submit', function(e) {
-                        if (!popupCheckbox.checked) {
+            console.log('🔧 Datenschutz-Validierung wird initialisiert...');
+            
+            // Funktion um alle Formulare in einem Container zu finden und zu validieren
+            function attachValidationToContainer(containerSelector, checkboxId) {
+                const container = document.querySelector(containerSelector);
+                if (!container) {
+                    console.log('❌ Container nicht gefunden:', containerSelector);
+                    return;
+                }
+                
+                const checkbox = document.getElementById(checkboxId);
+                if (!checkbox) {
+                    console.log('❌ Checkbox nicht gefunden:', checkboxId);
+                    return;
+                }
+                
+                // Finde ALLE Formulare im Container (auch verschachtelte)
+                const forms = container.querySelectorAll('form');
+                console.log('✅ Gefundene Formulare in', containerSelector, ':', forms.length);
+                
+                forms.forEach((form, index) => {
+                    console.log('  📝 Validierung wird an Formular', index + 1, 'angehängt');
+                    
+                    // Entferne alte Listener um Duplikate zu vermeiden
+                    const newForm = form.cloneNode(true);
+                    form.parentNode.replaceChild(newForm, form);
+                    
+                    // Füge neuen Submit-Listener hinzu
+                    newForm.addEventListener('submit', function(e) {
+                        console.log('🚀 Form Submit erkannt! Checkbox-Status:', checkbox.checked);
+                        
+                        if (!checkbox.checked) {
                             e.preventDefault();
-                            alert('Bitte akzeptieren Sie die Datenschutzerklärung, um fortzufahren.');
+                            e.stopPropagation();
+                            e.stopImmediatePropagation();
+                            alert('⚠️ Bitte akzeptieren Sie die Datenschutzerklärung, um fortzufahren.');
+                            checkbox.focus();
                             return false;
                         }
-                    });
-                }
+                        
+                        console.log('✅ Checkbox ist gecheckt - Formular wird abgesendet');
+                        return true;
+                    }, true); // true = useCapture, fängt Event früher ab
+                });
             }
-
-            // Direct Mode Raw Code Form
-            const directCheckbox = document.getElementById('privacyCheckboxDirect');
-            if (directCheckbox) {
-                const directForm = directCheckbox.closest('form');
-                if (directForm) {
-                    directForm.addEventListener('submit', function(e) {
-                        if (!directCheckbox.checked) {
-                            e.preventDefault();
-                            alert('Bitte akzeptieren Sie die Datenschutzerklärung, um fortzufahren.');
-                            return false;
-                        }
-                    });
-                }
-            }
+            
+            // Warte kurz damit dynamische Inhalte geladen sind
+            setTimeout(function() {
+                // POPUP MODE VALIDIERUNG
+                attachValidationToContainer('.popup-form-container', 'privacyCheckboxPopup');
+                
+                // DIRECT MODE VALIDIERUNG
+                attachValidationToContainer('.direct-form-container', 'privacyCheckboxDirect');
+                
+                console.log('✅ Datenschutz-Validierung erfolgreich initialisiert!');
+            }, 500);
         });
 
         // Show cookie banner on load
