@@ -7,24 +7,36 @@
 session_start();
 require_once __DIR__ . '/../config/database.php';
 
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    // Für normale Kunden auch erlauben
-    if (!isset($_SESSION['user_id'])) {
-        die('❌ Nicht eingeloggt');
-    }
+// Admin kann User ID als Parameter übergeben
+$isAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+$customer_id = $isAdmin && isset($_GET['user_id']) ? (int)$_GET['user_id'] : ($_SESSION['user_id'] ?? 0);
+
+if (!$customer_id) {
+    die('❌ Nicht eingeloggt');
 }
 
-$customer_id = $_SESSION['user_id'];
 $logs = [];
 $freebies_data = [];
+$user_info = null;
 
 try {
     $pdo = getDBConnection();
     
-    $logs[] = ['type' => 'info', 'msg' => "Eingeloggt als User ID: $customer_id"];
+    // User Info laden
+    $stmt = $pdo->prepare("SELECT id, name, email, role FROM users WHERE id = ?");
+    $stmt->execute([$customer_id]);
+    $user_info = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    // SCHRITT 1: Query ausführen
-    $logs[] = ['type' => 'info', 'msg' => 'Führe Query aus...'];
+    if (!$user_info) {
+        die('❌ User nicht gefunden');
+    }
+    
+    $logs[] = ['type' => 'info', 'msg' => "Analyse für User ID: $customer_id"];
+    $logs[] = ['type' => 'info', 'msg' => "Name: {$user_info['name']}"];
+    $logs[] = ['type' => 'info', 'msg' => "Email: {$user_info['email']}"];
+    
+    // SCHRITT 1: Query ausführen (EXAKT wie in freebies.php!)
+    $logs[] = ['type' => 'info', 'msg' => 'Führe Query aus (wie in freebies.php)...'];
     
     $stmt_custom = $pdo->prepare("
         SELECT * FROM customer_freebies 
@@ -43,6 +55,31 @@ try {
     
     if (empty($custom_freebies)) {
         $logs[] = ['type' => 'warning', 'msg' => 'Keine Freebies gefunden! Dashboard zeigt "Noch keine eigenen Freebies"'];
+        
+        // Zusätzliche Analyse: Gibt es überhaupt Freebies für diesen User?
+        $stmt_any = $pdo->prepare("SELECT COUNT(*) as count FROM customer_freebies WHERE customer_id = ?");
+        $stmt_any->execute([$customer_id]);
+        $anyCount = $stmt_any->fetchColumn();
+        
+        if ($anyCount > 0) {
+            $logs[] = ['type' => 'error', 'msg' => "ACHTUNG: Es gibt $anyCount Freebies für diesen User, aber sie erfüllen nicht die Query-Bedingungen!"];
+            
+            // Zeige diese Freebies
+            $stmt_all = $pdo->prepare("SELECT id, headline, freebie_type, copied_from_freebie_id, original_creator_id FROM customer_freebies WHERE customer_id = ?");
+            $stmt_all->execute([$customer_id]);
+            $allFreebies = $stmt_all->fetchAll(PDO::FETCH_ASSOC);
+            
+            $logs[] = ['type' => 'info', 'msg' => 'Freebies die NICHT in der Query sind:'];
+            foreach ($allFreebies as $f) {
+                $reason = [];
+                if ($f['freebie_type'] !== 'custom' && empty($f['copied_from_freebie_id']) && empty($f['original_creator_id'])) {
+                    $reason[] = 'freebie_type != custom';
+                    $reason[] = 'copied_from_freebie_id IS NULL';
+                    $reason[] = 'original_creator_id IS NULL';
+                }
+                $logs[] = ['type' => 'warning', 'msg' => "ID {$f['id']}: {$f['headline']} | Grund: " . implode(', ', $reason)];
+            }
+        }
     }
     
     // SCHRITT 2: Jedes Freebie analysieren
@@ -172,6 +209,13 @@ try {
         }
         .header h1 { font-size: 36px; color: #1a1a2e; margin-bottom: 12px; }
         .header p { color: #666; line-height: 1.6; }
+        .user-info {
+            background: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 16px;
+        }
         .card {
             background: white;
             padding: 40px;
@@ -249,6 +293,15 @@ try {
         <div class="header">
             <h1>🔍 Freebies Rendering Debug</h1>
             <p>Detaillierte Analyse warum Marktplatz-Freebies nicht im Dashboard angezeigt werden</p>
+            
+            <?php if ($user_info): ?>
+                <div class="user-info">
+                    <strong>Analysiert für:</strong><br>
+                    <?php echo htmlspecialchars($user_info['name']); ?> 
+                    (<?php echo htmlspecialchars($user_info['email']); ?>) 
+                    - User ID: <?php echo $user_info['id']; ?>
+                </div>
+            <?php endif; ?>
         </div>
         
         <div class="card">
