@@ -1,6 +1,6 @@
 <?php
 /**
- * MARKTPLATZ KAUFPROZESS TEST v2
+ * MARKTPLATZ KAUFPROZESS TEST v3
  * Simuliert einen DigiStore24-Kauf mit Realtime-Handling
  */
 
@@ -27,34 +27,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // === SCHRITT 1: Marktplatz-Freebie finden ===
         $testResults[] = ['step' => 1, 'title' => 'Marktplatz-Freebie suchen', 'status' => 'running'];
         
+        // Einfach ALLE Spalten laden, dann keine Fehler bei fehlenden Spalten
         $stmt = $pdo->prepare("
-            SELECT 
-                cf.id, 
-                cf.customer_id as seller_id,
-                cf.headline,
-                cf.marketplace_price,
-                cf.digistore_product_id,
-                cf.marketplace_sales_count,
-                cf.template_id,
-                cf.freebie_type,
-                cf.subheadline,
-                cf.preheadline,
-                cf.mockup_image_url,
-                cf.background_color,
-                cf.primary_color,
-                cf.cta_text,
-                cf.bullet_points,
-                cf.layout,
-                cf.email_field_text,
-                cf.button_text,
-                cf.privacy_checkbox_text,
-                cf.thank_you_headline,
-                cf.thank_you_message,
-                cf.course_id,
-                cf.niche
-            FROM customer_freebies cf
-            WHERE cf.digistore_product_id = ? 
-            AND cf.marketplace_enabled = 1
+            SELECT * FROM customer_freebies 
+            WHERE digistore_product_id = ? 
+            AND marketplace_enabled = 1
             LIMIT 1
         ");
         $stmt->execute([$productId]);
@@ -67,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $testResults[0]['status'] = 'success';
         $testResults[0]['data'] = [
             'freebie_id' => $freebie['id'],
-            'seller_id' => $freebie['seller_id'],
+            'seller_id' => $freebie['customer_id'],
             'headline' => $freebie['headline'],
             'price' => $freebie['marketplace_price'],
             'current_sales' => $freebie['marketplace_sales_count'] ?? 0
@@ -148,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Neues unique_id generieren
         $uniqueId = bin2hex(random_bytes(16));
         
-        // Freebie kopieren
+        // Nur die wichtigsten Felder kopieren
         $stmt = $pdo->prepare("
             INSERT INTO customer_freebies (
                 customer_id,
@@ -163,14 +140,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 cta_text,
                 bullet_points,
                 layout,
-                email_field_text,
-                button_text,
-                privacy_checkbox_text,
                 thank_you_headline,
                 thank_you_message,
-                email_provider,
-                email_api_key,
-                email_list_id,
                 course_id,
                 unique_id,
                 niche,
@@ -179,32 +150,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 marketplace_enabled,
                 created_at
             ) VALUES (
-                ?, ?, 'purchased', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                NULL, NULL, NULL, ?, ?, ?, ?, ?, 0, NOW()
+                ?, ?, 'purchased', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW()
             )
         ");
         
         $stmt->execute([
             $buyerId, // buyer's customer_id
-            $freebie['template_id'],
+            $freebie['template_id'] ?? null,
             $freebie['headline'],
-            $freebie['subheadline'],
-            $freebie['preheadline'],
-            $freebie['mockup_image_url'],
-            $freebie['background_color'],
-            $freebie['primary_color'],
-            $freebie['cta_text'],
-            $freebie['bullet_points'],
-            $freebie['layout'],
-            $freebie['email_field_text'],
-            $freebie['button_text'],
-            $freebie['privacy_checkbox_text'],
-            $freebie['thank_you_headline'],
-            $freebie['thank_you_message'],
-            $freebie['course_id'],
+            $freebie['subheadline'] ?? null,
+            $freebie['preheadline'] ?? null,
+            $freebie['mockup_image_url'] ?? null,
+            $freebie['background_color'] ?? '#ffffff',
+            $freebie['primary_color'] ?? '#667eea',
+            $freebie['cta_text'] ?? 'Jetzt herunterladen',
+            $freebie['bullet_points'] ?? null,
+            $freebie['layout'] ?? 'default',
+            $freebie['thank_you_headline'] ?? 'Vielen Dank!',
+            $freebie['thank_you_message'] ?? 'Du erhältst in Kürze eine E-Mail.',
+            $freebie['course_id'] ?? null,
             $uniqueId,
-            $freebie['niche'],
-            $freebie['seller_id'], // Original-Ersteller
+            $freebie['niche'] ?? null,
+            $freebie['customer_id'], // Original-Ersteller
             $freebie['id'] // Original-Freebie
         ]);
         
@@ -250,7 +217,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             FROM legal_texts 
             WHERE user_id = ?
         ");
-        $stmt->execute([$freebie['seller_id']]);
+        $stmt->execute([$freebie['customer_id']]);
         $legalTexts = $stmt->fetch(PDO::FETCH_ASSOC);
         
         $hasImpressum = $legalTexts && !empty(trim($legalTexts['impressum'] ?? ''));
@@ -258,11 +225,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $testResults[5]['status'] = $hasImpressum && $hasDatenschutz ? 'success' : 'warning';
         $testResults[5]['data'] = [
-            'seller_id' => $freebie['seller_id'],
+            'seller_id' => $freebie['customer_id'],
             'has_impressum' => $hasImpressum,
             'has_datenschutz' => $hasDatenschutz,
-            'impressum_link' => $hasImpressum ? "/impressum.php?user={$freebie['seller_id']}" : null,
-            'datenschutz_link' => $hasDatenschutz ? "/datenschutz.php?user={$freebie['seller_id']}" : null,
+            'impressum_link' => $hasImpressum ? "/impressum.php?user={$freebie['customer_id']}" : null,
+            'datenschutz_link' => $hasDatenschutz ? "/datenschutz.php?user={$freebie['customer_id']}" : null,
             'note' => !$hasImpressum || !$hasDatenschutz ? 'Verkäufer sollte Rechtstexte hinterlegen!' : 'Alle Rechtstexte vorhanden'
         ];
         
