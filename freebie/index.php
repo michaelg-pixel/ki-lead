@@ -400,6 +400,45 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
             margin-bottom: 0;
         }
         
+        /* 🆕 DATENSCHUTZ CHECKBOX STYLES */
+        .privacy-checkbox-container {
+            display: flex;
+            align-items: start;
+            gap: 12px;
+            margin-top: 16px;
+            padding: 16px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border: 2px solid #e5e7eb;
+        }
+        
+        .privacy-checkbox-container input[type="checkbox"] {
+            margin-top: 3px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            flex-shrink: 0;
+            accent-color: <?php echo $primary_color; ?>;
+        }
+        
+        .privacy-checkbox-label {
+            font-size: 13px;
+            color: #4b5563;
+            line-height: 1.5;
+            cursor: pointer;
+            font-family: '<?php echo $font_body; ?>', sans-serif;
+        }
+        
+        .privacy-checkbox-label a {
+            color: <?php echo $primary_color; ?>;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .privacy-checkbox-label a:hover {
+            text-decoration: underline;
+        }
+        
         /* Button Animations */
         @keyframes pulse {
             0%, 100% { transform: scale(1); }
@@ -451,6 +490,8 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
             padding: 40px;
             max-width: 500px;
             width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
             z-index: 9999;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             animation: slideUp 0.3s ease;
@@ -1076,12 +1117,20 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
         <?php if (!empty($email_optin_code)): ?>
             <div class="popup-form-container">
                 <?php echo $email_optin_code; ?>
+                
+                <!-- 🆕 DATENSCHUTZ CHECKBOX FÜR RAW CODE -->
+                <div class="privacy-checkbox-container">
+                    <input type="checkbox" id="privacyCheckboxPopup" required>
+                    <label for="privacyCheckboxPopup" class="privacy-checkbox-label">
+                        Ich habe die <a href="<?php echo $datenschutz_link; ?>" target="_blank">Datenschutzerklärung</a> zur Kenntnis genommen. Ich stimme zu, dass meine Angaben zur Kontaktaufnahme und für Rückfragen gespeichert werden.
+                    </label>
+                </div>
             </div>
         <?php else: ?>
             <!-- Fallback: Standard-Formular nur wenn KEIN Raw Code vorhanden -->
             <h2 class="popup-headline"><?php echo htmlspecialchars($optin_headline); ?></h2>
             <div class="popup-form-container">
-                <form method="POST" action="/freebie/thankyou.php">
+                <form method="POST" action="/freebie/thankyou.php" onsubmit="return validatePrivacyPopup()">
                     <input type="hidden" name="freebie_id" value="<?php echo htmlspecialchars($unique_id); ?>">
                     <input 
                         type="email" 
@@ -1090,6 +1139,15 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
                         required
                         style="width: 100%; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 16px;"
                     >
+                    
+                    <!-- 🆕 DATENSCHUTZ CHECKBOX -->
+                    <div class="privacy-checkbox-container">
+                        <input type="checkbox" id="privacyCheckboxPopupFallback" required>
+                        <label for="privacyCheckboxPopupFallback" class="privacy-checkbox-label">
+                            Ich habe die <a href="<?php echo $datenschutz_link; ?>" target="_blank">Datenschutzerklärung</a> zur Kenntnis genommen. Ich stimme zu, dass meine Angaben zur Kontaktaufnahme und für Rückfragen gespeichert werden.
+                        </label>
+                    </div>
+                    
                     <button type="submit" style="width: 100%; background: <?php echo $primary_color; ?>; color: white; padding: 16px 32px; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer;">
                         <?php echo htmlspecialchars($optin_button_text); ?>
                     </button>
@@ -1169,6 +1227,14 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
                         <?php if (!empty($email_optin_code)): ?>
                             <div class="direct-form-container">
                                 <?php echo $email_optin_code; ?>
+                                
+                                <!-- 🆕 DATENSCHUTZ CHECKBOX FÜR DIRECT MODE -->
+                                <div class="privacy-checkbox-container">
+                                    <input type="checkbox" id="privacyCheckboxDirect" required>
+                                    <label for="privacyCheckboxDirect" class="privacy-checkbox-label">
+                                        Ich habe die <a href="<?php echo $datenschutz_link; ?>" target="_blank">Datenschutzerklärung</a> zur Kenntnis genommen. Ich stimme zu, dass meine Angaben zur Kontaktaufnahme und für Rückfragen gespeichert werden.
+                                    </label>
+                                </div>
                             </div>
                         <?php else: ?>
                             <a href="/freebie/thankyou.php?id=<?php echo $unique_id; ?>" class="cta-button">
@@ -1248,6 +1314,14 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
                         <?php if (!empty($email_optin_code)): ?>
                             <div class="direct-form-container">
                                 <?php echo $email_optin_code; ?>
+                                
+                                <!-- 🆕 DATENSCHUTZ CHECKBOX FÜR DIRECT MODE -->
+                                <div class="privacy-checkbox-container">
+                                    <input type="checkbox" id="privacyCheckboxDirect" required>
+                                    <label for="privacyCheckboxDirect" class="privacy-checkbox-label">
+                                        Ich habe die <a href="<?php echo $datenschutz_link; ?>" target="_blank">Datenschutzerklärung</a> zur Kenntnis genommen. Ich stimme zu, dass meine Angaben zur Kontaktaufnahme und für Rückfragen gespeichert werden.
+                                    </label>
+                                </div>
                             </div>
                         <?php else: ?>
                             <a href="/freebie/thankyou.php?id=<?php echo $unique_id; ?>" class="cta-button">
@@ -1314,6 +1388,14 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
                         <?php if (!empty($email_optin_code)): ?>
                             <div class="direct-form-container">
                                 <?php echo $email_optin_code; ?>
+                                
+                                <!-- 🆕 DATENSCHUTZ CHECKBOX FÜR DIRECT MODE -->
+                                <div class="privacy-checkbox-container">
+                                    <input type="checkbox" id="privacyCheckboxDirect" required>
+                                    <label for="privacyCheckboxDirect" class="privacy-checkbox-label">
+                                        Ich habe die <a href="<?php echo $datenschutz_link; ?>" target="_blank">Datenschutzerklärung</a> zur Kenntnis genommen. Ich stimme zu, dass meine Angaben zur Kontaktaufnahme und für Rückfragen gespeichert werden.
+                                    </label>
+                                </div>
                             </div>
                         <?php else: ?>
                             <a href="/freebie/thankyou.php?id=<?php echo $unique_id; ?>" class="cta-button">
@@ -1487,6 +1569,49 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
                 window.location.href = '/freebie/thankyou.php?id=<?php echo $unique_id; ?>';
             }
         }
+
+        // 🆕 DATENSCHUTZ CHECKBOX VALIDIERUNG
+        function validatePrivacyPopup() {
+            const checkbox = document.getElementById('privacyCheckboxPopupFallback');
+            if (!checkbox.checked) {
+                alert('Bitte akzeptieren Sie die Datenschutzerklärung, um fortzufahren.');
+                return false;
+            }
+            return true;
+        }
+
+        // 🆕 FORM SUBMIT VALIDIERUNG FÜR RAW CODE FORMULARE
+        document.addEventListener('DOMContentLoaded', function() {
+            // Popup Raw Code Form
+            const popupCheckbox = document.getElementById('privacyCheckboxPopup');
+            if (popupCheckbox) {
+                const popupForm = popupCheckbox.closest('form');
+                if (popupForm) {
+                    popupForm.addEventListener('submit', function(e) {
+                        if (!popupCheckbox.checked) {
+                            e.preventDefault();
+                            alert('Bitte akzeptieren Sie die Datenschutzerklärung, um fortzufahren.');
+                            return false;
+                        }
+                    });
+                }
+            }
+
+            // Direct Mode Raw Code Form
+            const directCheckbox = document.getElementById('privacyCheckboxDirect');
+            if (directCheckbox) {
+                const directForm = directCheckbox.closest('form');
+                if (directForm) {
+                    directForm.addEventListener('submit', function(e) {
+                        if (!directCheckbox.checked) {
+                            e.preventDefault();
+                            alert('Bitte akzeptieren Sie die Datenschutzerklärung, um fortzufahren.');
+                            return false;
+                        }
+                    });
+                }
+            }
+        });
 
         // Show cookie banner on load
         window.addEventListener('load', function() {
