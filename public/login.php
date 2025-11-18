@@ -1,5 +1,10 @@
 <?php
-session_start();
+// Sichere Session-Konfiguration laden - MUSS vor session_start() sein!
+require_once '../config/security.php';
+
+// Starte sichere Session mit 90-Tage Konfiguration
+startSecureSession();
+
 require_once '../config/database.php';
 
 $error = '';
@@ -9,6 +14,7 @@ $success = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
+    $remember_me = isset($_POST['remember_me']); // Optional: "Angemeldet bleiben" Checkbox
     
     if (empty($email) || empty($password)) {
         $error = 'Bitte E-Mail und Passwort eingeben';
@@ -23,12 +29,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (isset($user['is_active']) && $user['is_active'] == 0) {
                     $error = 'Dein Account wurde deaktiviert';
                 } else {
+                    // Session regenerieren für zusätzliche Sicherheit nach Login
+                    session_regenerate_id(true);
+                    
                     // Login erfolgreich - Session-Variablen setzen
                     $_SESSION['user_id'] = $user['id'];
                     $_SESSION['email'] = $user['email'];
                     $_SESSION['role'] = $user['role'];
                     $_SESSION['name'] = $user['name'] ?? $user['email'];
                     $_SESSION['logged_in'] = true; // WICHTIG: für isLoggedIn() Funktion
+                    $_SESSION['login_time'] = time();
+                    
+                    // Aktualisiere Zeitstempel für Session-Verwaltung
+                    $_SESSION['last_regeneration'] = time();
+                    $_SESSION['last_activity'] = time();
                     
                     // Try to update last login (if column exists)
                     try {
@@ -38,8 +52,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         // Column doesn't exist, ignore
                     }
                     
-                    // Weiterleitung basierend auf Rolle
-                    if ($user['role'] === 'admin') {
+                    // Prüfe ob eine Redirect-URL gespeichert war
+                    $redirect_url = $_SESSION['redirect_after_login'] ?? null;
+                    unset($_SESSION['redirect_after_login']);
+                    
+                    // Weiterleitung basierend auf Rolle oder gespeicherter URL
+                    if ($redirect_url && strpos($redirect_url, '/public/') === false) {
+                        // Redirect zur ursprünglichen Seite (außer Login-Seiten)
+                        header('Location: ' . $redirect_url);
+                        exit;
+                    } elseif ($user['role'] === 'admin') {
                         header('Location: ../admin/dashboard.php');
                         exit;
                     } else {
@@ -49,6 +71,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             } else {
                 $error = 'E-Mail oder Passwort falsch';
+                // Kleiner Delay bei fehlgeschlagenem Login (Brute-Force Schutz)
+                sleep(1);
             }
         } catch (Exception $e) {
             $error = 'Login-Fehler: ' . $e->getMessage();
@@ -134,21 +158,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
         
-        .forgot-password {
-            text-align: right;
+        .remember-forgot-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-top: -16px;
             margin-bottom: 20px;
+            font-size: 13px;
+        }
+        
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #6b7280;
+        }
+        
+        .remember-me input[type="checkbox"] {
+            cursor: pointer;
         }
         
         .forgot-password a {
             color: #667eea;
             text-decoration: none;
-            font-size: 13px;
             font-weight: 500;
         }
         
         .forgot-password a:hover {
             text-decoration: underline;
+        }
+        
+        .session-info {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #0c4a6e;
+            text-align: center;
+        }
+        
+        .session-info strong {
+            color: #075985;
         }
         
         .btn-login {
@@ -216,6 +268,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <p>Willkommen zurück!</p>
         </div>
         
+        <div class="session-info">
+            ✨ Nach dem Login bleibst du <strong>90 Tage</strong> automatisch angemeldet!
+        </div>
+        
         <?php if ($error): ?>
         <div class="alert alert-error">
             ⚠️ <?php echo htmlspecialchars($error); ?>
@@ -242,8 +298,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                        placeholder="••••••••" required>
             </div>
             
-            <div class="forgot-password">
-                <a href="password-reset-request.php">🔐 Passwort vergessen?</a>
+            <div class="remember-forgot-row">
+                <label class="remember-me">
+                    <input type="checkbox" name="remember_me" checked>
+                    <span>Angemeldet bleiben</span>
+                </label>
+                <div class="forgot-password">
+                    <a href="password-reset-request.php">🔐 Passwort vergessen?</a>
+                </div>
             </div>
             
             <button type="submit" class="btn-login">
