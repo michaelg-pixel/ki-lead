@@ -123,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Neues unique_id generieren
         $uniqueId = bin2hex(random_bytes(16));
         
-        // NUR die wichtigsten Basis-Felder kopieren
+        // NUR die wichtigsten Basis-Felder kopieren (freebie_type vom Original übernehmen!)
         $stmt = $pdo->prepare("
             INSERT INTO customer_freebies (
                 customer_id,
@@ -135,7 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 marketplace_enabled,
                 created_at
             ) VALUES (
-                ?, ?, ?, 'purchased', ?, ?, 0, NOW()
+                ?, ?, ?, ?, ?, ?, 0, NOW()
             )
         ");
         
@@ -143,6 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $buyerId,
             $freebie['headline'],
             $uniqueId,
+            $freebie['freebie_type'] ?? 'custom', // Vom Original übernehmen!
             $freebie['customer_id'], // Original-Ersteller
             $freebie['id'] // Original-Freebie
         ]);
@@ -183,7 +184,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'copied_freebie_id' => $copiedId,
             'unique_id' => $uniqueId,
             'freebie_link' => $freebieLink,
-            'headline' => $freebie['headline']
+            'headline' => $freebie['headline'],
+            'freebie_type' => $freebie['freebie_type'] ?? 'custom'
         ];
         
         // === SCHRITT 5: Verkaufszähler erhöhen ===
