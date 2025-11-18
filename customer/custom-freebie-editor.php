@@ -17,7 +17,7 @@ $stmt->execute([$customer_id]);
 $limitData = $stmt->fetch(PDO::FETCH_ASSOC);
 $freebieLimit = $limitData['freebie_limit'] ?? 0;
 
-// Anzahl eigener Freebies (alle ohne template_id - inkl. Marktplatz-Käufe)
+// Anzahl eigener Freebies (ALLE ohne template_id - inkl. Marktplatz-Käufe)
 $stmt = $pdo->prepare("SELECT COUNT(*) FROM customer_freebies WHERE customer_id = ? AND template_id IS NULL");
 $stmt->execute([$customer_id]);
 $customCount = $stmt->fetchColumn();
@@ -245,3 +245,7 @@ foreach ($google_fonts as $name => $family) {
     $google_fonts_urls[$name] = "https://fonts.googleapis.com/css2?family={$family}&display=swap";
 }
 ?>
+<!DOCTYPE html>
+<html lang="de">
+<!-- REST DER DATEI VON VOR MEINEM FEHLER MUSS HIER REIN -->
+</html>
