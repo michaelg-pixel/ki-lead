@@ -1,7 +1,7 @@
 <?php
 /**
- * Enhanced Webhook Handler - VERSION 4.3
- * SMART: Kopiert ALLE existierenden Spalten dynamisch
+ * Enhanced Webhook Handler - VERSION 4.4
+ * FIX: Removed freebie_type from INSERT - not needed for marketplace purchases
  */
 
 require_once '../config/database.php';
@@ -241,7 +241,8 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
             'marketplace_enabled',  // wird auf 0 gesetzt für Kopie
             'marketplace_sales_count',  // startet bei 0
             'digistore_product_id',  // wird entfernt bei Kopie
-            'digistore_order_id'  // wird mit aktuellem Order-ID ersetzt
+            'digistore_order_id',  // wird mit aktuellem Order-ID ersetzt
+            'freebie_type'  // WICHTIG: Nicht kopieren, da Feld möglicherweise ENUM oder zu kurz ist
         ];
         
         // 6. ALLE Felder kopieren die existieren UND nicht ausgeschlossen sind
@@ -251,12 +252,6 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
         // customer_id setzen
         $fieldsToCopy[] = 'customer_id';
         $values[] = $buyerId;
-        
-        // freebie_type setzen
-        if (in_array('freebie_type', $tableColumns)) {
-            $fieldsToCopy[] = 'freebie_type';
-            $values[] = 'purchased';
-        }
         
         // ALLE Felder aus Source-Freebie durchgehen
         foreach ($fullSourceFreebie as $field => $value) {
