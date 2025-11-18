@@ -1,7 +1,7 @@
 <?php
 /**
- * Enhanced Webhook Handler - VERSION 4.1
- * FIXED: Nur existierende Spalten werden kopiert
+ * Enhanced Webhook Handler - VERSION 4.2
+ * SMART: Kopiert nur Spalten die existieren
  */
 
 require_once '../config/database.php';
@@ -71,7 +71,6 @@ function handleNewCustomer($pdo, $data) {
     $name = trim(($data['buyer']['first_name'] ?? '') . ' ' . ($data['buyer']['last_name'] ?? ''));
     $orderId = $data['order_id'] ?? '';
     $productId = $data['product_id'] ?? '';
-    $productName = $data['product_name'] ?? '';
     
     if (empty($email) || empty($productId)) {
         throw new Exception('Email and Product ID are required');
@@ -89,7 +88,7 @@ function handleNewCustomer($pdo, $data) {
     $legacyProduct = getProductConfig($pdo, $productId);
     
     if ($legacyProduct) {
-        processLegacyWebhook($pdo, $legacyProduct, $email, $name, $orderId, $productId, $productName, $data);
+        processLegacyWebhook($pdo, $legacyProduct, $email, $name, $orderId, $productId, $data);
         return;
     }
     
@@ -139,7 +138,16 @@ function checkMarketplacePurchase($pdo, $productId) {
 }
 
 /**
- * MARKTPLATZ: Kauf verarbeiten - NUR EXISTIERENDE SPALTEN!
+ * Holt alle existierenden Spalten der Tabelle
+ */
+function getTableColumns($pdo, $table) {
+    $stmt = $pdo->query("DESCRIBE $table");
+    $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    return $columns;
+}
+
+/**
+ * MARKTPLATZ: SMART - Kopiert nur existierende Spalten
  */
 function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $sourceFreebie, $orderId) {
     logWebhook([
@@ -209,94 +217,118 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
             return;
         }
         
-        // 3. ALLE Felder des Original-Freebies laden
+        // 3. Original-Freebie ALLE Felder laden
         $stmt = $pdo->prepare("SELECT * FROM customer_freebies WHERE id = ?");
         $stmt->execute([$sourceFreebie['id']]);
         $fullSourceFreebie = $stmt->fetch(PDO::FETCH_ASSOC);
         
+        // 4. Tabellenstruktur prüfen - welche Spalten existieren?
+        $tableColumns = getTableColumns($pdo, 'customer_freebies');
+        
+        // 5. Felder die wir kopieren wollen (ALLE potentiellen Felder)
+        $desiredFields = [
+            'headline',
+            'subheadline',
+            'preheadline',
+            'bullet_points',
+            'mockup_image_url',
+            'background_color',
+            'primary_color',
+            'cta_text',
+            'layout',
+            'niche',
+            'course_id',
+            'template_id'
+        ];
+        
+        // 6. NUR die Felder kopieren die EXISTIEREN
+        $fieldsToCopy = [];
+        $values = [];
+        
+        // customer_id ist immer dabei
+        $fieldsToCopy[] = 'customer_id';
+        $values[] = $buyerId;
+        
+        // freebie_type
+        $fieldsToCopy[] = 'freebie_type';
+        $values[] = 'purchased';
+        
+        // Nur existierende gewünschte Felder
+        foreach ($desiredFields as $field) {
+            if (in_array($field, $tableColumns) && isset($fullSourceFreebie[$field])) {
+                $fieldsToCopy[] = $field;
+                $values[] = $fullSourceFreebie[$field];
+            }
+        }
+        
+        // unique_id generieren
+        if (in_array('unique_id', $tableColumns)) {
+            $fieldsToCopy[] = 'unique_id';
+            $values[] = bin2hex(random_bytes(16));
+        }
+        
+        // Marketplace-spezifische Felder
+        if (in_array('original_creator_id', $tableColumns)) {
+            $fieldsToCopy[] = 'original_creator_id';
+            $values[] = $fullSourceFreebie['customer_id'];
+        }
+        
+        if (in_array('copied_from_freebie_id', $tableColumns)) {
+            $fieldsToCopy[] = 'copied_from_freebie_id';
+            $values[] = $fullSourceFreebie['id'];
+        }
+        
+        if (in_array('marketplace_enabled', $tableColumns)) {
+            $fieldsToCopy[] = 'marketplace_enabled';
+            $values[] = 0;
+        }
+        
+        if (in_array('digistore_order_id', $tableColumns)) {
+            $fieldsToCopy[] = 'digistore_order_id';
+            $values[] = $orderId;
+        }
+        
+        // created_at
+        $fieldsToCopy[] = 'created_at';
+        $values[] = date('Y-m-d H:i:s');
+        
+        // SQL Query dynamisch bauen
+        $placeholders = array_fill(0, count($values), '?');
+        $sql = "INSERT INTO customer_freebies (" . implode(', ', $fieldsToCopy) . ") 
+                VALUES (" . implode(', ', $placeholders) . ")";
+        
         logWebhook([
-            'info' => 'Source freebie loaded',
-            'fields_count' => count($fullSourceFreebie),
-            'has_bullet_points' => !empty($fullSourceFreebie['bullet_points']),
-            'has_mockup' => !empty($fullSourceFreebie['mockup_image_url'])
+            'info' => 'Dynamic INSERT prepared',
+            'fields_count' => count($fieldsToCopy),
+            'fields' => $fieldsToCopy
         ], 'info');
         
-        // 4. Unique ID generieren
-        $uniqueId = bin2hex(random_bytes(16));
-        
-        // 5. FREEBIE KOPIEREN - NUR EXISTIERENDE SPALTEN!
-        // ENTFERNT: email_field_text, button_text, privacy_checkbox_text, thank_you_message
-        $stmt = $pdo->prepare("
-            INSERT INTO customer_freebies (
-                customer_id,
-                template_id,
-                freebie_type,
-                headline,
-                subheadline,
-                preheadline,
-                mockup_image_url,
-                background_color,
-                primary_color,
-                cta_text,
-                bullet_points,
-                layout,
-                thank_you_headline,
-                course_id,
-                unique_id,
-                niche,
-                original_creator_id,
-                copied_from_freebie_id,
-                marketplace_enabled,
-                digistore_order_id,
-                created_at
-            ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, NOW()
-            )
-        ");
-        
-        $stmt->execute([
-            $buyerId,                                      // customer_id
-            $fullSourceFreebie['template_id'],            // template_id
-            'purchased',                                   // freebie_type
-            $fullSourceFreebie['headline'],                // headline
-            $fullSourceFreebie['subheadline'],            // subheadline
-            $fullSourceFreebie['preheadline'],            // preheadline
-            $fullSourceFreebie['mockup_image_url'],       // mockup_image_url
-            $fullSourceFreebie['background_color'],       // background_color
-            $fullSourceFreebie['primary_color'],          // primary_color
-            $fullSourceFreebie['cta_text'],               // cta_text
-            $fullSourceFreebie['bullet_points'],          // bullet_points
-            $fullSourceFreebie['layout'],                 // layout
-            $fullSourceFreebie['thank_you_headline'],     // thank_you_headline
-            $fullSourceFreebie['course_id'],              // course_id
-            $uniqueId,                                     // unique_id
-            $fullSourceFreebie['niche'],                  // niche
-            $fullSourceFreebie['customer_id'],            // original_creator_id
-            $fullSourceFreebie['id'],                     // copied_from_freebie_id
-            $orderId                                       // digistore_order_id
-        ]);
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($values);
         
         $newFreebieId = $pdo->lastInsertId();
         
         logWebhook([
             'success' => 'Freebie copied successfully',
             'new_freebie_id' => $newFreebieId,
-            'buyer_id' => $buyerId
+            'buyer_id' => $buyerId,
+            'fields_copied' => count($fieldsToCopy)
         ], 'success');
         
-        // 6. Verkaufszähler erhöhen
-        $stmt = $pdo->prepare("
-            UPDATE customer_freebies 
-            SET marketplace_sales_count = marketplace_sales_count + 1
-            WHERE id = ?
-        ");
-        $stmt->execute([$sourceFreebie['id']]);
+        // Verkaufszähler erhöhen
+        if (in_array('marketplace_sales_count', $tableColumns)) {
+            $stmt = $pdo->prepare("
+                UPDATE customer_freebies 
+                SET marketplace_sales_count = marketplace_sales_count + 1
+                WHERE id = ?
+            ");
+            $stmt->execute([$sourceFreebie['id']]);
+        }
         
         logWebhook([
             'success' => 'Marketplace purchase completed',
             'buyer_email' => $buyerEmail,
-            'new_freebie_id' => $newFreebieId,
-            'original_freebie_id' => $sourceFreebie['id']
+            'new_freebie_id' => $newFreebieId
         ], 'success');
         
     } catch (Exception $e) {
@@ -364,8 +396,8 @@ function sendMarketplaceWelcomeEmail($email, $name, $password, $rawCode, $freebi
     mail($email, $subject, $message, $headers);
 }
 
-// Stub functions (nicht verwendet aber benötigt)
+// Stub functions
 function processFlexibleWebhook($pdo, $config, $email, $name, $orderId, $productId, $data) {}
-function processLegacyWebhook($pdo, $product, $email, $name, $orderId, $productId, $productName, $data) {}
+function processLegacyWebhook($pdo, $product, $email, $name, $orderId, $productId, $data) {}
 function handleRefund($pdo, $data) {}
 function handleSubscriptionEnd($pdo, $data) {}
