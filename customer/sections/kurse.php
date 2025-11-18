@@ -77,6 +77,125 @@ $locked_courses = $stmt->fetchAll();
         color: #9ca3af;
     }
     
+    /* SUCHFELD STYLES */
+    .search-container {
+        margin-bottom: 32px;
+        position: relative;
+    }
+    
+    .search-wrapper {
+        position: relative;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    .search-input {
+        width: 100%;
+        padding: 16px 56px 16px 52px;
+        background: linear-gradient(135deg, #1e1e3f 0%, #2a2a4f 100%);
+        border: 2px solid rgba(168, 85, 247, 0.3);
+        border-radius: 16px;
+        font-size: 16px;
+        color: white;
+        outline: none;
+        transition: all 0.3s ease;
+    }
+    
+    .search-input::placeholder {
+        color: #9ca3af;
+    }
+    
+    .search-input:focus {
+        border-color: rgba(168, 85, 247, 0.6);
+        box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.1);
+    }
+    
+    .search-icon {
+        position: absolute;
+        left: 18px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 20px;
+        pointer-events: none;
+    }
+    
+    .search-clear {
+        position: absolute;
+        right: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(168, 85, 247, 0.2);
+        border: none;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 18px;
+        color: white;
+        transition: all 0.2s;
+    }
+    
+    .search-clear:hover {
+        background: rgba(168, 85, 247, 0.4);
+    }
+    
+    .search-clear.active {
+        display: flex;
+    }
+    
+    .search-results-info {
+        text-align: center;
+        margin-top: 12px;
+        font-size: 14px;
+        color: #9ca3af;
+        display: none;
+    }
+    
+    .search-results-info.active {
+        display: block;
+    }
+    
+    .search-results-count {
+        color: #a855f7;
+        font-weight: 600;
+    }
+    
+    /* NO RESULTS MESSAGE */
+    .no-results {
+        text-align: center;
+        padding: 60px 20px;
+        background: linear-gradient(135deg, #1e1e3f 0%, #2a2a4f 100%);
+        border: 2px dashed rgba(168, 85, 247, 0.3);
+        border-radius: 16px;
+        margin: 40px 0;
+        display: none;
+    }
+    
+    .no-results.active {
+        display: block;
+    }
+    
+    .no-results-icon {
+        font-size: 64px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+    
+    .no-results-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: white;
+        margin-bottom: 8px;
+    }
+    
+    .no-results-text {
+        font-size: 14px;
+        color: #9ca3af;
+    }
+    
     .section-title {
         font-size: 20px;
         font-weight: 600;
@@ -121,6 +240,15 @@ $locked_courses = $stmt->fetchAll();
     
     .course-card.locked:hover {
         transform: translateY(-2px);
+    }
+    
+    /* HIDE/SHOW FOR SEARCH */
+    .course-card.hidden {
+        display: none;
+    }
+    
+    .courses-section.hidden {
+        display: none;
     }
     
     /* VERBESSERTE THUMBNAIL DARSTELLUNG */
@@ -384,6 +512,55 @@ $locked_courses = $stmt->fetchAll();
             font-size: 14px;
         }
         
+        /* MOBILE SEARCH */
+        .search-container {
+            margin-bottom: 24px;
+        }
+        
+        .search-wrapper {
+            max-width: 100%;
+        }
+        
+        .search-input {
+            padding: 14px 48px 14px 44px;
+            font-size: 15px;
+            border-radius: 12px;
+        }
+        
+        .search-icon {
+            left: 14px;
+            font-size: 18px;
+        }
+        
+        .search-clear {
+            right: 12px;
+            width: 28px;
+            height: 28px;
+            font-size: 16px;
+        }
+        
+        .search-results-info {
+            font-size: 13px;
+            margin-top: 10px;
+        }
+        
+        .no-results {
+            padding: 40px 20px;
+            margin: 24px 0;
+        }
+        
+        .no-results-icon {
+            font-size: 48px;
+        }
+        
+        .no-results-title {
+            font-size: 18px;
+        }
+        
+        .no-results-text {
+            font-size: 13px;
+        }
+        
         .section-title {
             font-size: 18px;
             margin-bottom: 16px;
@@ -509,6 +686,15 @@ $locked_courses = $stmt->fetchAll();
             font-size: 13px;
         }
         
+        .search-container {
+            margin-bottom: 20px;
+        }
+        
+        .search-input {
+            padding: 12px 44px 12px 40px;
+            font-size: 14px;
+        }
+        
         .section-title {
             font-size: 16px;
         }
@@ -572,182 +758,213 @@ $locked_courses = $stmt->fetchAll();
         <p class="page-subtitle">Greife auf deine Freebie-Kurse und gekauften Kurse zu</p>
     </div>
     
+    <!-- SUCHFELD -->
+    <div class="search-container">
+        <div class="search-wrapper">
+            <span class="search-icon">🔍</span>
+            <input 
+                type="text" 
+                id="courseSearch" 
+                class="search-input" 
+                placeholder="Kurse durchsuchen..." 
+                autocomplete="off"
+            >
+            <button class="search-clear" id="searchClear" aria-label="Suche löschen">×</button>
+        </div>
+        <div class="search-results-info" id="searchResultsInfo"></div>
+    </div>
+    
+    <!-- NO RESULTS MESSAGE -->
+    <div class="no-results" id="noResults">
+        <div class="no-results-icon">🔍</div>
+        <div class="no-results-title">Keine Kurse gefunden</div>
+        <div class="no-results-text">Versuche es mit anderen Suchbegriffen</div>
+    </div>
+    
     <?php if (count($accessible_courses) > 0): ?>
-        <h2 class="section-title">
-            ✅ Verfügbare Kurse
-        </h2>
-        <div class="courses-grid">
-            <?php foreach ($accessible_courses as $course): 
-                $progress = $course['total_lessons'] > 0 
-                    ? round(($course['completed_lessons'] / $course['total_lessons']) * 100) 
-                    : 0;
-            ?>
-                <div class="course-card">
-                    <!-- Thumbnail -->
-                    <div class="course-thumbnail">
-                        <?php if ($course['mockup_url']): ?>
-                            <img src="<?php echo htmlspecialchars($course['mockup_url']); ?>" 
-                                 alt="<?php echo htmlspecialchars($course['title']); ?>">
-                        <?php else: ?>
-                            <div class="course-placeholder">
-                                <?php echo $course['type'] === 'pdf' ? '📄' : '🎥'; ?>
-                            </div>
-                        <?php endif; ?>
-                        
-                        <!-- Type Badge -->
-                        <div class="badge-type">
-                            <?php echo $course['type'] === 'pdf' ? '📄 PDF' : '🎥 Video'; ?>
-                        </div>
-                        
-                        <!-- Freebie Badge -->
-                        <?php if ($course['is_freebie']): ?>
-                            <div class="course-badge badge-freebie">
-                                🎁 Kostenlos
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                    
-                    <!-- Content -->
-                    <div class="course-content">
-                        <h3 class="course-title"><?php echo htmlspecialchars($course['title']); ?></h3>
-                        
-                        <p class="course-description">
-                            <?php echo htmlspecialchars(substr($course['description'] ?? 'Keine Beschreibung', 0, 120)); ?>
-                            <?php echo strlen($course['description'] ?? '') > 120 ? '...' : ''; ?>
-                        </p>
-                        
-                        <!-- Stats -->
-                        <div class="course-stats">
-                            <?php if ($course['type'] === 'video'): ?>
-                                <div class="course-stat">
-                                    <span>📂</span>
-                                    <span><?php echo $course['module_count']; ?> Module</span>
-                                </div>
-                                <div class="course-stat">
-                                    <span>📝</span>
-                                    <span><?php echo $course['total_lessons']; ?> Lektionen</span>
-                                </div>
+        <div class="courses-section" id="accessibleSection">
+            <h2 class="section-title">
+                ✅ Verfügbare Kurse
+            </h2>
+            <div class="courses-grid" id="accessibleCoursesGrid">
+                <?php foreach ($accessible_courses as $course): 
+                    $progress = $course['total_lessons'] > 0 
+                        ? round(($course['completed_lessons'] / $course['total_lessons']) * 100) 
+                        : 0;
+                ?>
+                    <div class="course-card" 
+                         data-title="<?php echo htmlspecialchars(strtolower($course['title'])); ?>" 
+                         data-description="<?php echo htmlspecialchars(strtolower($course['description'] ?? '')); ?>">
+                        <!-- Thumbnail -->
+                        <div class="course-thumbnail">
+                            <?php if ($course['mockup_url']): ?>
+                                <img src="<?php echo htmlspecialchars($course['mockup_url']); ?>" 
+                                     alt="<?php echo htmlspecialchars($course['title']); ?>">
                             <?php else: ?>
-                                <div class="course-stat">
-                                    <span>📄</span>
-                                    <span>PDF-Dokument</span>
+                                <div class="course-placeholder">
+                                    <?php echo $course['type'] === 'pdf' ? '📄' : '🎥'; ?>
                                 </div>
                             <?php endif; ?>
-                            <?php if ($course['access_source']): ?>
-                                <div class="course-stat">
-                                    <span>✓</span>
-                                    <span><?php echo ucfirst($course['access_source']); ?></span>
+                            
+                            <!-- Type Badge -->
+                            <div class="badge-type">
+                                <?php echo $course['type'] === 'pdf' ? '📄 PDF' : '🎥 Video'; ?>
+                            </div>
+                            
+                            <!-- Freebie Badge -->
+                            <?php if ($course['is_freebie']): ?>
+                                <div class="course-badge badge-freebie">
+                                    🎁 Kostenlos
                                 </div>
                             <?php endif; ?>
                         </div>
                         
-                        <!-- Progress (nur für Video-Kurse) -->
-                        <?php if ($course['type'] === 'video' && $course['total_lessons'] > 0): ?>
-                            <div class="course-progress">
-                                <div class="progress-label">
-                                    <span>Fortschritt</span>
-                                    <span><strong><?php echo $course['completed_lessons']; ?></strong> / <?php echo $course['total_lessons']; ?></span>
-                                </div>
-                                <div class="progress-bar">
-                                    <div class="progress-fill" style="width: <?php echo $progress; ?>%;"></div>
-                                </div>
+                        <!-- Content -->
+                        <div class="course-content">
+                            <h3 class="course-title"><?php echo htmlspecialchars($course['title']); ?></h3>
+                            
+                            <p class="course-description">
+                                <?php echo htmlspecialchars(substr($course['description'] ?? 'Keine Beschreibung', 0, 120)); ?>
+                                <?php echo strlen($course['description'] ?? '') > 120 ? '...' : ''; ?>
+                            </p>
+                            
+                            <!-- Stats -->
+                            <div class="course-stats">
+                                <?php if ($course['type'] === 'video'): ?>
+                                    <div class="course-stat">
+                                        <span>📂</span>
+                                        <span><?php echo $course['module_count']; ?> Module</span>
+                                    </div>
+                                    <div class="course-stat">
+                                        <span>📝</span>
+                                        <span><?php echo $course['total_lessons']; ?> Lektionen</span>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="course-stat">
+                                        <span>📄</span>
+                                        <span>PDF-Dokument</span>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if ($course['access_source']): ?>
+                                    <div class="course-stat">
+                                        <span>✓</span>
+                                        <span><?php echo ucfirst($course['access_source']); ?></span>
+                                    </div>
+                                <?php endif; ?>
                             </div>
-                        <?php endif; ?>
-                        
-                        <!-- Action Button -->
-                        <a href="/customer/course-player.php?id=<?php echo $course['id']; ?>" 
-                           class="course-action <?php echo $progress > 0 ? 'btn-continue' : 'btn-start'; ?>">
-                            <?php if ($progress > 0): ?>
-                                <span>▶️</span>
-                                <span>Weiter lernen (<?php echo $progress; ?>%)</span>
-                            <?php else: ?>
-                                <span>🚀</span>
-                                <span>Kurs starten</span>
+                            
+                            <!-- Progress (nur für Video-Kurse) -->
+                            <?php if ($course['type'] === 'video' && $course['total_lessons'] > 0): ?>
+                                <div class="course-progress">
+                                    <div class="progress-label">
+                                        <span>Fortschritt</span>
+                                        <span><strong><?php echo $course['completed_lessons']; ?></strong> / <?php echo $course['total_lessons']; ?></span>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: <?php echo $progress; ?>%;"></div>
+                                    </div>
+                                </div>
                             <?php endif; ?>
-                        </a>
+                            
+                            <!-- Action Button -->
+                            <a href="/customer/course-player.php?id=<?php echo $course['id']; ?>" 
+                               class="course-action <?php echo $progress > 0 ? 'btn-continue' : 'btn-start'; ?>">
+                                <?php if ($progress > 0): ?>
+                                    <span>▶️</span>
+                                    <span>Weiter lernen (<?php echo $progress; ?>%)</span>
+                                <?php else: ?>
+                                    <span>🚀</span>
+                                    <span>Kurs starten</span>
+                                <?php endif; ?>
+                            </a>
+                        </div>
                     </div>
-                </div>
-            <?php endforeach; ?>
+                <?php endforeach; ?>
+            </div>
         </div>
     <?php endif; ?>
     
     <?php if (count($locked_courses) > 0): ?>
         <?php if (count($accessible_courses) > 0): ?>
-            <div class="section-divider"></div>
+            <div class="section-divider" id="sectionDivider"></div>
         <?php endif; ?>
         
-        <h2 class="section-title">
-            🔒 Weitere Premium-Kurse
-        </h2>
-        <div class="courses-grid">
-            <?php foreach ($locked_courses as $course): ?>
-                <div class="course-card locked">
-                    <!-- Lock Overlay -->
-                    <div class="lock-overlay">🔒</div>
-                    
-                    <!-- Thumbnail -->
-                    <div class="course-thumbnail">
-                        <?php if ($course['mockup_url']): ?>
-                            <img src="<?php echo htmlspecialchars($course['mockup_url']); ?>" 
-                                 alt="<?php echo htmlspecialchars($course['title']); ?>">
-                        <?php else: ?>
-                            <div class="course-placeholder">
-                                <?php echo $course['type'] === 'pdf' ? '📄' : '🎥'; ?>
-                            </div>
-                        <?php endif; ?>
+        <div class="courses-section" id="lockedSection">
+            <h2 class="section-title">
+                🔒 Weitere Premium-Kurse
+            </h2>
+            <div class="courses-grid" id="lockedCoursesGrid">
+                <?php foreach ($locked_courses as $course): ?>
+                    <div class="course-card locked" 
+                         data-title="<?php echo htmlspecialchars(strtolower($course['title'])); ?>" 
+                         data-description="<?php echo htmlspecialchars(strtolower($course['description'] ?? '')); ?>">
+                        <!-- Lock Overlay -->
+                        <div class="lock-overlay">🔒</div>
                         
-                        <!-- Type Badge -->
-                        <div class="badge-type">
-                            <?php echo $course['type'] === 'pdf' ? '📄 PDF' : '🎥 Video'; ?>
-                        </div>
-                        
-                        <!-- Locked Badge -->
-                        <div class="course-badge badge-locked">
-                            🔒 Premium
-                        </div>
-                    </div>
-                    
-                    <!-- Content -->
-                    <div class="course-content">
-                        <h3 class="course-title"><?php echo htmlspecialchars($course['title']); ?></h3>
-                        
-                        <p class="course-description">
-                            <?php echo htmlspecialchars(substr($course['description'] ?? 'Keine Beschreibung', 0, 120)); ?>
-                            <?php echo strlen($course['description'] ?? '') > 120 ? '...' : ''; ?>
-                        </p>
-                        
-                        <!-- Stats -->
-                        <div class="course-stats">
-                            <?php if ($course['type'] === 'video'): ?>
-                                <div class="course-stat">
-                                    <span>📂</span>
-                                    <span><?php echo $course['module_count']; ?> Module</span>
-                                </div>
+                        <!-- Thumbnail -->
+                        <div class="course-thumbnail">
+                            <?php if ($course['mockup_url']): ?>
+                                <img src="<?php echo htmlspecialchars($course['mockup_url']); ?>" 
+                                     alt="<?php echo htmlspecialchars($course['title']); ?>">
                             <?php else: ?>
-                                <div class="course-stat">
-                                    <span>📄</span>
-                                    <span>PDF-Dokument</span>
+                                <div class="course-placeholder">
+                                    <?php echo $course['type'] === 'pdf' ? '📄' : '🎥'; ?>
                                 </div>
                             <?php endif; ?>
+                            
+                            <!-- Type Badge -->
+                            <div class="badge-type">
+                                <?php echo $course['type'] === 'pdf' ? '📄 PDF' : '🎥 Video'; ?>
+                            </div>
+                            
+                            <!-- Locked Badge -->
+                            <div class="course-badge badge-locked">
+                                🔒 Premium
+                            </div>
                         </div>
                         
-                        <!-- Buy Button -->
-                        <?php if ($course['digistore_product_id']): ?>
-                            <a href="https://www.digistore24.com/product/<?php echo htmlspecialchars($course['digistore_product_id']); ?>" 
-                               target="_blank"
-                               class="course-action btn-buy">
-                                <span>🛒</span>
-                                <span>Jetzt freischalten</span>
-                            </a>
-                        <?php else: ?>
-                            <button class="course-action btn-buy" disabled style="opacity: 0.5; cursor: not-allowed;">
-                                <span>🔒</span>
-                                <span>Nicht verfügbar</span>
-                            </button>
-                        <?php endif; ?>
+                        <!-- Content -->
+                        <div class="course-content">
+                            <h3 class="course-title"><?php echo htmlspecialchars($course['title']); ?></h3>
+                            
+                            <p class="course-description">
+                                <?php echo htmlspecialchars(substr($course['description'] ?? 'Keine Beschreibung', 0, 120)); ?>
+                                <?php echo strlen($course['description'] ?? '') > 120 ? '...' : ''; ?>
+                            </p>
+                            
+                            <!-- Stats -->
+                            <div class="course-stats">
+                                <?php if ($course['type'] === 'video'): ?>
+                                    <div class="course-stat">
+                                        <span>📂</span>
+                                        <span><?php echo $course['module_count']; ?> Module</span>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="course-stat">
+                                        <span>📄</span>
+                                        <span>PDF-Dokument</span>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <!-- Buy Button -->
+                            <?php if ($course['digistore_product_id']): ?>
+                                <a href="https://www.digistore24.com/product/<?php echo htmlspecialchars($course['digistore_product_id']); ?>" 
+                                   target="_blank"
+                                   class="course-action btn-buy">
+                                    <span>🛒</span>
+                                    <span>Jetzt freischalten</span>
+                                </a>
+                            <?php else: ?>
+                                <button class="course-action btn-buy" disabled style="opacity: 0.5; cursor: not-allowed;">
+                                    <span>🔒</span>
+                                    <span>Nicht verfügbar</span>
+                                </button>
+                            <?php endif; ?>
+                        </div>
                     </div>
-                </div>
-            <?php endforeach; ?>
+                <?php endforeach; ?>
+            </div>
         </div>
     <?php endif; ?>
     
@@ -761,3 +978,117 @@ $locked_courses = $stmt->fetchAll();
         </div>
     <?php endif; ?>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('courseSearch');
+    const searchClear = document.getElementById('searchClear');
+    const searchResultsInfo = document.getElementById('searchResultsInfo');
+    const noResults = document.getElementById('noResults');
+    const accessibleSection = document.getElementById('accessibleSection');
+    const lockedSection = document.getElementById('lockedSection');
+    const sectionDivider = document.getElementById('sectionDivider');
+    
+    // Alle Kurskarten
+    const allCourseCards = document.querySelectorAll('.course-card');
+    
+    // Suche durchführen
+    function performSearch() {
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        
+        // Clear Button anzeigen/verstecken
+        if (searchTerm) {
+            searchClear.classList.add('active');
+        } else {
+            searchClear.classList.remove('active');
+            searchResultsInfo.classList.remove('active');
+            noResults.classList.remove('active');
+            
+            // Alle Karten und Sektionen wieder anzeigen
+            allCourseCards.forEach(card => card.classList.remove('hidden'));
+            if (accessibleSection) accessibleSection.classList.remove('hidden');
+            if (lockedSection) lockedSection.classList.remove('hidden');
+            if (sectionDivider) sectionDivider.style.display = 'block';
+            return;
+        }
+        
+        let visibleCount = 0;
+        let accessibleVisible = 0;
+        let lockedVisible = 0;
+        
+        // Durch alle Kurskarten filtern
+        allCourseCards.forEach(card => {
+            const title = card.getAttribute('data-title') || '';
+            const description = card.getAttribute('data-description') || '';
+            
+            // Prüfen ob Suchbegriff in Titel oder Beschreibung vorkommt
+            if (title.includes(searchTerm) || description.includes(searchTerm)) {
+                card.classList.remove('hidden');
+                visibleCount++;
+                
+                // Zählen in welcher Sektion
+                if (card.closest('#accessibleCoursesGrid')) {
+                    accessibleVisible++;
+                } else if (card.closest('#lockedCoursesGrid')) {
+                    lockedVisible++;
+                }
+            } else {
+                card.classList.add('hidden');
+            }
+        });
+        
+        // Sektionen verstecken wenn leer
+        if (accessibleSection) {
+            if (accessibleVisible === 0) {
+                accessibleSection.classList.add('hidden');
+            } else {
+                accessibleSection.classList.remove('hidden');
+            }
+        }
+        
+        if (lockedSection) {
+            if (lockedVisible === 0) {
+                lockedSection.classList.add('hidden');
+            } else {
+                lockedSection.classList.remove('hidden');
+            }
+        }
+        
+        // Divider verstecken wenn eine Sektion versteckt ist
+        if (sectionDivider) {
+            if (accessibleVisible === 0 || lockedVisible === 0) {
+                sectionDivider.style.display = 'none';
+            } else {
+                sectionDivider.style.display = 'block';
+            }
+        }
+        
+        // Ergebnis-Info anzeigen
+        if (visibleCount === 0) {
+            noResults.classList.add('active');
+            searchResultsInfo.classList.remove('active');
+        } else {
+            noResults.classList.remove('active');
+            searchResultsInfo.classList.add('active');
+            searchResultsInfo.innerHTML = `<span class="search-results-count">${visibleCount}</span> ${visibleCount === 1 ? 'Kurs' : 'Kurse'} gefunden`;
+        }
+    }
+    
+    // Event Listener
+    searchInput.addEventListener('input', performSearch);
+    
+    searchClear.addEventListener('click', function() {
+        searchInput.value = '';
+        searchInput.focus();
+        performSearch();
+    });
+    
+    // Enter-Taste behandeln
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            searchInput.value = '';
+            performSearch();
+        }
+    });
+});
+</script>
