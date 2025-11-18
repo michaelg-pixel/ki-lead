@@ -306,6 +306,29 @@ if (!defined('INCLUDED_FROM_DASHBOARD')) {
                 <i class="fas fa-external-link-alt"></i>
             </a>
         </div>
+        
+        <!-- Freebie Landingpage Text Generator - NEU -->
+        <div class="tool-card">
+            <div class="tool-icon">📝</div>
+            <h3 class="tool-title">Freebie Landingpage Text Generator</h3>
+            <p class="tool-description">
+                Erstellt überzeugende Texte und Bulletpoints für deine Freebie Landingpages, die du direkt in den Sitebuilder des Optin Piloten kopieren kannst.
+            </p>
+            <div class="tool-features">
+                <div class="tool-features-title">Beispiel Funktionen:</div>
+                <div class="feature-item">Verkaufsstarke Headlines generieren</div>
+                <div class="feature-item">Überzeugende Bulletpoints erstellen</div>
+                <div class="feature-item">Call-to-Action Texte optimieren</div>
+                <div class="feature-item">Direkt kopierbar für Sitebuilder</div>
+            </div>
+            <a href="https://chatgpt.com/g/g-6914b6642bd88191894dd1e5f3fa96e1-texte-fur-deine-eigenen-freebies-erstellen" 
+               target="_blank" 
+               rel="noopener noreferrer" 
+               class="tool-button">
+                <span>Tool öffnen</span>
+                <i class="fas fa-external-link-alt"></i>
+            </a>
+        </div>
     </div>
 </div>
 
