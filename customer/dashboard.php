@@ -1,8 +1,15 @@
 <?php
-session_start();
+// Sichere Session-Konfiguration laden - MUSS vor session_start() sein!
+require_once __DIR__ . '/../config/security.php';
 
-// Login-Check
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
+// Starte sichere Session mit 90-Tage Konfiguration
+startSecureSession();
+
+// Login-Check mit sicherer Funktion
+requireLogin('/public/login.php');
+
+// Zusätzliche Rollen-Prüfung für Customer
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'customer') {
     header('Location: /public/login.php');
     exit;
 }
