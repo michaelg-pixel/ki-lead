@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // === SCHRITT 1: Marktplatz-Freebie finden ===
         $testResults[] = ['step' => 1, 'title' => 'Marktplatz-Freebie suchen', 'status' => 'running'];
         
-        // Einfach ALLE Spalten laden, dann keine Fehler bei fehlenden Spalten
+        // Alle Spalten laden
         $stmt = $pdo->prepare("
             SELECT * FROM customer_freebies 
             WHERE digistore_product_id = ? 
@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // === SCHRITT 2: Käufer-Account prüfen/erstellen ===
         $testResults[] = ['step' => 2, 'title' => 'Käufer-Account prüfen/erstellen', 'status' => 'running'];
         
-        $stmt = $pdo->prepare("SELECT id, name, email FROM customers WHERE email = ?");
+        $stmt = $pdo->prepare("SELECT id, name, email FROM users WHERE email = ?");
         $stmt->execute([$buyerEmail]);
         $buyer = $stmt->fetch(PDO::FETCH_ASSOC);
         
@@ -67,9 +67,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $password = 'Test' . rand(1000, 9999);
             $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
             
-            // Customer erstellen
+            // User erstellen (keine separate customers Tabelle!)
             $stmt = $pdo->prepare("
-                INSERT INTO customers (name, email, password, role, is_active, raw_code, source, created_at)
+                INSERT INTO users (name, email, password, role, is_active, raw_code, source, created_at)
                 VALUES (?, ?, ?, 'customer', 1, ?, 'marketplace_test', NOW())
             ");
             
@@ -88,14 +88,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'email' => $buyerEmail,
                 'password' => $password,
                 'raw_code' => $rawCode,
-                'customer_id' => $buyerId
+                'user_id' => $buyerId
             ];
         } else {
             $buyerId = $buyer['id'];
             $credentials = [
                 'email' => $buyerEmail,
                 'existing_account' => true,
-                'customer_id' => $buyerId
+                'user_id' => $buyerId
             ];
         }
         
@@ -155,7 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ");
         
         $stmt->execute([
-            $buyerId, // buyer's customer_id
+            $buyerId, // buyer's user_id (customer_id in customer_freebies)
             $freebie['template_id'] ?? null,
             $freebie['headline'],
             $freebie['subheadline'] ?? null,
@@ -296,7 +296,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🧪 Marktplatz Kaufprozess Test v2</title>
+    <title>🧪 Marktplatz Kaufprozess Test v3</title>
     <style>
         * {
             margin: 0;
@@ -608,7 +608,7 @@ try {
 <body>
     <div class="container">
         <div class="header">
-            <h1>🧪 Marktplatz Kaufprozess Test v2</h1>
+            <h1>🧪 Marktplatz Kaufprozess Test v3</h1>
             <p>Simuliert einen DigiStore24-Kauf mit Realtime-Handling</p>
         </div>
         
