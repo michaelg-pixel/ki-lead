@@ -1,7 +1,7 @@
 <?php
 /**
- * MARKTPLATZ KAUFPROZESS TEST
- * Simuliert einen DigiStore24-Kauf und zeigt jeden Schritt
+ * MARKTPLATZ KAUFPROZESS TEST - VERSION 2
+ * Simuliert einen DigiStore24-Kauf mit flexiblem Spalten-Handling
  */
 
 session_start();
@@ -117,8 +117,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $testResults[2]['status'] = 'success';
         $testResults[2]['data'] = ['duplicate' => false];
         
-        // SCHRITT 4: Freebie kopieren
-        $testResults[] = ['step' => 4, 'title' => 'Freebie kopieren', 'status' => 'running'];
+        // SCHRITT 3.5: Tabellen-Struktur analysieren
+        $testResults[] = ['step' => '3.5', 'title' => 'Tabellen-Struktur analysieren', 'status' => 'running'];
+        
+        $stmt = $pdo->query("DESCRIBE customer_freebies");
+        $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        $testResults[3]['status'] = 'success';
+        $testResults[3]['data'] = ['available_columns' => $columns];
+        
+        // SCHRITT 4: Freebie kopieren (FLEXIBEL)
+        $testResults[] = ['step' => 4, 'title' => 'Freebie kopieren (flexibel)', 'status' => 'running'];
         
         // Original-Freebie komplett laden
         $stmt = $pdo->prepare("SELECT * FROM customer_freebies WHERE id = ?");
@@ -128,65 +137,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Neues unique_id generieren
         $uniqueId = bin2hex(random_bytes(16));
         
-        // Freebie kopieren
-        $stmt = $pdo->prepare("
-            INSERT INTO customer_freebies (
-                customer_id,
-                template_id,
-                freebie_type,
-                headline,
-                subheadline,
-                preheadline,
-                mockup_image_url,
-                background_color,
-                primary_color,
-                cta_text,
-                bullet_points,
-                layout,
-                email_field_text,
-                button_text,
-                privacy_checkbox_text,
-                thank_you_headline,
-                thank_you_message,
-                email_provider,
-                email_api_key,
-                email_list_id,
-                course_id,
-                unique_id,
-                niche,
-                original_creator_id,
-                copied_from_freebie_id,
-                marketplace_enabled,
-                created_at
-            ) VALUES (
-                ?, ?, 'purchased', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                NULL, NULL, NULL, ?, ?, ?, ?, ?, 0, NOW()
-            )
-        ");
+        // MINIMALE SPALTEN die IMMER vorhanden sein sollten
+        $coreFields = [
+            'customer_id' => $buyerId,
+            'freebie_type' => 'purchased',
+            'headline' => $source['headline'] ?? 'Gekauftes Freebie',
+            'unique_id' => $uniqueId,
+            'original_creator_id' => $source['customer_id'],
+            'copied_from_freebie_id' => $freebie['id'],
+            'marketplace_enabled' => 0,
+            'created_at' => 'NOW()'
+        ];
         
-        $stmt->execute([
-            $buyerId,
-            $source['template_id'],
-            $source['headline'],
-            $source['subheadline'],
-            $source['preheadline'],
-            $source['mockup_image_url'],
-            $source['background_color'],
-            $source['primary_color'],
-            $source['cta_text'],
-            $source['bullet_points'],
-            $source['layout'],
-            $source['email_field_text'],
-            $source['button_text'],
-            $source['privacy_checkbox_text'],
-            $source['thank_you_headline'],
-            $source['thank_you_message'],
-            $source['course_id'],
-            $uniqueId,
-            $source['niche'],
-            $source['customer_id'], // Original-Ersteller
-            $freebie['id'] // Original-Freebie
-        ]);
+        // OPTIONALE FELDER die kopiert werden wenn vorhanden
+        $optionalFields = [
+            'template_id', 'subheadline', 'preheadline', 'mockup_image_url',
+            'background_color', 'primary_color', 'cta_text', 'bullet_points',
+            'layout', 'thank_you_headline', 'thank_you_message', 'course_id', 'niche'
+        ];
+        
+        $insertFields = $coreFields;
+        
+        foreach ($optionalFields as $field) {
+            if (in_array($field, $columns) && isset($source[$field])) {
+                $insertFields[$field] = $source[$field];
+            }
+        }
+        
+        // SQL dynamisch aufbauen
+        $fieldNames = array_keys($insertFields);
+        $placeholders = array_map(function($f) {
+            return $f === 'created_at' ? 'NOW()' : '?';
+        }, $fieldNames);
+        
+        $sql = "INSERT INTO customer_freebies (" . 
+               implode(', ', $fieldNames) . 
+               ") VALUES (" . 
+               implode(', ', $placeholders) . 
+               ")";
+        
+        // Values ohne created_at (das ist NOW())
+        $values = array_filter($insertFields, fn($k) => $k !== 'created_at', ARRAY_FILTER_USE_KEY);
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute(array_values($values));
         
         $copiedId = $pdo->lastInsertId();
         
@@ -195,12 +189,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $domain = $_SERVER['HTTP_HOST'];
         $freebieLink = $protocol . '://' . $domain . '/freebie/index.php?id=' . $uniqueId;
         
-        $testResults[3]['status'] = 'success';
-        $testResults[3]['data'] = [
+        $testResults[4]['status'] = 'success';
+        $testResults[4]['data'] = [
             'copied_id' => $copiedId,
             'unique_id' => $uniqueId,
             'freebie_link' => $freebieLink,
-            'headline' => $source['headline']
+            'headline' => $source['headline'],
+            'fields_copied' => count($insertFields),
+            'sql' => $sql
         ];
         
         // SCHRITT 5: Verkaufszähler erhöhen
@@ -208,13 +204,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $stmt = $pdo->prepare("
             UPDATE customer_freebies 
-            SET marketplace_sales_count = marketplace_sales_count + 1
+            SET marketplace_sales_count = COALESCE(marketplace_sales_count, 0) + 1
             WHERE id = ?
         ");
         $stmt->execute([$freebie['id']]);
         
-        $testResults[4]['status'] = 'success';
-        $testResults[4]['data'] = ['old_count' => $freebie['marketplace_sales_count'] ?? 0, 'new_count' => ($freebie['marketplace_sales_count'] ?? 0) + 1];
+        $testResults[5]['status'] = 'success';
+        $testResults[5]['data'] = [
+            'old_count' => $freebie['marketplace_sales_count'] ?? 0, 
+            'new_count' => ($freebie['marketplace_sales_count'] ?? 0) + 1
+        ];
         
         // SCHRITT 6: Rechtstexte prüfen
         $testResults[] = ['step' => 6, 'title' => 'Rechtstexte für Thank-You-Page prüfen', 'status' => 'running'];
@@ -230,13 +229,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $hasImpressum = $legalTexts && !empty(trim($legalTexts['impressum']));
         $hasDatenschutz = $legalTexts && !empty(trim($legalTexts['datenschutz']));
         
-        $testResults[5]['status'] = $hasImpressum && $hasDatenschutz ? 'success' : 'warning';
-        $testResults[5]['data'] = [
+        $testResults[6]['status'] = $hasImpressum && $hasDatenschutz ? 'success' : 'warning';
+        $testResults[6]['data'] = [
             'seller_id' => $freebie['customer_id'],
             'has_impressum' => $hasImpressum,
             'has_datenschutz' => $hasDatenschutz,
             'impressum_link' => $hasImpressum ? "/impressum.php?user={$freebie['customer_id']}" : null,
             'datenschutz_link' => $hasDatenschutz ? "/datenschutz.php?user={$freebie['customer_id']}" : null
+        ];
+        
+        // SCHRITT 7: Zugriff prüfen
+        $testResults[] = ['step' => 7, 'title' => 'Käufer-Zugriff verifizieren', 'status' => 'running'];
+        
+        $stmt = $pdo->prepare("
+            SELECT id, headline, unique_id, freebie_type
+            FROM customer_freebies 
+            WHERE customer_id = ? AND id = ?
+        ");
+        $stmt->execute([$buyerId, $copiedId]);
+        $verifyFreebie = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        $testResults[7]['status'] = 'success';
+        $testResults[7]['data'] = [
+            'freebie_found' => (bool)$verifyFreebie,
+            'details' => $verifyFreebie,
+            'dashboard_url' => "https://app.mehr-infos-jetzt.de/customer/dashboard.php?page=freebies"
         ];
         
         // ERFOLGSMELDUNG
@@ -246,17 +263,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'status' => 'success',
             'data' => [
                 'message' => 'Der Marktplatz-Kaufprozess funktioniert korrekt!',
+                'buyer_email' => $buyerEmail,
+                'buyer_password' => $buyer['password'] ?? 'Bestand bereits',
+                'login_url' => 'https://app.mehr-infos-jetzt.de/public/login.php',
                 'next_steps' => [
-                    'Käufer kann sich jetzt einloggen',
-                    'Freebie ist unter "Landingpages" sichtbar',
-                    'Freebie kann bearbeitet und personalisiert werden',
-                    'Thank-You-Page zeigt Rechtstexte des Verkäufers'
+                    '1. Einloggen mit: ' . $buyerEmail,
+                    '2. Dashboard → Landingpages öffnen',
+                    '3. Gekauftes Freebie sollte dort sichtbar sein',
+                    '4. Freebie kann bearbeitet werden',
+                    '5. Thank-You-Page zeigt Rechtstexte des Verkäufers'
                 ]
             ]
         ];
         
     } catch (Exception $e) {
         $errors[] = $e->getMessage();
+        $errors[] = "Trace: " . $e->getTraceAsString();
     }
 }
 
@@ -284,7 +306,7 @@ $availableFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🧪 Marktplatz Kaufprozess Test</title>
+    <title>🧪 Marktplatz Kaufprozess Test v2</title>
     <style>
         * {
             margin: 0;
@@ -460,8 +482,11 @@ $availableFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
             margin-bottom: 12px;
         }
         
-        .error-box p {
+        .error-box pre {
             color: #7f1d1d;
+            font-size: 12px;
+            overflow-x: auto;
+            white-space: pre-wrap;
         }
         
         .available-freebies {
@@ -515,6 +540,23 @@ $availableFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
             margin-bottom: 16px;
         }
         
+        .login-credentials {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+        
+        .login-credentials div {
+            padding: 8px 0;
+            font-size: 16px;
+        }
+        
+        .login-credentials strong {
+            display: inline-block;
+            min-width: 120px;
+        }
+        
         .next-steps {
             background: rgba(255, 255, 255, 0.2);
             padding: 20px;
@@ -545,8 +587,8 @@ $availableFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <body>
     <div class="container">
         <div class="header">
-            <h1>🧪 Marktplatz Kaufprozess Test</h1>
-            <p>Simuliert einen DigiStore24-Kauf und zeigt jeden Schritt des Prozesses</p>
+            <h1>🧪 Marktplatz Kaufprozess Test v2</h1>
+            <p>Simuliert einen DigiStore24-Kauf mit flexiblem Spalten-Handling</p>
         </div>
         
         <?php if (!empty($availableFreebies)): ?>
@@ -596,7 +638,7 @@ $availableFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <div class="error-box">
                 <h3>❌ Fehler</h3>
                 <?php foreach ($errors as $error): ?>
-                    <p><?php echo htmlspecialchars($error); ?></p>
+                    <pre><?php echo htmlspecialchars($error); ?></pre>
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
@@ -610,6 +652,15 @@ $availableFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <div class="final-success">
                             <h2><?php echo $result['title']; ?></h2>
                             <p style="font-size: 18px; margin-bottom: 8px;"><?php echo $result['data']['message']; ?></p>
+                            
+                            <?php if (isset($result['data']['buyer_password'])): ?>
+                                <div class="login-credentials">
+                                    <h3 style="margin-bottom: 12px;">🔑 Login-Daten:</h3>
+                                    <div><strong>E-Mail:</strong> <?php echo htmlspecialchars($result['data']['buyer_email']); ?></div>
+                                    <div><strong>Passwort:</strong> <?php echo htmlspecialchars($result['data']['buyer_password']); ?></div>
+                                    <div><strong>Login-URL:</strong> <a href="<?php echo $result['data']['login_url']; ?>" style="color: white; text-decoration: underline;" target="_blank">Jetzt einloggen</a></div>
+                                </div>
+                            <?php endif; ?>
                             
                             <div class="next-steps">
                                 <h3 style="margin-bottom: 12px;">Nächste Schritte:</h3>
