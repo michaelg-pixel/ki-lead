@@ -492,7 +492,8 @@ $company_name = $freebie['company_name'] ?? 'Dashboard';
             <ul>
                 <li>Verwende die E-Mail-Adresse, mit der du dich zukünftig einloggen möchtest</li>
                 <li>Speichere diese Seite als Lesezeichen für einfachen Zugang</li>
-                <li>Du erhältst bei jedem Login einen Link per E-Mail</li>
+                <li>Du erhältst keinen Link per E-Mail</li>
+                <li>Mit deiner E-Mail bekommst Du Zugang zu deinen Freebie Kursen</li>
             </ul>
         </div>
         
