@@ -482,46 +482,87 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
             font-size: 24px;
             font-weight: 700;
             color: <?php echo $primary_color; ?>;
-            margin-bottom: 24px;
+            margin-bottom: 16px;
             font-family: '<?php echo $font_heading; ?>', sans-serif;
+            text-align: center;
         }
         
-        .popup-form {
+        .popup-message {
+            font-size: 16px;
+            color: #6b7280;
+            margin-bottom: 24px;
+            text-align: center;
+            line-height: 1.5;
+        }
+        
+        /* 🔥 POPUP FORM CONTAINER - GLEICHE STYLES WIE DIRECT */
+        .popup-form-container {
+            text-align: left;
+        }
+        
+        .popup-form-container form {
             display: flex;
             flex-direction: column;
             gap: 16px;
         }
         
-        .popup-input {
+        .popup-form-container label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 6px;
+            font-family: '<?php echo $font_body; ?>', sans-serif;
+        }
+        
+        .popup-form-container input[type="text"],
+        .popup-form-container input[type="email"],
+        .popup-form-container input[type="tel"],
+        .popup-form-container input[type="number"] {
+            width: 100%;
             padding: 14px 16px;
             border: 2px solid #e5e7eb;
             border-radius: 8px;
             font-size: 16px;
             font-family: '<?php echo $font_body; ?>', sans-serif;
-            transition: border-color 0.2s;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background: white;
         }
         
-        .popup-input:focus {
+        .popup-form-container input[type="text"]:focus,
+        .popup-form-container input[type="email"]:focus,
+        .popup-form-container input[type="tel"]:focus,
+        .popup-form-container input[type="number"]:focus {
             outline: none;
             border-color: <?php echo $primary_color; ?>;
+            box-shadow: 0 0 0 3px <?php echo $primary_color; ?>20;
         }
         
-        .popup-button {
+        .popup-form-container input[type="submit"],
+        .popup-form-container button[type="submit"] {
+            width: 100%;
             background: <?php echo $primary_color; ?>;
             color: white;
-            padding: 16px;
+            padding: 16px 32px;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             font-size: 16px;
             font-weight: 700;
+            font-family: '<?php echo $font_body; ?>', sans-serif;
             cursor: pointer;
             transition: all 0.3s;
-            font-family: '<?php echo $font_body; ?>', sans-serif;
+            margin-top: 8px;
         }
         
-        .popup-button:hover {
+        .popup-form-container input[type="submit"]:hover,
+        .popup-form-container button[type="submit"]:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 10px 25px <?php echo $primary_color; ?>40;
+        }
+        
+        .popup-form-container > form > div,
+        .popup-form-container > form > p {
+            margin-bottom: 0;
         }
         
         @keyframes fadeIn {
@@ -1021,25 +1062,40 @@ $optin_email_placeholder = $freebie['optin_email_placeholder'] ?? 'Deine E-Mail-
         </div>
     </div>
 
-    <!-- Email Optin Popup -->
+    <!-- Email Optin Popup - 🔥 FIX: ZEIGE RAW CODE AUCH IM POPUP -->
     <?php if ($optin_display_mode === 'popup'): ?>
     <div id="popupOverlay" class="popup-overlay" onclick="closePopup()"></div>
     <div id="popupContainer" class="popup-container">
         <button class="popup-close" onclick="closePopup()">&times;</button>
-        <h2 class="popup-headline"><?php echo htmlspecialchars($optin_headline); ?></h2>
-        <form class="popup-form" id="optinForm" method="POST" action="/freebie/thankyou.php">
-            <input type="hidden" name="freebie_id" value="<?php echo htmlspecialchars($unique_id); ?>">
-            <input 
-                type="email" 
-                name="email" 
-                class="popup-input" 
-                placeholder="<?php echo htmlspecialchars($optin_email_placeholder); ?>" 
-                required
-            >
-            <button type="submit" class="popup-button">
-                <?php echo htmlspecialchars($optin_button_text); ?>
-            </button>
-        </form>
+        
+        <?php if (!empty($popup_message)): ?>
+            <div class="popup-message"><?php echo htmlspecialchars($popup_message); ?></div>
+        <?php endif; ?>
+        
+        <!-- 🔥 FIX: RAW CODE WIRD AUCH IM POPUP VERWENDET -->
+        <?php if (!empty($email_optin_code)): ?>
+            <div class="popup-form-container">
+                <?php echo $email_optin_code; ?>
+            </div>
+        <?php else: ?>
+            <!-- Fallback: Standard-Formular nur wenn KEIN Raw Code vorhanden -->
+            <h2 class="popup-headline"><?php echo htmlspecialchars($optin_headline); ?></h2>
+            <div class="popup-form-container">
+                <form method="POST" action="/freebie/thankyou.php">
+                    <input type="hidden" name="freebie_id" value="<?php echo htmlspecialchars($unique_id); ?>">
+                    <input 
+                        type="email" 
+                        name="email" 
+                        placeholder="<?php echo htmlspecialchars($optin_email_placeholder); ?>" 
+                        required
+                        style="width: 100%; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 16px;"
+                    >
+                    <button type="submit" style="width: 100%; background: <?php echo $primary_color; ?>; color: white; padding: 16px 32px; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer;">
+                        <?php echo htmlspecialchars($optin_button_text); ?>
+                    </button>
+                </form>
+            </div>
+        <?php endif; ?>
     </div>
     <?php endif; ?>
 
