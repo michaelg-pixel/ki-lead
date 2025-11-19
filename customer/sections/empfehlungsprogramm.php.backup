@@ -1,0 +1,210 @@
+<?php
+/**
+ * Customer Dashboard - Empfehlungsprogramm Section
+ * MIT INTEGRIERTER API-KONFIGURATION
+ * Zeigt API-Setup wenn Empfehlungsprogramm aktiviert wird
+ * 
+ * BACKUP ERSTELLT AM: 2025-11-19 vor Button-Erweiterung
+ */
+
+// Sicherstellen, dass Session aktiv ist
+if (!isset($customer_id)) {
+    die('Nicht autorisiert');
+}
+
+// Provider-Klassen laden
+require_once __DIR__ . '/../includes/EmailProviders.php';
+
+// Benutzer-Details laden
+try {
+    $stmt = $pdo->prepare("
+        SELECT 
+            referral_enabled,
+            ref_code,
+            company_name,
+            company_email,
+            company_imprint_html
+        FROM users 
+        WHERE id = ?
+    ");
+    $stmt->execute([$customer_id]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$user) {
+        throw new Exception("User nicht gefunden");
+    }
+    
+    // API-Einstellungen laden
+    $stmt_api = $pdo->prepare("
+        SELECT * FROM customer_email_api_settings 
+        WHERE customer_id = ? AND is_active = TRUE
+        LIMIT 1
+    ");
+    $stmt_api->execute([$customer_id]);
+    $api_settings = $stmt_api->fetch(PDO::FETCH_ASSOC);
+    
+    // API-Key maskieren wenn vorhanden
+    if ($api_settings && !empty($api_settings['api_key'])) {
+        $api_settings['api_key_masked'] = '••••••••' . substr($api_settings['api_key'], -4);
+    }
+    
+    // EMPFEHLUNGS-SLOTS LADEN
+    $stmt_slots = $pdo->prepare("
+        SELECT 
+            total_slots,
+            used_slots,
+            product_name,
+            source,
+            updated_at
+        FROM customer_referral_slots 
+        WHERE customer_id = ?
+    ");
+    $stmt_slots->execute([$customer_id]);
+    $slots_data = $stmt_slots->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$slots_data) {
+        $slots_data = [
+            'total_slots' => 0,
+            'used_slots' => 0,
+            'product_name' => 'Nicht zugewiesen',
+            'source' => 'webhook',
+            'updated_at' => null
+        ];
+    }
+    
+    $total_slots = (int)$slots_data['total_slots'];
+    $used_slots = (int)$slots_data['used_slots'];
+    $available_slots = max(0, $total_slots - $used_slots);
+    
+    // Statistiken
+    $stmt_stats = $pdo->prepare("
+        SELECT 
+            COUNT(*) as total_leads,
+            SUM(CASE WHEN referrer_code IS NOT NULL THEN 1 ELSE 0 END) as referred_leads,
+            SUM(total_referrals) as total_referrals,
+            SUM(successful_referrals) as successful_referrals
+        FROM lead_users 
+        WHERE user_id = ?
+    ");
+    $stmt_stats->execute([$customer_id]);
+    $stats = $stmt_stats->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$stats) {
+        $stats = [
+            'total_leads' => 0,
+            'referred_leads' => 0,
+            'total_referrals' => 0,
+            'successful_referrals' => 0
+        ];
+    }
+    
+    // Freebies laden
+    $stmt_custom = $pdo->prepare("
+        SELECT 
+            cf.id as customer_freebie_id,
+            cf.unique_id,
+            cf.headline as title,
+            cf.subheadline as description,
+            cf.mockup_image_url as image_path,
+            cf.created_at,
+            'custom' as freebie_source,
+            (SELECT COUNT(*) FROM reward_definitions WHERE freebie_id = cf.id AND user_id = ?) as reward_count
+        FROM customer_freebies cf
+        WHERE cf.customer_id = ? 
+        AND cf.freebie_type = 'custom'
+    ");
+    $stmt_custom->execute([$customer_id, $customer_id]);
+    $custom_freebies = $stmt_custom->fetchAll(PDO::FETCH_ASSOC);
+    
+    $stmt_templates = $pdo->prepare("
+        SELECT DISTINCT
+            cf.id as customer_freebie_id,
+            cf.unique_id,
+            COALESCE(cf.headline, f.headline, f.name) as title,
+            COALESCE(cf.subheadline, f.subheadline) as description,
+            COALESCE(cf.mockup_image_url, f.mockup_image_url) as image_path,
+            cf.created_at,
+            'template' as freebie_source,
+            f.id as template_id,
+            (SELECT COUNT(*) FROM reward_definitions WHERE freebie_id = cf.id AND user_id = ?) as reward_count
+        FROM customer_freebies cf
+        INNER JOIN freebies f ON cf.template_id = f.id
+        WHERE cf.customer_id = ?
+        AND (cf.freebie_type = 'template' OR cf.freebie_type IS NULL)
+        AND cf.template_id IS NOT NULL
+    ");
+    $stmt_templates->execute([$customer_id, $customer_id]);
+    $template_freebies = $stmt_templates->fetchAll(PDO::FETCH_ASSOC);
+    
+    $freebies = array_merge($custom_freebies, $template_freebies);
+    usort($freebies, function($a, $b) {
+        return strtotime($b['created_at']) - strtotime($a['created_at']);
+    });
+    
+} catch (PDOException $e) {
+    error_log("Empfehlungsprogramm Error: " . $e->getMessage());
+    $user = [
+        'referral_enabled' => 0,
+        'ref_code' => '',
+        'company_name' => '',
+        'company_email' => '',
+        'company_imprint_html' => ''
+    ];
+    $stats = ['total_leads' => 0, 'referred_leads' => 0, 'total_referrals' => 0, 'successful_referrals' => 0];
+    $freebies = [];
+    $total_slots = 0;
+    $used_slots = 0;
+    $available_slots = 0;
+    $api_settings = null;
+}
+
+$referralEnabled = $user['referral_enabled'] ?? 0;
+$referralCode = $user['ref_code'] ?? '';
+$baseUrl = 'https://app.mehr-infos-jetzt.de';
+
+// Verfügbare Provider mit API URL Info
+$providers = [
+    'quentn' => [
+        'name' => 'Quentn',
+        'requires_api_url' => true,
+        'api_url_placeholder' => 'https://YOUR-ID.quentn.com',
+        'api_url_help' => 'Format: https://system_id.server_id.quentn.com',
+        'supports_tags' => true,
+        'supports_campaigns' => true,
+        'supports_direct_email' => true,
+    ],
+    'activecampaign' => [
+        'name' => 'ActiveCampaign',
+        'requires_api_url' => true,
+        'api_url_placeholder' => 'https://YOUR-ACCOUNT.api-us1.com',
+        'api_url_help' => 'Zu finden in Settings → Developer',
+        'supports_tags' => true,
+        'supports_campaigns' => true,
+        'supports_direct_email' => true,
+    ],
+    'klicktipp' => [
+        'name' => 'Klick-Tipp',
+        'requires_api_url' => false,
+        'default_api_url' => 'http://api.klicktipp.com',
+        'supports_tags' => true,
+        'supports_campaigns' => false,
+        'supports_direct_email' => false,
+    ],
+    'brevo' => [
+        'name' => 'Brevo (Sendinblue)',
+        'requires_api_url' => false,
+        'default_api_url' => 'https://api.brevo.com/v3',
+        'supports_tags' => true,
+        'supports_campaigns' => true,
+        'supports_direct_email' => true,
+    ],
+    'getresponse' => [
+        'name' => 'GetResponse',
+        'requires_api_url' => false,
+        'default_api_url' => 'https://api.getresponse.com/v3',
+        'supports_tags' => true,
+        'supports_campaigns' => true,
+        'supports_direct_email' => true,
+    ],
+];
+?>
