@@ -70,14 +70,18 @@ foreach ($tutorials as $tutorial) {
         font-size: 14px;
     }
     
-    .videos-grid {
-        display: flex;
-        gap: 24px;
-        padding: 24px;
+    .videos-slider-wrapper {
+        position: relative;
         background: linear-gradient(135deg, #1e1e3f 0%, #2a2a4f 100%);
         border-radius: 0 0 16px 16px;
         border: 1px solid rgba(102, 126, 234, 0.2);
         border-top: none;
+    }
+    
+    .videos-grid {
+        display: flex;
+        gap: 24px;
+        padding: 24px;
         overflow-x: auto;
         overflow-y: hidden;
         scroll-behavior: smooth;
@@ -101,6 +105,71 @@ foreach ($tutorials as $tutorial) {
     
     .videos-grid::-webkit-scrollbar-thumb:hover {
         background: rgba(102, 126, 234, 0.7);
+    }
+    
+    /* Scroll Arrow Buttons */
+    .scroll-arrow {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(102, 126, 234, 0.2);
+        border: 2px solid rgba(102, 126, 234, 0.4);
+        color: rgba(255, 255, 255, 0.6);
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 10;
+        transition: all 0.3s ease;
+        font-size: 28px;
+        backdrop-filter: blur(10px);
+        opacity: 0;
+        pointer-events: none;
+    }
+    
+    .videos-slider-wrapper:hover .scroll-arrow {
+        opacity: 1;
+        pointer-events: all;
+    }
+    
+    .scroll-arrow:hover {
+        background: rgba(102, 126, 234, 0.5);
+        border-color: rgba(102, 126, 234, 0.8);
+        color: white;
+        transform: translateY(-50%) scale(1.1);
+        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+    }
+    
+    .scroll-arrow:active {
+        transform: translateY(-50%) scale(0.95);
+    }
+    
+    .scroll-arrow.left {
+        left: 16px;
+    }
+    
+    .scroll-arrow.right {
+        right: 16px;
+    }
+    
+    .scroll-arrow.hidden {
+        display: none;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: translateY(-50%) scale(1);
+        }
+        50% {
+            transform: translateY(-50%) scale(1.05);
+        }
+    }
+    
+    .scroll-arrow.pulse {
+        animation: pulse 2s infinite;
     }
     
     .video-card {
@@ -355,6 +424,20 @@ foreach ($tutorials as $tutorial) {
             max-width: 280px;
         }
         
+        .scroll-arrow {
+            width: 48px;
+            height: 48px;
+            font-size: 22px;
+        }
+        
+        .scroll-arrow.left {
+            left: 8px;
+        }
+        
+        .scroll-arrow.right {
+            right: 8px;
+        }
+        
         .category-header {
             padding: 20px;
         }
@@ -418,29 +501,39 @@ foreach ($tutorials as $tutorial) {
                         <?php endif; ?>
                     </div>
                     
-                    <div class="videos-grid">
-                        <?php foreach ($grouped[$category['id']] as $tutorial): ?>
-                            <div class="video-card" onclick="playVideo('<?= htmlspecialchars($tutorial['vimeo_url']) ?>', '<?= htmlspecialchars($tutorial['title']) ?>')">
-                                <div class="video-thumbnail">
-                                    <?php if (!empty($tutorial['mockup_image'])): ?>
-                                        <img src="<?= htmlspecialchars($tutorial['mockup_image']) ?>" alt="<?= htmlspecialchars($tutorial['title']) ?>" class="mockup-image">
-                                    <?php endif; ?>
-                                    <div class="play-icon">▶</div>
+                    <div class="videos-slider-wrapper">
+                        <div class="videos-grid" data-category-id="<?= $category['id'] ?>">
+                            <?php foreach ($grouped[$category['id']] as $tutorial): ?>
+                                <div class="video-card" onclick="playVideo('<?= htmlspecialchars($tutorial['vimeo_url']) ?>', '<?= htmlspecialchars($tutorial['title']) ?>')">
+                                    <div class="video-thumbnail">
+                                        <?php if (!empty($tutorial['mockup_image'])): ?>
+                                            <img src="<?= htmlspecialchars($tutorial['mockup_image']) ?>" alt="<?= htmlspecialchars($tutorial['title']) ?>" class="mockup-image">
+                                        <?php endif; ?>
+                                        <div class="play-icon">▶</div>
+                                    </div>
+                                    <div class="video-info">
+                                        <h3><?= htmlspecialchars($tutorial['title']) ?></h3>
+                                        <?php if ($tutorial['description']): ?>
+                                            <p><?= htmlspecialchars($tutorial['description']) ?></p>
+                                        <?php endif; ?>
+                                        <?php if ($tutorial['duration']): ?>
+                                            <div class="video-meta">
+                                                <i class="fas fa-clock"></i>
+                                                <?= htmlspecialchars($tutorial['duration']) ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
-                                <div class="video-info">
-                                    <h3><?= htmlspecialchars($tutorial['title']) ?></h3>
-                                    <?php if ($tutorial['description']): ?>
-                                        <p><?= htmlspecialchars($tutorial['description']) ?></p>
-                                    <?php endif; ?>
-                                    <?php if ($tutorial['duration']): ?>
-                                        <div class="video-meta">
-                                            <i class="fas fa-clock"></i>
-                                            <?= htmlspecialchars($tutorial['duration']) ?>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
+                            <?php endforeach; ?>
+                        </div>
+                        
+                        <!-- Scroll Arrows -->
+                        <div class="scroll-arrow left" onclick="scrollSlider(<?= $category['id'] ?>, 'left')">
+                            ‹
+                        </div>
+                        <div class="scroll-arrow right pulse" onclick="scrollSlider(<?= $category['id'] ?>, 'right')">
+                            ›
+                        </div>
                     </div>
                 </div>
             <?php endif; ?>
@@ -506,6 +599,74 @@ foreach ($tutorials as $tutorial) {
             closeVideo();
         }
     }
+    
+    // Scroll Slider Function
+    function scrollSlider(categoryId, direction) {
+        const slider = document.querySelector(`[data-category-id="${categoryId}"]`);
+        if (!slider) return;
+        
+        const scrollAmount = 350; // Scroll-Distanz in Pixeln
+        const currentScroll = slider.scrollLeft;
+        
+        if (direction === 'left') {
+            slider.scrollTo({
+                left: currentScroll - scrollAmount,
+                behavior: 'smooth'
+            });
+        } else {
+            slider.scrollTo({
+                left: currentScroll + scrollAmount,
+                behavior: 'smooth'
+            });
+        }
+        
+        // Update arrow visibility after scroll
+        setTimeout(() => updateArrowVisibility(slider), 300);
+    }
+    
+    // Update Arrow Visibility based on scroll position
+    function updateArrowVisibility(slider) {
+        const wrapper = slider.parentElement;
+        const leftArrow = wrapper.querySelector('.scroll-arrow.left');
+        const rightArrow = wrapper.querySelector('.scroll-arrow.right');
+        
+        if (!leftArrow || !rightArrow) return;
+        
+        const isAtStart = slider.scrollLeft <= 10;
+        const isAtEnd = slider.scrollLeft >= slider.scrollWidth - slider.clientWidth - 10;
+        
+        // Hide/show arrows based on position
+        if (isAtStart) {
+            leftArrow.classList.add('hidden');
+        } else {
+            leftArrow.classList.remove('hidden');
+        }
+        
+        if (isAtEnd) {
+            rightArrow.classList.add('hidden');
+            rightArrow.classList.remove('pulse');
+        } else {
+            rightArrow.classList.remove('hidden');
+        }
+        
+        // Remove pulse animation after first interaction
+        if (slider.scrollLeft > 0) {
+            rightArrow.classList.remove('pulse');
+        }
+    }
+    
+    // Initialize arrow visibility on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const sliders = document.querySelectorAll('.videos-grid');
+        sliders.forEach(slider => {
+            updateArrowVisibility(slider);
+            
+            // Update on scroll
+            slider.addEventListener('scroll', () => {
+                updateArrowVisibility(slider);
+            });
+        });
+    });
     
     // ESC key to close
     document.addEventListener('keydown', function(e) {
