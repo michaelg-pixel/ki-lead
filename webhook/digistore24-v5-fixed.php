@@ -1,7 +1,7 @@
 <?php
 /**
- * Digistore24 Webhook Handler - VERSION 5.1 FIXED
- * KORRIGIERT: Nur existierende Spalten verwenden
+ * Digistore24 Webhook Handler - VERSION 6.0 DYNAMIC
+ * KORRIGIERT: Ermittelt dynamisch verfügbare Spalten
  */
 
 require_once '../config/database.php';
@@ -14,17 +14,22 @@ function logWebhook($data, $type = 'info') {
     file_put_contents($logFile, $logEntry, FILE_APPEND);
 }
 
+// Verfügbare Spalten ermitteln
+function getAvailableColumns($pdo, $table) {
+    $stmt = $pdo->query("DESCRIBE $table");
+    $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    return $columns;
+}
+
 // Webhook-Daten empfangen
 $rawInput = file_get_contents('php://input');
 logWebhook(['raw_input' => $rawInput], 'received');
 
-// WICHTIG: Digistore24 sendet URL-encoded Form-Data, NICHT JSON!
+// WICHTIG: Digistore24 sendet URL-encoded Form-Data
 parse_str($rawInput, $webhookData);
 
 if (empty($webhookData)) {
-    // Fallback: Versuche JSON
     $webhookData = json_decode($rawInput, true);
-    
     if (empty($webhookData)) {
         logWebhook(['error' => 'No data received'], 'error');
         http_response_code(200);
@@ -44,7 +49,6 @@ try {
     $name = trim("$firstName $lastName");
     $orderId = $webhookData['order_id'] ?? '';
     $productId = $webhookData['product_id'] ?? '';
-    $productName = $webhookData['product_name'] ?? '';
     
     logWebhook([
         'step' => 'data_extracted',
@@ -60,8 +64,6 @@ try {
     }
     
     // MARKTPLATZ-CHECK
-    logWebhook(['step' => 'checking_marketplace', 'product_id' => $productId], 'info');
-    
     $stmt = $pdo->prepare("
         SELECT id, customer_id, headline, marketplace_price 
         FROM customer_freebies 
@@ -86,8 +88,6 @@ try {
         
         if (!$buyer) {
             // Neuen User erstellen
-            logWebhook(['step' => 'creating_new_buyer', 'email' => $email], 'info');
-            
             $rawCode = 'RAW-' . date('Y') . '-' . str_pad(rand(1, 999), 3, '0', STR_PAD_LEFT);
             $password = bin2hex(random_bytes(8));
             $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
@@ -108,13 +108,9 @@ try {
             ");
             $stmt->execute([$buyerId]);
             
-            logWebhook([
-                'step' => 'buyer_created',
-                'buyer_id' => $buyerId,
-                'raw_code' => $rawCode
-            ], 'success');
+            logWebhook(['step' => 'buyer_created', 'buyer_id' => $buyerId], 'success');
             
-            // Welcome Email senden
+            // Welcome Email
             sendWelcomeEmail($email, $name, $password, $rawCode);
             
         } else {
@@ -130,63 +126,91 @@ try {
         $stmt->execute([$buyerId, $marketplaceFreebie['id']]);
         
         if ($stmt->fetch()) {
-            logWebhook(['step' => 'already_copied', 'buyer_id' => $buyerId], 'info');
+            logWebhook(['step' => 'already_copied'], 'info');
             http_response_code(200);
             exit;
         }
         
-        // FREEBIE KOPIEREN
+        // FREEBIE KOPIEREN mit dynamischen Spalten
         logWebhook(['step' => 'copying_freebie', 'source_id' => $marketplaceFreebie['id']], 'info');
         
         $stmt = $pdo->prepare("SELECT * FROM customer_freebies WHERE id = ?");
         $stmt->execute([$marketplaceFreebie['id']]);
         $source = $stmt->fetch(PDO::FETCH_ASSOC);
         
+        // Verfügbare Spalten ermitteln
+        $availableColumns = getAvailableColumns($pdo, 'customer_freebies');
+        logWebhook(['available_columns' => $availableColumns], 'info');
+        
         $uniqueId = bin2hex(random_bytes(16));
         $urlSlug = ($source['url_slug'] ?? 'freebie') . '-' . substr($uniqueId, 0, 8);
         
-        // NUR existierende Spalten verwenden!
-        $stmt = $pdo->prepare("
-            INSERT INTO customer_freebies (
-                customer_id, template_id, freebie_type, headline, subheadline, preheadline,
-                mockup_image_url, background_color, primary_color, cta_text, bullet_points,
-                bullet_icon_style, layout, thank_you_headline, thank_you_message, 
-                unique_id, url_slug, niche, original_creator_id, copied_from_freebie_id, 
-                marketplace_enabled, created_at
-            ) VALUES (
-                ?, ?, 'purchased', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW()
-            )
-        ");
+        // Mapping: Was wir kopieren wollen -> Was davon existiert
+        $desiredFields = [
+            'customer_id' => $buyerId,
+            'template_id' => $source['template_id'],
+            'freebie_type' => 'purchased',
+            'headline' => $source['headline'],
+            'subheadline' => $source['subheadline'],
+            'preheadline' => $source['preheadline'],
+            'mockup_image_url' => $source['mockup_image_url'],
+            'background_color' => $source['background_color'],
+            'primary_color' => $source['primary_color'],
+            'cta_text' => $source['cta_text'],
+            'bullet_points' => $source['bullet_points'],
+            'bullet_icon_style' => $source['bullet_icon_style'] ?? 'standard',
+            'layout' => $source['layout'],
+            'unique_id' => $uniqueId,
+            'url_slug' => $urlSlug,
+            'niche' => $source['niche'] ?? 'sonstiges',
+            'original_creator_id' => $source['customer_id'],
+            'copied_from_freebie_id' => $marketplaceFreebie['id'],
+            'marketplace_enabled' => 0,
+            'created_at' => null // Wird durch NOW() ersetzt
+        ];
         
-        $stmt->execute([
-            $buyerId, 
-            $source['template_id'], 
-            $source['headline'], 
-            $source['subheadline'],
-            $source['preheadline'], 
-            $source['mockup_image_url'], 
-            $source['background_color'],
-            $source['primary_color'], 
-            $source['cta_text'], 
-            $source['bullet_points'],
-            $source['bullet_icon_style'] ?? 'standard', 
-            $source['layout'],
-            $source['thank_you_headline'], 
-            $source['thank_you_message'],
-            $uniqueId, 
-            $urlSlug, 
-            $source['niche'] ?? 'sonstiges',
-            $source['customer_id'], 
-            $marketplaceFreebie['id']
-        ]);
+        // Optionale Felder (nur wenn sie existieren)
+        $optionalFields = [
+            'email_field_text',
+            'button_text',
+            'privacy_checkbox_text',
+            'thank_you_headline',
+            'thank_you_message'
+        ];
+        
+        foreach ($optionalFields as $field) {
+            if (in_array($field, $availableColumns) && isset($source[$field])) {
+                $desiredFields[$field] = $source[$field];
+            }
+        }
+        
+        // Nur Spalten verwenden, die auch existieren
+        $columns = [];
+        $values = [];
+        $placeholders = [];
+        
+        foreach ($desiredFields as $column => $value) {
+            if (in_array($column, $availableColumns)) {
+                $columns[] = $column;
+                if ($column === 'created_at') {
+                    $placeholders[] = 'NOW()';
+                } else {
+                    $placeholders[] = '?';
+                    $values[] = $value;
+                }
+            }
+        }
+        
+        $sql = "INSERT INTO customer_freebies (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $placeholders) . ")";
+        
+        logWebhook(['sql' => $sql, 'value_count' => count($values)], 'info');
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($values);
         
         $copiedFreebieId = $pdo->lastInsertId();
         
-        logWebhook([
-            'step' => 'freebie_copied',
-            'copied_freebie_id' => $copiedFreebieId,
-            'buyer_id' => $buyerId
-        ], 'success');
+        logWebhook(['step' => 'freebie_copied', 'copied_freebie_id' => $copiedFreebieId], 'success');
         
         // VIDEOKURS KOPIEREN
         $stmt = $pdo->prepare("SELECT * FROM freebie_courses WHERE freebie_id = ?");
@@ -194,9 +218,8 @@ try {
         $sourceCourse = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($sourceCourse) {
-            logWebhook(['step' => 'copying_videocourse', 'source_course_id' => $sourceCourse['id']], 'info');
+            logWebhook(['step' => 'copying_videocourse'], 'info');
             
-            // Kurs kopieren
             $stmt = $pdo->prepare("
                 INSERT INTO freebie_courses (freebie_id, customer_id, title, description, is_active, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, NOW(), NOW())
@@ -240,43 +263,24 @@ try {
                 }
             }
             
-            logWebhook([
-                'step' => 'videocourse_copied',
-                'new_course_id' => $newCourseId,
-                'modules' => count($moduleMapping),
-                'lessons' => $lessonCount
-            ], 'success');
+            logWebhook(['step' => 'videocourse_copied', 'modules' => count($moduleMapping), 'lessons' => $lessonCount], 'success');
         }
         
         // Verkaufszähler erhöhen
         $stmt = $pdo->prepare("UPDATE customer_freebies SET marketplace_sales_count = marketplace_sales_count + 1 WHERE id = ?");
         $stmt->execute([$marketplaceFreebie['id']]);
         
-        // Purchase Email
         sendPurchaseEmail($email, $name, $source['headline']);
         
-        logWebhook([
-            'final_status' => 'COMPLETE_SUCCESS',
-            'buyer_id' => $buyerId,
-            'copied_freebie_id' => $copiedFreebieId,
-            'videocourse_copied' => !empty($sourceCourse)
-        ], 'success');
+        logWebhook(['final_status' => 'SUCCESS', 'buyer_id' => $buyerId, 'copied_freebie_id' => $copiedFreebieId], 'success');
         
         http_response_code(200);
-        echo json_encode(['status' => 'success', 'message' => 'Marketplace freebie copied']);
+        echo json_encode(['status' => 'success']);
         exit;
-        
-    } else {
-        // Kein Marktplatz-Freebie
-        logWebhook([
-            'step' => 'no_marketplace_freebie',
-            'product_id' => $productId,
-            'message' => 'Not a marketplace product'
-        ], 'info');
     }
     
     http_response_code(200);
-    echo json_encode(['status' => 'ok', 'message' => 'Webhook received']);
+    echo json_encode(['status' => 'ok']);
     
 } catch (Exception $e) {
     logWebhook(['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()], 'error');
@@ -292,7 +296,7 @@ function sendWelcomeEmail($email, $name, $password, $rawCode) {
 
 function sendPurchaseEmail($email, $name, $freebieTitle) {
     $subject = "✅ Dein Freebie ist verfügbar!";
-    $message = "Hallo $name,\n\nDein Freebie \"$freebieTitle\" wurde erfolgreich kopiert!\n\nhttps://app.mehr-infos-jetzt.de/customer/dashboard.php?page=freebies";
+    $message = "Hallo $name,\n\nDein Freebie \"$freebieTitle\" ist jetzt in deinem Dashboard!\n\nhttps://app.mehr-infos-jetzt.de/customer/dashboard.php?page=freebies";
     mail($email, $subject, $message, "From: noreply@mehr-infos-jetzt.de");
 }
 ?>
