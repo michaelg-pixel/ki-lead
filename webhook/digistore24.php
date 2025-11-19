@@ -1,11 +1,12 @@
 <?php
 /**
- * Digistore24 Webhook Handler - VERSION 3.3
- * Mit Source-Tracking, Konflikt-Schutz, MARKTPLATZ-INTEGRATION, JV-TRACKING und VERBESSERTE COURSE-ID ÜBERTRAGUNG
+ * Digistore24 Webhook Handler - VERSION 3.4
+ * Mit Source-Tracking, Konflikt-Schutz, MARKTPLATZ-INTEGRATION, JV-TRACKING und VOLLSTÄNDIGER VIDEOKURS-KOPIE
  * 
  * Empfängt Kunden von Digistore24 und:
  * - Erstellt automatisch Accounts + Kurs-Zugang + Freebie-Limits
  * - Kopiert Marktplatz-Freebies automatisch in Käufer-Account
+ * - Kopiert KOMPLETTEN Videokurs mit allen Modulen und Lektionen
  * - Überträgt ALLE Freebie-Felder inkl. course_id
  * - Respektiert manuelle Admin-Änderungen
  * - Speichert JV-Partner und Affiliate-Daten für Tracking
@@ -300,6 +301,11 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
     // FREEBIE KOPIEREN mit allen Daten (inkl. course_id)
     $copiedFreebieId = copyMarketplaceFreebie($pdo, $buyerId, $sourceFreebie['id']);
     
+    // NEU: VIDEOKURS KOMPLETT KOPIEREN (falls vorhanden)
+    if (!empty($sourceFreebie['id'])) {
+        copyFreebieVideoCourse($pdo, $sourceFreebie['id'], $copiedFreebieId, $buyerId);
+    }
+    
     // VERKAUFSZÄHLER ERHÖHEN beim Original
     $stmt = $pdo->prepare("
         UPDATE customer_freebies 
@@ -355,7 +361,7 @@ function createMarketplaceBuyer($pdo, $email, $name, $orderId) {
 
 /**
  * MARKTPLATZ: Kopiert ein Freebie komplett in Käufer-Account
- * VERSION 3.3: Verbessert - überträgt ALLE Felder inkl. course_id mit Logging
+ * VERSION 3.4: Überträgt ALLE Felder inkl. course_id
  */
 function copyMarketplaceFreebie($pdo, $buyerId, $sourceFreebieId) {
     // Original-Freebie laden MIT ALLEN FELDERN
@@ -485,6 +491,169 @@ function copyMarketplaceFreebie($pdo, $buyerId, $sourceFreebieId) {
     }
     
     return $copiedId;
+}
+
+/**
+ * NEU: Kopiert den kompletten Videokurs eines Freebies zum Käufer
+ * VERSION 3.4: Komplett neue Funktion für Videokurs-Kopie
+ */
+function copyFreebieVideoCourse($pdo, $sourceFreebieId, $targetFreebieId, $buyerId) {
+    // 1. Prüfen ob Source-Freebie einen Videokurs hat
+    $stmt = $pdo->prepare("
+        SELECT * FROM freebie_courses 
+        WHERE freebie_id = ?
+    ");
+    $stmt->execute([$sourceFreebieId]);
+    $sourceCourse = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$sourceCourse) {
+        logWebhook([
+            'info' => 'Source freebie has no video course to copy',
+            'source_freebie_id' => $sourceFreebieId
+        ], 'info');
+        return;
+    }
+    
+    logWebhook([
+        'info' => 'Starting video course copy',
+        'source_freebie_id' => $sourceFreebieId,
+        'source_course_id' => $sourceCourse['id'],
+        'target_freebie_id' => $targetFreebieId,
+        'buyer_id' => $buyerId
+    ], 'info');
+    
+    // 2. Videokurs-Eintrag für Käufer erstellen
+    $stmt = $pdo->prepare("
+        INSERT INTO freebie_courses (
+            freebie_id,
+            customer_id,
+            title,
+            description,
+            is_active,
+            created_at,
+            updated_at
+        ) VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+    ");
+    
+    $stmt->execute([
+        $targetFreebieId,
+        $buyerId,
+        $sourceCourse['title'],
+        $sourceCourse['description'],
+        $sourceCourse['is_active']
+    ]);
+    
+    $newCourseId = $pdo->lastInsertId();
+    
+    logWebhook([
+        'success' => 'Video course container created',
+        'new_course_id' => $newCourseId,
+        'title' => $sourceCourse['title']
+    ], 'success');
+    
+    // 3. Alle Module des Kurses kopieren
+    $stmt = $pdo->prepare("
+        SELECT * FROM freebie_course_modules 
+        WHERE course_id = ?
+        ORDER BY sort_order
+    ");
+    $stmt->execute([$sourceCourse['id']]);
+    $sourceModules = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    $moduleMapping = []; // Original-ID => Neue-ID Mapping
+    
+    foreach ($sourceModules as $sourceModule) {
+        $stmt = $pdo->prepare("
+            INSERT INTO freebie_course_modules (
+                course_id,
+                title,
+                description,
+                sort_order,
+                unlock_after_days,
+                created_at,
+                updated_at
+            ) VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+        ");
+        
+        $stmt->execute([
+            $newCourseId,
+            $sourceModule['title'],
+            $sourceModule['description'],
+            $sourceModule['sort_order'],
+            $sourceModule['unlock_after_days'] ?? 0
+        ]);
+        
+        $newModuleId = $pdo->lastInsertId();
+        $moduleMapping[$sourceModule['id']] = $newModuleId;
+        
+        logWebhook([
+            'success' => 'Module copied',
+            'original_module_id' => $sourceModule['id'],
+            'new_module_id' => $newModuleId,
+            'title' => $sourceModule['title']
+        ], 'success');
+    }
+    
+    // 4. Alle Lektionen kopieren
+    $totalLessonsCopied = 0;
+    
+    foreach ($moduleMapping as $oldModuleId => $newModuleId) {
+        $stmt = $pdo->prepare("
+            SELECT * FROM freebie_course_lessons 
+            WHERE module_id = ?
+            ORDER BY sort_order
+        ");
+        $stmt->execute([$oldModuleId]);
+        $sourceLessons = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        foreach ($sourceLessons as $sourceLesson) {
+            $stmt = $pdo->prepare("
+                INSERT INTO freebie_course_lessons (
+                    module_id,
+                    title,
+                    description,
+                    video_url,
+                    pdf_url,
+                    sort_order,
+                    unlock_after_days,
+                    button_text,
+                    button_url,
+                    created_at,
+                    updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+            ");
+            
+            $stmt->execute([
+                $newModuleId,
+                $sourceLesson['title'],
+                $sourceLesson['description'],
+                $sourceLesson['video_url'],
+                $sourceLesson['pdf_url'] ?? null,
+                $sourceLesson['sort_order'],
+                $sourceLesson['unlock_after_days'] ?? 0,
+                $sourceLesson['button_text'] ?? null,
+                $sourceLesson['button_url'] ?? null
+            ]);
+            
+            $totalLessonsCopied++;
+            
+            logWebhook([
+                'success' => 'Lesson copied',
+                'lesson_title' => $sourceLesson['title'],
+                'video_url' => $sourceLesson['video_url']
+            ], 'success');
+        }
+    }
+    
+    logWebhook([
+        'success' => 'Complete video course copied successfully!',
+        'source_freebie_id' => $sourceFreebieId,
+        'target_freebie_id' => $targetFreebieId,
+        'new_course_id' => $newCourseId,
+        'modules_copied' => count($moduleMapping),
+        'lessons_copied' => $totalLessonsCopied,
+        'buyer_id' => $buyerId
+    ], 'marketplace_course_copy');
 }
 
 /**
