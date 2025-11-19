@@ -65,7 +65,7 @@ if (isset($_POST['save_legal_texts'])) {
         <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4">
             <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div class="text-xl sm:text-2xl font-bold text-purple-600">
-                    🚀 KI Lead-System
+                    🚀 OptinPilot
                 </div>
                 <div class="flex gap-4 sm:gap-6 text-sm sm:text-base">
                     <a href="dashboard.php" class="text-gray-600 hover:text-purple-600">
