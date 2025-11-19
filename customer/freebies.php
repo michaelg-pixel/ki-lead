@@ -38,7 +38,6 @@ try {
     $freebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Eigene Custom Freebies UND gekaufte Marktplatz-Freebies laden
-    // WICHTIG: Auch Freebies ohne freebie_type (Marktplatz-Käufe) anzeigen!
     $stmt_custom = $pdo->prepare("
         SELECT * FROM customer_freebies 
         WHERE customer_id = ? 
@@ -213,11 +212,11 @@ $domain = $_SERVER['HTTP_HOST'];
         position: absolute;
         bottom: 16px;
         right: 16px;
-        width: 20px;
-        height: 20px;
+        width: 24px;
+        height: 24px;
         border-radius: 50%;
         border: 3px solid white;
-        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
         z-index: 10;
         opacity: 0;
         transition: all 0.3s ease;
@@ -238,13 +237,13 @@ $domain = $_SERVER['HTTP_HOST'];
     }
     
     @keyframes pulse-green {
-        0%, 100% { box-shadow: 0 3px 12px rgba(34, 197, 94, 0.5); }
-        50% { box-shadow: 0 3px 20px rgba(34, 197, 94, 0.8); }
+        0%, 100% { box-shadow: 0 4px 16px rgba(34, 197, 94, 0.6); }
+        50% { box-shadow: 0 4px 24px rgba(34, 197, 94, 0.9); }
     }
     
     @keyframes pulse-red {
-        0%, 100% { box-shadow: 0 3px 12px rgba(239, 68, 68, 0.5); }
-        50% { box-shadow: 0 3px 20px rgba(239, 68, 68, 0.8); }
+        0%, 100% { box-shadow: 0 4px 16px rgba(239, 68, 68, 0.6); }
+        50% { box-shadow: 0 4px 24px rgba(239, 68, 68, 0.9); }
     }
     
     .status-no-course {
@@ -392,32 +391,6 @@ $domain = $_SERVER['HTTP_HOST'];
         text-transform: uppercase;
     }
     
-    /* Debug Box */
-    .debug-box {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        background: rgba(0, 0, 0, 0.9);
-        border: 2px solid #22c55e;
-        border-radius: 8px;
-        padding: 16px;
-        color: white;
-        font-family: monospace;
-        font-size: 12px;
-        max-width: 400px;
-        max-height: 300px;
-        overflow-y: auto;
-        z-index: 9999;
-    }
-    
-    .debug-box .log-line {
-        margin: 4px 0;
-    }
-    
-    .debug-box .log-success { color: #22c55e; }
-    .debug-box .log-error { color: #ef4444; }
-    .debug-box .log-info { color: #3b82f6; }
-    
     @media (max-width: 768px) {
         .freebies-grid {
             grid-template-columns: 1fr;
@@ -425,13 +398,6 @@ $domain = $_SERVER['HTTP_HOST'];
         
         .section-tabs {
             flex-direction: column;
-        }
-        
-        .debug-box {
-            bottom: 10px;
-            right: 10px;
-            left: 10px;
-            max-width: none;
         }
     }
 </style>
@@ -698,67 +664,36 @@ $domain = $_SERVER['HTTP_HOST'];
     </div>
 </div>
 
-<!-- Debug Console -->
-<div class="debug-box" id="debugConsole">
-    <strong>🔍 Debug Console</strong>
-    <div id="debugLog"></div>
-</div>
-
 <script>
 function switchSection(section) {
-    // Update tabs
-    document.querySelectorAll('.section-tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
+    document.querySelectorAll('.section-tab').forEach(tab => tab.classList.remove('active'));
     event.target.classList.add('active');
-    
-    // Update content
-    document.querySelectorAll('.section-content').forEach(content => {
-        content.classList.remove('active');
-    });
+    document.querySelectorAll('.section-content').forEach(content => content.classList.remove('active'));
     document.getElementById('section-' + section).classList.add('active');
 }
 
-// Debug Logger
-const debugLog = document.getElementById('debugLog');
-function log(message, type = 'info') {
-    const time = new Date().toLocaleTimeString();
-    const className = 'log-' + type;
-    debugLog.innerHTML += `<div class="log-line ${className}">[${time}] ${message}</div>`;
-    debugLog.scrollTop = debugLog.scrollHeight;
-    console.log(message);
-}
-
-// 🟢 UNLOCK STATUS LADEN - Prüft Freischaltungs-Status via API
+// 🟢 UNLOCK STATUS LADEN - Mit der NEUEN funktionierenden API
 async function loadUnlockStatus() {
-    log('🚀 Starte Unlock-Status Check...', 'info');
-    
     try {
-        log('📡 Rufe API auf: /customer/api/check-freebie-unlock-status.php', 'info');
-        const response = await fetch('/customer/api/check-freebie-unlock-status.php');
-        
-        log(`📊 HTTP Status: ${response.status}`, response.ok ? 'success' : 'error');
+        // WICHTIG: Verwende die NEUE API die funktioniert!
+        const response = await fetch('/customer/api/template-unlock-status.php');
         
         if (!response.ok) {
-            log(`❌ API Fehler: ${response.status} ${response.statusText}`, 'error');
+            console.error('API Fehler:', response.status);
             return;
         }
         
         const data = await response.json();
-        log(`✓ JSON Response erhalten`, 'success');
-        log(`📦 Total Templates: ${data.total_templates}`, 'info');
-        log(`🔓 Unlocked Count: ${data.unlocked_count}`, 'info');
         
-        if (!data.success || !data.statuses) {
-            log('❌ Ungültige API Response: ' + JSON.stringify(data).substring(0, 100), 'error');
+        if (!data.success) {
+            console.error('API Response Fehler:', data);
             return;
         }
         
-        let processedCount = 0;
+        console.log(`✅ ${data.total_templates} Templates, ${data.unlocked_count} freigeschaltet`);
         
         // Status für jedes Template setzen
         for (const [key, status] of Object.entries(data.statuses)) {
-            // Nur Template-Status verarbeiten (nicht customer_freebies)
             if (key.startsWith('template_')) {
                 const templateId = key.replace('template_', '');
                 const dot = document.querySelector(`[data-template-id="${templateId}"]`);
@@ -766,65 +701,45 @@ async function loadUnlockStatus() {
                 const useBtn = document.querySelector(`[data-use-btn="${templateId}"]`);
                 
                 if (dot) {
-                    // Status-Klasse setzen
                     dot.classList.remove('status-unlocked', 'status-locked', 'status-no-course');
                     
                     if (status.unlock_status === 'unlocked') {
                         dot.classList.add('status-unlocked');
                         dot.title = '✓ Freigeschaltet';
-                        log(`✓ Template ${templateId} (${status.name}): UNLOCKED 🟢`, 'success');
                     } else if (status.unlock_status === 'locked') {
                         dot.classList.add('status-locked');
-                        dot.title = '🔒 Gesperrt - Produkt kaufen erforderlich';
+                        dot.title = '🔒 Gesperrt';
                         
-                        // Card als locked markieren
                         if (card) card.classList.add('locked');
-                        
-                        // "Nutzen" Button blockieren
                         if (useBtn) {
                             useBtn.classList.remove('action-btn-edit');
                             useBtn.classList.add('action-btn-locked');
                             useBtn.innerHTML = '🔒 Gesperrt';
-                            useBtn.onclick = function(e) {
+                            useBtn.onclick = (e) => {
                                 e.preventDefault();
                                 alert('🔒 Dieses Template ist gesperrt.\n\nBitte kaufe das zugehörige Produkt um es freizuschalten.');
                                 return false;
                             };
                             useBtn.href = 'javascript:void(0)';
                         }
-                        
-                        log(`🔒 Template ${templateId} (${status.name}): LOCKED 🔴`, 'error');
                     } else if (status.unlock_status === 'no_course') {
-                        dot.classList.add('status-no-course'); // Wird nicht angezeigt
-                        log(`⊘ Template ${templateId} (${status.name}): NO_COURSE`, 'info');
+                        dot.classList.add('status-no-course');
                     }
                     
-                    // Punkt sichtbar machen
                     dot.classList.add('loaded');
-                    processedCount++;
-                } else {
-                    log(`⚠️ Dot nicht gefunden für Template ${templateId}`, 'error');
                 }
             }
         }
         
-        log(`✅ Unlock-Status geladen! ${processedCount} Templates verarbeitet`, 'success');
-        
     } catch (error) {
-        log(`❌ JavaScript Fehler: ${error.message}`, 'error');
-        log(`Stack: ${error.stack}`, 'error');
+        console.error('JavaScript Fehler:', error);
     }
 }
 
-// Status laden sobald Seite geladen ist
-log('⏳ Warte auf DOM...', 'info');
+// Sofort beim Laden ausführen
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        log('✓ DOM geladen', 'success');
-        loadUnlockStatus();
-    });
+    document.addEventListener('DOMContentLoaded', loadUnlockStatus);
 } else {
-    log('✓ DOM bereits geladen', 'success');
     loadUnlockStatus();
 }
 </script>
