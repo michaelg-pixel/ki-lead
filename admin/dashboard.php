@@ -150,10 +150,12 @@ $page = $_GET['page'] ?? 'overview';
                 <span class="nav-icon">✅</span>
                 <span>JV Check Verifizierung</span>
             </a>
+            <?php /* AUSGEBLENDET: Digistore24 Menüpunkt - kann bei Bedarf wieder aktiviert werden
             <a href="?page=digistore" class="nav-item <?php echo $page === 'digistore' ? 'active' : ''; ?>">
                 <span class="nav-icon">🛒</span>
                 <span>Digistore24</span>
             </a>
+            */ ?>
             <a href="?page=webhooks" class="nav-item <?php echo $page === 'webhooks' ? 'active' : ''; ?>">
                 <span class="nav-icon">🔗</span>
                 <span>Webhooks</span>
