@@ -22,7 +22,39 @@ $pdo = getDBConnection();
 try {
     $statusMap = [];
     
-    // 1. Status für bereits genutzte customer_freebies prüfen
+    // 1. Alle Templates holen
+    $stmt = $pdo->query("SELECT id, name FROM freebies ORDER BY created_at DESC");
+    $allTemplates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // 2. Prüfe welche Templates freigeschaltet sind
+    $stmt = $pdo->prepare("
+        SELECT DISTINCT f.id as template_id
+        FROM freebies f
+        INNER JOIN courses c ON c.is_active = 1
+        INNER JOIN webhook_course_access wca ON c.id = wca.course_id
+        INNER JOIN webhook_configurations wc ON wca.webhook_id = wc.id AND wc.is_active = 1
+        INNER JOIN webhook_product_ids wpi ON wc.id = wpi.webhook_id
+        WHERE EXISTS (
+            -- Kunde hat das Produkt gekauft
+            SELECT 1 FROM customer_freebie_limits cfl 
+            WHERE cfl.customer_id = :customer_id 
+            AND cfl.product_id = wpi.product_id
+        )
+    ");
+    
+    $stmt->execute(['customer_id' => $customer_id]);
+    $unlockedTemplates = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    
+    // 3. Status für alle Templates setzen
+    foreach ($allTemplates as $template) {
+        $isUnlocked = in_array($template['id'], $unlockedTemplates);
+        $statusMap['template_' . $template['id']] = [
+            'unlock_status' => $isUnlocked ? 'unlocked' : 'locked',
+            'name' => $template['name']
+        ];
+    }
+    
+    // 4. Status für bereits genutzte customer_freebies prüfen
     $stmt = $pdo->prepare("
         SELECT 
             cf.id as freebie_id,
@@ -45,7 +77,6 @@ try {
             INNER JOIN webhook_product_ids wpi ON wc.id = wpi.webhook_id
             WHERE cf2.customer_id = :customer_id
             AND EXISTS (
-                -- Kunde hat das Produkt gekauft (über customer_freebie_limits)
                 SELECT 1 FROM customer_freebie_limits cfl 
                 WHERE cfl.customer_id = :customer_id 
                 AND cfl.product_id = wpi.product_id
@@ -61,45 +92,16 @@ try {
     foreach ($freebies as $freebie) {
         $statusMap['freebie_' . $freebie['freebie_id']] = [
             'unlock_status' => $freebie['unlock_status'],
-            'has_course' => (bool)$freebie['has_course']
-        ];
-    }
-    
-    // 2. Status für ALLE Templates prüfen (auch nicht genutzte)
-    // Prüfe ob Kunde generell Produkte gekauft hat die Template-Zugang gewähren
-    $stmt = $pdo->prepare("
-        SELECT DISTINCT f.id as template_id
-        FROM freebies f
-        INNER JOIN courses c ON c.is_active = 1
-        INNER JOIN webhook_course_access wca ON c.id = wca.course_id
-        INNER JOIN webhook_configurations wc ON wca.webhook_id = wc.id AND wc.is_active = 1
-        INNER JOIN webhook_product_ids wpi ON wc.id = wpi.webhook_id
-        WHERE EXISTS (
-            -- Kunde hat das Produkt gekauft
-            SELECT 1 FROM customer_freebie_limits cfl 
-            WHERE cfl.customer_id = :customer_id 
-            AND cfl.product_id = wpi.product_id
-        )
-    ");
-    
-    $stmt->execute(['customer_id' => $customer_id]);
-    $unlockedTemplates = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    
-    // Alle Templates holen
-    $stmt = $pdo->query("SELECT id FROM freebies");
-    $allTemplates = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    
-    // Status für alle Templates setzen
-    foreach ($allTemplates as $templateId) {
-        $isUnlocked = in_array($templateId, $unlockedTemplates);
-        $statusMap['template_' . $templateId] = [
-            'unlock_status' => $isUnlocked ? 'unlocked' : 'locked',
-            'has_course' => true // Templates haben immer Kurse/Inhalte
+            'has_course' => (bool)$freebie['has_course'],
+            'headline' => $freebie['headline']
         ];
     }
     
     echo json_encode([
         'success' => true,
+        'customer_id' => $customer_id,
+        'total_templates' => count($allTemplates),
+        'unlocked_count' => count($unlockedTemplates),
         'statuses' => $statusMap,
         'unlocked_template_ids' => $unlockedTemplates
     ]);
@@ -107,6 +109,7 @@ try {
 } catch (PDOException $e) {
     http_response_code(500);
     echo json_encode([
+        'success' => false,
         'error' => 'Datenbankfehler',
         'message' => $e->getMessage()
     ]);
