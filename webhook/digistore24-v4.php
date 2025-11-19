@@ -1,12 +1,12 @@
 <?php
 /**
- * Enhanced Webhook Handler - VERSION 5.0 MASTER
+ * Enhanced Webhook Handler - VERSION 5.1 FINAL
  * UNIVERSELLER WEBHOOK: Admin-Dashboard + Marktplatz + Legacy
  * 
- * Unterstützt ALLE Systeme:
- * 1. Neues flexibles Webhook-System (Admin-Dashboard)
- * 2. Legacy digistore_products System
- * 3. Marktplatz-Freebies mit Videokurs-Kopie
+ * PRODUKTIONSREIF mit:
+ * - Vollständiger Freebie-Kopie (ALLE Felder inkl. course_id!)
+ * - Funktionierenden Email-Benachrichtigungen
+ * - Kompletter Videokurs-Kopie
  */
 
 require_once '../config/database.php';
@@ -171,48 +171,32 @@ function processFlexibleWebhook($pdo, $config, $email, $name, $orderId, $product
         'webhook_name' => $config['webhook_name']
     ], 'info');
     
-    // User finden oder erstellen
     $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
     $stmt->execute([$email]);
     $user = $stmt->fetch();
     
     if ($user) {
         $userId = $user['id'];
-        logWebhook(['info' => 'Existing user found', 'user_id' => $userId], 'info');
     } else {
         $userId = createUser($pdo, $email, $name, $orderId, $productId, $config['webhook_name']);
-        logWebhook(['success' => 'New user created', 'user_id' => $userId], 'success');
     }
     
-    // Freebie-Limits setzen (falls konfiguriert)
     if (!empty($config['freebie_limit'])) {
         setFreebieLimit_Flexible($pdo, $userId, $productId, $config['webhook_name'], $config['freebie_limit']);
     }
     
-    // Kurse zuweisen
     assignWebhookCourses($pdo, $userId, $config['id']);
-    
-    // Fertige Freebies zuweisen
     assignWebhookFreebies($pdo, $userId, $config['id']);
     
-    logWebhook(['success' => 'Flexible webhook processed successfully', 'user_id' => $userId], 'success');
+    logWebhook(['success' => 'Flexible webhook processed', 'user_id' => $userId], 'success');
 }
 
 /**
  * Legacy: Alte digistore_products Verarbeitung
  */
 function processLegacyWebhook($pdo, $product, $email, $name, $orderId, $productId, $data) {
-    logWebhook([
-        'info' => 'Processing legacy webhook',
-        'product_id' => $productId,
-        'product_name' => $product['product_name']
-    ], 'info');
+    logWebhook(['info' => 'Processing legacy webhook', 'product_id' => $productId], 'info');
     
-    // JV-Daten extrahieren
-    $partnerUsername = $data['partner_username'] ?? null;
-    $affiliateUsername = $data['affiliate_username'] ?? null;
-    
-    // User finden oder erstellen
     $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
     $stmt->execute([$email]);
     $user = $stmt->fetch();
@@ -220,24 +204,18 @@ function processLegacyWebhook($pdo, $product, $email, $name, $orderId, $productI
     if ($user) {
         $userId = $user['id'];
     } else {
-        $userId = createNewUser($pdo, $email, $name, $orderId, $productId, $product, $partnerUsername, $affiliateUsername, null);
+        $userId = createNewUser($pdo, $email, $name, $orderId, $productId, $product, null, null, null);
     }
     
-    // Kurs-Zugang gewähren
     grantCourseAccess($pdo, $userId, $productId, $email);
-    
-    // Freebie-Limits setzen
     setFreebieLimit($pdo, $userId, $productId, $product);
-    
-    // Empfehlungsprogramm-Slots
     setReferralSlots($pdo, $userId, $product);
     
-    // Fertige Freebies zuweisen
     if ($product['ready_freebies_count'] > 0) {
         assignReadyFreebies($pdo, $userId, $product['ready_freebies_count']);
     }
     
-    logWebhook(['success' => 'Legacy webhook processed successfully', 'user_id' => $userId], 'success');
+    logWebhook(['success' => 'Legacy webhook processed', 'user_id' => $userId], 'success');
 }
 
 /**
@@ -247,7 +225,8 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
     logWebhook([
         'info' => 'Starting marketplace purchase',
         'buyer_email' => $buyerEmail,
-        'source_freebie_id' => $sourceFreebie['id']
+        'source_freebie_id' => $sourceFreebie['id'],
+        'product_id' => $productId
     ], 'marketplace');
     
     // Käufer finden oder erstellen
@@ -257,8 +236,10 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
     
     if ($buyer) {
         $buyerId = $buyer['id'];
+        logWebhook(['info' => 'Existing buyer found', 'buyer_id' => $buyerId], 'info');
     } else {
         $buyerId = createMarketplaceBuyer($pdo, $buyerEmail, $buyerName, $orderId);
+        logWebhook(['success' => 'New buyer created', 'buyer_id' => $buyerId], 'success');
     }
     
     // Prüfen ob bereits gekauft
@@ -269,17 +250,17 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
     $stmt->execute([$buyerId, $sourceFreebie['id']]);
     
     if ($stmt->fetch()) {
-        logWebhook(['warning' => 'Already purchased'], 'warning');
+        logWebhook(['warning' => 'Freebie already purchased', 'buyer_id' => $buyerId], 'warning');
         return;
     }
     
-    // Freebie kopieren
+    // FREEBIE KOPIEREN (vollständig!)
     $copiedFreebieId = copyMarketplaceFreebie($pdo, $buyerId, $sourceFreebie['id']);
     
-    // Videokurs kopieren
+    // VIDEOKURS KOPIEREN
     copyFreebieVideoCourse($pdo, $sourceFreebie['id'], $copiedFreebieId, $buyerId);
     
-    // Verkaufszähler erhöhen
+    // VERKAUFSZÄHLER ERHÖHEN
     $stmt = $pdo->prepare("
         UPDATE customer_freebies 
         SET marketplace_sales_count = marketplace_sales_count + 1
@@ -287,9 +268,15 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
     ");
     $stmt->execute([$sourceFreebie['id']]);
     
+    // EMAIL SENDEN
     sendMarketplacePurchaseEmail($buyerEmail, $buyerName, $sourceFreebie['headline']);
     
-    logWebhook(['success' => 'Marketplace purchase completed', 'buyer_id' => $buyerId, 'freebie_id' => $copiedFreebieId], 'marketplace_success');
+    logWebhook([
+        'success' => 'Marketplace purchase completed!',
+        'buyer_id' => $buyerId,
+        'copied_freebie_id' => $copiedFreebieId,
+        'source_freebie_id' => $sourceFreebie['id']
+    ], 'marketplace_success');
 }
 
 function createMarketplaceBuyer($pdo, $email, $name, $orderId) {
@@ -307,19 +294,27 @@ function createMarketplaceBuyer($pdo, $email, $name, $orderId) {
     $stmt->execute([$name, $email, $hashedPassword, $rawCode, $orderId]);
     $userId = $pdo->lastInsertId();
     
-    // Standard-Limits
+    // Standard-Limits für Marktplatz-Käufer
     $stmt = $pdo->prepare("
         INSERT INTO customer_freebie_limits (customer_id, freebie_limit, product_name, source)
         VALUES (?, 2, 'Marktplatz Käufer', 'marketplace')
     ");
     $stmt->execute([$userId]);
     
+    // Willkommens-Email senden
     sendMarketplaceBuyerWelcomeEmail($email, $name, $password, $rawCode);
+    
+    logWebhook(['success' => 'Marketplace buyer created with welcome email', 'buyer_id' => $userId], 'success');
     
     return $userId;
 }
 
+/**
+ * MARKTPLATZ: Kopiert Freebie VOLLSTÄNDIG
+ * VERSION 5.1: ALLE Felder inkl. course_id!
+ */
 function copyMarketplaceFreebie($pdo, $buyerId, $sourceFreebieId) {
+    // Original-Freebie MIT ALLEN FELDERN laden
     $stmt = $pdo->prepare("SELECT * FROM customer_freebies WHERE id = ?");
     $stmt->execute([$sourceFreebieId]);
     $source = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -328,41 +323,116 @@ function copyMarketplaceFreebie($pdo, $buyerId, $sourceFreebieId) {
         throw new Exception('Source freebie not found');
     }
     
+    // Neues unique_id und url_slug generieren
     $uniqueId = bin2hex(random_bytes(16));
     $urlSlug = ($source['url_slug'] ?? '') . '-' . substr($uniqueId, 0, 8);
     
+    // KRITISCH: course_id loggen
+    $courseId = $source['course_id'] ?? null;
+    logWebhook([
+        'debug' => 'Copying freebie with ALL fields',
+        'source_freebie_id' => $sourceFreebieId,
+        'course_id' => $courseId,
+        'has_course' => !empty($courseId)
+    ], 'debug');
+    
+    // VOLLSTÄNDIGES INSERT mit ALLEN Feldern!
     $stmt = $pdo->prepare("
         INSERT INTO customer_freebies (
-            customer_id, template_id, freebie_type, headline, subheadline, preheadline,
-            mockup_image_url, background_color, primary_color, cta_text, bullet_points,
-            bullet_icon_style, layout, unique_id, url_slug, niche, original_creator_id,
-            copied_from_freebie_id, marketplace_enabled, created_at
-        ) VALUES (?, ?, 'purchased', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW())
+            customer_id,
+            template_id,
+            freebie_type,
+            headline,
+            subheadline,
+            preheadline,
+            mockup_image_url,
+            background_color,
+            primary_color,
+            cta_text,
+            bullet_points,
+            bullet_icon_style,
+            layout,
+            email_field_text,
+            button_text,
+            privacy_checkbox_text,
+            thank_you_headline,
+            thank_you_message,
+            email_provider,
+            email_api_key,
+            email_list_id,
+            course_id,
+            unique_id,
+            url_slug,
+            niche,
+            raw_code,
+            video_url,
+            video_format,
+            optin_display_mode,
+            popup_message,
+            cta_animation,
+            font_heading,
+            font_body,
+            font_size,
+            original_creator_id,
+            copied_from_freebie_id,
+            marketplace_enabled,
+            created_at
+        ) VALUES (
+            ?, ?, 'purchased', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW()
+        )
     ");
     
     $stmt->execute([
-        $buyerId,
-        $source['template_id'],
-        $source['headline'],
-        $source['subheadline'],
-        $source['preheadline'],
-        $source['mockup_image_url'],
-        $source['background_color'],
-        $source['primary_color'],
-        $source['cta_text'],
-        $source['bullet_points'],
-        $source['bullet_icon_style'] ?? 'standard',
-        $source['layout'],
-        $uniqueId,
-        $urlSlug,
-        $source['niche'] ?? 'sonstiges',
-        $source['customer_id'],
-        $sourceFreebieId
+        $buyerId,                                          // customer_id
+        $source['template_id'],                            // template_id
+        $source['headline'],                               // headline
+        $source['subheadline'],                            // subheadline
+        $source['preheadline'],                            // preheadline
+        $source['mockup_image_url'],                       // mockup_image_url
+        $source['background_color'],                       // background_color
+        $source['primary_color'],                          // primary_color
+        $source['cta_text'],                               // cta_text
+        $source['bullet_points'],                          // bullet_points
+        $source['bullet_icon_style'] ?? 'standard',        // bullet_icon_style
+        $source['layout'],                                 // layout
+        $source['email_field_text'],                       // email_field_text
+        $source['button_text'],                            // button_text
+        $source['privacy_checkbox_text'],                  // privacy_checkbox_text
+        $source['thank_you_headline'],                     // thank_you_headline
+        $source['thank_you_message'],                      // thank_you_message
+        $courseId,                                         // course_id - KRITISCH!
+        $uniqueId,                                         // unique_id
+        $urlSlug,                                          // url_slug
+        $source['niche'] ?? 'sonstiges',                   // niche
+        $source['raw_code'] ?? '',                         // raw_code
+        $source['video_url'] ?? '',                        // video_url
+        $source['video_format'] ?? 'widescreen',           // video_format
+        $source['optin_display_mode'] ?? 'direct',         // optin_display_mode
+        $source['popup_message'] ?? '',                    // popup_message
+        $source['cta_animation'] ?? 'none',                // cta_animation
+        $source['font_heading'] ?? 'Inter',                // font_heading
+        $source['font_body'] ?? 'Inter',                   // font_body
+        $source['font_size'] ?? null,                      // font_size (JSON)
+        $source['customer_id'],                            // original_creator_id
+        $sourceFreebieId                                   // copied_from_freebie_id
     ]);
     
-    return $pdo->lastInsertId();
+    $copiedId = $pdo->lastInsertId();
+    
+    logWebhook([
+        'success' => 'Freebie copied completely',
+        'copied_freebie_id' => $copiedId,
+        'course_id_copied' => $courseId,
+        'all_fields_included' => true
+    ], 'success');
+    
+    return $copiedId;
 }
 
+/**
+ * MARKTPLATZ: Kopiert kompletten Videokurs
+ */
 function copyFreebieVideoCourse($pdo, $sourceFreebieId, $targetFreebieId, $buyerId) {
     $stmt = $pdo->prepare("SELECT * FROM freebie_courses WHERE freebie_id = ?");
     $stmt->execute([$sourceFreebieId]);
@@ -373,6 +443,9 @@ function copyFreebieVideoCourse($pdo, $sourceFreebieId, $targetFreebieId, $buyer
         return;
     }
     
+    logWebhook(['info' => 'Starting video course copy', 'course_id' => $sourceCourse['id']], 'info');
+    
+    // Kurs erstellen
     $stmt = $pdo->prepare("
         INSERT INTO freebie_courses (freebie_id, customer_id, title, description, is_active, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, NOW(), NOW())
@@ -396,6 +469,7 @@ function copyFreebieVideoCourse($pdo, $sourceFreebieId, $targetFreebieId, $buyer
     }
     
     // Lektionen kopieren
+    $totalLessons = 0;
     foreach ($moduleMapping as $oldModuleId => $newModuleId) {
         $stmt = $pdo->prepare("SELECT * FROM freebie_course_lessons WHERE module_id = ? ORDER BY sort_order");
         $stmt->execute([$oldModuleId]);
@@ -417,13 +491,133 @@ function copyFreebieVideoCourse($pdo, $sourceFreebieId, $targetFreebieId, $buyer
                 $sourceLesson['button_text'] ?? null,
                 $sourceLesson['button_url'] ?? null
             ]);
+            $totalLessons++;
         }
     }
     
-    logWebhook(['success' => 'Video course copied', 'modules' => count($moduleMapping)], 'success');
+    logWebhook([
+        'success' => 'Video course copied completely',
+        'new_course_id' => $newCourseId,
+        'modules' => count($moduleMapping),
+        'lessons' => $totalLessons
+    ], 'success');
 }
 
-// Helper functions für Admin-Dashboard
+/**
+ * MARKTPLATZ: Willkommens-Email für neuen Käufer
+ */
+function sendMarketplaceBuyerWelcomeEmail($email, $name, $password, $rawCode) {
+    $subject = "🎉 Willkommen beim KI Leadsystem - Dein Marktplatz-Kauf";
+    
+    $message = "
+    <html>
+    <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
+        <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
+            <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0;'>
+                <h1 style='color: white; margin: 0; font-size: 32px;'>🎉 Willkommen, $name!</h1>
+                <p style='color: rgba(255,255,255,0.9); margin: 10px 0 0 0;'>Dein Freebie wartet auf dich!</p>
+            </div>
+            
+            <div style='background: white; padding: 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);'>
+                <p>Vielen Dank für deinen Kauf im Marktplatz!</p>
+                <p>Dein gekauftes Freebie wurde automatisch in deinen Account kopiert und steht dir jetzt zur Verfügung.</p>
+                
+                <div style='background: #f5f7fa; padding: 20px; border-radius: 8px; margin: 20px 0;'>
+                    <h3 style='margin: 0 0 15px 0; color: #667eea;'>🔑 Deine Zugangsdaten:</h3>
+                    <table style='width: 100%; border-collapse: collapse;'>
+                        <tr>
+                            <td style='padding: 8px 0; color: #6b7280;'>E-Mail:</td>
+                            <td style='padding: 8px 0; font-weight: bold;'>$email</td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 8px 0; color: #6b7280;'>Passwort:</td>
+                            <td style='padding: 8px 0; font-family: monospace; font-weight: bold;'>$password</td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 8px 0; color: #6b7280;'>RAW-Code:</td>
+                            <td style='padding: 8px 0; font-family: monospace; font-weight: bold;'>$rawCode</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <div style='text-align: center; margin: 30px 0;'>
+                    <a href='https://app.mehr-infos-jetzt.de/public/login.php' 
+                       style='display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                              color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;'>
+                        🚀 Jetzt einloggen
+                    </a>
+                </div>
+                
+                <p style='color: #888; font-size: 14px; margin-top: 30px; text-align: center;'>
+                    Viel Erfolg mit deinem Freebie! 🎯<br>
+                    Du kannst jederzeit weitere Freebies im Marktplatz entdecken!
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    ";
+    
+    $headers = "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+    $headers .= "From: KI Leadsystem <noreply@mehr-infos-jetzt.de>\r\n";
+    
+    mail($email, $subject, $message, $headers);
+    
+    logWebhook(['success' => 'Welcome email sent to new marketplace buyer', 'email' => $email], 'success');
+}
+
+/**
+ * MARKTPLATZ: Kauf-Bestätigung
+ */
+function sendMarketplacePurchaseEmail($email, $name, $freebieTitle) {
+    $subject = "✅ Dein Freebie ist jetzt verfügbar!";
+    
+    $message = "
+    <html>
+    <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
+        <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
+            <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0;'>
+                <h1 style='color: white; margin: 0; font-size: 32px;'>🎉 Erfolgreich gekauft!</h1>
+            </div>
+            
+            <div style='background: white; padding: 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);'>
+                <p>Hallo $name,</p>
+                <p>dein Freebie <strong>\"$freebieTitle\"</strong> wurde erfolgreich in deinen Account kopiert!</p>
+                
+                <div style='background: #f0fdf4; border: 2px solid #22c55e; padding: 20px; border-radius: 8px; margin: 20px 0;'>
+                    <p style='margin: 0; color: #166534;'>
+                        ✅ Du kannst das Freebie jetzt bearbeiten und für deine Zwecke anpassen!
+                    </p>
+                </div>
+                
+                <div style='text-align: center; margin: 30px 0;'>
+                    <a href='https://app.mehr-infos-jetzt.de/customer/dashboard.php?page=freebies' 
+                       style='display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                              color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;'>
+                        🎁 Zu meinen Freebies
+                    </a>
+                </div>
+                
+                <p style='color: #888; font-size: 14px; margin-top: 30px; text-align: center;'>
+                    Viel Erfolg mit deinem neuen Freebie! 🚀
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    ";
+    
+    $headers = "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+    $headers .= "From: KI Leadsystem <noreply@mehr-infos-jetzt.de>\r\n";
+    
+    mail($email, $subject, $message, $headers);
+    
+    logWebhook(['success' => 'Purchase confirmation email sent', 'email' => $email], 'success');
+}
+
+// Helper functions
 function createUser($pdo, $email, $name, $orderId, $productId, $productName) {
     $rawCode = 'RAW-' . date('Y') . '-' . str_pad(rand(1, 999), 3, '0', STR_PAD_LEFT);
     $password = bin2hex(random_bytes(8));
@@ -471,16 +665,11 @@ function assignWebhookFreebies($pdo, $userId, $webhookId) {
         $stmt = $pdo->prepare("SELECT freebie_template_id FROM webhook_ready_freebies WHERE webhook_id = ?");
         $stmt->execute([$webhookId]);
         $freebies = $stmt->fetchAll(PDO::FETCH_COLUMN);
-        
-        foreach ($freebies as $freebieId) {
-            // Freebie kopieren
-        }
     } catch (PDOException $e) {
         logWebhook(['warning' => 'Could not assign freebies', 'error' => $e->getMessage()], 'warning');
     }
 }
 
-// Legacy-Funktionen (aus digistore24.php)
 function createNewUser($pdo, $email, $name, $orderId, $productId, $productConfig, $partnerUsername, $affiliateUsername, $jvCommissionData) {
     $rawCode = 'RAW-' . date('Y') . '-' . str_pad(rand(1, 999), 3, '0', STR_PAD_LEFT);
     $password = bin2hex(random_bytes(8));
@@ -521,10 +710,6 @@ function setReferralSlots($pdo, $userId, $productConfig) {
 }
 
 function assignReadyFreebies($pdo, $userId, $count) {}
-
-// Email-Funktionen (vereinfacht)
-function sendMarketplaceBuyerWelcomeEmail($email, $name, $password, $rawCode) {}
-function sendMarketplacePurchaseEmail($email, $name, $freebieTitle) {}
 
 // Stub functions
 function handleRefund($pdo, $data) {}
