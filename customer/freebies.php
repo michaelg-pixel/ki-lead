@@ -142,6 +142,16 @@ $domain = $_SERVER['HTTP_HOST'];
         border-color: rgba(102, 126, 234, 0.5);
     }
     
+    .freebie-card.locked {
+        opacity: 0.6;
+        border-color: rgba(239, 68, 68, 0.3);
+    }
+    
+    .freebie-card.locked:hover {
+        transform: translateY(-4px);
+        border-color: rgba(239, 68, 68, 0.5);
+    }
+    
     .freebie-preview {
         height: 200px;
         position: relative;
@@ -201,16 +211,16 @@ $domain = $_SERVER['HTTP_HOST'];
     /* 🟢 UNLOCK STATUS DOT - Zeigt Freischaltungs-Status */
     .unlock-status-dot {
         position: absolute;
-        bottom: 12px;
-        right: 12px;
-        width: 16px;
-        height: 16px;
+        bottom: 16px;
+        right: 16px;
+        width: 20px;
+        height: 20px;
         border-radius: 50%;
-        border: 2px solid white;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        border: 3px solid white;
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.5);
         z-index: 10;
         opacity: 0;
-        transition: opacity 0.3s ease;
+        transition: all 0.3s ease;
     }
     
     .unlock-status-dot.loaded {
@@ -219,10 +229,22 @@ $domain = $_SERVER['HTTP_HOST'];
     
     .status-unlocked {
         background: #22c55e;
+        animation: pulse-green 2s ease-in-out infinite;
     }
     
     .status-locked {
         background: #ef4444;
+        animation: pulse-red 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse-green {
+        0%, 100% { box-shadow: 0 3px 12px rgba(34, 197, 94, 0.5); }
+        50% { box-shadow: 0 3px 20px rgba(34, 197, 94, 0.8); }
+    }
+    
+    @keyframes pulse-red {
+        0%, 100% { box-shadow: 0 3px 12px rgba(239, 68, 68, 0.5); }
+        50% { box-shadow: 0 3px 20px rgba(239, 68, 68, 0.8); }
     }
     
     .status-no-course {
@@ -313,6 +335,18 @@ $domain = $_SERVER['HTTP_HOST'];
         box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
     }
     
+    .action-btn-locked {
+        background: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    
+    .action-btn-locked:hover {
+        transform: none;
+        box-shadow: none;
+    }
+    
     .action-btn-create {
         background: linear-gradient(135deg, #10b981, #059669);
         color: white;
@@ -358,6 +392,32 @@ $domain = $_SERVER['HTTP_HOST'];
         text-transform: uppercase;
     }
     
+    /* Debug Box */
+    .debug-box {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.9);
+        border: 2px solid #22c55e;
+        border-radius: 8px;
+        padding: 16px;
+        color: white;
+        font-family: monospace;
+        font-size: 12px;
+        max-width: 400px;
+        max-height: 300px;
+        overflow-y: auto;
+        z-index: 9999;
+    }
+    
+    .debug-box .log-line {
+        margin: 4px 0;
+    }
+    
+    .debug-box .log-success { color: #22c55e; }
+    .debug-box .log-error { color: #ef4444; }
+    .debug-box .log-info { color: #3b82f6; }
+    
     @media (max-width: 768px) {
         .freebies-grid {
             grid-template-columns: 1fr;
@@ -365,6 +425,13 @@ $domain = $_SERVER['HTTP_HOST'];
         
         .section-tabs {
             flex-direction: column;
+        }
+        
+        .debug-box {
+            bottom: 10px;
+            right: 10px;
+            left: 10px;
+            max-width: none;
         }
     }
 </style>
@@ -515,9 +582,9 @@ $domain = $_SERVER['HTTP_HOST'];
             <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6; padding: 20px; border-radius: 8px; margin-bottom: 32px;">
                 <h3 style="color: white; font-size: 16px; font-weight: 600; margin-bottom: 12px;">💡 So funktioniert's</h3>
                 <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>1.</strong> Wähle ein Template aus unserer Bibliothek</p>
-                <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>2.</strong> Klicke auf "Nutzen" um es anzupassen</p>
-                <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>3.</strong> Füge deinen E-Mail-Optin Code ein</p>
-                <p style="color: #bbb; font-size: 14px; line-height: 1.6;"><strong>4.</strong> Teile den generierten Link!</p>
+                <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>2.</strong> Templates mit 🟢 grünem Punkt sind freigeschaltet</p>
+                <p style="color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px;"><strong>3.</strong> Templates mit 🔴 rotem Punkt erfordern einen Produktkauf</p>
+                <p style="color: #bbb; font-size: 14px; line-height: 1.6;"><strong>4.</strong> Füge deinen E-Mail-Optin Code ein und teile den Link!</p>
             </div>
             
             <div class="freebies-grid">
@@ -532,7 +599,7 @@ $domain = $_SERVER['HTTP_HOST'];
                         $identifier = $freebie['url_slug'] ?: $freebie['unique_id'];
                         $preview_url = 'https://app.mehr-infos-jetzt.de/freebie/' . $identifier;
                         $live_url = $preview_url;
-    }
+                    }
                     
                     $bgColor = $freebie['background_color'] ?: '#667eea';
                     $primaryColor = $freebie['primary_color'] ?: '#667eea';
@@ -550,7 +617,7 @@ $domain = $_SERVER['HTTP_HOST'];
                     $date = new DateTime($freebie['created_at']);
                     $formattedDate = $date->format('d.m.Y');
                 ?>
-                    <div class="freebie-card">
+                    <div class="freebie-card" data-card-id="<?php echo $freebie['id']; ?>">
                         <div class="freebie-preview" style="background: <?php echo htmlspecialchars($bgColor); ?>;">
                             <div class="freebie-badges">
                                 <?php if ($isUsedByCustomer): ?>
@@ -617,7 +684,9 @@ $domain = $_SERVER['HTTP_HOST'];
                                    class="action-btn action-btn-preview">
                                     👁️ <?php echo $isUsedByCustomer ? 'Meine Version' : 'Vorschau'; ?>
                                 </a>
-                                <a href="freebie-editor.php?template_id=<?php echo $freebie['id']; ?>" class="action-btn action-btn-edit">
+                                <a href="freebie-editor.php?template_id=<?php echo $freebie['id']; ?>" 
+                                   class="action-btn action-btn-edit"
+                                   data-use-btn="<?php echo $freebie['id']; ?>">
                                     <?php echo $isUsedByCustomer ? '✏️ Bearbeiten' : '✨ Nutzen'; ?>
                                 </a>
                             </div>
@@ -627,6 +696,12 @@ $domain = $_SERVER['HTTP_HOST'];
             </div>
         <?php endif; ?>
     </div>
+</div>
+
+<!-- Debug Console -->
+<div class="debug-box" id="debugConsole">
+    <strong>🔍 Debug Console</strong>
+    <div id="debugLog"></div>
 </div>
 
 <script>
@@ -644,22 +719,42 @@ function switchSection(section) {
     document.getElementById('section-' + section).classList.add('active');
 }
 
+// Debug Logger
+const debugLog = document.getElementById('debugLog');
+function log(message, type = 'info') {
+    const time = new Date().toLocaleTimeString();
+    const className = 'log-' + type;
+    debugLog.innerHTML += `<div class="log-line ${className}">[${time}] ${message}</div>`;
+    debugLog.scrollTop = debugLog.scrollHeight;
+    console.log(message);
+}
+
 // 🟢 UNLOCK STATUS LADEN - Prüft Freischaltungs-Status via API
 async function loadUnlockStatus() {
+    log('🚀 Starte Unlock-Status Check...', 'info');
+    
     try {
+        log('📡 Rufe API auf: /customer/api/check-freebie-unlock-status.php', 'info');
         const response = await fetch('/customer/api/check-freebie-unlock-status.php');
         
+        log(`📊 HTTP Status: ${response.status}`, response.ok ? 'success' : 'error');
+        
         if (!response.ok) {
-            console.error('❌ API Fehler:', response.status);
+            log(`❌ API Fehler: ${response.status} ${response.statusText}`, 'error');
             return;
         }
         
         const data = await response.json();
+        log(`✓ JSON Response erhalten`, 'success');
+        log(`📦 Total Templates: ${data.total_templates}`, 'info');
+        log(`🔓 Unlocked Count: ${data.unlocked_count}`, 'info');
         
         if (!data.success || !data.statuses) {
-            console.error('❌ Ungültige API Response:', data);
+            log('❌ Ungültige API Response: ' + JSON.stringify(data).substring(0, 100), 'error');
             return;
         }
+        
+        let processedCount = 0;
         
         // Status für jedes Template setzen
         for (const [key, status] of Object.entries(data.statuses)) {
@@ -667,6 +762,8 @@ async function loadUnlockStatus() {
             if (key.startsWith('template_')) {
                 const templateId = key.replace('template_', '');
                 const dot = document.querySelector(`[data-template-id="${templateId}"]`);
+                const card = document.querySelector(`[data-card-id="${templateId}"]`);
+                const useBtn = document.querySelector(`[data-use-btn="${templateId}"]`);
                 
                 if (dot) {
                     // Status-Klasse setzen
@@ -674,33 +771,60 @@ async function loadUnlockStatus() {
                     
                     if (status.unlock_status === 'unlocked') {
                         dot.classList.add('status-unlocked');
-                        dot.title = 'Freigeschaltet';
+                        dot.title = '✓ Freigeschaltet';
+                        log(`✓ Template ${templateId} (${status.name}): UNLOCKED 🟢`, 'success');
                     } else if (status.unlock_status === 'locked') {
                         dot.classList.add('status-locked');
-                        dot.title = 'Gesperrt - Produkt nicht gekauft';
+                        dot.title = '🔒 Gesperrt - Produkt kaufen erforderlich';
+                        
+                        // Card als locked markieren
+                        if (card) card.classList.add('locked');
+                        
+                        // "Nutzen" Button blockieren
+                        if (useBtn) {
+                            useBtn.classList.remove('action-btn-edit');
+                            useBtn.classList.add('action-btn-locked');
+                            useBtn.innerHTML = '🔒 Gesperrt';
+                            useBtn.onclick = function(e) {
+                                e.preventDefault();
+                                alert('🔒 Dieses Template ist gesperrt.\n\nBitte kaufe das zugehörige Produkt um es freizuschalten.');
+                                return false;
+                            };
+                            useBtn.href = 'javascript:void(0)';
+                        }
+                        
+                        log(`🔒 Template ${templateId} (${status.name}): LOCKED 🔴`, 'error');
                     } else if (status.unlock_status === 'no_course') {
                         dot.classList.add('status-no-course'); // Wird nicht angezeigt
+                        log(`⊘ Template ${templateId} (${status.name}): NO_COURSE`, 'info');
                     }
                     
                     // Punkt sichtbar machen
                     dot.classList.add('loaded');
-                    
-                    console.log(`✓ Template ${templateId}: ${status.unlock_status}`);
+                    processedCount++;
+                } else {
+                    log(`⚠️ Dot nicht gefunden für Template ${templateId}`, 'error');
                 }
             }
         }
         
-        console.log('✅ Unlock-Status geladen:', data.total_templates, 'Templates,', data.unlocked_count, 'freigeschaltet');
+        log(`✅ Unlock-Status geladen! ${processedCount} Templates verarbeitet`, 'success');
         
     } catch (error) {
-        console.error('❌ Fehler beim Laden des Unlock-Status:', error);
+        log(`❌ JavaScript Fehler: ${error.message}`, 'error');
+        log(`Stack: ${error.stack}`, 'error');
     }
 }
 
 // Status laden sobald Seite geladen ist
+log('⏳ Warte auf DOM...', 'info');
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', loadUnlockStatus);
+    document.addEventListener('DOMContentLoaded', () => {
+        log('✓ DOM geladen', 'success');
+        loadUnlockStatus();
+    });
 } else {
+    log('✓ DOM bereits geladen', 'success');
     loadUnlockStatus();
 }
 </script>
