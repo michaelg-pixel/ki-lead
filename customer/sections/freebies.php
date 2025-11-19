@@ -19,7 +19,7 @@ $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : '
 $domain = $_SERVER['HTTP_HOST'];
 
 // DEBUG: Alle Freebies für diesen Customer prüfen
-$stmt_debug = $pdo->prepare("SELECT id, customer_id, email, headline, template_id FROM customer_freebies WHERE customer_id = ?");
+$stmt_debug = $pdo->prepare("SELECT id, customer_id, headline, template_id FROM customer_freebies WHERE customer_id = ?");
 $stmt_debug->execute([$customer_id]);
 $all_freebies_debug = $stmt_debug->fetchAll(PDO::FETCH_ASSOC);
 
@@ -460,7 +460,7 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
             ❌ KEINE FREEBIES GEFUNDEN!
         <?php else: ?>
             <?php foreach ($all_freebies_debug as $f): ?>
-                - ID: <?php echo $f['id']; ?>, Template: <?php echo $f['template_id'] ?? 'NULL'; ?>, Headline: <?php echo $f['headline']; ?><br>
+                - ID: <?php echo $f['id']; ?>, Template: <?php echo $f['template_id'] ?? 'NULL'; ?>, Headline: <?php echo htmlspecialchars($f['headline']); ?><br>
             <?php endforeach; ?>
         <?php endif; ?>
     </div>
