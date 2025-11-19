@@ -539,6 +539,183 @@ $providers = [
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        
+        .custom-fields-box h3 .title-part {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-template {
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        
+        .btn-template:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        /* Email Templates Modal */
+        .email-templates-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 10000;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+        
+        .email-templates-modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: linear-gradient(to bottom right, #1f2937, #111827);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 1rem;
+            max-width: 900px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            background: linear-gradient(to bottom right, #1f2937, #111827);
+            z-index: 10;
+        }
+        
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .modal-close {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid #ef4444;
+            color: #ef4444;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .modal-close:hover {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .modal-body {
+            padding: 1.5rem;
+        }
+        
+        .email-template-card {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .email-template-card:last-child {
+            margin-bottom: 0;
+        }
+        
+        .template-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .template-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .template-copy-btn {
+            padding: 0.5rem 1rem;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .template-copy-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px -3px rgba(16, 185, 129, 0.5);
+        }
+        
+        .template-preview {
+            background: #111827;
+            border: 1px solid #374151;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            color: #9ca3af;
+            font-size: 0.875rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .template-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .template-tag {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
         }
         
         .field-item {
@@ -674,6 +851,21 @@ $providers = [
                 width: 60px;
                 height: 60px;
             }
+            
+            .modal-content {
+                margin: 1rem;
+                max-height: calc(100vh - 2rem);
+            }
+            
+            .template-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .template-copy-btn {
+                width: 100%;
+                justify-content: center;
+            }
         }
     </style>
 </head>
@@ -714,7 +906,13 @@ $providers = [
             <!-- Custom Fields Infobox -->
             <div class="custom-fields-box animate-fade-in-up" style="opacity: 0; animation-delay: 0.1s;">
                 <h3>
-                    <i class="fas fa-database"></i> Benutzerdefinierte Felder für deinen Autoresponder
+                    <div class="title-part">
+                        <i class="fas fa-database"></i>
+                        <span>Benutzerdefinierte Felder für deinen Autoresponder</span>
+                    </div>
+                    <button class="btn-template" onclick="openEmailTemplatesModal()">
+                        <i class="fas fa-envelope"></i> E-Mail-Vorlagen
+                    </button>
                 </h3>
                 <div style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem;">
                     <p style="color: rgba(255, 255, 255, 0.9); font-size: 0.875rem; line-height: 1.6; margin: 0;">
@@ -775,6 +973,184 @@ $providers = [
                 <small style="color: rgba(255, 255, 255, 0.8); font-size: 0.875rem; display: block; margin-top: 1rem;">
                     💡 <strong>Tipp:</strong> Diese Felder ermöglichen dir eine präzise Segmentierung und Automation basierend auf dem Empfehlungsverhalten deiner Leads.
                 </small>
+            </div>
+            
+            <!-- Email Templates Modal -->
+            <div id="emailTemplatesModal" class="email-templates-modal">
+                <div class="modal-content" onclick="event.stopPropagation()">
+                    <div class="modal-header">
+                        <div class="modal-title">
+                            <i class="fas fa-envelope-open-text"></i>
+                            E-Mail-Vorlagen für Belohnungen
+                        </div>
+                        <button class="modal-close" onclick="closeEmailTemplatesModal()">
+                            <i class="fas fa-times"></i> Schließen
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        
+                        <!-- Template 1: Klassisch -->
+                        <div class="email-template-card">
+                            <div class="template-header">
+                                <div class="template-title">
+                                    📧 Vorlage 1: Klassisch & Professionell
+                                </div>
+                                <button class="template-copy-btn" onclick="copyTemplate('template1')">
+                                    <i class="fas fa-copy"></i> Kopieren
+                                </button>
+                            </div>
+                            <div class="template-preview" id="template1">Betreff: 🎉 Glückwunsch! Du hast eine Belohnung freigeschaltet
+
+Hallo!
+
+🎉 Herzlichen Glückwunsch!
+
+Du hast es geschafft und eine neue Belohnung in unserem Empfehlungsprogramm erreicht!
+
+---
+
+📊 Deine aktuelle Statistik:
+✅ Erfolgreiche Empfehlungen: {{successful_referrals}}
+⭐ Gesammelte Punkte: {{current_points}}
+🎁 Dein Empfehlungscode: {{referral_code}}
+
+---
+
+🎁 Deine freigeschaltete Belohnung:
+
+{{reward_title}}
+
+{{reward_warning}}
+
+---
+
+💪 Weiter so!
+
+Du machst das großartig! Teile deinen Empfehlungscode weiterhin mit Freunden und Bekannten.
+
+Viele Grüße
+Dein Team</div>
+                            <div class="template-tags">
+                                <span class="template-tag">Professionell</span>
+                                <span class="template-tag">Strukturiert</span>
+                                <span class="template-tag">Klar</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Template 2: Motivierend -->
+                        <div class="email-template-card">
+                            <div class="template-header">
+                                <div class="template-title">
+                                    🚀 Vorlage 2: Motivierend & Dynamisch
+                                </div>
+                                <button class="template-copy-btn" onclick="copyTemplate('template2')">
+                                    <i class="fas fa-copy"></i> Kopieren
+                                </button>
+                            </div>
+                            <div class="template-preview" id="template2">Betreff: ⭐ Level up! Du hast {{current_points}} Punkte erreicht
+
+Hey! 🌟
+
+WOW - du hast gerade Level up gemacht! 🚀
+
+Mit {{successful_referrals}} erfolgreichen Empfehlungen hast du dir folgende Belohnung verdient:
+
+🎁 {{reward_title}}
+
+{{reward_warning}}
+
+---
+
+📈 DEIN FORTSCHRITT:
+Aktuelle Punkte: {{current_points}}
+Dein Code: {{referral_code}}
+
+---
+
+🔥 NÄCHSTES ZIEL:
+Empfehle weiter und sichere dir noch mehr exklusive Belohnungen!
+
+---
+
+Danke, dass du uns unterstützt! 💙
+
+Dein Team</div>
+                            <div class="template-tags">
+                                <span class="template-tag">Motivierend</span>
+                                <span class="template-tag">Dynamisch</span>
+                                <span class="template-tag">Modern</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Template 3: Minimalistisch -->
+                        <div class="email-template-card">
+                            <div class="template-header">
+                                <div class="template-title">
+                                    ✨ Vorlage 3: Minimalistisch & Elegant
+                                </div>
+                                <button class="template-copy-btn" onclick="copyTemplate('template3')">
+                                    <i class="fas fa-copy"></i> Kopieren
+                                </button>
+                            </div>
+                            <div class="template-preview" id="template3">Betreff: Deine Belohnung ist bereit
+
+Hallo,
+
+du hast {{current_points}} Punkte erreicht.
+
+Deine Belohnung:
+{{reward_title}}
+
+{{reward_warning}}
+
+---
+
+Erfolgreiche Empfehlungen: {{successful_referrals}}
+Dein Code: {{referral_code}}
+
+---
+
+Beste Grüße
+Dein Team</div>
+                            <div class="template-tags">
+                                <span class="template-tag">Minimalistisch</span>
+                                <span class="template-tag">Elegant</span>
+                                <span class="template-tag">Kurz</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Platzhalter-Erklärungen -->
+                        <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid #3b82f6; border-radius: 0.75rem; padding: 1.5rem; margin-top: 1.5rem;">
+                            <h4 style="color: #3b82f6; font-size: 1rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                                <i class="fas fa-info-circle"></i>
+                                Verfügbare Platzhalter
+                            </h4>
+                            <div style="color: #9ca3af; font-size: 0.875rem; line-height: 1.8;">
+                                <div style="margin-bottom: 0.5rem;">
+                                    <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #fbbf24;">{{reward_title}}</code>
+                                    - Titel der Belohnung
+                                </div>
+                                <div style="margin-bottom: 0.5rem;">
+                                    <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #fbbf24;">{{reward_warning}}</code>
+                                    - Hinweis/Warnung zur Belohnung
+                                </div>
+                                <div style="margin-bottom: 0.5rem;">
+                                    <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #fbbf24;">{{successful_referrals}}</code>
+                                    - Anzahl erfolgreicher Empfehlungen
+                                </div>
+                                <div style="margin-bottom: 0.5rem;">
+                                    <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #fbbf24;">{{current_points}}</code>
+                                    - Aktuelle Punktzahl
+                                </div>
+                                <div>
+                                    <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #fbbf24;">{{referral_code}}</code>
+                                    - Empfehlungscode des Leads
+                                </div>
+                            </div>
+                        </div>
+                        
+                    </div>
+                </div>
             </div>
             
             <!-- Lead URLs Box -->
@@ -1143,6 +1519,61 @@ $providers = [
     <script>
         let selectedProvider = null;
         const providerDefaults = <?php echo json_encode($providers); ?>;
+        
+        // Email Templates Modal
+        function openEmailTemplatesModal() {
+            document.getElementById('emailTemplatesModal').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeEmailTemplatesModal() {
+            document.getElementById('emailTemplatesModal').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+        
+        // Close modal on overlay click
+        document.getElementById('emailTemplatesModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEmailTemplatesModal();
+            }
+        });
+        
+        // Copy email template
+        function copyTemplate(templateId) {
+            const template = document.getElementById(templateId);
+            const text = template.textContent;
+            
+            // Create temporary textarea
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            
+            // Show success feedback
+            const btn = event.target.closest('.template-copy-btn');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i> Kopiert!';
+            btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+            
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.style.background = '';
+            }, 2000);
+            
+            showNotification('✅ E-Mail-Vorlage kopiert!', 'success');
+        }
+        
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeEmailTemplatesModal();
+            }
+        });
         
         // Provider auswählen
         function selectProvider(provider) {
