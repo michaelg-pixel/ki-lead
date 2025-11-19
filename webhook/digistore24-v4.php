@@ -1,7 +1,7 @@
 <?php
 /**
- * Enhanced Webhook Handler - VERSION 4.6
- * FIX: Uses correct table names (courses, not customer_freebie_courses)
+ * Enhanced Webhook Handler - VERSION 4.7
+ * FIX: Course linked via customer_id, not freebie_id
  */
 
 require_once '../config/database.php';
@@ -147,47 +147,38 @@ function getTableColumns($pdo, $table) {
 }
 
 /**
- * Kopiert Videokurs-Daten - KORRIGIERTE VERSION mit richtigen Tabellennamen
+ * Kopiert Videokurs-Daten - KORRIGIERTE VERSION
+ * Kurs ist mit customer_id verknüpft, NICHT mit freebie_id!
  */
-function copyCourseData($pdo, $sourceFreebieId, $newFreebieId, $newCustomerId) {
+function copyCourseData($pdo, $sourceFreebieId, $newFreebieId, $newCustomerId, $sourceCustomerId) {
     logWebhook([
         'info' => 'Starting course copy',
         'source_freebie_id' => $sourceFreebieId,
-        'new_freebie_id' => $newFreebieId
+        'new_freebie_id' => $newFreebieId,
+        'source_customer_id' => $sourceCustomerId,
+        'new_customer_id' => $newCustomerId
     ], 'info');
     
     try {
-        // 1. Prüfen ob Source-Freebie einen Kurs hat (via course_id)
-        $stmt = $pdo->prepare("SELECT course_id FROM customer_freebies WHERE id = ?");
-        $stmt->execute([$sourceFreebieId]);
-        $sourceCourseId = $stmt->fetchColumn();
-        
-        if (!$sourceCourseId) {
-            logWebhook(['info' => 'No course_id found for source freebie'], 'info');
-            return;
-        }
-        
-        logWebhook(['info' => 'Source course_id found', 'course_id' => $sourceCourseId], 'info');
-        
-        // 2. Kurs-Daten laden aus der COURSES Tabelle (nicht customer_freebie_courses)
-        $stmt = $pdo->prepare("SELECT * FROM courses WHERE id = ?");
-        $stmt->execute([$sourceCourseId]);
+        // 1. Kurs des Original-Owners finden (via customer_id)
+        $stmt = $pdo->prepare("SELECT * FROM courses WHERE customer_id = ? LIMIT 1");
+        $stmt->execute([$sourceCustomerId]);
         $sourceCourse = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if (!$sourceCourse) {
-            logWebhook(['error' => 'Course not found in courses table', 'course_id' => $sourceCourseId], 'error');
+            logWebhook(['info' => 'No course found for source customer', 'customer_id' => $sourceCustomerId], 'info');
             return;
         }
         
-        logWebhook(['success' => 'Course found', 'course_name' => $sourceCourse['course_name'] ?? 'N/A'], 'success');
+        logWebhook(['success' => 'Course found', 'course_id' => $sourceCourse['id'], 'course_name' => $sourceCourse['course_name'] ?? 'N/A'], 'success');
         
-        // 3. Kurs kopieren
+        // 2. Kurs kopieren
         $courseColumns = getTableColumns($pdo, 'courses');
         $courseFieldsToCopy = [];
         $courseValues = [];
         
         // Blacklist für Kurs-Felder
-        $excludedCourseFields = ['id', 'created_at', 'updated_at'];
+        $excludedCourseFields = ['id', 'customer_id', 'created_at', 'updated_at'];
         
         foreach ($sourceCourse as $field => $value) {
             if (in_array($field, $courseColumns) && 
@@ -198,6 +189,10 @@ function copyCourseData($pdo, $sourceFreebieId, $newFreebieId, $newCustomerId) {
                 $courseValues[] = $value;
             }
         }
+        
+        // customer_id setzen (neuer Owner)
+        $courseFieldsToCopy[] = 'customer_id';
+        $courseValues[] = $newCustomerId;
         
         // created_at setzen
         $courseFieldsToCopy[] = 'created_at';
@@ -218,15 +213,9 @@ function copyCourseData($pdo, $sourceFreebieId, $newFreebieId, $newCustomerId) {
             'fields_copied' => count($courseFieldsToCopy)
         ], 'success');
         
-        // 4. course_id in customer_freebies setzen
-        $stmt = $pdo->prepare("UPDATE customer_freebies SET course_id = ? WHERE id = ?");
-        $stmt->execute([$newCourseId, $newFreebieId]);
-        
-        logWebhook(['info' => 'course_id set in customer_freebies', 'new_freebie_id' => $newFreebieId, 'course_id' => $newCourseId], 'info');
-        
-        // 5. Module kopieren
+        // 3. Module kopieren
         $stmt = $pdo->prepare("SELECT * FROM course_modules WHERE course_id = ? ORDER BY module_order");
-        $stmt->execute([$sourceCourseId]);
+        $stmt->execute([$sourceCourse['id']]);
         $sourceModules = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         $moduleMapping = []; // Alt-ID => Neu-ID
@@ -278,9 +267,9 @@ function copyCourseData($pdo, $sourceFreebieId, $newFreebieId, $newCustomerId) {
             ], 'info');
         }
         
-        // 6. Lektionen kopieren
+        // 4. Lektionen kopieren
         $stmt = $pdo->prepare("SELECT * FROM course_lessons WHERE course_id = ? ORDER BY lesson_order");
-        $stmt->execute([$sourceCourseId]);
+        $stmt->execute([$sourceCourse['id']]);
         $sourceLessons = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         foreach ($sourceLessons as $sourceLesson) {
@@ -432,12 +421,15 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
         $stmt->execute([$sourceFreebie['id']]);
         $fullSourceFreebie = $stmt->fetch(PDO::FETCH_ASSOC);
         
+        // Original Owner ID merken (für Kurs-Copy)
+        $sourceCustomerId = $fullSourceFreebie['customer_id'];
+        
         logWebhook([
             'info' => 'Source freebie loaded',
             'fields_count' => count($fullSourceFreebie),
             'has_bullet_points' => isset($fullSourceFreebie['bullet_points']),
             'has_mockup' => isset($fullSourceFreebie['mockup_image_url']),
-            'course_id' => $fullSourceFreebie['course_id'] ?? 'NULL'
+            'source_customer_id' => $sourceCustomerId
         ], 'info');
         
         // 4. Tabellenstruktur prüfen - welche Spalten existieren?
@@ -454,7 +446,7 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
             'digistore_product_id',  // wird entfernt bei Kopie
             'digistore_order_id',  // wird mit aktuellem Order-ID ersetzt
             'freebie_type',  // WICHTIG: Nicht kopieren, da Feld möglicherweise ENUM oder zu kurz ist
-            'course_id'  // WICHTIG: Wird NICHT kopiert, sondern später neu gesetzt nach Kurs-Copy
+            'course_id'  // WICHTIG: Wird NICHT kopiert (ist eh NULL beim Original)
         ];
         
         // 6. ALLE Felder kopieren die existieren UND nicht ausgeschlossen sind
@@ -467,10 +459,6 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
         
         // ALLE Felder aus Source-Freebie durchgehen
         foreach ($fullSourceFreebie as $field => $value) {
-            // Nur kopieren wenn:
-            // 1. Feld existiert in Tabelle
-            // 2. Feld ist nicht in Blacklist
-            // 3. Feld haben wir nicht schon hinzugefügt
             if (in_array($field, $tableColumns) && 
                 !in_array($field, $excludedFields) && 
                 !in_array($field, $fieldsToCopy)) {
@@ -482,9 +470,8 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
         
         // 7. Spezielle Felder überschreiben/setzen
         
-        // unique_id generieren (falls existiert)
+        // unique_id generieren
         if (in_array('unique_id', $tableColumns)) {
-            // Wenn unique_id schon in $fieldsToCopy, ersetzen
             $uniqueIdIndex = array_search('unique_id', $fieldsToCopy);
             if ($uniqueIdIndex !== false) {
                 $values[$uniqueIdIndex] = bin2hex(random_bytes(16));
@@ -498,10 +485,10 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
         if (in_array('original_creator_id', $tableColumns)) {
             $originalCreatorIndex = array_search('original_creator_id', $fieldsToCopy);
             if ($originalCreatorIndex !== false) {
-                $values[$originalCreatorIndex] = $fullSourceFreebie['customer_id'];
+                $values[$originalCreatorIndex] = $sourceCustomerId;
             } else {
                 $fieldsToCopy[] = 'original_creator_id';
-                $values[] = $fullSourceFreebie['customer_id'];
+                $values[] = $sourceCustomerId;
             }
         }
         
@@ -515,7 +502,7 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
             }
         }
         
-        // marketplace_enabled auf 0 setzen (Kopie kann nicht weiterverkauft werden)
+        // marketplace_enabled auf 0 setzen
         if (in_array('marketplace_enabled', $tableColumns)) {
             $marketplaceIndex = array_search('marketplace_enabled', $fieldsToCopy);
             if ($marketplaceIndex !== false) {
@@ -537,7 +524,7 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
             }
         }
         
-        // digistore_order_id mit aktuellem Order-ID
+        // digistore_order_id
         if (in_array('digistore_order_id', $tableColumns)) {
             $orderIdIndex = array_search('digistore_order_id', $fieldsToCopy);
             if ($orderIdIndex !== false) {
@@ -548,7 +535,7 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
             }
         }
         
-        // digistore_product_id NICHT setzen (Kopie hat keine eigene Product-ID)
+        // digistore_product_id NICHT setzen
         $productIdIndex = array_search('digistore_product_id', $fieldsToCopy);
         if ($productIdIndex !== false) {
             unset($fieldsToCopy[$productIdIndex]);
@@ -589,8 +576,8 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
             'fields_copied' => count($fieldsToCopy)
         ], 'success');
         
-        // 9. VIDEOKURS KOPIEREN (falls vorhanden) - MIT KORRIGIERTEN TABELLENNAMEN
-        copyCourseData($pdo, $sourceFreebie['id'], $newFreebieId, $buyerId);
+        // 9. VIDEOKURS KOPIEREN - KORRIGIERT: Mit source_customer_id Parameter
+        copyCourseData($pdo, $sourceFreebie['id'], $newFreebieId, $buyerId, $sourceCustomerId);
         
         // 10. Verkaufszähler beim Original erhöhen
         if (in_array('marketplace_sales_count', $tableColumns)) {
