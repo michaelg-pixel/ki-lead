@@ -1,7 +1,7 @@
 <?php
 /**
- * Digistore24 Webhook Handler - VERSION 6.0 DYNAMIC
- * KORRIGIERT: Ermittelt dynamisch verfügbare Spalten
+ * Digistore24 Webhook Handler - VERSION 6.1 FINAL
+ * KORRIGIERT: Dynamische Spalten + Korrekter ENUM-Wert für freebie_type
  */
 
 require_once '../config/database.php';
@@ -19,6 +19,14 @@ function getAvailableColumns($pdo, $table) {
     $stmt = $pdo->query("DESCRIBE $table");
     $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
     return $columns;
+}
+
+// Erlaubte ENUM-Werte ermitteln
+function getEnumValues($pdo, $table, $column) {
+    $stmt = $pdo->query("SHOW COLUMNS FROM $table WHERE Field = '$column'");
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    preg_match("/^enum\(\'(.*)\'\)$/", $row['Type'], $matches);
+    return explode("','", $matches[1]);
 }
 
 // Webhook-Daten empfangen
@@ -140,16 +148,29 @@ try {
         
         // Verfügbare Spalten ermitteln
         $availableColumns = getAvailableColumns($pdo, 'customer_freebies');
-        logWebhook(['available_columns' => $availableColumns], 'info');
+        
+        // Erlaubte ENUM-Werte für freebie_type ermitteln
+        $enumValues = getEnumValues($pdo, 'customer_freebies', 'freebie_type');
+        
+        // Intelligente Auswahl des freebie_type Wertes
+        $freebieType = 'custom'; // Standard für Marktplatz-Käufe (kopierte Freebies)
+        if (!in_array($freebieType, $enumValues)) {
+            $freebieType = $enumValues[0]; // Fallback zum ersten erlaubten Wert
+        }
+        
+        logWebhook([
+            'enum_values' => $enumValues,
+            'selected_freebie_type' => $freebieType
+        ], 'info');
         
         $uniqueId = bin2hex(random_bytes(16));
         $urlSlug = ($source['url_slug'] ?? 'freebie') . '-' . substr($uniqueId, 0, 8);
         
-        // Mapping: Was wir kopieren wollen -> Was davon existiert
+        // Mapping: Was wir kopieren wollen
         $desiredFields = [
             'customer_id' => $buyerId,
             'template_id' => $source['template_id'],
-            'freebie_type' => 'purchased',
+            'freebie_type' => $freebieType,
             'headline' => $source['headline'],
             'subheadline' => $source['subheadline'],
             'preheadline' => $source['preheadline'],
@@ -166,16 +187,19 @@ try {
             'original_creator_id' => $source['customer_id'],
             'copied_from_freebie_id' => $marketplaceFreebie['id'],
             'marketplace_enabled' => 0,
-            'created_at' => null // Wird durch NOW() ersetzt
+            'created_at' => null // NOW()
         ];
         
-        // Optionale Felder (nur wenn sie existieren)
+        // Optionale Felder
         $optionalFields = [
             'email_field_text',
             'button_text',
             'privacy_checkbox_text',
             'thank_you_headline',
-            'thank_you_message'
+            'thank_you_message',
+            'video_url',
+            'course_id',
+            'has_course'
         ];
         
         foreach ($optionalFields as $field) {
@@ -184,7 +208,7 @@ try {
             }
         }
         
-        // Nur Spalten verwenden, die auch existieren
+        // Nur existierende Spalten verwenden
         $columns = [];
         $values = [];
         $placeholders = [];
@@ -272,15 +296,15 @@ try {
         
         sendPurchaseEmail($email, $name, $source['headline']);
         
-        logWebhook(['final_status' => 'SUCCESS', 'buyer_id' => $buyerId, 'copied_freebie_id' => $copiedFreebieId], 'success');
+        logWebhook(['final_status' => 'COMPLETE_SUCCESS', 'buyer_id' => $buyerId, 'copied_freebie_id' => $copiedFreebieId], 'success');
         
         http_response_code(200);
-        echo json_encode(['status' => 'success']);
+        echo json_encode(['status' => 'success', 'message' => 'Freebie copied successfully']);
         exit;
     }
     
     http_response_code(200);
-    echo json_encode(['status' => 'ok']);
+    echo json_encode(['status' => 'ok', 'message' => 'Webhook received']);
     
 } catch (Exception $e) {
     logWebhook(['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()], 'error');
@@ -290,13 +314,13 @@ try {
 
 function sendWelcomeEmail($email, $name, $password, $rawCode) {
     $subject = "🎉 Willkommen - Dein Marktplatz-Kauf";
-    $message = "Hallo $name,\n\nLogin: $email\nPasswort: $password\nRAW-Code: $rawCode\n\nhttps://app.mehr-infos-jetzt.de/public/login.php";
+    $message = "Hallo $name,\n\nDein Zugang wurde erstellt!\n\nLogin: $email\nPasswort: $password\nRAW-Code: $rawCode\n\nJetzt einloggen: https://app.mehr-infos-jetzt.de/public/login.php";
     mail($email, $subject, $message, "From: noreply@mehr-infos-jetzt.de");
 }
 
 function sendPurchaseEmail($email, $name, $freebieTitle) {
     $subject = "✅ Dein Freebie ist verfügbar!";
-    $message = "Hallo $name,\n\nDein Freebie \"$freebieTitle\" ist jetzt in deinem Dashboard!\n\nhttps://app.mehr-infos-jetzt.de/customer/dashboard.php?page=freebies";
+    $message = "Hallo $name,\n\nDein gekauftes Freebie \"$freebieTitle\" ist jetzt in deinem Dashboard verfügbar!\n\nZum Dashboard: https://app.mehr-infos-jetzt.de/customer/dashboard.php?page=freebies";
     mail($email, $subject, $message, "From: noreply@mehr-infos-jetzt.de");
 }
 ?>
