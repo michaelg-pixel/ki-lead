@@ -1,6 +1,7 @@
 <?php
 /**
- * FIX MARKETPLACE FREEBIE - Verschiebt Freebie + Kurs zum richtigen User
+ * FIX MARKETPLACE FREEBIE - Verschiebt Freebie + Videokurs zum richtigen User
+ * KORRIGIERTE VERSION - Berücksichtigt customer_freebie_courses Struktur
  */
 
 require_once __DIR__ . '/config/database.php';
@@ -22,7 +23,11 @@ echo "<!DOCTYPE html>
         .success { background: #10b981; padding: 5px 10px; border-radius: 3px; display: inline-block; margin: 5px 0; }
         .error { background: #ff4444; padding: 5px 10px; border-radius: 3px; display: inline-block; margin: 5px 0; }
         .info { background: #3b82f6; padding: 5px 10px; border-radius: 3px; display: inline-block; margin: 5px 0; }
-        pre { background: #000; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        .warning { background: #f59e0b; padding: 5px 10px; border-radius: 3px; display: inline-block; margin: 5px 0; color: #000; }
+        pre { background: #000; padding: 10px; border-radius: 5px; overflow-x: auto; max-height: 300px; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #333; }
+        th { color: #667eea; }
     </style>
 </head>
 <body>
@@ -44,102 +49,139 @@ try {
     }
     
     echo "<p class='info'>📦 Freebie gefunden: " . htmlspecialchars($freebie['headline']) . "</p>";
-    echo "<p>Aktuelle customer_id: <strong>" . $freebie['customer_id'] . "</strong></p>";
-    echo "<p>Ziel customer_id: <strong>$correctCustomerId</strong></p>";
-    
-    if ($freebie['customer_id'] == $correctCustomerId) {
-        echo "<p class='success'>✓ Freebie hat bereits die richtige customer_id!</p>";
-    } else {
-        echo "<p class='error'>❌ Freebie hat falsche customer_id: " . $freebie['customer_id'] . "</p>";
-    }
+    echo "<table>";
+    echo "<tr><th>Feld</th><th>Wert</th></tr>";
+    echo "<tr><td>id</td><td>{$freebie['id']}</td></tr>";
+    echo "<tr><td>customer_id</td><td>{$freebie['customer_id']} " . ($freebie['customer_id'] == $correctCustomerId ? '<span class="success">✓ KORREKT</span>' : '<span class="error">❌ FALSCH (sollte 17 sein)</span>') . "</td></tr>";
+    echo "<tr><td>template_id</td><td>" . ($freebie['template_id'] ?? 'NULL') . "</td></tr>";
+    echo "<tr><td>copied_from_freebie_id</td><td>" . ($freebie['copied_from_freebie_id'] ?? 'NULL') . "</td></tr>";
+    echo "<tr><td>has_course</td><td>" . ($freebie['has_course'] ?? '0') . "</td></tr>";
+    echo "</table>";
     
     echo "</div>";
     
     // SCHRITT 2: User 8 prüfen
     echo "<div class='box'>";
-    echo "<h2>SCHRITT 2: User $wrongCustomerId prüfen</h2>";
+    echo "<h2>SCHRITT 2: User {$freebie['customer_id']} prüfen</h2>";
     
     $stmt = $pdo->prepare("SELECT id, email, name, created_at FROM users WHERE id = ?");
-    $stmt->execute([$wrongCustomerId]);
-    $user8 = $stmt->fetch(PDO::FETCH_ASSOC);
+    $stmt->execute([$freebie['customer_id']]);
+    $wrongUser = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    if ($user8) {
-        echo "<p class='info'>👤 User $wrongCustomerId gefunden:</p>";
-        echo "<pre>";
-        print_r($user8);
-        echo "</pre>";
+    if ($wrongUser) {
+        echo "<p class='info'>👤 User {$freebie['customer_id']} gefunden:</p>";
+        echo "<table>";
+        foreach ($wrongUser as $key => $value) {
+            echo "<tr><th>$key</th><td>" . htmlspecialchars($value) . "</td></tr>";
+        }
+        echo "</table>";
     } else {
-        echo "<p class='info'>ℹ️ User $wrongCustomerId existiert nicht (wurde gelöscht)</p>";
+        echo "<p class='info'>ℹ️ User {$freebie['customer_id']} existiert nicht (wurde gelöscht)</p>";
     }
     
     echo "</div>";
     
-    // SCHRITT 3: Kurs prüfen (mit dynamischer Spalten-Erkennung)
+    // SCHRITT 3: Videokurs-Struktur prüfen
     echo "<div class='box'>";
-    echo "<h2>SCHRITT 3: Zugehörigen Kurs finden</h2>";
+    echo "<h2>SCHRITT 3: Videokurs-Daten prüfen</h2>";
     
-    // Tabellenstruktur prüfen
-    $stmt = $pdo->query("DESCRIBE courses");
-    $courseColumns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    // customer_freebie_courses prüfen
+    $stmt = $pdo->query("SHOW TABLES LIKE 'customer_freebie_courses'");
+    $courseTableExists = $stmt->fetch() !== false;
     
-    echo "<p class='info'>📋 Vorhandene Spalten in courses: " . implode(', ', $courseColumns) . "</p>";
-    
-    // Die richtige ID-Spalte finden
-    $userIdColumn = null;
-    if (in_array('customer_id', $courseColumns)) {
-        $userIdColumn = 'customer_id';
-    } elseif (in_array('user_id', $courseColumns)) {
-        $userIdColumn = 'user_id';
+    if ($courseTableExists) {
+        echo "<p class='success'>✓ Tabelle customer_freebie_courses existiert</p>";
+        
+        // Module des Freebies laden
+        $stmt = $pdo->prepare("
+            SELECT m.*, 
+                   (SELECT COUNT(*) FROM customer_freebie_lessons l WHERE l.module_id = m.id) as lesson_count
+            FROM customer_freebie_modules m 
+            WHERE m.customer_freebie_id = ?
+            ORDER BY m.module_order
+        ");
+        $stmt->execute([$freebieId]);
+        $modules = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        if ($modules) {
+            echo "<p class='info'>🎓 " . count($modules) . " Modul(e) gefunden:</p>";
+            echo "<table>";
+            echo "<tr><th>ID</th><th>Name</th><th>Order</th><th>Lektionen</th></tr>";
+            foreach ($modules as $module) {
+                echo "<tr>";
+                echo "<td>{$module['id']}</td>";
+                echo "<td>" . htmlspecialchars($module['module_name']) . "</td>";
+                echo "<td>{$module['module_order']}</td>";
+                echo "<td>{$module['lesson_count']}</td>";
+                echo "</tr>";
+            }
+            echo "</table>";
+            
+            // Lektionen zählen
+            $stmt = $pdo->prepare("
+                SELECT COUNT(*) as total
+                FROM customer_freebie_lessons l
+                JOIN customer_freebie_modules m ON l.module_id = m.id
+                WHERE m.customer_freebie_id = ?
+            ");
+            $stmt->execute([$freebieId]);
+            $lessonCount = $stmt->fetchColumn();
+            echo "<p class='info'>📚 Gesamt: $lessonCount Lektion(en)</p>";
+            
+        } else {
+            echo "<p class='warning'>⚠️ Keine Module gefunden für Freebie $freebieId</p>";
+        }
+        
+    } else {
+        echo "<p class='error'>❌ Tabelle customer_freebie_courses existiert nicht!</p>";
     }
     
-    if (!$userIdColumn) {
-        echo "<p class='error'>❌ Keine User-ID-Spalte in courses gefunden!</p>";
+    echo "</div>";
+    
+    // SCHRITT 4: Ziel-User prüfen
+    echo "<div class='box'>";
+    echo "<h2>SCHRITT 4: Ziel-User $correctCustomerId prüfen</h2>";
+    
+    $stmt = $pdo->prepare("SELECT id, email, name, created_at FROM users WHERE id = ?");
+    $stmt->execute([$correctCustomerId]);
+    $targetUser = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($targetUser) {
+        echo "<p class='success'>✓ Ziel-User gefunden:</p>";
+        echo "<table>";
+        foreach ($targetUser as $key => $value) {
+            echo "<tr><th>$key</th><td>" . htmlspecialchars($value) . "</td></tr>";
+        }
+        echo "</table>";
+    } else {
+        echo "<p class='error'>❌ Ziel-User $correctCustomerId nicht gefunden!</p>";
         echo "</div></body></html>";
         exit;
     }
     
-    echo "<p class='success'>✓ User-ID-Spalte: <strong>$userIdColumn</strong></p>";
-    
-    // Kurs beim falschen User suchen
-    $stmt = $pdo->prepare("SELECT * FROM courses WHERE $userIdColumn = ?");
-    $stmt->execute([$freebie['customer_id']]);
-    $courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    if ($courses) {
-        echo "<p class='info'>🎓 " . count($courses) . " Kurs(e) gefunden bei customer_id " . $freebie['customer_id'] . ":</p>";
-        foreach ($courses as $course) {
-            echo "<pre>";
-            print_r($course);
-            echo "</pre>";
-        }
-    } else {
-        echo "<p class='info'>ℹ️ Kein Kurs gefunden für customer_id " . $freebie['customer_id'] . "</p>";
-    }
-    
     echo "</div>";
     
-    // SCHRITT 4: FIX DURCHFÜHREN
+    // SCHRITT 5: FIX DURCHFÜHREN
     if (isset($_GET['confirm']) && $_GET['confirm'] === 'yes') {
         echo "<div class='box'>";
-        echo "<h2>SCHRITT 4: FIX DURCHFÜHREN</h2>";
+        echo "<h2>SCHRITT 5: FIX DURCHFÜHREN</h2>";
         
         $pdo->beginTransaction();
         
         try {
-            // 4.1: Freebie verschieben
+            // Nur das Freebie verschieben - der Videokurs ist bereits über customer_freebie_id verknüpft!
             if ($freebie['customer_id'] != $correctCustomerId) {
                 $stmt = $pdo->prepare("UPDATE customer_freebies SET customer_id = ? WHERE id = ?");
                 $stmt->execute([$correctCustomerId, $freebieId]);
-                echo "<p class='success'>✓ Freebie $freebieId: customer_id auf $correctCustomerId geändert</p>";
+                echo "<p class='success'>✓ Freebie $freebieId: customer_id von {$freebie['customer_id']} auf $correctCustomerId geändert</p>";
+            } else {
+                echo "<p class='info'>ℹ️ Freebie hat bereits die richtige customer_id</p>";
             }
             
-            // 4.2: Kurse verschieben
-            if ($courses) {
-                foreach ($courses as $course) {
-                    $stmt = $pdo->prepare("UPDATE courses SET $userIdColumn = ? WHERE id = ?");
-                    $stmt->execute([$correctCustomerId, $course['id']]);
-                    echo "<p class='success'>✓ Kurs " . $course['id'] . ": $userIdColumn auf $correctCustomerId geändert</p>";
-                }
+            // Videokurs wird automatisch mitverschoben, da er über customer_freebie_id verknüpft ist
+            if ($modules) {
+                echo "<p class='success'>✓ Videokurs (Module & Lektionen) bleiben automatisch mit Freebie verknüpft</p>";
+                echo "<p class='info'>ℹ️ Keine Änderungen an customer_freebie_modules/lessons nötig</p>";
             }
             
             $pdo->commit();
@@ -150,6 +192,7 @@ try {
         } catch (Exception $e) {
             $pdo->rollBack();
             echo "<p class='error'>❌ Fehler: " . $e->getMessage() . "</p>";
+            echo "<pre>" . $e->getTraceAsString() . "</pre>";
         }
         
         echo "</div>";
@@ -158,17 +201,15 @@ try {
         // BESTÄTIGUNGS-BUTTON
         echo "<div class='box'>";
         echo "<h2>BEREIT ZUM REPARIEREN?</h2>";
-        echo "<p><strong>Das wird passiert:</strong></p>";
+        echo "<p><strong>Das wird passieren:</strong></p>";
         echo "<ul>";
         if ($freebie['customer_id'] != $correctCustomerId) {
-            echo "<li>✅ Freebie $freebieId: customer_id → $correctCustomerId</li>";
+            echo "<li>✅ Freebie $freebieId: customer_id {$freebie['customer_id']} → $correctCustomerId</li>";
+            if ($modules) {
+                echo "<li>✅ Videokurs mit " . count($modules) . " Modul(en) bleibt automatisch verknüpft</li>";
+            }
         } else {
             echo "<li>ℹ️ Freebie hat bereits richtige customer_id</li>";
-        }
-        if ($courses) {
-            echo "<li>✅ " . count($courses) . " Kurs(e): $userIdColumn → $correctCustomerId</li>";
-        } else {
-            echo "<li>ℹ️ Keine Kurse zu verschieben</li>";
         }
         echo "</ul>";
         
