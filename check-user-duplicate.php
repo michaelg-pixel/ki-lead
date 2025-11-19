@@ -28,7 +28,7 @@ echo "<!DOCTYPE html>
 // USER 17
 echo "<div class='box'>";
 echo "<h2>USER ID 17 (Eingeloggt: 12@abnehmen-fitness.com)</h2>";
-$stmt = $pdo->prepare("SELECT id, customer_number, email, name, created_at, digistore_order_id, digistore_product_id FROM users WHERE id = 17");
+$stmt = $pdo->prepare("SELECT id, email, name, created_at, digistore_order_id, digistore_product_id FROM users WHERE id = 17");
 $stmt->execute();
 $user17 = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -46,7 +46,7 @@ echo "</div>";
 // USER 52
 echo "<div class='box'>";
 echo "<h2>USER ID 52 (Freebie-Owner)</h2>";
-$stmt = $pdo->prepare("SELECT id, customer_number, email, name, created_at, digistore_order_id, digistore_product_id, source FROM users WHERE id = 52");
+$stmt = $pdo->prepare("SELECT id, email, name, created_at, digistore_order_id, digistore_product_id, source FROM users WHERE id = 52");
 $stmt->execute();
 $user52 = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -65,7 +65,7 @@ echo "</div>";
 if ($user17) {
     echo "<div class='box'>";
     echo "<h2>ALLE USERS MIT E-MAIL: " . htmlspecialchars($user17['email']) . "</h2>";
-    $stmt = $pdo->prepare("SELECT id, customer_number, email, name, created_at, source FROM users WHERE email = ? ORDER BY id");
+    $stmt = $pdo->prepare("SELECT id, email, name, created_at, source FROM users WHERE email = ? ORDER BY id");
     $stmt->execute([$user17['email']]);
     $allUsers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
@@ -113,6 +113,33 @@ if ($freebie53) {
 }
 echo "</div>";
 
+// KURSE PRÜFEN
+echo "<div class='box'>";
+echo "<h2>🎓 KURSE ZU FREEBIE 53</h2>";
+if ($freebie53) {
+    $stmt = $pdo->prepare("SELECT id, course_name, customer_id, created_at FROM courses WHERE customer_id = ?");
+    $stmt->execute([$freebie53['customer_id']]);
+    $courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    if ($courses) {
+        echo "<p class='success'>✓ " . count($courses) . " Kurs(e) gefunden</p>";
+        echo "<table>";
+        echo "<tr><th>ID</th><th>Name</th><th>customer_id</th><th>Created</th></tr>";
+        foreach ($courses as $course) {
+            echo "<tr>";
+            echo "<td>" . $course['id'] . "</td>";
+            echo "<td>" . htmlspecialchars($course['course_name']) . "</td>";
+            echo "<td>" . $course['customer_id'] . "</td>";
+            echo "<td>" . $course['created_at'] . "</td>";
+            echo "</tr>";
+        }
+        echo "</table>";
+    } else {
+        echo "<p class='highlight'>⚠️ Kein Kurs gefunden für customer_id " . $freebie53['customer_id'] . "</p>";
+    }
+}
+echo "</div>";
+
 // ANALYSE
 echo "<div class='box'>";
 echo "<h2>📊 ANALYSE & LÖSUNG</h2>";
@@ -123,15 +150,19 @@ if ($user17 && $user52) {
         echo "<p>User 17 und User 52 sind DUPLIKATE!</p>";
         echo "<p><strong>Lösung:</strong></p>";
         echo "<ol>";
-        echo "<li>Freebie ID 53: customer_id von 52 auf 17 ändern</li>";
-        echo "<li>Alle Freebies von User 52 auf User 17 verschieben</li>";
-        echo "<li>User 52 löschen (optional)</li>";
+        echo "<li>✅ Freebie ID 53: customer_id von 52 auf 17 ändern</li>";
+        echo "<li>✅ Kurs: customer_id von 52 auf 17 ändern</li>";
+        echo "<li>✅ Alle Freebies von User 52 auf User 17 verschieben</li>";
+        echo "<li>✅ User 52 löschen (optional)</li>";
         echo "</ol>";
+        
+        echo "<p><a href='fix-user-duplicate.php' style='display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin-top: 20px;'>🔧 Jetzt automatisch reparieren</a></p>";
     } else {
         echo "<p class='success'>✓ Keine E-Mail-Duplikate</p>";
         echo "<p>User 17: " . htmlspecialchars($user17['email']) . "</p>";
         echo "<p>User 52: " . htmlspecialchars($user52['email']) . "</p>";
         echo "<p><strong>Das sind unterschiedliche Personen!</strong></p>";
+        echo "<p>Aber Freebie 53 gehört zu User 52, nicht zu User 17!</p>";
     }
 }
 
