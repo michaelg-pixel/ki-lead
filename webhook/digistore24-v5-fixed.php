@@ -1,7 +1,7 @@
 <?php
 /**
- * Digistore24 Webhook Handler - VERSION 5.0 FIXED
- * KORRIGIERT für: URL-encoded Data, customer_id statt user_id, Marktplatz-Integration
+ * Digistore24 Webhook Handler - VERSION 5.1 FIXED
+ * KORRIGIERT: Nur existierende Spalten verwenden
  */
 
 require_once '../config/database.php';
@@ -27,7 +27,7 @@ if (empty($webhookData)) {
     
     if (empty($webhookData)) {
         logWebhook(['error' => 'No data received'], 'error');
-        http_response_code(200); // Trotzdem 200 zurück
+        http_response_code(200);
         exit;
     }
 }
@@ -145,27 +145,39 @@ try {
         $uniqueId = bin2hex(random_bytes(16));
         $urlSlug = ($source['url_slug'] ?? 'freebie') . '-' . substr($uniqueId, 0, 8);
         
+        // NUR existierende Spalten verwenden!
         $stmt = $pdo->prepare("
             INSERT INTO customer_freebies (
                 customer_id, template_id, freebie_type, headline, subheadline, preheadline,
                 mockup_image_url, background_color, primary_color, cta_text, bullet_points,
-                bullet_icon_style, layout, email_field_text, button_text, privacy_checkbox_text,
-                thank_you_headline, thank_you_message, unique_id, url_slug, niche,
-                original_creator_id, copied_from_freebie_id, marketplace_enabled, created_at
+                bullet_icon_style, layout, thank_you_headline, thank_you_message, 
+                unique_id, url_slug, niche, original_creator_id, copied_from_freebie_id, 
+                marketplace_enabled, created_at
             ) VALUES (
-                ?, ?, 'purchased', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW()
+                ?, ?, 'purchased', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW()
             )
         ");
         
         $stmt->execute([
-            $buyerId, $source['template_id'], $source['headline'], $source['subheadline'],
-            $source['preheadline'], $source['mockup_image_url'], $source['background_color'],
-            $source['primary_color'], $source['cta_text'], $source['bullet_points'],
-            $source['bullet_icon_style'] ?? 'standard', $source['layout'],
-            $source['email_field_text'], $source['button_text'], $source['privacy_checkbox_text'],
-            $source['thank_you_headline'], $source['thank_you_message'],
-            $uniqueId, $urlSlug, $source['niche'] ?? 'sonstiges',
-            $source['customer_id'], $marketplaceFreebie['id']
+            $buyerId, 
+            $source['template_id'], 
+            $source['headline'], 
+            $source['subheadline'],
+            $source['preheadline'], 
+            $source['mockup_image_url'], 
+            $source['background_color'],
+            $source['primary_color'], 
+            $source['cta_text'], 
+            $source['bullet_points'],
+            $source['bullet_icon_style'] ?? 'standard', 
+            $source['layout'],
+            $source['thank_you_headline'], 
+            $source['thank_you_message'],
+            $uniqueId, 
+            $urlSlug, 
+            $source['niche'] ?? 'sonstiges',
+            $source['customer_id'], 
+            $marketplaceFreebie['id']
         ]);
         
         $copiedFreebieId = $pdo->lastInsertId();
@@ -268,7 +280,7 @@ try {
     
 } catch (Exception $e) {
     logWebhook(['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()], 'error');
-    http_response_code(200); // Immer 200 zurückgeben!
+    http_response_code(200);
     echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
 }
 
