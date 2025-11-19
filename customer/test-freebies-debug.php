@@ -57,6 +57,22 @@ $customer_id = $_SESSION['user_id'];
             border-radius: 8px;
             overflow-x: auto;
         }
+        
+        button {
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #5568d3;
+        }
     </style>
 </head>
 <body>
@@ -75,69 +91,22 @@ $customer_id = $_SESSION['user_id'];
     </div>
     
     <div class="test-box">
-        <h2>📡 Test 3: API Direkt-Aufruf</h2>
-        <p>Rufe API auf...</p>
+        <h2>📡 Test 3: Database Check</h2>
+        <p>Direkte Datenbankabfrage...</p>
         <?php
         try {
             $pdo = getDBConnection();
             
-            // Direkt die Unlock-Logik ausführen
             $stmt = $pdo->query("SELECT id, name FROM freebies ORDER BY created_at DESC");
             $allTemplates = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
-            echo "<p class='success'>✓ {count($allTemplates)} Templates gefunden:</p>";
-            echo "<ul>";
-            foreach ($allTemplates as $t) {
-                echo "<li>Template {$t['id']}: {$t['name']}</li>";
-            }
-            echo "</ul>";
+            echo "<p class='success'>✓ " . count($allTemplates) . " Templates gefunden</p>";
             
-            // Prüfe welche Templates freigeschaltet sind
-            $stmt = $pdo->prepare("
-                SELECT DISTINCT f.id as template_id, f.name
-                FROM freebies f
-                INNER JOIN courses c ON c.is_active = 1
-                INNER JOIN webhook_course_access wca ON c.id = wca.course_id
-                INNER JOIN webhook_configurations wc ON wca.webhook_id = wc.id AND wc.is_active = 1
-                INNER JOIN webhook_product_ids wpi ON wc.id = wpi.webhook_id
-                WHERE EXISTS (
-                    SELECT 1 FROM customer_freebie_limits cfl 
-                    WHERE cfl.customer_id = :customer_id 
-                    AND cfl.product_id = wpi.product_id
-                )
-            ");
-            
-            $stmt->execute(['customer_id' => $customer_id]);
-            $unlockedTemplates = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            echo "<p class='success'>✓ {count($unlockedTemplates)} Templates freigeschaltet:</p>";
-            if (count($unlockedTemplates) > 0) {
-                echo "<ul>";
-                foreach ($unlockedTemplates as $t) {
-                    echo "<li class='success'>🟢 Template {$t['template_id']}: {$t['name']}</li>";
-                }
-                echo "</ul>";
-            } else {
-                echo "<p class='error'>❌ Keine Templates freigeschaltet!</p>";
-                echo "<p>Mögliche Gründe:</p>";
-                echo "<ul>";
-                echo "<li>Kein Produktkauf in customer_freebie_limits</li>";
-                echo "<li>Keine webhook_configurations aktiv</li>";
-                echo "<li>Keine webhook_course_access Verknüpfungen</li>";
-                echo "</ul>";
-            }
-            
-            // Zeige customer_freebie_limits
-            $stmt = $pdo->prepare("SELECT * FROM customer_freebie_limits WHERE customer_id = ?");
+            $stmt = $pdo->prepare("SELECT product_id FROM customer_freebie_limits WHERE customer_id = ?");
             $stmt->execute([$customer_id]);
-            $limits = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $products = $stmt->fetchAll(PDO::FETCH_COLUMN);
             
-            echo "<p class='info'>📦 Deine Produktkäufe ({count($limits)}):</p>";
-            if (count($limits) > 0) {
-                echo "<pre>" . print_r($limits, true) . "</pre>";
-            } else {
-                echo "<p class='error'>❌ Keine Produktkäufe gefunden in customer_freebie_limits!</p>";
-            }
+            echo "<p class='success'>✓ " . count($products) . " Produktkäufe: " . implode(', ', $products) . "</p>";
             
         } catch (Exception $e) {
             echo "<p class='error'>❌ Fehler: " . $e->getMessage() . "</p>";
@@ -146,37 +115,66 @@ $customer_id = $_SESSION['user_id'];
     </div>
     
     <div class="test-box">
-        <h2>⚡ Test 4: JavaScript API Call</h2>
-        <button onclick="testAPI()" style="background: #667eea; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600;">
-            🔄 API testen
-        </button>
-        <div id="jsResult" style="margin-top: 20px;"></div>
+        <h2>⚡ Test 4: ALTE API (check-freebie-unlock-status.php)</h2>
+        <button onclick="testOldAPI()">🔄 Alte API testen</button>
+        <div id="oldApiResult"></div>
     </div>
     
     <div class="test-box">
-        <h2>🎯 Test 5: Dynamische Status-Punkte</h2>
+        <h2>🆕 Test 5: NEUE API (template-unlock-status.php)</h2>
+        <button onclick="testNewAPI()">🔄 Neue API testen</button>
+        <div id="newApiResult"></div>
+    </div>
+    
+    <div class="test-box">
+        <h2>🎯 Test 6: Status-Punkte Visualisierung</h2>
+        <button onclick="loadDots()">🟢 Punkte laden</button>
         <div id="dynamicDots"></div>
-        <button onclick="loadDots()" style="background: #10b981; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600; margin-top: 10px;">
-            🟢 Punkte laden
-        </button>
     </div>
     
     <script>
-        async function testAPI() {
-            const result = document.getElementById('jsResult');
-            result.innerHTML = '<p class="info">⏳ Lade...</p>';
+        async function testOldAPI() {
+            const result = document.getElementById('oldApiResult');
+            result.innerHTML = '<p class="info">⏳ Teste alte API...</p>';
             
             try {
                 const response = await fetch('/customer/api/check-freebie-unlock-status.php');
                 result.innerHTML += `<p class="info">📊 HTTP Status: ${response.status}</p>`;
                 
                 if (!response.ok) {
+                    const text = await response.text();
                     result.innerHTML += `<p class="error">❌ API Fehler: ${response.status}</p>`;
+                    result.innerHTML += `<pre>${text}</pre>`;
                     return;
                 }
                 
                 const data = await response.json();
-                result.innerHTML += `<p class="success">✓ JSON erfolgreich geparst</p>`;
+                result.innerHTML += `<p class="success">✓ API funktioniert!</p>`;
+                result.innerHTML += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                
+            } catch (error) {
+                result.innerHTML += `<p class="error">❌ JavaScript Fehler: ${error.message}</p>`;
+            }
+        }
+        
+        async function testNewAPI() {
+            const result = document.getElementById('newApiResult');
+            result.innerHTML = '<p class="info">⏳ Teste neue API...</p>';
+            
+            try {
+                const response = await fetch('/customer/api/template-unlock-status.php');
+                result.innerHTML += `<p class="info">📊 HTTP Status: ${response.status}</p>`;
+                
+                if (!response.ok) {
+                    const text = await response.text();
+                    result.innerHTML += `<p class="error">❌ API Fehler: ${response.status}</p>`;
+                    result.innerHTML += `<pre>${text}</pre>`;
+                    return;
+                }
+                
+                const data = await response.json();
+                result.innerHTML += `<p class="success">✓ API funktioniert!</p>`;
+                result.innerHTML += `<p class="success">✓ ${data.total_templates} Templates, ${data.unlocked_count} freigeschaltet</p>`;
                 result.innerHTML += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
                 
             } catch (error) {
@@ -189,11 +187,11 @@ $customer_id = $_SESSION['user_id'];
             container.innerHTML = '<p class="info">⏳ Lade Status...</p>';
             
             try {
-                const response = await fetch('/customer/api/check-freebie-unlock-status.php');
+                const response = await fetch('/customer/api/template-unlock-status.php');
                 const data = await response.json();
                 
                 if (!data.success) {
-                    container.innerHTML = '<p class="error">❌ API Fehler</p>';
+                    container.innerHTML = `<p class="error">❌ API Fehler: ${data.error}</p>`;
                     return;
                 }
                 
@@ -203,18 +201,21 @@ $customer_id = $_SESSION['user_id'];
                     if (key.startsWith('template_')) {
                         const templateId = key.replace('template_', '');
                         const isUnlocked = status.unlock_status === 'unlocked';
-                        const dotClass = isUnlocked ? 'status-unlocked' : 'status-locked';
-                        const emoji = isUnlocked ? '🟢' : '🔴';
+                        const isLocked = status.unlock_status === 'locked';
+                        const dotClass = isUnlocked ? 'status-unlocked' : (isLocked ? 'status-locked' : '');
+                        const emoji = isUnlocked ? '🟢' : (isLocked ? '🔴' : '⚪');
                         
-                        container.innerHTML += `
-                            <div style="margin: 15px 0; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 8px;">
-                                <div class="status-dot ${dotClass}"></div>
-                                <strong>${status.name}</strong> ${emoji}
-                                <span style="color: #888;">(Template ID: ${templateId})</span>
-                                <br>
-                                <span style="font-size: 14px;">Status: ${status.unlock_status}</span>
-                            </div>
-                        `;
+                        if (status.unlock_status !== 'no_course') {
+                            container.innerHTML += `
+                                <div style="margin: 15px 0; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                                    <div class="status-dot ${dotClass}"></div>
+                                    <strong>${status.name}</strong> ${emoji}
+                                    <span style="color: #888;">(Template ID: ${templateId})</span>
+                                    <br>
+                                    <span style="font-size: 14px;">Status: ${status.unlock_status}</span>
+                                </div>
+                            `;
+                        }
                     }
                 }
                 
