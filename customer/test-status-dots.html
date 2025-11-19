@@ -1,0 +1,183 @@
+<!-- Test: Werden Status-Punkte angezeigt? -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Status-Punkte Test</title>
+    <style>
+        body {
+            padding: 40px;
+            background: #1a1a2e;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        
+        .test-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 20px;
+            margin: 20px 0;
+            position: relative;
+        }
+        
+        .mockup-area {
+            height: 200px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            position: relative;
+            margin-bottom: 20px;
+        }
+        
+        .unlock-status-dot {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .unlock-status-dot.loaded {
+            opacity: 1;
+        }
+        
+        .status-unlocked {
+            background: #22c55e;
+        }
+        
+        .status-locked {
+            background: #ef4444;
+        }
+        
+        .status-no-course {
+            display: none;
+        }
+        
+        #console {
+            background: rgba(0,0,0,0.5);
+            padding: 20px;
+            border-radius: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 30px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .log-success { color: #22c55e; }
+        .log-error { color: #ef4444; }
+        .log-info { color: #3b82f6; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Status-Punkte JavaScript Test</h1>
+    
+    <h3>Test 1: Statischer grüner Punkt (sollte sofort sichtbar sein)</h3>
+    <div class="test-card">
+        <div class="mockup-area">
+            <div class="unlock-status-dot status-unlocked loaded" style="opacity: 1;"></div>
+        </div>
+        <p>✓ Wenn du einen grünen Punkt siehst, funktioniert das CSS</p>
+    </div>
+    
+    <h3>Test 2: Statischer roter Punkt</h3>
+    <div class="test-card">
+        <div class="mockup-area" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+            <div class="unlock-status-dot status-locked loaded" style="opacity: 1;"></div>
+        </div>
+        <p>✓ Wenn du einen roten Punkt siehst, funktioniert das CSS</p>
+    </div>
+    
+    <h3>Test 3: Dynamischer Punkt (wird per JavaScript geladen)</h3>
+    <div class="test-card">
+        <div class="mockup-area">
+            <div class="unlock-status-dot" data-template-id="25"></div>
+        </div>
+        <p id="test3-result">⏳ Warte auf JavaScript...</p>
+    </div>
+    
+    <h3>Test 4: Echter API Call</h3>
+    <div id="test4-cards"></div>
+    
+    <div id="console">
+        <strong>📋 Console Log:</strong><br>
+    </div>
+    
+    <script>
+        const consoleDiv = document.getElementById('console');
+        
+        function log(message, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            const className = 'log-' + type;
+            consoleDiv.innerHTML += `<div class="${className}">[${time}] ${message}</div>`;
+            console.log(message);
+        }
+        
+        log('🚀 JavaScript startet...', 'info');
+        
+        // Test 3: Manuell einen Punkt setzen
+        setTimeout(() => {
+            log('Test 3: Setze Status-Punkt manuell...', 'info');
+            const dot = document.querySelector('[data-template-id="25"]');
+            if (dot) {
+                dot.classList.add('status-unlocked');
+                dot.classList.add('loaded');
+                log('✓ Status-Punkt gefunden und gesetzt', 'success');
+                document.getElementById('test3-result').innerHTML = '✓ Grüner Punkt sollte jetzt sichtbar sein!';
+            } else {
+                log('✗ Status-Punkt NICHT gefunden!', 'error');
+                document.getElementById('test3-result').innerHTML = '✗ Fehler: Punkt nicht gefunden';
+            }
+        }, 1000);
+        
+        // Test 4: Echter API Call
+        async function loadRealData() {
+            log('Test 4: Lade echte Daten von API...', 'info');
+            
+            try {
+                const response = await fetch('/customer/api/check-freebie-unlock-status.php');
+                log('✓ API Response erhalten', 'success');
+                
+                const data = await response.json();
+                log(`✓ JSON geparst: ${data.total_templates} Templates gefunden`, 'success');
+                
+                const container = document.getElementById('test4-cards');
+                
+                // Erstelle für jedes Template eine Card
+                for (const [key, status] of Object.entries(data.statuses)) {
+                    if (key.startsWith('template_')) {
+                        const templateId = key.replace('template_', '');
+                        const isUnlocked = status.unlock_status === 'unlocked';
+                        const dotClass = isUnlocked ? 'status-unlocked' : 'status-locked';
+                        
+                        container.innerHTML += `
+                            <div class="test-card">
+                                <div class="mockup-area" style="background: ${isUnlocked ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'};">
+                                    <div class="unlock-status-dot ${dotClass} loaded" style="opacity: 1;"></div>
+                                </div>
+                                <p><strong>${status.name}</strong> - Status: ${status.unlock_status} ${isUnlocked ? '🟢' : '🔴'}</p>
+                            </div>
+                        `;
+                        
+                        log(`✓ Template ${templateId}: ${status.unlock_status}`, isUnlocked ? 'success' : 'error');
+                    }
+                }
+                
+                log('✅ Alle Templates geladen!', 'success');
+                
+            } catch (error) {
+                log('✗ FEHLER: ' + error.message, 'error');
+            }
+        }
+        
+        // Test 4 nach 2 Sekunden starten
+        setTimeout(loadRealData, 2000);
+        
+        log('✓ Alle Tests initialisiert', 'success');
+    </script>
+</body>
+</html>
