@@ -71,14 +71,36 @@ foreach ($tutorials as $tutorial) {
     }
     
     .videos-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        display: flex;
         gap: 24px;
         padding: 24px;
         background: linear-gradient(135deg, #1e1e3f 0%, #2a2a4f 100%);
         border-radius: 0 0 16px 16px;
         border: 1px solid rgba(102, 126, 234, 0.2);
         border-top: none;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Scrollbar Styling */
+    .videos-grid::-webkit-scrollbar {
+        height: 10px;
+    }
+    
+    .videos-grid::-webkit-scrollbar-track {
+        background: rgba(102, 126, 234, 0.1);
+        border-radius: 5px;
+    }
+    
+    .videos-grid::-webkit-scrollbar-thumb {
+        background: rgba(102, 126, 234, 0.5);
+        border-radius: 5px;
+    }
+    
+    .videos-grid::-webkit-scrollbar-thumb:hover {
+        background: rgba(102, 126, 234, 0.7);
     }
     
     .video-card {
@@ -88,6 +110,9 @@ foreach ($tutorials as $tutorial) {
         overflow: hidden;
         transition: all 0.3s;
         cursor: pointer;
+        min-width: 320px;
+        max-width: 320px;
+        flex-shrink: 0;
     }
     
     .video-card:hover {
@@ -321,9 +346,13 @@ foreach ($tutorials as $tutorial) {
         }
         
         .videos-grid {
-            grid-template-columns: 1fr;
             gap: 16px;
             padding: 16px;
+        }
+        
+        .video-card {
+            min-width: 280px;
+            max-width: 280px;
         }
         
         .category-header {
