@@ -1,6 +1,6 @@
 <?php
 /**
- * VERBESSERTE Freebies Section - Mit korrekten Links und Videokurs-Zugang + SUCHFELD + UNLOCK STATUS
+ * VERBESSERTE Freebies Section - Mit Unlock Status für ALLE Templates
  */
 
 global $pdo;
@@ -362,6 +362,19 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
 .btn-preview:hover { background: rgba(255, 255, 255, 0.2); }
 .btn-edit { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
 .btn-edit:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4); }
+
+/* Gesperrter Button Stil */
+.btn-edit.locked {
+    background: rgba(239, 68, 68, 0.3);
+    color: rgba(255, 255, 255, 0.6);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+.btn-edit.locked:hover {
+    transform: none;
+    box-shadow: none;
+}
+
 .btn-course { background: rgba(251, 146, 60, 0.2); color: #fb923c; border: 1px solid rgba(251, 146, 60, 0.3); }
 .btn-course:hover { background: rgba(251, 146, 60, 0.3); }
 .btn-delete { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
@@ -533,6 +546,7 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     $freebieId = $isUsed && $customerData ? $customerData['customer_freebie_id'] : null;
                 ?>
                     <div class="freebie-card" 
+                         data-template-id="<?php echo $template['id']; ?>"
                          data-title="<?php echo htmlspecialchars(strtolower($template['headline'] ?: $template['name'])); ?>" 
                          data-description="<?php echo htmlspecialchars(strtolower($template['subheadline'] ?? '')); ?>"
                          <?php if ($freebieId): ?>data-freebie-id="<?php echo $freebieId; ?>"<?php endif; ?>>
@@ -541,9 +555,8 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <span class="freebie-badge">✓ In Verwendung</span>
                             <?php endif; ?>
                             
-                            <?php if ($freebieId): ?>
-                                <div class="unlock-status-dot" data-freebie-id="<?php echo $freebieId; ?>"></div>
-                            <?php endif; ?>
+                            <!-- Status-Punkt für ALLE Templates -->
+                            <div class="unlock-status-dot" data-template-id="<?php echo $template['id']; ?>"></div>
                             
                             <?php if (!empty($mockupUrl)): ?>
                                 <img src="<?php echo htmlspecialchars($mockupUrl); ?>" 
@@ -565,9 +578,11 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <p class="freebie-subtitle"><?php echo htmlspecialchars($template['subheadline']); ?></p>
                             <?php endif; ?>
                             
-                            <div class="freebie-actions <?php echo $hasCourse ? 'has-course' : ''; ?>">
+                            <div class="freebie-actions <?php echo $hasCourse ? 'has-course' : ''; ?>" data-template-id="<?php echo $template['id']; ?>">
                                 <a href="/customer/template-preview-redirect.php?template_id=<?php echo $template['id']; ?>" class="btn btn-preview" target="_blank">👁️ Vorschau</a>
-                                <a href="/customer/freebie-editor.php?template_id=<?php echo $template['id']; ?>" class="btn btn-edit">
+                                <a href="/customer/freebie-editor.php?template_id=<?php echo $template['id']; ?>" 
+                                   class="btn btn-edit btn-use-template" 
+                                   data-template-id="<?php echo $template['id']; ?>">
                                     <?php echo $isUsed ? '✏️ Bearbeiten' : '✨ Nutzen'; ?>
                                 </a>
                                 <?php if ($hasCourse): ?>
@@ -801,10 +816,10 @@ async function loadUnlockStatus() {
         const data = await response.json();
         
         if (data.success && data.statuses) {
-            // Status für jeden Freebie-Punkt setzen
-            document.querySelectorAll('.unlock-status-dot').forEach(dot => {
-                const freebieId = dot.getAttribute('data-freebie-id');
-                const statusInfo = data.statuses[freebieId];
+            // Status für Template-Punkte setzen
+            document.querySelectorAll('.unlock-status-dot[data-template-id]').forEach(dot => {
+                const templateId = dot.getAttribute('data-template-id');
+                const statusInfo = data.statuses['template_' + templateId];
                 
                 if (statusInfo) {
                     const status = statusInfo.unlock_status;
@@ -812,8 +827,30 @@ async function loadUnlockStatus() {
                     // CSS-Klasse basierend auf Status
                     dot.classList.remove('status-unlocked', 'status-locked', 'status-no-course');
                     dot.classList.add('status-' + status);
+                    dot.classList.add('loaded');
                     
-                    // Sichtbar machen mit Fade-in
+                    // Button sperren wenn locked
+                    if (status === 'locked') {
+                        const card = dot.closest('.freebie-card');
+                        const useButton = card.querySelector('.btn-use-template[data-template-id="' + templateId + '"]');
+                        if (useButton && !card.hasAttribute('data-freebie-id')) {
+                            useButton.classList.add('locked');
+                            useButton.style.pointerEvents = 'none';
+                            useButton.title = 'Dieses Template ist gesperrt. Kaufe das Hauptprodukt um Zugriff zu erhalten.';
+                        }
+                    }
+                }
+            });
+            
+            // Status für Custom-Freebie-Punkte setzen
+            document.querySelectorAll('.unlock-status-dot[data-freebie-id]:not([data-template-id])').forEach(dot => {
+                const freebieId = dot.getAttribute('data-freebie-id');
+                const statusInfo = data.statuses['freebie_' + freebieId];
+                
+                if (statusInfo) {
+                    const status = statusInfo.unlock_status;
+                    dot.classList.remove('status-unlocked', 'status-locked', 'status-no-course');
+                    dot.classList.add('status-' + status);
                     dot.classList.add('loaded');
                 }
             });
