@@ -1153,7 +1153,8 @@ Dein Team</div>
                 </div>
             </div>
             
-            <!-- Lead URLs Box -->
+            <!-- Lead URLs Box - AUSGEBLENDET -->
+            <!--
             <div class="lead-urls-box animate-fade-in-up" style="opacity: 0; animation-delay: 0.15s;">
                 <h3>
                     <i class="fas fa-users"></i> Lead-Anmeldung & Dashboard
@@ -1180,6 +1181,7 @@ Dein Team</div>
                     💡 Deine Leads können sich über die Anmeldeseite registrieren und dann im Dashboard ihre eigenen Empfehlungslinks verwalten.
                 </small>
             </div>
+            -->
             
             <!-- API Setup / Status -->
             <?php if (!$api_settings): ?>
