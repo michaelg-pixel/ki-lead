@@ -198,6 +198,37 @@ $domain = $_SERVER['HTTP_HOST'];
         color: white;
     }
     
+    /* 🟢 UNLOCK STATUS DOT - Zeigt Freischaltungs-Status */
+    .unlock-status-dot {
+        position: absolute;
+        bottom: 12px;
+        right: 12px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        z-index: 10;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .unlock-status-dot.loaded {
+        opacity: 1;
+    }
+    
+    .status-unlocked {
+        background: #22c55e;
+    }
+    
+    .status-locked {
+        background: #ef4444;
+    }
+    
+    .status-no-course {
+        display: none;
+    }
+    
     .freebie-content {
         padding: 24px;
     }
@@ -501,7 +532,7 @@ $domain = $_SERVER['HTTP_HOST'];
                         $identifier = $freebie['url_slug'] ?: $freebie['unique_id'];
                         $preview_url = 'https://app.mehr-infos-jetzt.de/freebie/' . $identifier;
                         $live_url = $preview_url;
-                    }
+    }
                     
                     $bgColor = $freebie['background_color'] ?: '#667eea';
                     $primaryColor = $freebie['primary_color'] ?: '#667eea';
@@ -527,6 +558,9 @@ $domain = $_SERVER['HTTP_HOST'];
                                 <?php endif; ?>
                                 <span class="freebie-badge"><?php echo htmlspecialchars($layoutName); ?></span>
                             </div>
+                            
+                            <!-- 🟢 STATUS-PUNKT: Zeigt ob Template freigeschaltet ist -->
+                            <div class="unlock-status-dot" data-template-id="<?php echo $freebie['id']; ?>"></div>
                             
                             <?php if (!empty($freebie['mockup_image_url'])): ?>
                                 <img src="<?php echo htmlspecialchars($freebie['mockup_image_url']); ?>" 
@@ -608,5 +642,65 @@ function switchSection(section) {
         content.classList.remove('active');
     });
     document.getElementById('section-' + section).classList.add('active');
+}
+
+// 🟢 UNLOCK STATUS LADEN - Prüft Freischaltungs-Status via API
+async function loadUnlockStatus() {
+    try {
+        const response = await fetch('/customer/api/check-freebie-unlock-status.php');
+        
+        if (!response.ok) {
+            console.error('❌ API Fehler:', response.status);
+            return;
+        }
+        
+        const data = await response.json();
+        
+        if (!data.success || !data.statuses) {
+            console.error('❌ Ungültige API Response:', data);
+            return;
+        }
+        
+        // Status für jedes Template setzen
+        for (const [key, status] of Object.entries(data.statuses)) {
+            // Nur Template-Status verarbeiten (nicht customer_freebies)
+            if (key.startsWith('template_')) {
+                const templateId = key.replace('template_', '');
+                const dot = document.querySelector(`[data-template-id="${templateId}"]`);
+                
+                if (dot) {
+                    // Status-Klasse setzen
+                    dot.classList.remove('status-unlocked', 'status-locked', 'status-no-course');
+                    
+                    if (status.unlock_status === 'unlocked') {
+                        dot.classList.add('status-unlocked');
+                        dot.title = 'Freigeschaltet';
+                    } else if (status.unlock_status === 'locked') {
+                        dot.classList.add('status-locked');
+                        dot.title = 'Gesperrt - Produkt nicht gekauft';
+                    } else if (status.unlock_status === 'no_course') {
+                        dot.classList.add('status-no-course'); // Wird nicht angezeigt
+                    }
+                    
+                    // Punkt sichtbar machen
+                    dot.classList.add('loaded');
+                    
+                    console.log(`✓ Template ${templateId}: ${status.unlock_status}`);
+                }
+            }
+        }
+        
+        console.log('✅ Unlock-Status geladen:', data.total_templates, 'Templates,', data.unlocked_count, 'freigeschaltet');
+        
+    } catch (error) {
+        console.error('❌ Fehler beim Laden des Unlock-Status:', error);
+    }
+}
+
+// Status laden sobald Seite geladen ist
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadUnlockStatus);
+} else {
+    loadUnlockStatus();
 }
 </script>
