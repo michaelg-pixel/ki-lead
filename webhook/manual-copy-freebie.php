@@ -1,7 +1,7 @@
 <?php
 /**
  * MANUAL FIX: Kopiert Marktplatz-Freebie manuell für Test-User
- * VERSION 2.0 - Mit korrekten Spalten!
+ * VERSION 2.1 - Mit korrektem freebie_type!
  */
 
 require_once '../config/database.php';
@@ -9,7 +9,7 @@ require_once '../config/database.php';
 $userId = 20; // 12345t@abnehmen-fitness.com
 $sourceFreebieId = 7; // Marktplatz-Freebie
 
-echo "=== MANUAL FREEBIE COPY v2.0 ===\n\n";
+echo "=== MANUAL FREEBIE COPY v2.1 ===\n\n";
 
 try {
     $pdo = getDBConnection();
@@ -24,7 +24,8 @@ try {
     }
     
     echo "✅ Source Freebie gefunden: " . $source['headline'] . "\n";
-    echo "   Course ID: " . ($source['course_id'] ?? 'NULL') . "\n\n";
+    echo "   Course ID: " . ($source['course_id'] ?? 'NULL') . "\n";
+    echo "   Freebie Type: " . $source['freebie_type'] . "\n\n";
     
     // 2. Prüfen ob bereits kopiert
     $stmt = $pdo->prepare("SELECT id FROM customer_freebies WHERE customer_id = ? AND copied_from_freebie_id = ?");
@@ -116,7 +117,7 @@ try {
         $source['mockup_image_url'],                      // mockup_image_url
         $source['video_url'] ?? '',                       // video_url
         $source['video_format'] ?? 'widescreen',          // video_format
-        'purchased',                                      // freebie_type
+        $source['freebie_type'],                          // freebie_type - vom Source kopieren!
         $source['thank_you_message'],                     // thank_you_message
         $source['preheadline_font'],                      // preheadline_font
         $source['preheadline_size'],                      // preheadline_size
