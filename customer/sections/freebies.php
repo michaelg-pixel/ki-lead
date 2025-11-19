@@ -1,8 +1,6 @@
 <?php
 /**
  * VERBESSERTE Freebies Section - Mit korrekten Links und Videokurs-Zugang + SUCHFELD
- * 
- * DEBUG VERSION - Zeigt customer_id und Query-Ergebnisse an
  */
 
 global $pdo;
@@ -17,11 +15,6 @@ if (!isset($customer_id)) {
 
 $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
 $domain = $_SERVER['HTTP_HOST'];
-
-// DEBUG: Alle Freebies für diesen Customer prüfen
-$stmt_debug = $pdo->prepare("SELECT id, customer_id, headline, template_id FROM customer_freebies WHERE customer_id = ?");
-$stmt_debug->execute([$customer_id]);
-$all_freebies_debug = $stmt_debug->fetchAll(PDO::FETCH_ASSOC);
 
 // Limit holen
 $stmt = $pdo->prepare("SELECT freebie_limit, product_name FROM customer_freebie_limits WHERE customer_id = ?");
@@ -64,18 +57,6 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <style>
-.debug-banner {
-    background: #ff4444;
-    color: white;
-    padding: 16px;
-    margin-bottom: 20px;
-    border-radius: 8px;
-    font-family: monospace;
-    font-size: 12px;
-    line-height: 1.6;
-}
-.debug-banner strong { color: #ffff00; }
-
 .freebies-container { padding: 32px; }
 .freebies-header { margin-bottom: 32px; }
 .freebies-title { font-size: 36px; font-weight: 700; color: white; margin-bottom: 12px; }
@@ -448,23 +429,6 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
 </style>
 
 <div class="freebies-container">
-    <!-- DEBUG BANNER -->
-    <div class="debug-banner">
-        <strong>🐛 DEBUG INFO:</strong><br>
-        Customer ID: <strong><?php echo $customer_id; ?></strong><br>
-        Custom Freebies Count: <strong><?php echo $customFreebiesCount; ?></strong><br>
-        Gefundene Freebies (template_id = NULL): <strong><?php echo count($customFreebies); ?></strong><br>
-        <br>
-        <strong>ALLE FREEBIES für customer_id <?php echo $customer_id; ?>:</strong><br>
-        <?php if (empty($all_freebies_debug)): ?>
-            ❌ KEINE FREEBIES GEFUNDEN!
-        <?php else: ?>
-            <?php foreach ($all_freebies_debug as $f): ?>
-                - ID: <?php echo $f['id']; ?>, Template: <?php echo $f['template_id'] ?? 'NULL'; ?>, Headline: <?php echo htmlspecialchars($f['headline']); ?><br>
-            <?php endforeach; ?>
-        <?php endif; ?>
-    </div>
-    
     <div class="freebies-header">
         <h1 class="freebies-title">🎁 Lead-Magneten</h1>
         <p class="freebies-subtitle">Nutze Templates oder erstelle eigene Freebie-Seiten</p>
