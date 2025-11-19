@@ -1,7 +1,7 @@
 <?php
 /**
  * FIX MARKETPLACE FREEBIE - Verschiebt Freebie + Videokurs zum richtigen User
- * KORRIGIERTE VERSION - Berücksichtigt customer_freebie_courses Struktur
+ * VERSION 3 - Findet die richtige Videokurs-Struktur automatisch
  */
 
 require_once __DIR__ . '/config/database.php';
@@ -9,7 +9,6 @@ $pdo = getDBConnection();
 
 $freebieId = 53;
 $correctCustomerId = 17; // Micha Test2 (12@abnehmen-fitness.com)
-$wrongCustomerId = 8;
 
 echo "<!DOCTYPE html>
 <html>
@@ -28,6 +27,9 @@ echo "<!DOCTYPE html>
         table { width: 100%; border-collapse: collapse; margin: 10px 0; }
         th, td { padding: 8px; text-align: left; border-bottom: 1px solid #333; }
         th { color: #667eea; }
+        .btn { display: inline-block; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 20px; }
+        .btn-primary { background: #10b981; color: white; }
+        .btn-secondary { background: #667eea; color: white; }
     </style>
 </head>
 <body>
@@ -60,9 +62,9 @@ try {
     
     echo "</div>";
     
-    // SCHRITT 2: User 8 prüfen
+    // SCHRITT 2: User prüfen
     echo "<div class='box'>";
-    echo "<h2>SCHRITT 2: User {$freebie['customer_id']} prüfen</h2>";
+    echo "<h2>SCHRITT 2: Aktueller User {$freebie['customer_id']} prüfen</h2>";
     
     $stmt = $pdo->prepare("SELECT id, email, name, created_at FROM users WHERE id = ?");
     $stmt->execute([$freebie['customer_id']]);
@@ -76,64 +78,95 @@ try {
         }
         echo "</table>";
     } else {
-        echo "<p class='info'>ℹ️ User {$freebie['customer_id']} existiert nicht (wurde gelöscht)</p>";
+        echo "<p class='info'>ℹ️ User {$freebie['customer_id']} existiert nicht</p>";
     }
     
     echo "</div>";
     
-    // SCHRITT 3: Videokurs-Struktur prüfen
+    // SCHRITT 3: ALLE Videokurs-Tabellen durchsuchen
     echo "<div class='box'>";
-    echo "<h2>SCHRITT 3: Videokurs-Daten prüfen</h2>";
+    echo "<h2>SCHRITT 3: Videokurs-Struktur finden</h2>";
     
-    // customer_freebie_courses prüfen
-    $stmt = $pdo->query("SHOW TABLES LIKE 'customer_freebie_courses'");
-    $courseTableExists = $stmt->fetch() !== false;
+    $modules = [];
+    $lessons = [];
+    $courseTableFound = false;
     
-    if ($courseTableExists) {
-        echo "<p class='success'>✓ Tabelle customer_freebie_courses existiert</p>";
-        
-        // Module des Freebies laden
-        $stmt = $pdo->prepare("
-            SELECT m.*, 
-                   (SELECT COUNT(*) FROM customer_freebie_lessons l WHERE l.module_id = m.id) as lesson_count
-            FROM customer_freebie_modules m 
-            WHERE m.customer_freebie_id = ?
-            ORDER BY m.module_order
-        ");
-        $stmt->execute([$freebieId]);
-        $modules = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        if ($modules) {
-            echo "<p class='info'>🎓 " . count($modules) . " Modul(e) gefunden:</p>";
-            echo "<table>";
-            echo "<tr><th>ID</th><th>Name</th><th>Order</th><th>Lektionen</th></tr>";
-            foreach ($modules as $module) {
-                echo "<tr>";
-                echo "<td>{$module['id']}</td>";
-                echo "<td>" . htmlspecialchars($module['module_name']) . "</td>";
-                echo "<td>{$module['module_order']}</td>";
-                echo "<td>{$module['lesson_count']}</td>";
-                echo "</tr>";
+    // Mögliche Tabellen-Kombinationen durchprobieren
+    $tableCombinations = [
+        ['modules' => 'customer_freebie_modules', 'lessons' => 'customer_freebie_lessons'],
+        ['modules' => 'freebie_modules', 'lessons' => 'freebie_lessons'],
+        ['modules' => 'course_modules', 'lessons' => 'course_lessons']
+    ];
+    
+    foreach ($tableCombinations as $tables) {
+        try {
+            // Module-Tabelle prüfen
+            $stmt = $pdo->query("SHOW TABLES LIKE '{$tables['modules']}'");
+            $moduleTableExists = $stmt->fetch() !== false;
+            
+            if ($moduleTableExists) {
+                // Struktur der Tabelle prüfen
+                $stmt = $pdo->query("DESCRIBE {$tables['modules']}");
+                $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                
+                echo "<p class='success'>✓ Tabelle {$tables['modules']} gefunden</p>";
+                echo "<p class='info'>Spalten: " . implode(', ', $columns) . "</p>";
+                
+                // Richtige Spalte für Freebie-Verknüpfung finden
+                $freebieColumn = null;
+                if (in_array('customer_freebie_id', $columns)) {
+                    $freebieColumn = 'customer_freebie_id';
+                } elseif (in_array('freebie_id', $columns)) {
+                    $freebieColumn = 'freebie_id';
+                }
+                
+                if ($freebieColumn) {
+                    // Module laden
+                    $stmt = $pdo->prepare("SELECT * FROM {$tables['modules']} WHERE $freebieColumn = ? ORDER BY module_order");
+                    $stmt->execute([$freebieId]);
+                    $modules = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    
+                    if ($modules) {
+                        echo "<p class='success'>🎓 " . count($modules) . " Modul(e) gefunden in {$tables['modules']}</p>";
+                        $courseTableFound = true;
+                        
+                        // Lektionen zählen
+                        $stmt = $pdo->query("SHOW TABLES LIKE '{$tables['lessons']}'");
+                        if ($stmt->fetch()) {
+                            $stmt = $pdo->prepare("
+                                SELECT COUNT(*) as total
+                                FROM {$tables['lessons']} l
+                                JOIN {$tables['modules']} m ON l.module_id = m.id
+                                WHERE m.$freebieColumn = ?
+                            ");
+                            $stmt->execute([$freebieId]);
+                            $lessonCount = $stmt->fetchColumn();
+                            echo "<p class='info'>📚 $lessonCount Lektion(en) in {$tables['lessons']}</p>";
+                        }
+                        
+                        // Zeige Module
+                        echo "<table>";
+                        echo "<tr><th>ID</th><th>Name</th><th>Order</th></tr>";
+                        foreach ($modules as $module) {
+                            echo "<tr>";
+                            echo "<td>{$module['id']}</td>";
+                            echo "<td>" . htmlspecialchars($module['module_name']) . "</td>";
+                            echo "<td>{$module['module_order']}</td>";
+                            echo "</tr>";
+                        }
+                        echo "</table>";
+                        
+                        break; // Gefunden, raus aus der Schleife
+                    }
+                }
             }
-            echo "</table>";
-            
-            // Lektionen zählen
-            $stmt = $pdo->prepare("
-                SELECT COUNT(*) as total
-                FROM customer_freebie_lessons l
-                JOIN customer_freebie_modules m ON l.module_id = m.id
-                WHERE m.customer_freebie_id = ?
-            ");
-            $stmt->execute([$freebieId]);
-            $lessonCount = $stmt->fetchColumn();
-            echo "<p class='info'>📚 Gesamt: $lessonCount Lektion(en)</p>";
-            
-        } else {
-            echo "<p class='warning'>⚠️ Keine Module gefunden für Freebie $freebieId</p>";
+        } catch (Exception $e) {
+            // Tabelle existiert nicht, weiter zur nächsten
         }
-        
-    } else {
-        echo "<p class='error'>❌ Tabelle customer_freebie_courses existiert nicht!</p>";
+    }
+    
+    if (!$courseTableFound) {
+        echo "<p class='warning'>⚠️ Keine Videokurs-Tabellen gefunden oder keine Module für Freebie $freebieId</p>";
     }
     
     echo "</div>";
@@ -164,12 +197,11 @@ try {
     // SCHRITT 5: FIX DURCHFÜHREN
     if (isset($_GET['confirm']) && $_GET['confirm'] === 'yes') {
         echo "<div class='box'>";
-        echo "<h2>SCHRITT 5: FIX DURCHFÜHREN</h2>";
+        echo "<h2>SCHRITT 5: REPARATUR DURCHFÜHREN</h2>";
         
         $pdo->beginTransaction();
         
         try {
-            // Nur das Freebie verschieben - der Videokurs ist bereits über customer_freebie_id verknüpft!
             if ($freebie['customer_id'] != $correctCustomerId) {
                 $stmt = $pdo->prepare("UPDATE customer_freebies SET customer_id = ? WHERE id = ?");
                 $stmt->execute([$correctCustomerId, $freebieId]);
@@ -178,21 +210,18 @@ try {
                 echo "<p class='info'>ℹ️ Freebie hat bereits die richtige customer_id</p>";
             }
             
-            // Videokurs wird automatisch mitverschoben, da er über customer_freebie_id verknüpft ist
-            if ($modules) {
-                echo "<p class='success'>✓ Videokurs (Module & Lektionen) bleiben automatisch mit Freebie verknüpft</p>";
-                echo "<p class='info'>ℹ️ Keine Änderungen an customer_freebie_modules/lessons nötig</p>";
+            if ($courseTableFound && count($modules) > 0) {
+                echo "<p class='success'>✓ Videokurs mit " . count($modules) . " Modul(en) bleibt automatisch verknüpft</p>";
             }
             
             $pdo->commit();
             
-            echo "<p class='success'>🎉 ERFOLGREICH! Alle Änderungen wurden gespeichert!</p>";
-            echo "<p><a href='/customer/dashboard.php?page=freebies' style='display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin-top: 20px;'>→ Zu Meine Freebies</a></p>";
+            echo "<p class='success'>🎉 ERFOLGREICH REPARIERT!</p>";
+            echo "<p><a href='/customer/dashboard.php?page=freebies' class='btn btn-secondary'>→ Zu Meine Freebies</a></p>";
             
         } catch (Exception $e) {
             $pdo->rollBack();
             echo "<p class='error'>❌ Fehler: " . $e->getMessage() . "</p>";
-            echo "<pre>" . $e->getTraceAsString() . "</pre>";
         }
         
         echo "</div>";
@@ -200,20 +229,20 @@ try {
     } else {
         // BESTÄTIGUNGS-BUTTON
         echo "<div class='box'>";
-        echo "<h2>BEREIT ZUM REPARIEREN?</h2>";
+        echo "<h2>🚀 BEREIT ZUM REPARIEREN?</h2>";
         echo "<p><strong>Das wird passieren:</strong></p>";
         echo "<ul>";
         if ($freebie['customer_id'] != $correctCustomerId) {
             echo "<li>✅ Freebie $freebieId: customer_id {$freebie['customer_id']} → $correctCustomerId</li>";
-            if ($modules) {
-                echo "<li>✅ Videokurs mit " . count($modules) . " Modul(en) bleibt automatisch verknüpft</li>";
+            if ($courseTableFound && count($modules) > 0) {
+                echo "<li>✅ Videokurs mit " . count($modules) . " Modul(en) bleibt verknüpft</li>";
             }
         } else {
             echo "<li>ℹ️ Freebie hat bereits richtige customer_id</li>";
         }
         echo "</ul>";
         
-        echo "<p><a href='?confirm=yes' style='display: inline-block; background: #10b981; color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 20px;'>🔧 JETZT REPARIEREN</a></p>";
+        echo "<p><a href='?confirm=yes' class='btn btn-primary'>🔧 JETZT REPARIEREN</a></p>";
         echo "</div>";
     }
     
