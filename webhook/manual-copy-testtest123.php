@@ -1,5 +1,6 @@
 <?php
 // 🔧 MANUELL: Marktplatz-Freebie für testtest123@web.de kopieren
+// VERSION 2: Korrigiert für customer_freebies Struktur
 header('Content-Type: text/html; charset=utf-8');
 
 $config_path = dirname(__DIR__) . '/config/database.php';
@@ -9,7 +10,7 @@ $test_email = 'testtest123@web.de';
 $product_id = '639493';
 
 echo "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Manuelles Freebie kopieren</title></head><body>";
-echo "<h1>🔧 Manuelles Freebie kopieren</h1>";
+echo "<h1>🔧 Manuelles Freebie kopieren v2</h1>";
 echo "<hr>";
 
 // 1. User finden
@@ -28,34 +29,10 @@ echo "Name: {$user['name']}<br>";
 echo "Email: {$user['email']}<br>";
 echo "<hr>";
 
-// 2. Marktplatz-Freebie mit Produkt-ID suchen
+// 2. Marktplatz-Freebie in customer_freebies suchen
 echo "<h2>2️⃣ MARKTPLATZ-FREEBIE SUCHEN</h2>";
-echo "Suche nach Produkt-ID: <strong>$product_id</strong><br><br>";
+echo "Suche in customer_freebies nach Produkt-ID: <strong>$product_id</strong><br><br>";
 
-// OPTION A: In marketplace_freebies suchen (neue Tabelle)
-$stmt = $pdo->query("SHOW TABLES LIKE 'marketplace_freebies'");
-$marketplace_table_exists = $stmt->rowCount() > 0;
-
-if ($marketplace_table_exists) {
-    echo "✅ marketplace_freebies Tabelle existiert<br>";
-    $stmt = $pdo->prepare("SELECT * FROM marketplace_freebies WHERE digistore_product_id = ?");
-    $stmt->execute([$product_id]);
-    $mp_freebie = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if ($mp_freebie) {
-        echo "✅ <strong>GEFUNDEN in marketplace_freebies!</strong><br>";
-        echo "<pre>" . print_r($mp_freebie, true) . "</pre>";
-    } else {
-        echo "❌ NICHT GEFUNDEN in marketplace_freebies<br>";
-    }
-} else {
-    echo "⚠️ marketplace_freebies Tabelle existiert nicht<br>";
-}
-
-echo "<br>";
-
-// OPTION B: In customer_freebies mit marketplace_enabled=1 suchen
-echo "Suche in customer_freebies (marketplace_enabled=1)...<br>";
 $stmt = $pdo->prepare("
     SELECT * FROM customer_freebies 
     WHERE digistore_product_id = ? 
@@ -65,29 +42,19 @@ $stmt = $pdo->prepare("
 $stmt->execute([$product_id]);
 $source_freebie = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if ($source_freebie) {
-    echo "✅ <strong>GEFUNDEN in customer_freebies!</strong><br>";
-    echo "<div style='background: #d4edda; border: 2px solid #28a745; padding: 15px; margin: 10px 0;'>";
-    echo "<strong>Source Freebie:</strong><br>";
-    echo "ID: {$source_freebie['id']}<br>";
-    echo "Customer ID (Seller): {$source_freebie['customer_id']}<br>";
-    echo "Headline: {$source_freebie['headline']}<br>";
-    echo "Template ID: {$source_freebie['template_id']}<br>";
-    echo "Produkt-ID: {$source_freebie['digistore_product_id']}<br>";
-    echo "Marketplace Enabled: {$source_freebie['marketplace_enabled']}<br>";
-    echo "</div>";
-} else {
-    echo "❌ <strong>NICHT GEFUNDEN in customer_freebies!</strong><br>";
+if (!$source_freebie) {
     echo "<div style='background: #f8d7da; border: 2px solid #dc3545; padding: 15px; margin: 10px 0;'>";
-    echo "<strong>PROBLEM:</strong> Es gibt kein Marktplatz-Freebie mit Produkt-ID $product_id!<br><br>";
-    echo "<strong>Alle customer_freebies mit marketplace_enabled=1:</strong><br>";
+    echo "<strong>❌ NICHT GEFUNDEN!</strong><br>";
+    echo "Es gibt kein Marktplatz-Freebie mit Produkt-ID $product_id!<br><br>";
     
+    // Alle verfügbaren anzeigen
     $stmt = $pdo->query("SELECT id, customer_id, headline, digistore_product_id FROM customer_freebies WHERE marketplace_enabled = 1");
     $all_mp = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     if (empty($all_mp)) {
         echo "❌ KEINE Marktplatz-Freebies gefunden!<br>";
     } else {
+        echo "<strong>Verfügbare Marktplatz-Freebies:</strong><br>";
         echo "<ul>";
         foreach ($all_mp as $mp) {
             echo "<li>ID: {$mp['id']} | Headline: {$mp['headline']} | Produkt-ID: {$mp['digistore_product_id']}</li>";
@@ -99,6 +66,15 @@ if ($source_freebie) {
     exit;
 }
 
+echo "<div style='background: #d4edda; border: 2px solid #28a745; padding: 15px; margin: 10px 0;'>";
+echo "<strong>✅ GEFUNDEN!</strong><br>";
+echo "Freebie ID: {$source_freebie['id']}<br>";
+echo "Verkäufer (Customer ID): {$source_freebie['customer_id']}<br>";
+echo "Headline: {$source_freebie['headline']}<br>";
+echo "Template ID: {$source_freebie['template_id']}<br>";
+echo "Produkt-ID: {$source_freebie['digistore_product_id']}<br>";
+echo "Preis: {$source_freebie['marketplace_price']} €<br>";
+echo "</div>";
 echo "<hr>";
 
 // 3. Prüfen ob bereits kopiert
@@ -114,6 +90,7 @@ if ($existing) {
     echo "<div style='background: #fff3cd; border: 2px solid #ffc107; padding: 15px;'>";
     echo "⚠️ Freebie wurde bereits kopiert!<br>";
     echo "Kopiertes Freebie ID: {$existing['id']}<br>";
+    echo "<a href='https://app.mehr-infos-jetzt.de/customer/dashboard.php?page=freebies' style='display: inline-block; background: #ffc107; color: #000; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 10px;'>Zum Dashboard</a>";
     echo "</div>";
     echo "</body></html>";
     exit;
@@ -191,8 +168,9 @@ try {
     echo "<div style='background: #d4edda; border: 3px solid #28a745; padding: 20px; margin: 10px 0;'>";
     echo "<h3>✅ FREEBIE ERFOLGREICH KOPIERT!</h3>";
     echo "Neue Freebie ID: <strong>$copiedId</strong><br>";
-    echo "Customer ID: {$user['id']}<br>";
+    echo "Käufer (Customer ID): {$user['id']}<br>";
     echo "Source Freebie ID: {$source_freebie['id']}<br>";
+    echo "Verkäufer (Customer ID): {$source_freebie['customer_id']}<br>";
     echo "</div>";
     
 } catch (PDOException $e) {
@@ -207,18 +185,24 @@ try {
 echo "<hr>";
 
 // 5. VIDEOKURS KOPIEREN (falls vorhanden)
-echo "<h2>5️⃣ VIDEOKURS KOPIEREN</h2>";
+echo "<h2>5️⃣ VIDEOKURS PRÜFEN UND KOPIEREN</h2>";
 
 $stmt = $pdo->prepare("SELECT * FROM freebie_courses WHERE freebie_id = ?");
 $stmt->execute([$source_freebie['id']]);
 $sourceCourse = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$sourceCourse) {
-    echo "ℹ️ Kein Videokurs vorhanden<br>";
+    echo "<div style='background: #fff3cd; border: 2px solid #ffc107; padding: 15px;'>";
+    echo "ℹ️ Kein Videokurs vorhanden beim Source-Freebie<br>";
+    echo "Das Freebie wurde ohne Videokurs kopiert.";
+    echo "</div>";
 } else {
-    echo "✅ Videokurs gefunden: {$sourceCourse['title']}<br>";
+    echo "<div style='background: #e7f3ff; border: 2px solid #0066cc; padding: 15px;'>";
+    echo "✅ Videokurs gefunden: <strong>{$sourceCourse['title']}</strong><br>";
+    echo "Beschreibung: {$sourceCourse['description']}<br>";
+    echo "</div><br>";
     
-    // Kurs kopieren
+    // Kurs-Container kopieren
     $stmt = $pdo->prepare("
         INSERT INTO freebie_courses (
             freebie_id, customer_id, title, description, is_active, created_at, updated_at
@@ -244,6 +228,7 @@ if (!$sourceCourse) {
     $lessonCount = 0;
     $moduleMapping = [];
     
+    echo "<strong>Module kopieren:</strong><br>";
     foreach ($modules as $module) {
         $stmt = $pdo->prepare("
             INSERT INTO freebie_course_modules (
@@ -261,6 +246,8 @@ if (!$sourceCourse) {
         $newModuleId = $pdo->lastInsertId();
         $moduleMapping[$module['id']] = $newModuleId;
         $moduleCount++;
+        
+        echo "- Modul {$moduleCount}: {$module['title']}<br>";
         
         // Lektionen kopieren
         $stmt = $pdo->prepare("SELECT * FROM freebie_course_lessons WHERE module_id = ? ORDER BY sort_order");
@@ -286,11 +273,14 @@ if (!$sourceCourse) {
                 $lesson['button_url'] ?? null
             ]);
             $lessonCount++;
+            echo "&nbsp;&nbsp;• Lektion: {$lesson['title']}<br>";
         }
     }
     
+    echo "<br>";
     echo "<div style='background: #d4edda; border: 3px solid #28a745; padding: 20px; margin: 10px 0;'>";
     echo "<h3>✅ VIDEOKURS KOMPLETT KOPIERT!</h3>";
+    echo "Kurs ID: $newCourseId<br>";
     echo "Module: $moduleCount<br>";
     echo "Lektionen: $lessonCount<br>";
     echo "</div>";
@@ -298,12 +288,30 @@ if (!$sourceCourse) {
 
 echo "<hr>";
 
-// 6. FERTIG!
-echo "<h2>6️⃣ FERTIG!</h2>";
-echo "<div style='background: #d4edda; border: 3px solid #28a745; padding: 30px; text-align: center;'>";
-echo "<h2>🎉 ALLES ERFOLGREICH KOPIERT!</h2>";
-echo "<p>Der Kunde <strong>$test_email</strong> hat jetzt das Freebie in seinem Dashboard!</p>";
-echo "<a href='https://app.mehr-infos-jetzt.de/customer/dashboard.php?page=freebies' style='display: inline-block; background: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; margin-top: 20px;'>Zum Customer Dashboard</a>";
+// 6. Verkaufszähler erhöhen
+echo "<h2>6️⃣ VERKAUFSZÄHLER ERHÖHEN</h2>";
+$stmt = $pdo->prepare("
+    UPDATE customer_freebies 
+    SET marketplace_sales_count = marketplace_sales_count + 1
+    WHERE id = ?
+");
+$stmt->execute([$source_freebie['id']]);
+
+echo "✅ Verkaufszähler beim Original-Freebie erhöht<br>";
+echo "<hr>";
+
+// 7. FERTIG!
+echo "<h2>7️⃣ FERTIG!</h2>";
+echo "<div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: 3px solid #667eea; padding: 40px; text-align: center; border-radius: 12px;'>";
+echo "<h1 style='color: white; margin: 0;'>🎉 ERFOLGREICH!</h1>";
+echo "<p style='color: white; font-size: 18px; margin: 20px 0;'>Das Marktplatz-Freebie wurde komplett kopiert!</p>";
+echo "<div style='background: white; padding: 20px; border-radius: 8px; margin: 20px 0;'>";
+echo "<p style='margin: 5px 0;'><strong>Käufer:</strong> $test_email</p>";
+echo "<p style='margin: 5px 0;'><strong>Freebie ID:</strong> $copiedId</p>";
+echo "<p style='margin: 5px 0;'><strong>Module:</strong> " . ($moduleCount ?? 0) . "</p>";
+echo "<p style='margin: 5px 0;'><strong>Lektionen:</strong> " . ($lessonCount ?? 0) . "</p>";
+echo "</div>";
+echo "<a href='https://app.mehr-infos-jetzt.de/customer/dashboard.php?page=freebies' style='display: inline-block; background: white; color: #667eea; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 20px;'>🚀 Zum Customer Dashboard</a>";
 echo "</div>";
 
 echo "</body></html>";
