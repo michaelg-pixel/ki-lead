@@ -24,7 +24,7 @@ $freebieLimit = $limitData['freebie_limit'] ?? 0;
 $packageName = $limitData['product_name'] ?? 'Basis';
 
 // Custom Freebies zählen (alle die KEIN Template sind)
-$stmt = $pdo->prepare("SELECT COUNT(*) FROM customer_freebies WHERE customer_id = ? AND template_id IS NULL");
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM customer_freebies WHERE user_id = ? AND template_id IS NULL");
 $stmt->execute([$customer_id]);
 $customFreebiesCount = $stmt->fetchColumn();
 
@@ -36,7 +36,7 @@ $templates = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $stmt = $pdo->prepare("
     SELECT template_id, id as customer_freebie_id, unique_id, mockup_image_url, has_course
     FROM customer_freebies 
-    WHERE customer_id = ? AND template_id IS NOT NULL
+    WHERE user_id = ? AND template_id IS NOT NULL
 ");
 $stmt->execute([$customer_id]);
 $customer_templates = [];
@@ -49,7 +49,7 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
 // Custom Freebies laden (ALLE die kein Template sind - inkl. Marktplatz-Käufe)
 $stmt = $pdo->prepare("
     SELECT * FROM customer_freebies 
-    WHERE customer_id = ? AND template_id IS NULL
+    WHERE user_id = ? AND template_id IS NULL
     ORDER BY created_at DESC
 ");
 $stmt->execute([$customer_id]);
