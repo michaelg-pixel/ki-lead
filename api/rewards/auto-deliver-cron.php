@@ -7,8 +7,8 @@
  * 2. Liefert noch nicht ausgelieferte Belohnungen aus
  * 3. Tracked Delivery in reward_deliveries Tabelle
  * 
- * SETUP: Cronjab einrichten:
- * */5 * * * * /usr/bin/php /path/to/api/rewards/auto-deliver-cron.php >> /path/to/logs/reward-cron.log 2>&1
+ * SETUP: Cronjob einrichten (alle 5 Minuten):
+ * 0,5,10,15,20,25,30,35,40,45,50,55 * * * * /usr/bin/php /path/to/api/rewards/auto-deliver-cron.php
  */
 
 require_once __DIR__ . '/../../config/database.php';
