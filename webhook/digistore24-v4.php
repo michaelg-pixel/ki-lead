@@ -1,12 +1,9 @@
 <?php
 /**
- * Enhanced Webhook Handler - VERSION 5.1 FINAL
+ * Enhanced Webhook Handler - VERSION 5.2 FINAL PRODUCTION
  * UNIVERSELLER WEBHOOK: Admin-Dashboard + Marktplatz + Legacy
  * 
- * PRODUKTIONSREIF mit:
- * - Vollständiger Freebie-Kopie (ALLE Felder inkl. course_id!)
- * - Funktionierenden Email-Benachrichtigungen
- * - Kompletter Videokurs-Kopie
+ * PRODUKTIONSREIF mit KORREKTEN Spalten!
  */
 
 require_once '../config/database.php';
@@ -254,7 +251,7 @@ function handleMarketplacePurchase($pdo, $buyerEmail, $buyerName, $productId, $s
         return;
     }
     
-    // FREEBIE KOPIEREN (vollständig!)
+    // FREEBIE KOPIEREN (vollständig mit KORREKTEN Spalten!)
     $copiedFreebieId = copyMarketplaceFreebie($pdo, $buyerId, $sourceFreebie['id']);
     
     // VIDEOKURS KOPIEREN
@@ -310,8 +307,8 @@ function createMarketplaceBuyer($pdo, $email, $name, $orderId) {
 }
 
 /**
- * MARKTPLATZ: Kopiert Freebie VOLLSTÄNDIG
- * VERSION 5.1: ALLE Felder inkl. course_id!
+ * MARKTPLATZ: Kopiert Freebie VOLLSTÄNDIG mit KORREKTEN Spalten
+ * VERSION 5.2 - Production Ready!
  */
 function copyMarketplaceFreebie($pdo, $buyerId, $sourceFreebieId) {
     // Original-Freebie MIT ALLEN FELDERN laden
@@ -327,95 +324,103 @@ function copyMarketplaceFreebie($pdo, $buyerId, $sourceFreebieId) {
     $uniqueId = bin2hex(random_bytes(16));
     $urlSlug = ($source['url_slug'] ?? '') . '-' . substr($uniqueId, 0, 8);
     
-    // KRITISCH: course_id loggen
-    $courseId = $source['course_id'] ?? null;
     logWebhook([
         'debug' => 'Copying freebie with ALL fields',
         'source_freebie_id' => $sourceFreebieId,
-        'course_id' => $courseId,
-        'has_course' => !empty($courseId)
+        'course_id' => $source['course_id'] ?? 'NULL',
+        'freebie_type' => $source['freebie_type']
     ], 'debug');
     
-    // VOLLSTÄNDIGES INSERT mit ALLEN Feldern!
+    // VOLLSTÄNDIGES INSERT mit KORREKTEN Spalten!
     $stmt = $pdo->prepare("
         INSERT INTO customer_freebies (
             customer_id,
+            niche,
             template_id,
-            freebie_type,
+            course_id,
             headline,
             subheadline,
             preheadline,
-            mockup_image_url,
+            bullet_points,
+            cta_text,
+            layout,
             background_color,
             primary_color,
-            cta_text,
-            bullet_points,
-            bullet_icon_style,
-            layout,
-            email_field_text,
-            button_text,
-            privacy_checkbox_text,
-            thank_you_headline,
-            thank_you_message,
-            email_provider,
-            email_api_key,
-            email_list_id,
-            course_id,
+            raw_code,
             unique_id,
             url_slug,
-            niche,
-            raw_code,
+            mockup_image_url,
             video_url,
             video_format,
+            freebie_type,
+            thank_you_message,
+            preheadline_font,
+            preheadline_size,
+            headline_font,
+            headline_size,
+            subheadline_font,
+            subheadline_size,
+            bulletpoints_font,
+            bulletpoints_size,
             optin_display_mode,
             popup_message,
             cta_animation,
             font_heading,
             font_body,
             font_size,
+            heading_font_size,
+            body_font_size,
+            bullet_icon_style,
             original_creator_id,
             copied_from_freebie_id,
             marketplace_enabled,
             created_at
         ) VALUES (
-            ?, ?, 'purchased', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-            NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW()
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW()
         )
     ");
     
     $stmt->execute([
-        $buyerId,                                          // customer_id
-        $source['template_id'],                            // template_id
-        $source['headline'],                               // headline
-        $source['subheadline'],                            // subheadline
-        $source['preheadline'],                            // preheadline
-        $source['mockup_image_url'],                       // mockup_image_url
-        $source['background_color'],                       // background_color
-        $source['primary_color'],                          // primary_color
-        $source['cta_text'],                               // cta_text
-        $source['bullet_points'],                          // bullet_points
-        $source['bullet_icon_style'] ?? 'standard',        // bullet_icon_style
-        $source['layout'],                                 // layout
-        $source['email_field_text'],                       // email_field_text
-        $source['button_text'],                            // button_text
-        $source['privacy_checkbox_text'],                  // privacy_checkbox_text
-        $source['thank_you_headline'],                     // thank_you_headline
-        $source['thank_you_message'],                      // thank_you_message
-        $courseId,                                         // course_id - KRITISCH!
-        $uniqueId,                                         // unique_id
-        $urlSlug,                                          // url_slug
-        $source['niche'] ?? 'sonstiges',                   // niche
-        $source['raw_code'] ?? '',                         // raw_code
-        $source['video_url'] ?? '',                        // video_url
-        $source['video_format'] ?? 'widescreen',           // video_format
-        $source['optin_display_mode'] ?? 'direct',         // optin_display_mode
-        $source['popup_message'] ?? '',                    // popup_message
-        $source['cta_animation'] ?? 'none',                // cta_animation
-        $source['font_heading'] ?? 'Inter',                // font_heading
-        $source['font_body'] ?? 'Inter',                   // font_body
-        $source['font_size'] ?? null,                      // font_size (JSON)
-        $source['customer_id'],                            // original_creator_id
-        $sourceFreebieId                                   // copied_from_freebie_id
+        $buyerId,
+        $source['niche'] ?? 'sonstiges',
+        $source['template_id'],
+        $source['course_id'],
+        $source['headline'],
+        $source['subheadline'],
+        $source['preheadline'],
+        $source['bullet_points'],
+        $source['cta_text'],
+        $source['layout'],
+        $source['background_color'],
+        $source['primary_color'],
+        $source['raw_code'] ?? '',
+        $uniqueId,
+        $urlSlug,
+        $source['mockup_image_url'],
+        $source['video_url'] ?? '',
+        $source['video_format'] ?? 'widescreen',
+        $source['freebie_type'],  // Vom Source kopieren!
+        $source['thank_you_message'],
+        $source['preheadline_font'],
+        $source['preheadline_size'],
+        $source['headline_font'],
+        $source['headline_size'],
+        $source['subheadline_font'],
+        $source['subheadline_size'],
+        $source['bulletpoints_font'],
+        $source['bulletpoints_size'],
+        $source['optin_display_mode'] ?? 'direct',
+        $source['popup_message'] ?? '',
+        $source['cta_animation'] ?? 'none',
+        $source['font_heading'] ?? 'Inter',
+        $source['font_body'] ?? 'Inter',
+        $source['font_size'],
+        $source['heading_font_size'],
+        $source['body_font_size'],
+        $source['bullet_icon_style'] ?? 'standard',
+        $source['customer_id'],
+        $sourceFreebieId
     ]);
     
     $copiedId = $pdo->lastInsertId();
@@ -423,7 +428,7 @@ function copyMarketplaceFreebie($pdo, $buyerId, $sourceFreebieId) {
     logWebhook([
         'success' => 'Freebie copied completely',
         'copied_freebie_id' => $copiedId,
-        'course_id_copied' => $courseId,
+        'course_id_copied' => $source['course_id'] ?? 'NULL',
         'all_fields_included' => true
     ], 'success');
     
