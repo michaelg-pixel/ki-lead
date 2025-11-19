@@ -23,14 +23,14 @@ try {
     $statusMap = [];
     
     // 1. Alle Templates holen
-    $stmt = $pdo->query("SELECT id, name FROM freebies ORDER BY created_at DESC");
+    $stmt = $pdo->query("SELECT id, name, course_id FROM freebies ORDER BY created_at DESC");
     $allTemplates = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // 2. Prüfe welche Templates freigeschaltet sind
     $stmt = $pdo->prepare("
-        SELECT DISTINCT f.id as template_id
+        SELECT DISTINCT f.id as template_id, f.name
         FROM freebies f
-        INNER JOIN courses c ON c.is_active = 1
+        INNER JOIN courses c ON f.course_id = c.id AND c.is_active = 1
         INNER JOIN webhook_course_access wca ON c.id = wca.course_id
         INNER JOIN webhook_configurations wc ON wca.webhook_id = wc.id AND wc.is_active = 1
         INNER JOIN webhook_product_ids wpi ON wc.id = wpi.webhook_id
@@ -43,15 +43,26 @@ try {
     ");
     
     $stmt->execute(['customer_id' => $customer_id]);
-    $unlockedTemplates = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    $unlockedTemplates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $unlockedTemplateIds = array_column($unlockedTemplates, 'template_id');
     
     // 3. Status für alle Templates setzen
     foreach ($allTemplates as $template) {
-        $isUnlocked = in_array($template['id'], $unlockedTemplates);
-        $statusMap['template_' . $template['id']] = [
-            'unlock_status' => $isUnlocked ? 'unlocked' : 'locked',
-            'name' => $template['name']
-        ];
+        $isUnlocked = in_array($template['id'], $unlockedTemplateIds);
+        $hasCourse = !empty($template['course_id']);
+        
+        // Wenn kein Kurs vorhanden, dann "no_course"
+        if (!$hasCourse) {
+            $statusMap['template_' . $template['id']] = [
+                'unlock_status' => 'no_course',
+                'name' => $template['name']
+            ];
+        } else {
+            $statusMap['template_' . $template['id']] = [
+                'unlock_status' => $isUnlocked ? 'unlocked' : 'locked',
+                'name' => $template['name']
+            ];
+        }
     }
     
     // 4. Status für bereits genutzte customer_freebies prüfen
@@ -101,9 +112,9 @@ try {
         'success' => true,
         'customer_id' => $customer_id,
         'total_templates' => count($allTemplates),
-        'unlocked_count' => count($unlockedTemplates),
+        'unlocked_count' => count($unlockedTemplateIds),
         'statuses' => $statusMap,
-        'unlocked_template_ids' => $unlockedTemplates
+        'unlocked_template_ids' => $unlockedTemplateIds
     ]);
     
 } catch (PDOException $e) {
@@ -111,7 +122,8 @@ try {
     echo json_encode([
         'success' => false,
         'error' => 'Datenbankfehler',
-        'message' => $e->getMessage()
+        'message' => $e->getMessage(),
+        'trace' => $e->getTraceAsString()
     ]);
 }
 ?>
