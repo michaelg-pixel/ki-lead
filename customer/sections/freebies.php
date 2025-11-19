@@ -1,6 +1,8 @@
 <?php
 /**
  * VERBESSERTE Freebies Section - Mit korrekten Links und Videokurs-Zugang + SUCHFELD
+ * 
+ * DEBUG VERSION - Zeigt customer_id und Query-Ergebnisse an
  */
 
 global $pdo;
@@ -15,6 +17,11 @@ if (!isset($customer_id)) {
 
 $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
 $domain = $_SERVER['HTTP_HOST'];
+
+// DEBUG: Alle Freebies für diesen Customer prüfen
+$stmt_debug = $pdo->prepare("SELECT id, customer_id, email, headline, template_id FROM customer_freebies WHERE customer_id = ?");
+$stmt_debug->execute([$customer_id]);
+$all_freebies_debug = $stmt_debug->fetchAll(PDO::FETCH_ASSOC);
 
 // Limit holen
 $stmt = $pdo->prepare("SELECT freebie_limit, product_name FROM customer_freebie_limits WHERE customer_id = ?");
@@ -57,6 +64,18 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <style>
+.debug-banner {
+    background: #ff4444;
+    color: white;
+    padding: 16px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    font-family: monospace;
+    font-size: 12px;
+    line-height: 1.6;
+}
+.debug-banner strong { color: #ffff00; }
+
 .freebies-container { padding: 32px; }
 .freebies-header { margin-bottom: 32px; }
 .freebies-title { font-size: 36px; font-weight: 700; color: white; margin-bottom: 12px; }
@@ -429,6 +448,23 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
 </style>
 
 <div class="freebies-container">
+    <!-- DEBUG BANNER -->
+    <div class="debug-banner">
+        <strong>🐛 DEBUG INFO:</strong><br>
+        Customer ID: <strong><?php echo $customer_id; ?></strong><br>
+        Custom Freebies Count: <strong><?php echo $customFreebiesCount; ?></strong><br>
+        Gefundene Freebies (template_id = NULL): <strong><?php echo count($customFreebies); ?></strong><br>
+        <br>
+        <strong>ALLE FREEBIES für customer_id <?php echo $customer_id; ?>:</strong><br>
+        <?php if (empty($all_freebies_debug)): ?>
+            ❌ KEINE FREEBIES GEFUNDEN!
+        <?php else: ?>
+            <?php foreach ($all_freebies_debug as $f): ?>
+                - ID: <?php echo $f['id']; ?>, Template: <?php echo $f['template_id'] ?? 'NULL'; ?>, Headline: <?php echo $f['headline']; ?><br>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </div>
+    
     <div class="freebies-header">
         <h1 class="freebies-title">🎁 Lead-Magneten</h1>
         <p class="freebies-subtitle">Nutze Templates oder erstelle eigene Freebie-Seiten</p>
@@ -529,7 +565,6 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <?php endif; ?>
                             
                             <div class="freebie-actions <?php echo $hasCourse ? 'has-course' : ''; ?>">
-                                <!-- GEÄNDERT: Vorschau-Link führt immer zum finalen Freebie-Link -->
                                 <a href="/customer/template-preview-redirect.php?template_id=<?php echo $template['id']; ?>" class="btn btn-preview" target="_blank">👁️ Vorschau</a>
                                 <a href="/customer/freebie-editor.php?template_id=<?php echo $template['id']; ?>" class="btn btn-edit">
                                     <?php echo $isUsed ? '✏️ Bearbeiten' : '✨ Nutzen'; ?>
@@ -541,7 +576,6 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             
                             <?php if ($isUsed && $customerData): ?>
                                 <div class="link-section">
-                                    <!-- Freebie Link -->
                                     <div class="link-box">
                                         <div class="link-label">
                                             <span>🔗</span>
@@ -556,7 +590,6 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                         </div>
                                     </div>
                                     
-                                    <!-- Danke-Seiten Link -->
                                     <div class="link-box">
                                         <div class="link-label">
                                             <span>🎉</span>
@@ -579,7 +612,7 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <?php endif; ?>
     </div>
     
-    <!-- Tab 2: Custom Freebies - MIT LÖSCHEN-BUTTON UND MARKTPLATZ-BADGE -->
+    <!-- Tab 2: Custom Freebies -->
     <div id="tab-custom" class="tab-content">
         <?php if (empty($customFreebies)): ?>
             <div class="empty-state">
@@ -626,7 +659,6 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <p class="freebie-subtitle"><?php echo htmlspecialchars($custom['subheadline']); ?></p>
                             <?php endif; ?>
                             
-                            <!-- 3 Buttons: Löschen, Bearbeiten, Kurs -->
                             <div class="freebie-actions has-course">
                                 <button onclick="deleteFreebie(<?php echo $custom['id']; ?>)" class="btn btn-delete" title="Freebie löschen">🗑️ Löschen</button>
                                 <a href="/customer/edit-freebie.php?id=<?php echo $custom['id']; ?>" class="btn btn-edit">✏️ Bearbeiten</a>
@@ -634,7 +666,6 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             </div>
                             
                             <div class="link-section">
-                                <!-- Freebie Link -->
                                 <div class="link-box">
                                     <div class="link-label">
                                         <span>🔗</span>
@@ -649,7 +680,6 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     </div>
                                 </div>
                                 
-                                <!-- Danke-Seiten Link -->
                                 <div class="link-box">
                                     <div class="link-label">
                                         <span>🎉</span>
@@ -673,20 +703,17 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
 </div>
 
 <script>
-// Tab-Wechsel Funktion
 function showTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById('tab-' + tabName).classList.add('active');
     event.target.classList.add('active');
     
-    // Suche nach Tab-Wechsel neu ausführen
     if (window.performFreebieSearch) {
         performFreebieSearch();
     }
 }
 
-// Link kopieren Funktion
 function copyLink(inputId) {
     const input = document.getElementById(inputId);
     if (!input) return;
@@ -719,7 +746,6 @@ function copyLink(inputId) {
     }
 }
 
-// Freebie löschen Funktion
 async function deleteFreebie(freebieId) {
     const confirmed = confirm('Möchtest du dieses Freebie wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.');
     
@@ -765,21 +791,17 @@ async function deleteFreebie(freebieId) {
     }
 }
 
-// SUCHFUNKTION
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('freebieSearch');
     const searchClear = document.getElementById('searchClear');
     const searchResultsInfo = document.getElementById('searchResultsInfo');
     const noResults = document.getElementById('noResults');
     
-    // Alle Freebie-Karten
     const allFreebieCards = document.querySelectorAll('.freebie-card');
     
-    // Suche durchführen
     window.performFreebieSearch = function() {
         const searchTerm = searchInput.value.toLowerCase().trim();
         
-        // Clear Button anzeigen/verstecken
         if (searchTerm) {
             searchClear.classList.add('active');
         } else {
@@ -787,22 +809,18 @@ document.addEventListener('DOMContentLoaded', function() {
             searchResultsInfo.classList.remove('active');
             noResults.classList.remove('active');
             
-            // Alle Karten wieder anzeigen
             allFreebieCards.forEach(card => card.classList.remove('hidden'));
             return;
         }
         
         let visibleCount = 0;
         
-        // Durch alle Freebie-Karten filtern
         allFreebieCards.forEach(card => {
             const title = card.getAttribute('data-title') || '';
             const description = card.getAttribute('data-description') || '';
             
-            // Prüfen ob Karte im aktiven Tab ist
             const isInActiveTab = card.closest('.tab-content.active') !== null;
             
-            // Prüfen ob Suchbegriff in Titel oder Beschreibung vorkommt
             if (isInActiveTab && (title.includes(searchTerm) || description.includes(searchTerm))) {
                 card.classList.remove('hidden');
                 visibleCount++;
@@ -811,7 +829,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // Ergebnis-Info anzeigen
         if (visibleCount === 0) {
             noResults.classList.add('active');
             searchResultsInfo.classList.remove('active');
@@ -822,7 +839,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Event Listener
     searchInput.addEventListener('input', performFreebieSearch);
     
     searchClear.addEventListener('click', function() {
@@ -831,7 +847,6 @@ document.addEventListener('DOMContentLoaded', function() {
         performFreebieSearch();
     });
     
-    // Escape-Taste behandeln
     searchInput.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             searchInput.value = '';
