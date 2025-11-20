@@ -150,6 +150,10 @@ $page = $_GET['page'] ?? 'overview';
                 <span class="nav-icon">✅</span>
                 <span>JV Check Verifizierung</span>
             </a>
+            <a href="?page=offers" class="nav-item <?php echo $page === 'offers' ? 'active' : ''; ?>">
+                <span class="nav-icon">🎯</span>
+                <span>Angebote</span>
+            </a>
             <?php /* AUSGEBLENDET: Digistore24 Menüpunkt - kann bei Bedarf wieder aktiviert werden
             <a href="?page=digistore" class="nav-item <?php echo $page === 'digistore' ? 'active' : ''; ?>">
                 <span class="nav-icon">🛒</span>
@@ -197,6 +201,7 @@ $page = $_GET['page'] ?? 'overview';
                         'tutorials' => 'Anleitungen & Tutorials verwalten',
                         'referrals' => 'Empfehlungsprogramm-Übersicht',
                         'jv-check' => 'JV Check Verifizierung',
+                        'offers' => 'Angebote verwalten',
                         'digistore' => 'Digistore24 Integration',
                         'webhooks' => 'Flexible Webhook-Verwaltung',
                         'settings' => 'Einstellungen',
@@ -329,6 +334,9 @@ $page = $_GET['page'] ?? 'overview';
             
             <?php elseif ($page === 'jv-check'): ?>
                 <?php include 'sections/jv-check.php'; ?>
+            
+            <?php elseif ($page === 'offers'): ?>
+                <?php include 'sections/offers.php'; ?>
             
             <?php elseif ($page === 'digistore'): ?>
                 <?php include 'sections/digistore.php'; ?>
