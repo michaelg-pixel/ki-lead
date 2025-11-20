@@ -1,23 +1,34 @@
 <?php
 /**
- * Reward Auto-Delivery System mit Quentn-Integration
+ * Reward Auto-Delivery System - UNIVERSAL für alle Provider
  * Automatische Belohnungsauslieferung bei erreichten Empfehlungen
- * Version: 2.0 - Mit Quentn API Support
+ * Version: 3.0 - Universal Multi-Provider Support
+ * 
+ * ✅ Unterstützte Provider:
+ * - Quentn
+ * - ActiveCampaign  
+ * - Klick-Tipp
+ * - Brevo (Sendinblue)
+ * - GetResponse
  * 
  * Features:
  * - Automatische Prüfung bei Conversions
- * - Email-Benachrichtigung an Leads
+ * - Provider-unabhängige Benachrichtigung
+ * - Custom Fields Updates für alle Provider
  * - Tracking aller Auslieferungen
  * - API für externen Zugriff
- * - 🆕 Quentn-Integration: Tag-Setzung und Custom Fields
  */
 
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/quentn_api.php';  // 🆕 Quentn-Integration
+require_once __DIR__ . '/rewards/email-delivery-service.php';
 
 /**
  * Prüft und liefert Belohnungen für einen Lead aus
  * Wird aufgerufen nach jeder Conversion oder manuell
+ * 
+ * @param PDO $pdo Database Connection
+ * @param int $lead_id Lead ID
+ * @return array Result mit Erfolg, Details und ausgelieferten Belohnungen
  */
 function checkAndDeliverRewards($pdo, $lead_id) {
     try {
@@ -35,6 +46,8 @@ function checkAndDeliverRewards($pdo, $lead_id) {
             return ['success' => false, 'error' => 'Lead nicht gefunden'];
         }
         
+        error_log("🎯 Prüfe Belohnungen für Lead: {$lead['email']} (ID: $lead_id)");
+        
         // Anzahl erfolgreicher Referrals zählen
         $stmt = $pdo->prepare("
             SELECT COUNT(*) as count 
@@ -44,6 +57,8 @@ function checkAndDeliverRewards($pdo, $lead_id) {
         ");
         $stmt->execute([$lead_id]);
         $referral_count = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+        
+        error_log("📊 Lead hat $referral_count erfolgreiche Empfehlungen");
         
         // Alle erreichbaren Belohnungen finden die noch nicht ausgeliefert wurden
         $stmt = $pdo->prepare("
@@ -62,43 +77,85 @@ function checkAndDeliverRewards($pdo, $lead_id) {
         $stmt->execute([$lead['user_id'], $referral_count, $lead_id]);
         $pending_rewards = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
+        if (empty($pending_rewards)) {
+            error_log("ℹ️ Keine neuen Belohnungen für Lead $lead_id");
+            return [
+                'success' => true,
+                'lead_id' => $lead_id,
+                'referral_count' => $referral_count,
+                'rewards_delivered' => 0,
+                'message' => 'Keine neuen Belohnungen verfügbar'
+            ];
+        }
+        
+        error_log("🎁 " . count($pending_rewards) . " neue Belohnungen gefunden!");
+        
         $delivered = [];
+        $emailService = new RewardEmailDeliveryService();
         
         foreach ($pending_rewards as $reward) {
-            // Belohnung ausliefern
+            error_log("⏳ Liefere Belohnung aus: {$reward['reward_title']} (Tier {$reward['tier_level']})");
+            
+            // Belohnung in Datenbank speichern
             $delivery_id = deliverReward($pdo, $lead, $reward);
             
             if ($delivery_id) {
-                // 🆕 QUENTN-BENACHRICHTIGUNG
-                $quentnSuccess = false;
+                // 🆕 UNIVERSAL PROVIDER NOTIFICATION
                 try {
-                    $quentnSuccess = notifyQuentnRewardEarned($lead, $reward, $referral_count);
+                    $notificationResult = $emailService->sendRewardEmail(
+                        $lead['user_id'],  // Customer ID
+                        $lead_id,          // Lead ID
+                        $reward['id']      // Reward ID
+                    );
                     
-                    if ($quentnSuccess) {
-                        error_log("✅ Quentn erfolgreich benachrichtigt für Lead: " . $lead['email']);
+                    if ($notificationResult['success']) {
+                        error_log("✅ Benachrichtigung erfolgreich via {$notificationResult['method']}: {$notificationResult['message']}");
+                        
+                        $delivered[] = [
+                            'reward_id' => $reward['id'],
+                            'reward_title' => $reward['reward_title'],
+                            'tier_level' => $reward['tier_level'],
+                            'delivery_id' => $delivery_id,
+                            'notification_method' => $notificationResult['method'],
+                            'provider' => $notificationResult['provider'] ?? 'none',
+                            'notification_success' => true
+                        ];
                     } else {
-                        error_log("⚠️ Quentn-Benachrichtigung fehlgeschlagen für Lead: " . $lead['email']);
+                        error_log("⚠️ Benachrichtigung fehlgeschlagen: {$notificationResult['message']}");
+                        
+                        // Fallback: System-Email versenden
+                        $emailSent = sendRewardNotificationEmail($lead, $reward);
+                        
+                        $delivered[] = [
+                            'reward_id' => $reward['id'],
+                            'reward_title' => $reward['reward_title'],
+                            'tier_level' => $reward['tier_level'],
+                            'delivery_id' => $delivery_id,
+                            'notification_method' => $emailSent ? 'fallback_email' : 'none',
+                            'notification_success' => $emailSent,
+                            'notification_error' => $notificationResult['message']
+                        ];
                     }
                 } catch (Exception $e) {
-                    error_log("❌ Quentn-Fehler: " . $e->getMessage());
-                    // Weitermachen, auch wenn Quentn fehlschlägt
+                    error_log("❌ Notification Error: " . $e->getMessage());
+                    
+                    // Fallback: System-Email
+                    $emailSent = sendRewardNotificationEmail($lead, $reward);
+                    
+                    $delivered[] = [
+                        'reward_id' => $reward['id'],
+                        'reward_title' => $reward['reward_title'],
+                        'tier_level' => $reward['tier_level'],
+                        'delivery_id' => $delivery_id,
+                        'notification_method' => $emailSent ? 'fallback_email' : 'none',
+                        'notification_success' => $emailSent,
+                        'notification_error' => $e->getMessage()
+                    ];
                 }
-                
-                // Email-Benachrichtigung senden (nur wenn Quentn erfolgreich war)
-                // Wenn Quentn fehlschlägt, senden wir trotzdem eine Fallback-Email
-                if (!$quentnSuccess) {
-                    sendRewardNotificationEmail($lead, $reward);
-                }
-                
-                $delivered[] = [
-                    'reward_id' => $reward['id'],
-                    'reward_title' => $reward['reward_title'],
-                    'tier_level' => $reward['tier_level'],
-                    'delivery_id' => $delivery_id,
-                    'quentn_notified' => $quentnSuccess
-                ];
             }
         }
+        
+        error_log("✅ Belohnungs-Auslieferung abgeschlossen: " . count($delivered) . " Belohnungen ausgeliefert");
         
         return [
             'success' => true,
@@ -109,7 +166,7 @@ function checkAndDeliverRewards($pdo, $lead_id) {
         ];
         
     } catch (Exception $e) {
-        error_log("Reward Delivery Error: " . $e->getMessage());
+        error_log("❌ Reward Delivery Error: " . $e->getMessage());
         return [
             'success' => false,
             'error' => $e->getMessage()
@@ -118,7 +175,12 @@ function checkAndDeliverRewards($pdo, $lead_id) {
 }
 
 /**
- * Liefert eine einzelne Belohnung aus
+ * Liefert eine einzelne Belohnung aus (DB-Eintrag)
+ * 
+ * @param PDO $pdo Database Connection
+ * @param array $lead Lead-Daten
+ * @param array $reward Reward-Daten
+ * @return int|null Delivery ID oder null bei Fehler
  */
 function deliverReward($pdo, $lead, $reward) {
     try {
@@ -130,6 +192,7 @@ function deliverReward($pdo, $lead, $reward) {
         $stmt->execute([$lead['id'], $reward['id']]);
         
         if ($stmt->fetch()) {
+            error_log("ℹ️ Belohnung {$reward['id']} bereits ausgeliefert an Lead {$lead['id']}");
             return null; // Bereits ausgeliefert
         }
         
@@ -177,16 +240,22 @@ function deliverReward($pdo, $lead, $reward) {
             // Ignorieren falls bereits vorhanden
         }
         
+        error_log("💾 Belohnung in DB gespeichert (Delivery ID: $delivery_id)");
         return $delivery_id;
         
     } catch (Exception $e) {
-        error_log("Single Reward Delivery Error: " . $e->getMessage());
+        error_log("❌ Single Reward Delivery Error: " . $e->getMessage());
         return null;
     }
 }
 
 /**
- * Sendet Email-Benachrichtigung an Lead (Fallback wenn Quentn fehlschlägt)
+ * Sendet Fallback Email-Benachrichtigung an Lead
+ * Wird verwendet wenn keine API-Integration konfiguriert ist
+ * 
+ * @param array $lead Lead-Daten
+ * @param array $reward Reward-Daten
+ * @return bool Erfolgreich versendet?
  */
 function sendRewardNotificationEmail($lead, $reward) {
     $subject = "🎁 Du hast eine Belohnung freigeschaltet!";
@@ -299,17 +368,9 @@ function sendRewardNotificationEmail($lead, $reward) {
     $sent = mail($lead['email'], $subject, $message, $headers);
     
     if ($sent) {
-        // Email-Status in Datenbank aktualisieren
-        try {
-            $stmt = $pdo->prepare("
-                UPDATE reward_deliveries 
-                SET email_sent = 1, email_sent_at = NOW()
-                WHERE lead_id = ? AND reward_id = ?
-            ");
-            $stmt->execute([$lead['id'], $reward['id']]);
-        } catch (Exception $e) {
-            error_log("Email status update failed: " . $e->getMessage());
-        }
+        error_log("📧 Fallback-Email erfolgreich versendet an: {$lead['email']}");
+    } else {
+        error_log("❌ Fallback-Email konnte nicht versendet werden an: {$lead['email']}");
     }
     
     return $sent;
@@ -380,20 +441,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $delivery_id = deliverReward($pdo, $lead, $reward);
                 
                 if ($delivery_id) {
-                    // Quentn benachrichtigen
-                    try {
-                        $referral_count = 0; // Bei manueller Auslieferung
-                        notifyQuentnRewardEarned($lead, $reward, $referral_count);
-                    } catch (Exception $e) {
-                        error_log("Quentn notification failed: " . $e->getMessage());
-                    }
-                    
-                    sendRewardNotificationEmail($lead, $reward);
+                    // Universal Benachrichtigung
+                    $emailService = new RewardEmailDeliveryService();
+                    $notificationResult = $emailService->sendRewardEmail(
+                        $lead['user_id'],
+                        $lead['id'],
+                        $reward['id']
+                    );
                 }
                 
                 echo json_encode([
                     'success' => true,
                     'delivery_id' => $delivery_id,
+                    'notification' => $notificationResult ?? null,
                     'message' => 'Reward manually delivered'
                 ]);
                 break;
