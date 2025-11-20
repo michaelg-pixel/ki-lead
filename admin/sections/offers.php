@@ -4,10 +4,6 @@
  * Erstellen und Bearbeiten von Angebots-Laufschriften für das Customer Dashboard
  */
 
-if (!defined('INCLUDED')) {
-    die('Direct access not allowed');
-}
-
 // Erfolgs- und Fehlermeldungen
 $success_message = '';
 $error_message = '';
@@ -323,12 +319,6 @@ if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
             <!-- Live-Vorschau -->
             <div class="bg-gray-900/50 rounded-xl p-4 border border-gray-700">
                 <div class="flex items-center gap-4">
-                    <a href="<?php echo htmlspecialchars($preview_offer['button_link']); ?>" 
-                       target="_blank"
-                       class="flex-shrink-0 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg">
-                        <?php echo htmlspecialchars($preview_offer['button_text']); ?>
-                    </a>
-                    
                     <div class="flex-1 overflow-hidden">
                         <div class="marquee-container">
                             <div class="marquee-content">
@@ -339,6 +329,12 @@ if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
                             </div>
                         </div>
                     </div>
+                    
+                    <a href="<?php echo htmlspecialchars($preview_offer['button_link']); ?>" 
+                       target="_blank"
+                       class="flex-shrink-0 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg">
+                        <?php echo htmlspecialchars($preview_offer['button_text']); ?>
+                    </a>
                 </div>
             </div>
         </div>
