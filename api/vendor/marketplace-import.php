@@ -46,7 +46,6 @@ try {
     
     try {
         // 1. Prüfe ob Template existiert und veröffentlicht ist
-        // KORRIGIERT: Verwende nur Felder, die definitiv existieren
         $stmt = $pdo->prepare("
             SELECT vrt.*, u.email as vendor_email 
             FROM vendor_reward_templates vrt
@@ -62,14 +61,22 @@ try {
         
         error_log("Template gefunden: " . $template['template_name']);
         
-        // 2. Prüfe ob bereits importiert für diese Kombination
-        $checkStmt = $pdo->prepare("
-            SELECT id FROM reward_template_imports 
-            WHERE template_id = ? AND customer_id = ?
-        ");
-        $checkStmt->execute([$template_id, $user_id]);
-        if ($checkStmt->fetch()) {
-            throw new Exception('Template wurde bereits importiert');
+        // 2. Prüfe ob bereits importiert - SAFE VERSION mit Tabellen-Check
+        try {
+            $checkStmt = $pdo->prepare("
+                SELECT id FROM reward_template_imports 
+                WHERE template_id = ? AND customer_id = ?
+            ");
+            $checkStmt->execute([$template_id, $user_id]);
+            if ($checkStmt->fetch()) {
+                throw new Exception('Template wurde bereits importiert');
+            }
+        } catch (PDOException $e) {
+            // Wenn Tabelle nicht existiert, ignorieren wir das hier
+            if (strpos($e->getMessage(), "doesn't exist") === false) {
+                throw $e;
+            }
+            error_log("reward_template_imports Tabelle existiert nicht - wird übersprungen");
         }
         
         // 3. Bereite Daten vor
@@ -161,20 +168,29 @@ try {
         
         error_log("Reward Definition created with ID: $reward_definition_id");
         
-        // 5. Log Import in reward_template_imports
-        $importLogStmt = $pdo->prepare("
-            INSERT INTO reward_template_imports (
-                template_id,
-                customer_id,
-                reward_definition_id,
-                import_date,
-                import_source
-            ) VALUES (?, ?, ?, NOW(), 'marketplace')
-        ");
-        
-        $importLogStmt->execute([$template_id, $user_id, $reward_definition_id]);
-        
-        error_log("Import logged successfully");
+        // 5. Log Import in reward_template_imports (SAFE mit Try-Catch)
+        try {
+            $importLogStmt = $pdo->prepare("
+                INSERT INTO reward_template_imports (
+                    template_id,
+                    customer_id,
+                    reward_definition_id,
+                    import_date,
+                    import_source
+                ) VALUES (?, ?, ?, NOW(), 'marketplace')
+            ");
+            
+            $importLogStmt->execute([$template_id, $user_id, $reward_definition_id]);
+            error_log("Import logged successfully");
+        } catch (PDOException $e) {
+            // Wenn Tabelle nicht existiert, loggen aber nicht abbrechen
+            if (strpos($e->getMessage(), "doesn't exist") !== false) {
+                error_log("WARNUNG: reward_template_imports Tabelle existiert nicht. Migration erforderlich!");
+                error_log("Bitte führe aus: php database/migrate_reward_template_imports.php");
+            } else {
+                throw $e; // Andere Fehler weiterwerfen
+            }
+        }
         
         // 6. Update Counter in vendor_reward_templates
         $updateStmt = $pdo->prepare("
@@ -223,7 +239,14 @@ try {
         $errorDetails = "Fehlende Datenbank-Spalte: '$missingColumn'";
         $debugInfo = $e->getMessage();
     } elseif (strpos($e->getMessage(), "Table") !== false && strpos($e->getMessage(), "doesn't exist") !== false) {
-        $errorDetails = 'Fehlende Datenbank-Tabelle';
+        preg_match("/Table '([^']+)'/", $e->getMessage(), $matches);
+        $missingTable = $matches[1] ?? 'unbekannt';
+        $errorDetails = "Fehlende Datenbank-Tabelle: '$missingTable'";
+        
+        if (strpos($missingTable, 'reward_template_imports') !== false) {
+            $errorDetails .= " - Bitte Migration ausführen: php database/migrate_reward_template_imports.php";
+        }
+        
         $debugInfo = $e->getMessage();
     } else {
         $debugInfo = $e->getMessage();
