@@ -1,7 +1,6 @@
 <?php
 /**
  * Email Marketing API Provider Interface
- * Zentrale Schnittstelle für alle Email-Marketing-Anbieter
  */
 
 interface EmailMarketingProvider {
@@ -12,9 +11,6 @@ interface EmailMarketingProvider {
     public function getContactStatus(string $email): array;
 }
 
-/**
- * Basis-Klasse für alle Provider
- */
 abstract class BaseEmailProvider implements EmailMarketingProvider {
     protected $apiKey;
     protected $config;
@@ -77,36 +73,42 @@ abstract class BaseEmailProvider implements EmailMarketingProvider {
 
 /**
  * QUENTN Provider
+ * API Dokumentation: https://docs.quentn.com/de/api-dokumentation/contact-api
  */
 class QuentnProvider extends BaseEmailProvider {
     private $baseUrl;
     
     public function __construct(string $apiKey, array $config = []) {
         parent::__construct($apiKey, $config);
-        // FIX: Unterstütze beide Varianten: api_url (vom Frontend) und base_url (Legacy)
-        $this->baseUrl = $config['api_url'] ?? $config['base_url'] ?? 'https://api.quentn.com/public/v1';
+        // Unterstütze api_url aus dem Frontend
+        $this->baseUrl = $config['api_url'] ?? $config['base_url'] ?? '';
         $this->baseUrl = rtrim($this->baseUrl, '/');
+        
+        // Quentn API Format: https://<system_id>.<server_id>.quentn.com/public/api/V1
+        // Stelle sicher, dass die URL das richtige Format hat
+        if (!empty($this->baseUrl) && !str_ends_with($this->baseUrl, '/V1')) {
+            // Wenn URL mit /v1 endet, ersetze mit /V1 (großes V!)
+            if (str_ends_with($this->baseUrl, '/v1')) {
+                $this->baseUrl = substr($this->baseUrl, 0, -3) . '/V1';
+            }
+        }
     }
     
     public function addContact(array $leadData, array $options = []): array {
         $data = [
-            'email' => $leadData['email'],
+            'mail' => $leadData['email'],
             'first_name' => $leadData['first_name'] ?? '',
-            'last_name' => $leadData['last_name'] ?? '',
+            'family_name' => $leadData['last_name'] ?? '',
         ];
         
         if (!empty($options['tags'])) {
-            $data['tags'] = is_array($options['tags']) ? $options['tags'] : [$options['tags']];
-        }
-        
-        if (!empty($options['campaign_id'])) {
-            $data['campaign_id'] = $options['campaign_id'];
+            $data['terms'] = is_array($options['tags']) ? $options['tags'] : [$options['tags']];
         }
         
         $result = $this->makeRequest(
-            $this->baseUrl . '/contacts',
+            $this->baseUrl . '/contact',
             'POST',
-            $data,
+            ['contact' => $data],
             ['Authorization: Bearer ' . $this->apiKey]
         );
         
@@ -120,7 +122,7 @@ class QuentnProvider extends BaseEmailProvider {
         
         return [
             'success' => false,
-            'message' => 'Fehler bei Quentn: ' . ($result['response']['message'] ?? 'Unbekannter Fehler')
+            'message' => 'Fehler bei Quentn: ' . ($result['response']['message'] ?? json_encode($result['response']))
         ];
     }
     
@@ -132,9 +134,9 @@ class QuentnProvider extends BaseEmailProvider {
         }
         
         $result = $this->makeRequest(
-            $this->baseUrl . '/contacts/' . $contact['contact_id'] . '/tags',
-            'POST',
-            ['tag' => $tag],
+            $this->baseUrl . '/contact/' . $contact['contact_id'] . '/terms',
+            'PUT',
+            ['terms' => [$tag]],
             ['Authorization: Bearer ' . $this->apiKey]
         );
         
@@ -152,10 +154,9 @@ class QuentnProvider extends BaseEmailProvider {
     }
     
     public function testConnection(): array {
-        // FIX: Teste die Verbindung durch Abrufen der Contacts-Liste (limit=1)
-        // Quentn hat keinen /account Endpoint
+        // Test mit User API - GET /users
         $result = $this->makeRequest(
-            $this->baseUrl . '/contacts?limit=1',
+            $this->baseUrl . '/users?limit=1',
             'GET',
             null,
             ['Authorization: Bearer ' . $this->apiKey]
@@ -164,10 +165,9 @@ class QuentnProvider extends BaseEmailProvider {
         if ($result['success']) {
             return [
                 'success' => true,
-                'message' => 'Verbindung zu Quentn erfolgreich! API-Key ist gültig.',
+                'message' => '✅ Verbindung zu Quentn erfolgreich! API-Key ist gültig.',
                 'details' => [
-                    'api_url' => $this->baseUrl,
-                    'contacts_found' => isset($result['response']['data']) ? count($result['response']['data']) : 0
+                    'api_url' => $this->baseUrl
                 ]
             ];
         }
@@ -183,9 +183,12 @@ class QuentnProvider extends BaseEmailProvider {
         } elseif ($result['http_code'] === 403) {
             $errorMsg .= ': Zugriff verweigert';
         } elseif ($result['http_code'] === 404) {
-            $errorMsg .= ': API-URL nicht gefunden. Bitte überprüfe deine API-URL.';
+            $errorMsg .= ': API-URL nicht gefunden. Bitte überprüfe deine API-URL (Format: https://SYSTEM.SERVER.quentn.com/public/api/V1)';
         } else {
             $errorMsg .= ': HTTP ' . ($result['http_code'] ?? 'N/A');
+            if (!empty($result['response'])) {
+                $errorMsg .= ' - ' . json_encode($result['response']);
+            }
         }
         
         return [
@@ -196,21 +199,25 @@ class QuentnProvider extends BaseEmailProvider {
     
     public function getContactStatus(string $email): array {
         $result = $this->makeRequest(
-            $this->baseUrl . '/contacts?email=' . urlencode($email),
+            $this->baseUrl . '/contact/' . urlencode($email),
             'GET',
             null,
             ['Authorization: Bearer ' . $this->apiKey]
         );
         
-        if ($result['success'] && !empty($result['response']['data'])) {
-            $contact = $result['response']['data'][0];
-            return [
-                'success' => true,
-                'exists' => true,
-                'contact_id' => $contact['id'],
-                'status' => $contact['status'] ?? 'active',
-                'tags' => $contact['tags'] ?? []
-            ];
+        if ($result['success'] && !empty($result['response'])) {
+            // Quentn gibt Array zurück, auch bei einem Kontakt
+            $contacts = is_array($result['response']) ? $result['response'] : [$result['response']];
+            if (!empty($contacts[0])) {
+                $contact = $contacts[0];
+                return [
+                    'success' => true,
+                    'exists' => true,
+                    'contact_id' => $contact['id'],
+                    'status' => 'active',
+                    'tags' => $contact['terms'] ?? []
+                ];
+            }
         }
         
         return [
