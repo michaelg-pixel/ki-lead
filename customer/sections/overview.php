@@ -451,7 +451,7 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
                         0 10px 30px rgba(0, 0, 0, 0.3) !important;
         }
         
-        /* Laufschrift-Stile - ANGEPASST: Transparent, Button rechts, viel langsamer */
+        /* ===== SLIDER STYLES - MOBILE OPTIMIERT ===== */
         .offer-banner {
             position: relative;
             overflow: hidden;
@@ -460,6 +460,11 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
             padding: 20px;
             margin-bottom: 32px;
             border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+        
+        .offer-banner-wrapper {
+            display: flex;
+            align-items: center;
         }
         
         .marquee-container {
@@ -517,6 +522,7 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
             animation-play-state: paused;
         }
         
+        /* Tablet Optimierung */
         @media (max-width: 768px) {
             .offer-banner {
                 padding: 16px;
@@ -527,9 +533,112 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
                 height: 50px;
             }
             
+            .marquee-content span {
+                font-size: 16px;
+            }
+            
             .offer-banner .cta-button {
                 padding: 12px 20px;
                 font-size: 14px;
+            }
+            
+            /* Schmälere Fade-Bereiche */
+            .marquee-container::before,
+            .marquee-container::after {
+                width: 60px;
+            }
+        }
+        
+        /* Mobile Optimierung - Kleinere Smartphones */
+        @media (max-width: 640px) {
+            .offer-banner {
+                padding: 12px;
+            }
+            
+            .marquee-content span {
+                font-size: 15px;
+            }
+            
+            .offer-banner .cta-button {
+                padding: 10px 16px;
+                font-size: 13px;
+            }
+            
+            .marquee-container {
+                height: 44px;
+                margin-right: 10px;
+            }
+            
+            /* Noch schmälere Fade-Bereiche */
+            .marquee-container::before,
+            .marquee-container::after {
+                width: 40px;
+            }
+        }
+        
+        /* Extra kleine Smartphones - Stack Layout */
+        @media (max-width: 480px) {
+            .offer-banner {
+                padding: 12px;
+            }
+            
+            .offer-banner-wrapper {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+            
+            .marquee-container {
+                margin-right: 0;
+                height: 40px;
+            }
+            
+            .marquee-content span {
+                font-size: 14px;
+            }
+            
+            .offer-banner .cta-button {
+                width: 100%;
+                text-align: center;
+                justify-content: center;
+                padding: 12px 16px;
+                font-size: 14px;
+            }
+            
+            /* Minimale Fade-Bereiche */
+            .marquee-container::before,
+            .marquee-container::after {
+                width: 30px;
+            }
+            
+            /* Schnellere Animation auf sehr kleinen Bildschirmen */
+            .marquee-content {
+                animation: marquee 40s linear infinite;
+            }
+        }
+        
+        /* Extra kleine Bildschirme */
+        @media (max-width: 360px) {
+            .offer-banner {
+                padding: 10px;
+            }
+            
+            .marquee-container {
+                height: 36px;
+            }
+            
+            .marquee-content span {
+                font-size: 13px;
+            }
+            
+            .offer-banner .cta-button {
+                padding: 10px 14px;
+                font-size: 13px;
+            }
+            
+            .marquee-container::before,
+            .marquee-container::after {
+                width: 25px;
             }
         }
     </style>
@@ -569,10 +678,10 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
             </div>
         </div>
         
-        <!-- ===== ANGEBOTS-LAUFSCHRIFT - ANGEPASST: Button rechts, transparenter Hintergrund ===== -->
+        <!-- ===== ANGEBOTS-LAUFSCHRIFT - MOBILE OPTIMIERT ===== -->
         <?php if ($active_offer): ?>
         <div class="offer-banner animate-fade-in-up" style="animation-delay: 0.1s;">
-            <div class="flex items-center">
+            <div class="offer-banner-wrapper">
                 <div class="marquee-container">
                     <div class="marquee-content">
                         <span class="text-white font-semibold text-lg">
@@ -589,7 +698,7 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
                 <a href="<?php echo htmlspecialchars($active_offer['button_link']); ?>" 
                    target="_blank"
                    rel="noopener noreferrer"
-                   class="cta-button flex-shrink-0 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg"
+                   class="cta-button flex-shrink-0 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg inline-flex items-center"
                    data-track="offer-button">
                     <i class="fas fa-gift mr-2"></i>
                     <?php echo htmlspecialchars($active_offer['button_text']); ?>
