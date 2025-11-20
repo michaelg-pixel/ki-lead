@@ -1,14 +1,13 @@
 <?php
 /**
  * API Endpoint: Email-Marketing API-Verbindung testen
- * 🆕 ERSTELLT AUTOMATISCH TAGS FÜR EMPFEHLUNGSPROGRAMM
  */
 
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../config/security.php';
-require_once __DIR__ . '/../../customer/includes/EmailProvidersExtended.php';
+require_once __DIR__ . '/../../customer/includes/EmailProviders.php';
 
 // Session starten
 startSecureSession();
@@ -47,8 +46,8 @@ try {
     // Custom Settings parsen
     $customSettings = json_decode($settings['custom_settings'] ?? '{}', true);
     
-    // Provider-Instanz erstellen (mit Extended Factory)
-    $provider = EmailProviderFactoryExtended::create(
+    // Provider-Instanz erstellen
+    $provider = EmailProviderFactory::create(
         $settings['provider'],
         $settings['api_key'],
         $customSettings
@@ -58,42 +57,6 @@ try {
     $result = $provider->testConnection();
     
     if ($result['success']) {
-        // 🆕 AUTOMATISCHE TAG-ERSTELLUNG
-        $createdTags = [];
-        $tagErrors = [];
-        
-        // Tags die automatisch erstellt werden sollen
-        $requiredTags = [
-            'Empfehlungsprogramm-Lead' => 'Lead hat sich registriert',
-            'Aktiver-Werber' => 'Lead hat mindestens 1 Empfehlung',
-            'Belohnung-Stufe-1' => 'Erste Belohnungsstufe erreicht',
-            'Belohnung-Stufe-2' => 'Zweite Belohnungsstufe erreicht',
-            'Belohnung-Stufe-3' => 'Dritte Belohnungsstufe erreicht'
-        ];
-        
-        foreach ($requiredTags as $tagName => $description) {
-            try {
-                $tagResult = $provider->ensureTagExists($tagName);
-                if ($tagResult['success']) {
-                    $createdTags[] = [
-                        'name' => $tagName,
-                        'status' => $tagResult['created'] ? 'created' : 'exists',
-                        'id' => $tagResult['tag_id'] ?? null
-                    ];
-                } else {
-                    $tagErrors[] = [
-                        'name' => $tagName,
-                        'error' => $tagResult['message'] ?? $tagResult['error'] ?? 'Unbekannter Fehler'
-                    ];
-                }
-            } catch (Exception $e) {
-                $tagErrors[] = [
-                    'name' => $tagName,
-                    'error' => $e->getMessage()
-                ];
-            }
-        }
-        
         // Verifizierung in DB speichern
         $stmt = $pdo->prepare("
             UPDATE customer_email_api_settings SET
@@ -125,28 +88,10 @@ try {
             50
         ]);
         
-        // Erfolgreiche Antwort mit Tag-Info
-        $message = $result['message'];
-        if (count($createdTags) > 0) {
-            $newTagsCount = count(array_filter($createdTags, fn($t) => $t['status'] === 'created'));
-            $existingTagsCount = count(array_filter($createdTags, fn($t) => $t['status'] === 'exists'));
-            
-            if ($newTagsCount > 0) {
-                $message .= " | 🏷️ {$newTagsCount} Tag(s) wurden automatisch erstellt";
-            }
-            if ($existingTagsCount > 0) {
-                $message .= " | ✅ {$existingTagsCount} Tag(s) existieren bereits";
-            }
-        }
-        
         echo json_encode([
             'success' => true,
-            'message' => $message,
-            'details' => $result['details'] ?? null,
-            'tags' => [
-                'created' => $createdTags,
-                'errors' => $tagErrors
-            ]
+            'message' => $result['message'],
+            'details' => $result['details'] ?? null
         ]);
     } else {
         // Fehler in DB speichern
