@@ -1,8 +1,7 @@
 <?php
 /**
- * Marketplace Import API - FIXED VERSION
- * Importiert ein Template in die eigenen reward_definitions
- * FIX: delivery_type Spalte entfernt (existiert nicht in Tabelle)
+ * Marketplace Import API - FIXED VERSION v2
+ * FIX: Alle Spaltennamen korrigiert für reward_definitions Tabelle
  */
 
 session_start();
@@ -75,7 +74,7 @@ try {
     
     try {
         // Template in reward_definitions kopieren
-        // WICHTIG: delivery_type wurde entfernt - existiert nicht in Tabelle
+        // KORRIGIERTE Spaltennamen für reward_definitions Tabelle
         $stmt = $pdo->prepare("
             INSERT INTO reward_definitions (
                 user_id,
@@ -83,6 +82,7 @@ try {
                 is_imported,
                 tier_level,
                 tier_name,
+                tier_description,
                 required_referrals,
                 reward_type,
                 reward_title,
@@ -90,14 +90,15 @@ try {
                 reward_value,
                 reward_icon,
                 reward_color,
-                download_url,
-                access_instructions,
+                reward_download_url,
+                reward_access_code,
+                reward_instructions,
                 freebie_id,
                 is_active,
                 sort_order,
                 created_at
             ) VALUES (
-                ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, NOW()
+                ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, NOW()
             )
         ");
         
@@ -106,6 +107,7 @@ try {
             $template_id,
             $tier_level ?? $template['suggested_tier_level'],
             $template['template_name'], // tier_name
+            $template['template_description'] ?? null, // tier_description
             $required_referrals ?? $template['suggested_referrals_required'],
             $template['reward_type'],
             $template['reward_title'],
@@ -114,6 +116,7 @@ try {
             $template['reward_icon'],
             $template['reward_color'],
             $template['reward_download_url'],
+            $template['reward_access_code'] ?? null,
             $template['reward_instructions'],
             $freebie_id
         ]);
@@ -135,7 +138,7 @@ try {
             $template_id,
             $customer_id,
             $reward_definition_id,
-            $template['marketplace_price']
+            $template['marketplace_price'] ?? 0
         ]);
         
         // Template Import-Counter erhöhen
