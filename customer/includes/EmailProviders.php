@@ -5,48 +5,10 @@
  */
 
 interface EmailMarketingProvider {
-    /**
-     * Lead zu Liste/Tag hinzufügen
-     * 
-     * @param array $leadData ['email', 'name', 'custom_fields']
-     * @param array $options ['list_id', 'tags', 'campaign_id']
-     * @return array ['success' => bool, 'message' => string, 'contact_id' => mixed]
-     */
     public function addContact(array $leadData, array $options = []): array;
-    
-    /**
-     * Tag zu Kontakt hinzufügen
-     * 
-     * @param string $email
-     * @param string $tag
-     * @return array ['success' => bool, 'message' => string]
-     */
     public function addTag(string $email, string $tag): array;
-    
-    /**
-     * Email an Kontakt senden
-     * 
-     * @param string $email
-     * @param string $subject
-     * @param string $body
-     * @param array $options ['template_id', 'attachments']
-     * @return array ['success' => bool, 'message' => string, 'message_id' => string]
-     */
     public function sendEmail(string $email, string $subject, string $body, array $options = []): array;
-    
-    /**
-     * API-Verbindung testen
-     * 
-     * @return array ['success' => bool, 'message' => string, 'details' => array]
-     */
     public function testConnection(): array;
-    
-    /**
-     * Kontakt-Status prüfen
-     * 
-     * @param string $email
-     * @return array ['success' => bool, 'exists' => bool, 'status' => string, 'tags' => array]
-     */
     public function getContactStatus(string $email): array;
 }
 
@@ -63,9 +25,6 @@ abstract class BaseEmailProvider implements EmailMarketingProvider {
         $this->config = $config;
     }
     
-    /**
-     * HTTP Request ausführen
-     */
     protected function makeRequest(string $url, string $method = 'GET', array $data = null, array $headers = []): array {
         $ch = curl_init();
         
@@ -118,17 +77,14 @@ abstract class BaseEmailProvider implements EmailMarketingProvider {
 
 /**
  * QUENTN Provider
- * https://help.quentn.com/hc/de/articles/4405815323537
  */
 class QuentnProvider extends BaseEmailProvider {
     private $baseUrl;
     
     public function __construct(string $apiKey, array $config = []) {
         parent::__construct($apiKey, $config);
-        // Unterstütze beide Varianten: api_url (vom Frontend) und base_url (Legacy)
+        // FIX: Unterstütze beide Varianten: api_url (vom Frontend) und base_url (Legacy)
         $this->baseUrl = $config['api_url'] ?? $config['base_url'] ?? 'https://api.quentn.com/public/v1';
-        
-        // Entferne trailing slash
         $this->baseUrl = rtrim($this->baseUrl, '/');
     }
     
@@ -139,12 +95,10 @@ class QuentnProvider extends BaseEmailProvider {
             'last_name' => $leadData['last_name'] ?? '',
         ];
         
-        // Tags hinzufügen
         if (!empty($options['tags'])) {
             $data['tags'] = is_array($options['tags']) ? $options['tags'] : [$options['tags']];
         }
         
-        // Campaign zuordnen
         if (!empty($options['campaign_id'])) {
             $data['campaign_id'] = $options['campaign_id'];
         }
@@ -171,7 +125,6 @@ class QuentnProvider extends BaseEmailProvider {
     }
     
     public function addTag(string $email, string $tag): array {
-        // Zuerst Kontakt-ID holen
         $contact = $this->getContactStatus($email);
         
         if (!$contact['exists']) {
@@ -192,7 +145,6 @@ class QuentnProvider extends BaseEmailProvider {
     }
     
     public function sendEmail(string $email, string $subject, string $body, array $options = []): array {
-        // Quentn sendet Emails über Kampagnen, nicht direkt
         return [
             'success' => false,
             'message' => 'Direkter Email-Versand über Quentn API nicht verfügbar. Bitte Kampagne verwenden.'
@@ -217,7 +169,7 @@ class QuentnProvider extends BaseEmailProvider {
         
         return [
             'success' => false,
-            'message' => 'Verbindung fehlgeschlagen: ' . ($result['error'] ?? 'Unbekannter Fehler')
+            'message' => 'Verbindung fehlgeschlagen: ' . ($result['error'] ?? 'HTTP ' . ($result['http_code'] ?? 'N/A'))
         ];
     }
     
@@ -247,4 +199,28 @@ class QuentnProvider extends BaseEmailProvider {
     }
 }
 
-// ... Rest des Codes bleibt unverändert (KlickTipp, GetResponse, Brevo, ActiveCampaign Provider)
+/**
+ * Factory für Provider-Instanzen
+ */
+class EmailProviderFactory {
+    public static function create(string $provider, string $apiKey, array $config = []): EmailMarketingProvider {
+        switch (strtolower($provider)) {
+            case 'quentn':
+                return new QuentnProvider($apiKey, $config);
+            default:
+                throw new Exception('Unbekannter Provider: ' . $provider);
+        }
+    }
+    
+    public static function getSupportedProviders(): array {
+        return [
+            'quentn' => [
+                'name' => 'Quentn',
+                'supports_direct_email' => false,
+                'supports_tags' => true,
+                'supports_campaigns' => true,
+                'config_fields' => ['api_url']
+            ]
+        ];
+    }
+}
