@@ -1,17 +1,19 @@
 <?php
 /**
- * Reward Auto-Delivery System
+ * Reward Auto-Delivery System mit Quentn-Integration
  * Automatische Belohnungsauslieferung bei erreichten Empfehlungen
- * Version: 1.0
+ * Version: 2.0 - Mit Quentn API Support
  * 
  * Features:
  * - Automatische Prüfung bei Conversions
  * - Email-Benachrichtigung an Leads
  * - Tracking aller Auslieferungen
  * - API für externen Zugriff
+ * - 🆕 Quentn-Integration: Tag-Setzung und Custom Fields
  */
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/quentn_api.php';  // 🆕 Quentn-Integration
 
 /**
  * Prüft und liefert Belohnungen für einen Lead aus
@@ -67,14 +69,33 @@ function checkAndDeliverRewards($pdo, $lead_id) {
             $delivery_id = deliverReward($pdo, $lead, $reward);
             
             if ($delivery_id) {
-                // Email-Benachrichtigung senden
-                sendRewardNotificationEmail($lead, $reward);
+                // 🆕 QUENTN-BENACHRICHTIGUNG
+                $quentnSuccess = false;
+                try {
+                    $quentnSuccess = notifyQuentnRewardEarned($lead, $reward, $referral_count);
+                    
+                    if ($quentnSuccess) {
+                        error_log("✅ Quentn erfolgreich benachrichtigt für Lead: " . $lead['email']);
+                    } else {
+                        error_log("⚠️ Quentn-Benachrichtigung fehlgeschlagen für Lead: " . $lead['email']);
+                    }
+                } catch (Exception $e) {
+                    error_log("❌ Quentn-Fehler: " . $e->getMessage());
+                    // Weitermachen, auch wenn Quentn fehlschlägt
+                }
+                
+                // Email-Benachrichtigung senden (nur wenn Quentn erfolgreich war)
+                // Wenn Quentn fehlschlägt, senden wir trotzdem eine Fallback-Email
+                if (!$quentnSuccess) {
+                    sendRewardNotificationEmail($lead, $reward);
+                }
                 
                 $delivered[] = [
                     'reward_id' => $reward['id'],
                     'reward_title' => $reward['reward_title'],
                     'tier_level' => $reward['tier_level'],
-                    'delivery_id' => $delivery_id
+                    'delivery_id' => $delivery_id,
+                    'quentn_notified' => $quentnSuccess
                 ];
             }
         }
@@ -165,7 +186,7 @@ function deliverReward($pdo, $lead, $reward) {
 }
 
 /**
- * Sendet Email-Benachrichtigung an Lead
+ * Sendet Email-Benachrichtigung an Lead (Fallback wenn Quentn fehlschlägt)
  */
 function sendRewardNotificationEmail($lead, $reward) {
     $subject = "🎁 Du hast eine Belohnung freigeschaltet!";
@@ -227,9 +248,7 @@ function sendRewardNotificationEmail($lead, $reward) {
                 
                 <div style='background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%); 
                             padding: 24px; border-radius: 12px; margin: 20px 0; text-align: center;'>
-                    <div style='font-size: 48px; margin-bottom: 12px;'>
-                        " . ($reward['reward_icon'] ? "<i class='fas {$reward['reward_icon']}'></i>" : "🎁") . "
-                    </div>
+                    <div style='font-size: 48px; margin-bottom: 12px;'>🎁</div>
                     <h2 style='color: white; margin: 0 0 8px 0; font-size: 24px;'>
                         " . htmlspecialchars($reward['reward_title']) . "
                     </h2>
@@ -275,14 +294,13 @@ function sendRewardNotificationEmail($lead, $reward) {
     
     $headers = "MIME-Version: 1.0\r\n";
     $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
-    $headers .= "From: " . ($lead['company_name'] ?? 'KI Leadsystem') . " <noreply@mehr-infos-jetzt.de>\r\n";
+    $headers .= "From: " . ($lead['company_name'] ?? 'Mehr Infos Jetzt') . " <noreply@mehr-infos-jetzt.de>\r\n";
     
     $sent = mail($lead['email'], $subject, $message, $headers);
     
     if ($sent) {
         // Email-Status in Datenbank aktualisieren
         try {
-            $pdo = getDBConnection();
             $stmt = $pdo->prepare("
                 UPDATE reward_deliveries 
                 SET email_sent = 1, email_sent_at = NOW()
@@ -362,6 +380,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $delivery_id = deliverReward($pdo, $lead, $reward);
                 
                 if ($delivery_id) {
+                    // Quentn benachrichtigen
+                    try {
+                        $referral_count = 0; // Bei manueller Auslieferung
+                        notifyQuentnRewardEarned($lead, $reward, $referral_count);
+                    } catch (Exception $e) {
+                        error_log("Quentn notification failed: " . $e->getMessage());
+                    }
+                    
                     sendRewardNotificationEmail($lead, $reward);
                 }
                 
