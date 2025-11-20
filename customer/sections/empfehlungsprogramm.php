@@ -1024,7 +1024,7 @@ $providers = [
         
         <?php if ($referralEnabled): ?>
             
-            <!-- Custom Fields Infobox -->
+            <!-- Custom Fields Infobox - NEUE ERWEITERTE VERSION -->
             <div class="custom-fields-box animate-fade-in-up" style="opacity: 0; animation-delay: 0.1s;">
                 <h3>
                     <div class="title-part">
@@ -1037,63 +1037,149 @@ $providers = [
                 </h3>
                 <div style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem;">
                     <p style="color: rgba(255, 255, 255, 0.9); font-size: 0.875rem; line-height: 1.6; margin: 0;">
-                        <i class="fas fa-info-circle"></i> <strong>Wichtig:</strong> Lege diese benutzerdefinierten Felder in deinem Email-Marketing-System an, bevor du deine API-Zugangsdaten eingibst. Diese Felder werden automatisch bei der Lead-Registrierung übertragen.
+                        <i class="fas fa-info-circle"></i> <strong>Wichtig:</strong> Lege ALLE diese benutzerdefinierten Felder in deinem Email-Marketing-System an, bevor du deine API-Zugangsdaten eingibst. Diese Felder werden automatisch bei der Lead-Registrierung und Belohnungs-Freischaltung übertragen.
                     </p>
                 </div>
                 
-                <div class="field-item">
-                    <div class="field-name">
-                        referral_code
-                        <span class="field-type">Text</span>
+                <!-- SECTION 1: Basis Lead-Daten -->
+                <div style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 0.75rem; padding: 1rem; margin-bottom: 1rem;">
+                    <h4 style="color: #3b82f6; font-size: 0.9375rem; font-weight: 600; margin-bottom: 0.75rem;">
+                        📋 Basis Lead-Daten (Bei Registrierung)
+                    </h4>
+                    
+                    <div class="field-item">
+                        <div class="field-name">
+                            referral_code
+                            <span class="field-type">Text</span>
+                        </div>
+                        <div class="field-description">
+                            Der eindeutige Empfehlungscode des Leads (z.B. "LEAD12AB34CD"). Wird für die Zuordnung von Sub-Empfehlungen verwendet.
+                        </div>
                     </div>
-                    <div class="field-description">
-                        Der eindeutige Empfehlungscode des Leads (z.B. "LEAD12AB34CD"). Wird für die Zuordnung von Sub-Empfehlungen verwendet.
-                    </div>
-                </div>
-                
-                <div class="field-item">
-                    <div class="field-name">
-                        total_referrals
-                        <span class="field-type">Zahl</span>
-                    </div>
-                    <div class="field-description">
-                        Gesamtanzahl aller Empfehlungen, die dieser Lead generiert hat (inklusive ausstehender Registrierungen).
-                    </div>
-                </div>
-                
-                <div class="field-item">
-                    <div class="field-name">
-                        successful_referrals
-                        <span class="field-type">Zahl</span>
-                    </div>
-                    <div class="field-description">
-                        Anzahl der erfolgreichen, bestätigten Empfehlungen. Wird für die Belohnungsstufen verwendet.
+                    
+                    <div class="field-item">
+                        <div class="field-name">
+                            referrer_code
+                            <span class="field-type">Text</span>
+                        </div>
+                        <div class="field-description">
+                            Der Code des Empfehlungsgebers (falls vorhanden). Zeigt, wer diesen Lead empfohlen hat.
+                        </div>
                     </div>
                 </div>
                 
-                <div class="field-item">
-                    <div class="field-name">
-                        rewards_earned
-                        <span class="field-type">Zahl</span>
+                <!-- SECTION 2: Statistik-Felder -->
+                <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 0.75rem; padding: 1rem; margin-bottom: 1rem;">
+                    <h4 style="color: #10b981; font-size: 0.9375rem; font-weight: 600; margin-bottom: 0.75rem;">
+                        📊 Statistik-Felder (Automatisch aktualisiert)
+                    </h4>
+                    
+                    <div class="field-item">
+                        <div class="field-name">
+                            total_referrals
+                            <span class="field-type">Zahl</span>
+                        </div>
+                        <div class="field-description">
+                            Gesamtanzahl aller Empfehlungen, die dieser Lead generiert hat (inklusive ausstehender Registrierungen).
+                        </div>
                     </div>
-                    <div class="field-description">
-                        Anzahl der bereits erhaltenen Belohnungen. Nützlich für Segmentierung und Follow-up-Kampagnen.
+                    
+                    <div class="field-item">
+                        <div class="field-name">
+                            successful_referrals
+                            <span class="field-type">Zahl</span>
+                        </div>
+                        <div class="field-description">
+                            Anzahl der erfolgreichen, bestätigten Empfehlungen. Wird für die Belohnungsstufen verwendet.
+                        </div>
+                    </div>
+                    
+                    <div class="field-item">
+                        <div class="field-name">
+                            rewards_earned
+                            <span class="field-type">Zahl</span>
+                        </div>
+                        <div class="field-description">
+                            Anzahl der bereits erhaltenen Belohnungen. Nützlich für Segmentierung und Follow-up-Kampagnen.
+                        </div>
+                    </div>
+                    
+                    <div class="field-item">
+                        <div class="field-name">
+                            current_points
+                            <span class="field-type">Zahl</span>
+                        </div>
+                        <div class="field-description">
+                            Aktuelle Punktzahl des Leads basierend auf erfolgreichen Empfehlungen. Wird in Belohnungs-Emails verwendet.
+                        </div>
                     </div>
                 </div>
                 
-                <div class="field-item">
-                    <div class="field-name">
-                        referrer_code
-                        <span class="field-type">Text</span>
+                <!-- SECTION 3: Belohnungs-Felder -->
+                <div style="background: rgba(251, 191, 36, 0.05); border: 1px solid rgba(251, 191, 36, 0.2); border-radius: 0.75rem; padding: 1rem; margin-bottom: 1rem;">
+                    <h4 style="color: #fbbf24; font-size: 0.9375rem; font-weight: 600; margin-bottom: 0.75rem;">
+                        🎁 Belohnungs-Felder (Bei Stufen-Freischaltung)
+                    </h4>
+                    
+                    <div class="field-item">
+                        <div class="field-name">
+                            reward_title
+                            <span class="field-type">Text</span>
+                        </div>
+                        <div class="field-description">
+                            Titel der aktuell freigeschalteten Belohnung (z.B. "Premium E-Book: Marketing Secrets"). Wird dynamisch bei Erreichen einer Stufe gesetzt.
+                        </div>
                     </div>
-                    <div class="field-description">
-                        Der Code des Empfehlungsgebers (falls vorhanden). Zeigt, wer diesen Lead empfohlen hat.
+                    
+                    <div class="field-item">
+                        <div class="field-name">
+                            reward_description
+                            <span class="field-type">Text</span>
+                        </div>
+                        <div class="field-description">
+                            Ausführliche Beschreibung der Belohnung. Erklärt, was der Lead erhält und wie er davon profitiert.
+                        </div>
+                    </div>
+                    
+                    <div class="field-item">
+                        <div class="field-name">
+                            reward_warning
+                            <span class="field-type">Text</span>
+                        </div>
+                        <div class="field-description">
+                            Wichtige Hinweise zur Belohnung (z.B. "Aktiviere deine Belohnung innerhalb von 7 Tagen"). Wird in der Belohnungs-Email prominent angezeigt.
+                        </div>
+                    </div>
+                    
+                    <div class="field-item">
+                        <div class="field-name">
+                            company_name
+                            <span class="field-type">Text</span>
+                        </div>
+                        <div class="field-description">
+                            Dein Firmenname für personalisierte E-Mails. Wird automatisch aus deinen Einstellungen übernommen.
+                        </div>
                     </div>
                 </div>
                 
-                <small style="color: rgba(255, 255, 255, 0.8); font-size: 0.875rem; display: block; margin-top: 1rem;">
-                    💡 <strong>Tipp:</strong> Diese Felder ermöglichen dir eine präzise Segmentierung und Automation basierend auf dem Empfehlungsverhalten deiner Leads.
-                </small>
+                <div style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 0.5rem; padding: 1rem; margin-top: 1rem;">
+                    <div style="display: flex; align-items: start; gap: 1rem;">
+                        <div style="color: #8b5cf6; font-size: 1.5rem; flex-shrink: 0;">
+                            <i class="fas fa-lightbulb"></i>
+                        </div>
+                        <div>
+                            <h4 style="color: white; font-size: 0.9375rem; font-weight: 600; margin-bottom: 0.5rem;">
+                                💡 So funktioniert's
+                            </h4>
+                            <ul style="color: rgba(255, 255, 255, 0.8); font-size: 0.8125rem; line-height: 1.8; margin: 0; padding-left: 1.25rem;">
+                                <li><strong>Bei Lead-Registrierung:</strong> Basis-Daten und Statistik-Felder werden übertragen</li>
+                                <li><strong>Bei Empfehlungs-Erfolg:</strong> Statistik-Felder werden automatisch aktualisiert</li>
+                                <li><strong>Bei Belohnungs-Freischaltung:</strong> Belohnungs-Felder werden gefüllt und Automation-E-Mail wird getriggert</li>
+                                <li><strong>Für Tag-Trigger:</strong> Nutze den "Start-Tag" in den API-Einstellungen unten</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <!-- Email Templates Modal -->
