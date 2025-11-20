@@ -2,9 +2,12 @@
 /**
  * Öffentliche Freebie-Ansicht via unique_id
  * Diese Datei akzeptiert die unique_id und zeigt das entsprechende Freebie an
+ * 
+ * 🆕 REFERRAL TRACKING: ref Parameter wird automatisch in Session gespeichert
  */
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/track-referral.php'; // 🆕 Referral Tracking Helper
 
 // unique_id aus URL holen
 $unique_id = isset($_GET['id']) ? trim($_GET['id']) : '';
