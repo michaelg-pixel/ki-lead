@@ -9,11 +9,20 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../customer/includes/EmailProviders.php';
 
+// Session starten
+startSecureSession();
+
 // Auth Check
-$customer_id = check_auth();
-if (!$customer_id) {
+if (!isLoggedIn()) {
     http_response_code(401);
     echo json_encode(['success' => false, 'error' => 'Nicht autorisiert']);
+    exit;
+}
+
+$customer_id = $_SESSION['user_id'] ?? null;
+if (!$customer_id) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Keine User ID']);
     exit;
 }
 
@@ -34,6 +43,9 @@ if (empty($input['provider']) || empty($input['api_key'])) {
 }
 
 try {
+    // DB-Verbindung
+    $pdo = getDBConnection();
+    
     // Provider validieren
     $supportedProviders = EmailProviderFactory::getSupportedProviders();
     if (!isset($supportedProviders[$input['provider']])) {
@@ -42,6 +54,13 @@ try {
     
     // Custom Settings als JSON vorbereiten
     $customSettings = [];
+    
+    // WICHTIG: api_url muss in custom_settings gespeichert werden!
+    if (isset($input['api_url']) && !empty($input['api_url'])) {
+        $customSettings['api_url'] = $input['api_url'];
+    }
+    
+    // Weitere optionale Felder
     $optionalFields = ['username', 'password', 'account_url', 'base_url', 'sender_email', 'sender_name'];
     foreach ($optionalFields as $field) {
         if (isset($input[$field])) {
