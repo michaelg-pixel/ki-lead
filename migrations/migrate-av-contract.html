@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AV-Vertrags-Zustimmungen Migration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .info-box {
+            background: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+        }
+        
+        .info-box h3 {
+            color: #1e40af;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .info-box ul {
+            margin-left: 20px;
+            color: #1e3a8a;
+        }
+        
+        .info-box li {
+            margin: 8px 0;
+        }
+        
+        .warning-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+        }
+        
+        .warning-box h3 {
+            color: #92400e;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .warning-box p {
+            color: #78350f;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 16px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+        
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+        
+        #result {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        #result.success {
+            background: #d1fae5;
+            border-left: 4px solid #10b981;
+            color: #065f46;
+            display: block;
+        }
+        
+        #result.error {
+            background: #fee2e2;
+            border-left: 4px solid #ef4444;
+            color: #991b1b;
+            display: block;
+        }
+        
+        #result.info {
+            background: #dbeafe;
+            border-left: 4px solid #3b82f6;
+            color: #1e40af;
+            display: block;
+        }
+        
+        .result-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .result-content {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        
+        .loader {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+        }
+        
+        .loader.active {
+            display: flex;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f4f6;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .steps {
+            margin: 20px 0;
+        }
+        
+        .step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+        
+        .step-number {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin-right: 16px;
+            flex-shrink: 0;
+        }
+        
+        .step-content h4 {
+            color: #1f2937;
+            margin-bottom: 6px;
+            font-size: 16px;
+        }
+        
+        .step-content p {
+            color: #6b7280;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .feature-list {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .feature-list h4 {
+            color: #1f2937;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+        
+        .feature-list ul {
+            list-style: none;
+        }
+        
+        .feature-list li {
+            padding: 8px 0;
+            color: #374151;
+            display: flex;
+            align-items: center;
+        }
+        
+        .feature-list li:before {
+            content: "✓";
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background: #10b981;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            margin-right: 12px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔒 AV-Vertrags-Zustimmungen Migration</h1>
+            <p>DSGVO-konforme Nachweispflicht gem. Art. 28 DSGVO</p>
+        </div>
+        
+        <div class="content">
+            <div class="info-box">
+                <h3>📋 Was macht diese Migration?</h3>
+                <p style="margin-bottom: 12px;">Diese Migration erstellt eine neue Tabelle zur DSGVO-konformen Speicherung von AV-Vertrags-Zustimmungen:</p>
+                <ul>
+                    <li><strong>Zeitstempel:</strong> Wann wurde zugestimmt?</li>
+                    <li><strong>IP-Adresse:</strong> Von wo aus wurde zugestimmt?</li>
+                    <li><strong>User-Agent:</strong> Mit welchem Browser?</li>
+                    <li><strong>Version:</strong> Welche AV-Vertrags-Version?</li>
+                    <li><strong>Typ:</strong> Registration, Update oder Renewal</li>
+                </ul>
+            </div>
+            
+            <div class="feature-list">
+                <h4>✨ Nach der Migration verfügbar:</h4>
+                <ul>
+                    <li>Automatische Speicherung bei Registrierung</li>
+                    <li>Admin-Interface zur Übersicht aller Zustimmungen</li>
+                    <li>DSGVO-konforme Nachweispflicht</li>
+                    <li>Suchfunktion nach Name, E-Mail, IP</li>
+                    <li>Statistiken und Filter-Optionen</li>
+                </ul>
+            </div>
+            
+            <div class="warning-box">
+                <h3>⚠️ Wichtig vor der Ausführung!</h3>
+                <p>Stelle sicher, dass ein Backup der Datenbank vorhanden ist. Die Migration ist sicher und kann problemlos ausgeführt werden.</p>
+            </div>
+            
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h4>Tabelle erstellen</h4>
+                        <p>Die neue Tabelle <code>av_contract_acceptances</code> wird angelegt mit allen notwendigen Feldern und Indizes.</p>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h4>Foreign Key einrichten</h4>
+                        <p>Verknüpfung zur <code>users</code> Tabelle mit CASCADE für automatische Löschung.</p>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h4>Struktur prüfen</h4>
+                        <p>Automatische Überprüfung der erstellten Tabellenstruktur und Indizes.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <a href="/admin/dashboard.php" class="btn btn-secondary">← Zurück zum Dashboard</a>
+                <button id="migrateBtn" class="btn btn-primary" onclick="runMigration()">
+                    Migration starten
+                </button>
+            </div>
+            
+            <div class="loader" id="loader">
+                <div class="spinner"></div>
+            </div>
+            
+            <div id="result"></div>
+        </div>
+    </div>
+    
+    <script>
+        async function runMigration() {
+            const btn = document.getElementById('migrateBtn');
+            const loader = document.getElementById('loader');
+            const result = document.getElementById('result');
+            
+            // Button deaktivieren und Loader anzeigen
+            btn.disabled = true;
+            btn.textContent = 'Migration läuft...';
+            loader.classList.add('active');
+            result.style.display = 'none';
+            
+            try {
+                const response = await fetch('../migrations/migrate_av_contract_acceptances.php');
+                const text = await response.text();
+                
+                loader.classList.remove('active');
+                
+                if (response.ok) {
+                    // Prüfe ob Migration erfolgreich war
+                    if (text.includes('✅') || text.includes('erfolgreich')) {
+                        result.className = 'success';
+                        result.innerHTML = `
+                            <div class="result-title">✅ Migration erfolgreich!</div>
+                            <div class="result-content">${text}</div>
+                            <div style="margin-top: 20px;">
+                                <a href="/admin/av-contract-acceptances.php" class="btn btn-primary">
+                                    Zur AV-Zustimmungen Übersicht →
+                                </a>
+                            </div>
+                        `;
+                    } else {
+                        result.className = 'info';
+                        result.innerHTML = `
+                            <div class="result-title">ℹ️ Migration abgeschlossen</div>
+                            <div class="result-content">${text}</div>
+                        `;
+                    }
+                } else {
+                    throw new Error('HTTP-Fehler: ' + response.status);
+                }
+            } catch (error) {
+                loader.classList.remove('active');
+                result.className = 'error';
+                result.innerHTML = `
+                    <div class="result-title">❌ Fehler bei der Migration</div>
+                    <div class="result-content">Fehler: ${error.message}\n\nBitte prüfe die Logs oder führe die Migration manuell via SSH aus:\nphp migrations/migrate_av_contract_acceptances.php</div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Migration erneut starten';
+            }
+        }
+        
+        // Verhindere versehentliches Verlassen der Seite während Migration
+        let migrationRunning = false;
+        
+        document.getElementById('migrateBtn').addEventListener('click', () => {
+            migrationRunning = true;
+        });
+        
+        window.addEventListener('beforeunload', (e) => {
+            if (migrationRunning) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+    </script>
+</body>
+</html>
