@@ -4,9 +4,11 @@
  * Lead gibt selbst seine E-Mail ein und bekommt Zugang zum Empfehlungsprogramm
  * UNTERSTÜTZT: customer_freebies UND freebies (Templates)
  * MULTI-FREEBIE: Lead kann Zugang zu mehreren Freebies haben
+ * 🆕 AUTOMATISCHES REFERRAL TRACKING: Referral Code wird aus URL, Session oder Cookie gelesen
  */
 
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/freebie/track-referral.php'; // 🆕 Tracking Helper
 
 session_start();
 
@@ -15,7 +17,15 @@ $pdo = getDBConnection();
 // Parameter aus URL
 $freebie_id = isset($_GET['freebie']) ? (int)$_GET['freebie'] : 0;
 $customer_id = isset($_GET['customer']) ? (int)$_GET['customer'] : 0;
-$ref = isset($_GET['ref']) ? trim($_GET['ref']) : ''; // Referral Code
+
+// 🆕 REFERRAL CODE aus URL, Session oder Cookie holen
+$ref = '';
+if (isset($_GET['ref']) && !empty($_GET['ref'])) {
+    $ref = trim($_GET['ref']);
+} else {
+    // Fallback: Aus Session/Cookie holen
+    $ref = getReferralCode() ?? '';
+}
 
 $error = '';
 
@@ -84,6 +94,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                         freebie_id INT NULL,
                         referral_code VARCHAR(50) UNIQUE NOT NULL,
                         referrer_id INT NULL,
+                        successful_referrals INT DEFAULT 0,
+                        total_referrals INT DEFAULT 0,
+                        rewards_earned INT DEFAULT 0,
                         status VARCHAR(50) DEFAULT 'active',
                         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                         INDEX idx_email (email),
@@ -99,6 +112,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                 $stmt = $pdo->query("SHOW COLUMNS FROM lead_users LIKE 'created_at'");
                 if ($stmt->rowCount() === 0) {
                     $pdo->exec("ALTER TABLE lead_users ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
+                }
+                
+                // 🆕 Prüfen ob successful_referrals, total_referrals, rewards_earned existieren
+                $columns_to_add = [
+                    'successful_referrals' => 'INT DEFAULT 0',
+                    'total_referrals' => 'INT DEFAULT 0',
+                    'rewards_earned' => 'INT DEFAULT 0'
+                ];
+                
+                foreach ($columns_to_add as $column_name => $column_def) {
+                    $stmt = $pdo->query("SHOW COLUMNS FROM lead_users LIKE '{$column_name}'");
+                    if ($stmt->rowCount() === 0) {
+                        $pdo->exec("ALTER TABLE lead_users ADD COLUMN {$column_name} {$column_def}");
+                    }
                 }
                 
                 // password_hash auf NULL setzen (SEPARAT prüfen!)
@@ -146,17 +173,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                 // Neuen Lead erstellen
                 $referral_code = strtoupper(substr(md5($email . time()), 0, 8));
                 
-                // Referrer-ID ermitteln
+                // 🆕 Referrer-ID ermitteln (mit Logging)
                 $referrer_id = null;
                 if (!empty($ref)) {
                     $stmt = $pdo->prepare("
-                        SELECT id FROM lead_users 
+                        SELECT id, email FROM lead_users 
                         WHERE referral_code = ? AND user_id = ?
                     ");
                     $stmt->execute([$ref, $customer_id]);
                     $referrer = $stmt->fetch(PDO::FETCH_ASSOC);
                     if ($referrer) {
                         $referrer_id = $referrer['id'];
+                        error_log("✅ REFERRAL TRACKING: Neuer Lead {$email} wurde von Lead #{$referrer_id} ({$referrer['email']}) empfohlen");
+                    } else {
+                        error_log("⚠️ REFERRAL CODE '{$ref}' nicht gefunden für Customer #{$customer_id}");
                     }
                 }
                 
@@ -176,7 +206,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                 ]);
                 $lead_id = $pdo->lastInsertId();
                 
-                // Referral-Eintrag erstellen
+                // 🆕 Referral-Eintrag erstellen + Counter erhöhen
                 if ($referrer_id) {
                     try {
                         // lead_referrals Tabelle prüfen/erstellen
@@ -199,6 +229,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                             ");
                         }
                         
+                        // Referral-Eintrag erstellen
                         $stmt = $pdo->prepare("
                             INSERT INTO lead_referrals 
                             (referrer_id, referred_email, referred_name, freebie_id, status, invited_at)
@@ -210,10 +241,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                             $name,
                             $freebie_id
                         ]);
+                        
+                        // 🆕 COUNTER ERHÖHEN
+                        $stmt = $pdo->prepare("
+                            UPDATE lead_users 
+                            SET 
+                                total_referrals = COALESCE(total_referrals, 0) + 1,
+                                successful_referrals = COALESCE(successful_referrals, 0) + 1
+                            WHERE id = ?
+                        ");
+                        $stmt->execute([$referrer_id]);
+                        
+                        error_log("✅ REFERRAL COUNTER ERHÖHT: Lead #{$referrer_id}");
+                        
                     } catch (PDOException $e) {
-                        // Fehler ignorieren
+                        error_log("❌ REFERRAL ERROR: " . $e->getMessage());
                     }
                 }
+                
+                // 🆕 Referral Code aus Session/Cookie löschen nach erfolgreicher Registrierung
+                clearReferralCode();
             }
             
             // FREEBIE-ZUGANG GEWÄHREN (auch wenn Lead bereits existiert!)
@@ -240,12 +287,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
             
         } catch (PDOException $e) {
             $error = 'Ein Fehler ist aufgetreten. Bitte versuche es erneut.';
+            error_log("Lead Registration Error: " . $e->getMessage());
         }
     }
 }
 
 $primary_color = $freebie['primary_color'] ?? '#8B5CF6';
 $company_name = $freebie['company_name'] ?? 'Dashboard';
+
+// 🆕 Debug-Info (nur für Entwicklung, später entfernen)
+if (!empty($ref)) {
+    error_log("🔍 REFERRAL CODE ERKANNT: {$ref}");
+}
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -339,6 +392,23 @@ $company_name = $freebie['company_name'] ?? 'Dashboard';
             position: absolute;
             left: 0;
             font-weight: bold;
+        }
+        
+        /* 🆕 Referral Badge */
+        .referral-badge {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+        
+        .referral-badge i {
+            margin-right: 8px;
         }
         
         .form-group {
@@ -486,6 +556,14 @@ $company_name = $freebie['company_name'] ?? 'Dashboard';
             Gib deine E-Mail-Adresse ein, um Zugang zu deinen Kursen und dem 
             <?php if ($freebie['referral_enabled']): ?>Empfehlungsprogramm<?php else: ?>Dashboard<?php endif; ?> zu erhalten.
         </p>
+        
+        <?php if (!empty($ref)): ?>
+        <!-- 🆕 Referral Badge anzeigen -->
+        <div class="referral-badge">
+            <i class="fas fa-gift"></i>
+            Du wurdest von einem Freund empfohlen!
+        </div>
+        <?php endif; ?>
         
         <div class="info-box">
             <h3><i class="fas fa-info-circle"></i> Wichtiger Hinweis:</h3>
