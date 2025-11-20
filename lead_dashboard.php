@@ -10,7 +10,11 @@
  */
 
 require_once __DIR__ . '/config/database.php';
-session_start();
+
+// Session nur starten wenn nicht bereits aktiv
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 $pdo = getDBConnection();
 
