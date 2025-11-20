@@ -1,11 +1,7 @@
 <?php
 /**
  * Customer Dashboard - Belohnungsstufen verwalten
- * ÜBERARBEITET: Unterstützt alte Belohnungen ohne freebie_id UND neue mit freebie_id
- * - Zeigt alle Belohnungen an
- * - Erlaubt Zugriff ohne Freebie-Parameter (zeigt dann alle)
- * - Option: Freebie nachträglich zuordnen
- * + PHASE 5: Marktplatz Integration
+ * FIXED VERSION - Mit Bildern im Marktplatz + besseres Design
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -175,7 +171,7 @@ try {
         
         .marketplace-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 1.5rem;
             margin-top: 1.5rem;
         }
@@ -184,7 +180,8 @@ try {
             background: linear-gradient(to bottom right, #111827, #1f2937);
             border: 1px solid rgba(102, 126, 234, 0.3);
             border-radius: 1rem;
-            padding: 1.5rem;
+            padding: 0;
+            overflow: hidden;
             transition: all 0.3s;
         }
         
@@ -197,6 +194,26 @@ try {
         .template-card.imported {
             border-color: rgba(16, 185, 129, 0.5);
             background: linear-gradient(to bottom right, #064e3b, #1f2937);
+        }
+        
+        .template-card-image {
+            width: 100%;
+            height: 180px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        
+        .template-card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .template-card-content {
+            padding: 1.5rem;
         }
         
         .btn-import {
@@ -360,7 +377,7 @@ try {
                     <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
                         <button onclick="openMarketplace()" class="btn" style="background: rgba(255, 255, 255, 0.2); color: white;">
                             <i class="fas fa-shopping-bag"></i>
-                            Marktplatz
+                            Marktplatz durchstöbern
                         </button>
                         <button onclick="openRewardModal()" class="btn btn-primary" id="createBtn">
                             <i class="fas fa-plus"></i>
@@ -774,7 +791,6 @@ try {
         
         // Belohnungen laden
         function loadRewards() {
-            // Lade ALLE Belohnungen wenn kein Freebie gewählt, sonst nur für dieses Freebie
             const url = freebieId 
                 ? `/api/rewards/list.php?freebie_id=${freebieId}`
                 : `/api/rewards/list.php`;
@@ -916,7 +932,7 @@ try {
         }
         
         // ===========================================
-        // MARKTPLATZ FUNKTIONEN
+        // MARKTPLATZ FUNKTIONEN - MIT BILDERN!
         // ===========================================
         
         function openMarketplace() {
@@ -988,74 +1004,91 @@ try {
             
             grid.innerHTML = marketplaceTemplates.map(template => {
                 const isImported = template.is_imported_by_me;
+                const hasImage = template.preview_image && template.preview_image.trim() !== '';
                 
                 return `
                 <div class="template-card ${isImported ? 'imported' : ''}">
                     ${isImported ? `
-                        <div style="background: rgba(16, 185, 129, 0.2); color: #10b981; padding: 0.5rem; border-radius: 0.5rem; margin-bottom: 1rem; text-align: center; font-size: 0.875rem; font-weight: 600;">
+                        <div style="background: rgba(16, 185, 129, 0.9); color: white; padding: 0.5rem; text-align: center; font-size: 0.875rem; font-weight: 600;">
                             ✓ Bereits importiert
                         </div>
                     ` : ''}
                     
-                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-                        <div style="color: ${template.reward_color || '#667eea'}; font-size: 2rem;">
-                            <i class="fas ${template.reward_icon || 'fa-gift'}"></i>
-                        </div>
-                        <div style="flex: 1;">
-                            <h3 style="color: white; font-size: 1.125rem; font-weight: 700; margin-bottom: 0.25rem;">
-                                ${escapeHtml(template.template_name)}
-                            </h3>
-                            <div style="color: #9ca3af; font-size: 0.75rem;">
-                                von ${escapeHtml(template.vendor_name)}
+                    <!-- BILD OBEN -->
+                    <div class="template-card-image">
+                        ${hasImage ? `
+                            <img src="${escapeHtml(template.preview_image)}" 
+                                 alt="${escapeHtml(template.template_name)}"
+                                 onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'color: white; font-size: 3rem;\\'><i class=\\'fas ${template.reward_icon || 'fa-gift'}\\'></i></div>';">
+                        ` : `
+                            <div style="color: white; font-size: 3rem;">
+                                <i class="fas ${template.reward_icon || 'fa-gift'}"></i>
                             </div>
-                        </div>
+                        `}
                     </div>
                     
-                    ${template.template_description ? `
-                        <p style="color: #9ca3af; font-size: 0.875rem; line-height: 1.5; margin-bottom: 1rem;">
-                            ${escapeHtml(template.template_description.substring(0, 120))}${template.template_description.length > 120 ? '...' : ''}
-                        </p>
-                    ` : ''}
-                    
-                    <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
-                        ${template.category ? `
-                            <span style="background: rgba(102, 126, 234, 0.2); color: #667eea; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600;">
-                                ${getCategoryLabel(template.category)}
-                            </span>
+                    <!-- INHALT -->
+                    <div class="template-card-content">
+                        <div style="display: flex; align-items: start; gap: 1rem; margin-bottom: 1rem;">
+                            <div style="color: ${template.reward_color || '#667eea'}; font-size: 1.5rem; flex-shrink: 0;">
+                                <i class="fas ${template.reward_icon || 'fa-gift'}"></i>
+                            </div>
+                            <div style="flex: 1; min-width: 0;">
+                                <h3 style="color: white; font-size: 1.125rem; font-weight: 700; margin-bottom: 0.25rem; overflow: hidden; text-overflow: ellipsis;">
+                                    ${escapeHtml(template.template_name)}
+                                </h3>
+                                <div style="color: #9ca3af; font-size: 0.75rem;">
+                                    von ${escapeHtml(template.vendor_name || 'Unbekannt')}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        ${template.template_description ? `
+                            <p style="color: #9ca3af; font-size: 0.875rem; line-height: 1.5; margin-bottom: 1rem; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">
+                                ${escapeHtml(template.template_description)}
+                            </p>
                         ` : ''}
-                        ${template.niche ? `
-                            <span style="background: rgba(16, 185, 129, 0.2); color: #10b981; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600;">
-                                ${getNicheLabel(template.niche)}
-                            </span>
-                        ` : ''}
-                    </div>
-                    
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; padding: 0.75rem; background: rgba(0, 0, 0, 0.2); border-radius: 0.5rem; margin-bottom: 1rem;">
-                        <div style="text-align: center;">
-                            <div style="color: white; font-size: 1.25rem; font-weight: 700;">
-                                ${template.times_imported || 0}
+                        
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                            ${template.category ? `
+                                <span style="background: rgba(102, 126, 234, 0.2); color: #667eea; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600;">
+                                    ${getCategoryLabel(template.category)}
+                                </span>
+                            ` : ''}
+                            ${template.niche ? `
+                                <span style="background: rgba(16, 185, 129, 0.2); color: #10b981; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600;">
+                                    ${getNicheLabel(template.niche)}
+                                </span>
+                            ` : ''}
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; padding: 0.75rem; background: rgba(0, 0, 0, 0.3); border-radius: 0.5rem; margin-bottom: 1rem;">
+                            <div style="text-align: center;">
+                                <div style="color: white; font-size: 1.25rem; font-weight: 700;">
+                                    ${template.times_imported || 0}
+                                </div>
+                                <div style="color: #9ca3af; font-size: 0.75rem;">
+                                    Imports
+                                </div>
                             </div>
-                            <div style="color: #9ca3af; font-size: 0.75rem;">
-                                Imports
+                            <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.1);">
+                                <div style="color: white; font-size: 1.25rem; font-weight: 700;">
+                                    ${template.suggested_referrals_required || 3}
+                                </div>
+                                <div style="color: #9ca3af; font-size: 0.75rem;">
+                                    Empfehlungen
+                                </div>
                             </div>
                         </div>
-                        <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.1);">
-                            <div style="color: white; font-size: 1.25rem; font-weight: 700;">
-                                ${template.suggested_referrals_required || 3}
-                            </div>
-                            <div style="color: #9ca3af; font-size: 0.75rem;">
-                                Empfehlungen
-                            </div>
-                        </div>
+                        
+                        <button 
+                            onclick="importTemplate(${template.id})" 
+                            class="btn btn-import"
+                            ${isImported ? 'disabled' : ''}
+                        >
+                            ${isImported ? '<i class="fas fa-check"></i> Importiert' : '<i class="fas fa-download"></i> Importieren'}
+                        </button>
                     </div>
-                    
-                    <button 
-                        onclick="importTemplate(${template.id})" 
-                        class="btn btn-import"
-                        ${isImported ? 'disabled' : ''}
-                    >
-                        ${isImported ? '<i class="fas fa-check"></i> Importiert' : '<i class="fas fa-download"></i> Importieren'}
-                    </button>
                 </div>
             `}).join('');
         }
@@ -1080,7 +1113,7 @@ try {
                     closeMarketplace();
                     loadRewards();
                 } else {
-                    showNotification('Fehler: ' + result.error, 'error');
+                    showNotification('Fehler: ' + (result.error || 'Unbekannter Fehler'), 'error');
                 }
             })
             .catch(error => {
@@ -1118,7 +1151,6 @@ try {
         // BESTEHENDE FUNKTIONEN
         // ===========================================
         
-        // Modal öffnen (neu)
         function openRewardModal() {
             document.getElementById('modalTitle').textContent = 'Neue Belohnungsstufe';
             document.getElementById('rewardForm').reset();
@@ -1131,13 +1163,11 @@ try {
             document.body.style.overflow = 'hidden';
         }
         
-        // Modal schließen
         function closeRewardModal() {
             document.getElementById('rewardModal').style.display = 'none';
             document.body.style.overflow = 'auto';
         }
         
-        // Belohnung bearbeiten
         function editReward(id) {
             const reward = rewards.find(r => r.id == id);
             if (!reward) return;
@@ -1145,7 +1175,6 @@ try {
             document.getElementById('modalTitle').textContent = 'Belohnungsstufe bearbeiten';
             document.getElementById('rewardId').value = reward.id;
             
-            // Alle Felder füllen
             const form = document.getElementById('rewardForm');
             Object.keys(reward).forEach(key => {
                 const field = form.querySelector(`[name="${key}"]`);
@@ -1158,7 +1187,6 @@ try {
                 }
             });
             
-            // Freebie Select wenn vorhanden
             const freebieSelect = form.querySelector('[name="freebie_id_select"]');
             if (freebieSelect) {
                 freebieSelect.value = reward.freebie_id || '';
@@ -1168,7 +1196,6 @@ try {
             document.body.style.overflow = 'hidden';
         }
         
-        // Belohnung speichern
         function saveReward(event) {
             event.preventDefault();
             
@@ -1181,18 +1208,15 @@ try {
                 } else if (key === 'tier_level' || key === 'required_referrals') {
                     data[key] = parseInt(value);
                 } else if (key === 'freebie_id_select') {
-                    // Aus Select-Feld
                     if (value) data.freebie_id = parseInt(value);
                 } else if (key !== 'freebie_id') {
                     data[key] = value;
                 }
             });
             
-            // ID hinzufügen wenn vorhanden
             const id = document.getElementById('rewardId').value;
             if (id) data.id = parseInt(id);
             
-            // Freebie-ID aus Hidden Field wenn vorhanden
             const hiddenFreebieId = document.getElementById('rewardFreebieId').value;
             if (hiddenFreebieId && !data.freebie_id) {
                 data.freebie_id = parseInt(hiddenFreebieId);
@@ -1219,7 +1243,6 @@ try {
             });
         }
         
-        // Belohnung löschen
         function deleteReward(id, name) {
             if (!confirm(`Belohnungsstufe "${name}" wirklich löschen?`)) {
                 return;
@@ -1245,7 +1268,6 @@ try {
             });
         }
         
-        // Notification anzeigen
         function showNotification(message, type = 'info') {
             const colors = {
                 success: '#10b981',
@@ -1277,14 +1299,13 @@ try {
             }, 4000);
         }
         
-        // HTML Escape
         function escapeHtml(text) {
+            if (!text) return '';
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
         
-        // Animation Styles
         const style = document.createElement('style');
         style.textContent = `
             @keyframes slideIn {
