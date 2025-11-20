@@ -2,6 +2,8 @@
 /**
  * API: Track Referral Conversion
  * Wird von thankyou.php aufgerufen wenn ref-Parameter vorhanden
+ * 
+ * ✅ AUTOMATISCHE BELOHNUNGSPRÜFUNG nach Conversion!
  */
 
 header('Content-Type: application/json');
@@ -16,6 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/ReferralHelper.php';
+require_once __DIR__ . '/../reward_delivery.php'; // 🆕 REWARD DELIVERY
 
 // Nur POST erlaubt
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -32,6 +35,7 @@ try {
     $input = json_decode(file_get_contents('php://input'), true);
     
     $refCode = $input['ref'] ?? $_GET['ref'] ?? null;
+    $leadId = $input['lead_id'] ?? $_GET['lead_id'] ?? null; // 🆕 Lead ID
     $userId = $input['user_id'] ?? $_GET['user_id'] ?? null;
     $source = $input['source'] ?? 'thankyou';
     
@@ -81,6 +85,29 @@ try {
         if ($result['suspicious']) {
             $response['warning'] = 'Conversion als verdächtig markiert (zu schnell)';
             $response['time_to_convert'] = $result['time_to_convert'];
+        }
+        
+        // 🆕 AUTOMATISCHE BELOHNUNGSPRÜFUNG
+        if ($leadId) {
+            try {
+                error_log("🎁 Prüfe Belohnungen für Lead ID: $leadId nach Conversion");
+                
+                $rewardResult = checkAndDeliverRewards($db, $leadId);
+                
+                if ($rewardResult['success'] && $rewardResult['rewards_delivered'] > 0) {
+                    $response['rewards_delivered'] = $rewardResult['rewards_delivered'];
+                    $response['rewards'] = $rewardResult['rewards'];
+                    error_log("✅ {$rewardResult['rewards_delivered']} Belohnungen ausgeliefert!");
+                } else {
+                    error_log("ℹ️ Keine neuen Belohnungen für Lead $leadId");
+                }
+                
+            } catch (Exception $e) {
+                error_log("⚠️ Reward Check Fehler: " . $e->getMessage());
+                // Nicht kritisch - Conversion ist trotzdem erfolgreich
+            }
+        } else {
+            error_log("⚠️ Keine Lead-ID übergeben - Belohnungsprüfung übersprungen");
         }
         
         http_response_code(200);
