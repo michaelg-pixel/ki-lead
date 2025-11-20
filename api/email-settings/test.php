@@ -6,18 +6,30 @@
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../config/database.php';
-require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../config/security.php';
 require_once __DIR__ . '/../../customer/includes/EmailProviders.php';
 
+// Session starten
+startSecureSession();
+
 // Auth Check
-$customer_id = check_auth();
-if (!$customer_id) {
+if (!isLoggedIn()) {
     http_response_code(401);
     echo json_encode(['success' => false, 'error' => 'Nicht autorisiert']);
     exit;
 }
 
+$customer_id = $_SESSION['user_id'] ?? null;
+if (!$customer_id) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Keine User ID']);
+    exit;
+}
+
 try {
+    // DB-Verbindung
+    $pdo = getDBConnection();
+    
     // Aktive API-Einstellungen laden
     $stmt = $pdo->prepare("
         SELECT * FROM customer_email_api_settings 
