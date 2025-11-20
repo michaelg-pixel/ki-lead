@@ -9,6 +9,14 @@ if (!isset($customer_id)) {
     die('Nicht autorisiert');
 }
 
+// ===== ANGEBOTE ABRUFEN =====
+try {
+    $stmt_offer = $pdo->query("SELECT * FROM offers WHERE is_active = 1 ORDER BY created_at DESC LIMIT 1");
+    $active_offer = $stmt_offer->fetch(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $active_offer = null;
+}
+
 // ===== ECHTE STATISTIKEN ABRUFEN =====
 try {
     // 1. Freigeschaltete Freebies - KORRIGIERT: Jetzt mit customer_id
@@ -442,6 +450,88 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
             box-shadow: 0 0 40px rgba(255, 255, 255, 0.6),
                         0 10px 30px rgba(0, 0, 0, 0.3) !important;
         }
+        
+        /* Laufschrift-Stile */
+        .offer-banner {
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 32px;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+        
+        .marquee-container {
+            position: relative;
+            overflow: hidden;
+            flex: 1;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            margin-left: 16px;
+        }
+        
+        .marquee-container::before,
+        .marquee-container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            width: 80px;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+        }
+        
+        .marquee-container::before {
+            left: 0;
+            background: linear-gradient(to right, rgba(102, 126, 234, 1), transparent);
+        }
+        
+        .marquee-container::after {
+            right: 0;
+            background: linear-gradient(to left, rgba(118, 75, 162, 1), transparent);
+        }
+        
+        .marquee-content {
+            display: flex;
+            white-space: nowrap;
+            animation: marquee 25s linear infinite;
+            gap: 50px;
+        }
+        
+        .marquee-content span {
+            display: inline-block;
+        }
+        
+        @keyframes marquee {
+            0% {
+                transform: translateX(0);
+            }
+            100% {
+                transform: translateX(-100%);
+            }
+        }
+        
+        .marquee-content:hover {
+            animation-play-state: paused;
+        }
+        
+        @media (max-width: 768px) {
+            .offer-banner {
+                padding: 16px;
+            }
+            
+            .marquee-container {
+                margin-left: 12px;
+                height: 50px;
+            }
+            
+            .offer-banner .cta-button {
+                padding: 12px 20px;
+                font-size: 14px;
+            }
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 min-h-screen">
@@ -478,6 +568,35 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
                 </a>
             </div>
         </div>
+        
+        <!-- ===== ANGEBOTS-LAUFSCHRIFT ===== -->
+        <?php if ($active_offer): ?>
+        <div class="offer-banner animate-fade-in-up" style="animation-delay: 0.1s;">
+            <div class="flex items-center">
+                <a href="<?php echo htmlspecialchars($active_offer['button_link']); ?>" 
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="cta-button flex-shrink-0 bg-white text-purple-600 px-6 py-3 rounded-xl font-bold hover:bg-purple-50 transition-all shadow-lg"
+                   data-track="offer-button">
+                    <i class="fas fa-gift mr-2"></i>
+                    <?php echo htmlspecialchars($active_offer['button_text']); ?>
+                </a>
+                
+                <div class="marquee-container">
+                    <div class="marquee-content">
+                        <span class="text-white font-semibold text-lg">
+                            <?php echo htmlspecialchars($active_offer['title']); ?> • 
+                            <?php echo htmlspecialchars($active_offer['description']); ?>
+                        </span>
+                        <span class="text-white font-semibold text-lg">
+                            <?php echo htmlspecialchars($active_offer['title']); ?> • 
+                            <?php echo htmlspecialchars($active_offer['description']); ?>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
         
         <!-- ===== ECHTZEIT STATISTIKÜBERSICHT ===== -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
