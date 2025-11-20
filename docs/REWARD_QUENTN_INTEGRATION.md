@@ -70,7 +70,9 @@ Folgende Custom Fields werden automatisch vom System gesetzt:
 | `last_reward` | Text | Titel der letzten Belohnung |
 | `reward_title` | Text | Aktueller Reward-Titel |
 | `reward_description` | Text | Aktueller Reward-Beschreibung |
-| `reward_warning` | Text | Wichtige Hinweise zur Belohnung |
+| `reward_value` | Text | Wert der Belohnung (z.B. "50€") |
+| `reward_download_url` | Text | Download-Link für die Belohnung |
+| `reward_instructions` | Text | Einlöse-Anweisungen |
 | `current_points` | Zahl | Aktuelle Punkte (= successful_referrals) |
 
 #### C. E-Mail-Template mit Platzhaltern
@@ -85,8 +87,12 @@ Empfehlungen hast du folgende Belohnung freigeschaltet:
 
 🎁 {{reward_title}}
 📝 {{reward_description}}
+💎 Wert: {{reward_value}}
 
-⚠️ Wichtig: {{reward_warning}}
+⚡ So löst du die Belohnung ein:
+{{reward_instructions}}
+
+📥 Download: {{reward_download_url}}
 
 Dein Empfehlungscode: {{referral_code}}
 Deine Punkte: {{current_points}}
@@ -96,13 +102,13 @@ Empfiehl weiter und schalte noch mehr Belohnungen frei!
 
 ### 4. Cronjob einrichten
 
-Der Cronjob ist bereits in CloudPanel angelegt (siehe Bild 1):
+Der Cronjob ist bereits in CloudPanel angelegt:
 
-**URL:** `https://31.97.39.234:8443/site/app.mehr-infos-jetzt.de/api/rewards/auto-deliver-cron.php`
+**URL:** `php /var/www/app.mehr-infos-jetzt.de/api/rewards/auto-deliver-cron.php`
 
 **Zeitplan:** Alle 5 Minuten (`*/5 * * * *`)
 
-Manuell testen: `https://31.97.39.234:8443/site/app.mehr-infos-jetzt.de/api/rewards/auto-deliver-cron.php`
+Manuell testen: `https://app.mehr-infos-jetzt.de/api/rewards/auto-deliver-cron.php`
 
 ## 🧪 Testing
 
@@ -118,7 +124,7 @@ WHERE id = LEAD_ID;
 
 2. **Cronjob manuell aufrufen:**
 ```bash
-curl https://31.97.39.234:8443/site/app.mehr-infos-jetzt.de/api/rewards/auto-deliver-cron.php
+curl https://app.mehr-infos-jetzt.de/api/rewards/auto-deliver-cron.php
 ```
 
 3. **In Quentn prüfen:**
@@ -224,6 +230,8 @@ UPDATE reward_definitions SET reward_tag = 'Belohnung-Silber' WHERE tier_level =
 UPDATE reward_definitions SET reward_tag = 'Belohnung-Gold' WHERE tier_level = 3;
 ```
 
+Dann in Quentn 3 separate Kampagnen mit den jeweiligen Tags erstellen.
+
 **Option 2 - Bedingungen in Quentn:**
 ```
 Start: Tag "Optinpilot-Belohnung"
@@ -231,6 +239,20 @@ Start: Tag "Optinpilot-Belohnung"
 Bedingung: current_points = 1 → E-Mail Bronze
 Bedingung: current_points = 3 → E-Mail Silber
 Bedingung: current_points = 5 → E-Mail Gold
+```
+
+### Belohnung mit Download-Link
+
+1. In Belohnungsstufen-Editor:
+   - `reward_download_url` = "https://deine-domain.de/downloads/ebook.pdf"
+   - `reward_instructions` = "Klicke auf den Link unten, um dein E-Book herunterzuladen."
+
+2. In Quentn-E-Mail:
+```html
+<p>{{reward_instructions}}</p>
+<a href="{{reward_download_url}}" style="...">
+  Jetzt herunterladen
+</a>
 ```
 
 ## 🚀 Deployment
@@ -245,6 +267,13 @@ git commit -m "feat: Konfigurierbare Tags für Quentn-Kampagnen"
 git push origin main
 ```
 
+## 🔐 Sicherheit
+
+- Alle URLs in Custom Fields werden NICHT automatisch geklickt
+- Tags werden nur bei erfolgreichen Empfehlungen gesetzt
+- Duplicate-Prüfung: Belohnung wird nur einmal ausgeliefert (tracked in `reward_deliveries`)
+- Rate-Limiting: 0.5 Sekunden Pause zwischen API-Calls
+
 ## 📞 Support
 
 Bei Problemen:
@@ -252,3 +281,12 @@ Bei Problemen:
 2. Cronjob manuell testen
 3. Quentn-Logs prüfen
 4. Server error_log prüfen: `/var/www/app.mehr-infos-jetzt.de/error_log`
+
+## 📝 Changelog
+
+### v1.1 - 2025-11-20
+- ✅ Konfigurierbare Tags für Kampagnen
+- ✅ Custom Fields werden vor Tag-Setzen aktualisiert
+- ✅ Mehr Platzhalter hinzugefügt (reward_value, reward_download_url, reward_instructions)
+- ✅ Test-Script mit visueller Oberfläche
+- ✅ Flexible Migration ohne reward_warning Abhängigkeit
