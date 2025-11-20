@@ -1,6 +1,6 @@
 <?php
 /**
- * NEUE API: Template Unlock Status (Vereinfacht & Getestet)
+ * Template Unlock Status API - Funktioniert auch für neue Kunden ohne Produktkäufe
  */
 
 header('Content-Type: application/json');
@@ -11,9 +11,6 @@ session_start();
 // Für Tests: Error Reporting aktivieren
 error_reporting(E_ALL);
 ini_set('display_errors', 0); // Nicht in JSON ausgeben
-
-// Fehler in Variable sammeln
-$errors = [];
 
 try {
     require_once '../../config/database.php';
@@ -58,6 +55,15 @@ try {
             continue;
         }
         
+        // ✅ KRITISCHER FIX: Wenn Kunde keine Produkte hat, sind alle Kurse gesperrt
+        if (empty($customerProductIds)) {
+            $statusMap['template_' . $templateId] = [
+                'unlock_status' => 'locked',
+                'name' => $templateName
+            ];
+            continue;
+        }
+        
         // Hat der Kunde Zugriff auf diesen Kurs?
         $stmt = $pdo->prepare("
             SELECT COUNT(*) as has_access
@@ -89,6 +95,7 @@ try {
         'total_templates' => count($allTemplates),
         'unlocked_count' => $unlockedCount,
         'customer_products' => $customerProductIds,
+        'has_products' => !empty($customerProductIds),
         'statuses' => $statusMap
     ], JSON_PRETTY_PRINT);
     
