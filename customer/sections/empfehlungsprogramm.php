@@ -3,7 +3,7 @@
  * Customer Dashboard - Empfehlungsprogramm Section
  * MIT INTEGRIERTER API-KONFIGURATION
  * Zeigt API-Setup wenn Empfehlungsprogramm aktiviert wird
- * 🆕 PROVIDER-SPEZIFISCHE PLATZHALTER
+ * 🆕 PROVIDER-SPEZIFISCHE PLATZHALTER (KORRIGIERT)
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -161,17 +161,17 @@ $referralEnabled = $user['referral_enabled'] ?? 0;
 $referralCode = $user['ref_code'] ?? '';
 $baseUrl = 'https://app.mehr-infos-jetzt.de';
 
-// 🆕 Provider-spezifische Platzhalter definieren
+// 🆕 Provider-spezifische Platzhalter definieren (KORRIGIERT)
 $providerPlaceholders = [
     'quentn' => [
-        'name' => '{$name}',
-        'reward_title' => '{$reward_title}',
-        'reward_description' => '{$reward_description}',
-        'reward_warning' => '{$reward_warning}',
-        'successful_referrals' => '{$successful_referrals}',
-        'current_points' => '{$current_points}',
-        'referral_code' => '{$referral_code}',
-        'company_name' => '{$company_name}'
+        'name' => '[[vorname]]',
+        'reward_title' => '[[reward_title]]',
+        'reward_description' => '[[reward_description]]',
+        'reward_warning' => '[[reward_warning]]',
+        'successful_referrals' => '[[successful_referrals]]',
+        'current_points' => '[[current_points]]',
+        'referral_code' => '[[referral_code]]',
+        'company_name' => '[[company_name]]'
     ],
     'activecampaign' => [
         'name' => '%FIRSTNAME%',
@@ -184,14 +184,14 @@ $providerPlaceholders = [
         'company_name' => '%COMPANY_NAME%'
     ],
     'klicktipp' => [
-        'name' => '[vorname]',
-        'reward_title' => '[reward_title]',
-        'reward_description' => '[reward_description]',
-        'reward_warning' => '[reward_warning]',
-        'successful_referrals' => '[successful_referrals]',
-        'current_points' => '[current_points]',
-        'referral_code' => '[referral_code]',
-        'company_name' => '[company_name]'
+        'name' => '{vorname}',
+        'reward_title' => '{reward_title}',
+        'reward_description' => '{reward_description}',
+        'reward_warning' => '{reward_warning}',
+        'successful_referrals' => '{successful_referrals}',
+        'current_points' => '{current_points}',
+        'referral_code' => '{referral_code}',
+        'company_name' => '{company_name}'
     ],
     'brevo' => [
         'name' => '{{ contact.FIRSTNAME }}',
@@ -204,7 +204,7 @@ $providerPlaceholders = [
         'company_name' => '{{ contact.COMPANY_NAME }}'
     ],
     'getresponse' => [
-        'name' => '[[name]]',
+        'name' => '[[firstname]]',
         'reward_title' => '[[custom "reward_title"]]',
         'reward_description' => '[[custom "reward_description"]]',
         'reward_warning' => '[[custom "reward_warning"]]',
