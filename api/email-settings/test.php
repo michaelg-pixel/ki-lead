@@ -9,6 +9,7 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../config/security.php';
 require_once __DIR__ . '/../../customer/includes/EmailProviders.php';
+require_once __DIR__ . '/../../customer/includes/EmailProvidersExtended.php'; // 🆕 Extended Provider
 
 // Session starten
 startSecureSession();
@@ -47,8 +48,8 @@ try {
     // Custom Settings parsen
     $customSettings = json_decode($settings['custom_settings'] ?? '{}', true);
     
-    // Provider-Instanz erstellen
-    $provider = EmailProviderFactory::create(
+    // 🆕 Provider-Instanz mit Extended Factory erstellen
+    $provider = EmailProviderFactoryExtended::create(
         $settings['provider'],
         $settings['api_key'],
         $customSettings
@@ -78,12 +79,13 @@ try {
                     $createdTags[] = [
                         'name' => $tagName,
                         'status' => $tagResult['created'] ? 'created' : 'exists',
-                        'id' => $tagResult['tag_id'] ?? null
+                        'id' => $tagResult['tag_id'] ?? null,
+                        'description' => $description
                     ];
                 } else {
                     $tagErrors[] = [
                         'name' => $tagName,
-                        'error' => $tagResult['message'] ?? 'Unbekannter Fehler'
+                        'error' => $tagResult['error'] ?? $tagResult['message'] ?? 'Unbekannter Fehler'
                     ];
                 }
             } catch (Exception $e) {
@@ -105,25 +107,30 @@ try {
         $stmt->execute([$settings['id']]);
         
         // API-Log erstellen
-        $stmt = $pdo->prepare("
-            INSERT INTO email_api_logs (
-                customer_id,
-                provider,
-                endpoint,
-                method,
-                response_code,
-                success,
-                duration_ms
-            ) VALUES (?, ?, ?, ?, ?, TRUE, ?)
-        ");
-        $stmt->execute([
-            $customer_id,
-            $settings['provider'],
-            'test-connection',
-            'GET',
-            200,
-            50
-        ]);
+        try {
+            $stmt = $pdo->prepare("
+                INSERT INTO email_api_logs (
+                    customer_id,
+                    provider,
+                    endpoint,
+                    method,
+                    response_code,
+                    success,
+                    duration_ms
+                ) VALUES (?, ?, ?, ?, ?, TRUE, ?)
+            ");
+            $stmt->execute([
+                $customer_id,
+                $settings['provider'],
+                'test-connection',
+                'GET',
+                200,
+                50
+            ]);
+        } catch (PDOException $e) {
+            // Log-Tabelle existiert möglicherweise nicht - ignorieren
+            error_log("API Log Error: " . $e->getMessage());
+        }
         
         // Erfolgreiche Antwort mit Tag-Info
         $message = $result['message'];
@@ -139,13 +146,20 @@ try {
             }
         }
         
+        if (count($tagErrors) > 0) {
+            $message .= " | ⚠️ " . count($tagErrors) . " Tag(s) konnten nicht erstellt werden";
+        }
+        
         echo json_encode([
             'success' => true,
             'message' => $message,
             'details' => $result['details'] ?? null,
             'tags' => [
                 'created' => $createdTags,
-                'errors' => $tagErrors
+                'errors' => $tagErrors,
+                'total' => count($createdTags),
+                'new' => count(array_filter($createdTags, fn($t) => $t['status'] === 'created')),
+                'existing' => count(array_filter($createdTags, fn($t) => $t['status'] === 'exists'))
             ]
         ]);
     } else {
@@ -162,25 +176,29 @@ try {
         ]);
         
         // API-Log erstellen
-        $stmt = $pdo->prepare("
-            INSERT INTO email_api_logs (
-                customer_id,
-                provider,
-                endpoint,
-                method,
-                response_code,
-                success,
-                error_message
-            ) VALUES (?, ?, ?, ?, ?, FALSE, ?)
-        ");
-        $stmt->execute([
-            $customer_id,
-            $settings['provider'],
-            'test-connection',
-            'GET',
-            500,
-            $result['message']
-        ]);
+        try {
+            $stmt = $pdo->prepare("
+                INSERT INTO email_api_logs (
+                    customer_id,
+                    provider,
+                    endpoint,
+                    method,
+                    response_code,
+                    success,
+                    error_message
+                ) VALUES (?, ?, ?, ?, ?, FALSE, ?)
+            ");
+            $stmt->execute([
+                $customer_id,
+                $settings['provider'],
+                'test-connection',
+                'GET',
+                500,
+                $result['message']
+            ]);
+        } catch (PDOException $e) {
+            error_log("API Log Error: " . $e->getMessage());
+        }
         
         throw new Exception($result['message']);
     }
