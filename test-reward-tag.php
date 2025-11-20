@@ -93,6 +93,8 @@ header('Content-Type: text/html; charset=utf-8');
             text-decoration: none;
             border-radius: 6px;
             margin: 10px 10px 10px 0;
+            border: none;
+            cursor: pointer;
         }
         .btn:hover {
             background: #6d28d9;
@@ -114,34 +116,49 @@ header('Content-Type: text/html; charset=utf-8');
             echo '<h2>📦 Migration ausführen</h2>';
             
             try {
+                // Prüfe Struktur
+                $columns = $pdo->query("SHOW COLUMNS FROM reward_definitions")->fetchAll(PDO::FETCH_ASSOC);
+                $columnNames = array_column($columns, 'Field');
+                
                 // reward_tag zu reward_definitions
                 $checkColumn = $pdo->query("SHOW COLUMNS FROM reward_definitions LIKE 'reward_tag'");
                 
                 if ($checkColumn->rowCount() == 0) {
+                    $lastColumn = end($columnNames);
                     $pdo->exec("
                         ALTER TABLE reward_definitions
                         ADD COLUMN reward_tag VARCHAR(100) NULL 
                         COMMENT 'Optional: Benutzerdefinierter Tag für Kampagnen-Trigger'
-                        AFTER reward_warning
+                        AFTER {$lastColumn}
                     ");
-                    echo '<div class="success">✅ reward_tag zu reward_definitions hinzugefügt</div>';
+                    echo '<div class="success">✅ reward_tag zu reward_definitions hinzugefügt (nach ' . $lastColumn . ')</div>';
                 } else {
                     echo '<div class="info">ℹ️ reward_tag existiert bereits in reward_definitions</div>';
                 }
                 
                 // reward_tag zu customer_email_api_settings
-                $checkColumn = $pdo->query("SHOW COLUMNS FROM customer_email_api_settings LIKE 'reward_tag'");
+                $checkTable = $pdo->query("SHOW TABLES LIKE 'customer_email_api_settings'");
                 
-                if ($checkColumn->rowCount() == 0) {
-                    $pdo->exec("
-                        ALTER TABLE customer_email_api_settings
-                        ADD COLUMN reward_tag VARCHAR(100) NULL 
-                        COMMENT 'Optional: Globaler Tag für alle Belohnungen'
-                        AFTER api_url
-                    ");
-                    echo '<div class="success">✅ reward_tag zu customer_email_api_settings hinzugefügt</div>';
+                if ($checkTable->rowCount() > 0) {
+                    $checkColumn = $pdo->query("SHOW COLUMNS FROM customer_email_api_settings LIKE 'reward_tag'");
+                    
+                    if ($checkColumn->rowCount() == 0) {
+                        $apiColumns = $pdo->query("SHOW COLUMNS FROM customer_email_api_settings")->fetchAll(PDO::FETCH_ASSOC);
+                        $apiColumnNames = array_column($apiColumns, 'Field');
+                        $afterColumn = in_array('api_url', $apiColumnNames) ? 'api_url' : end($apiColumnNames);
+                        
+                        $pdo->exec("
+                            ALTER TABLE customer_email_api_settings
+                            ADD COLUMN reward_tag VARCHAR(100) NULL 
+                            COMMENT 'Optional: Globaler Tag für alle Belohnungen'
+                            AFTER {$afterColumn}
+                        ");
+                        echo '<div class="success">✅ reward_tag zu customer_email_api_settings hinzugefügt (nach ' . $afterColumn . ')</div>';
+                    } else {
+                        echo '<div class="info">ℹ️ reward_tag existiert bereits in customer_email_api_settings</div>';
+                    }
                 } else {
-                    echo '<div class="info">ℹ️ reward_tag existiert bereits in customer_email_api_settings</div>';
+                    echo '<div class="info">ℹ️ Tabelle customer_email_api_settings existiert nicht</div>';
                 }
                 
             } catch (Exception $e) {
@@ -160,15 +177,25 @@ header('Content-Type: text/html; charset=utf-8');
             echo '<h2>🏷️ Tag setzen</h2>';
             
             try {
-                // Option 1: Global für alle Belohnungen
-                $stmt = $pdo->prepare("
-                    UPDATE customer_email_api_settings 
-                    SET reward_tag = ?
-                    WHERE customer_id = ?
-                ");
-                $stmt->execute([$tag, $userId]);
+                $updated = 0;
                 
-                echo '<div class="success">✅ Global-Tag auf "' . htmlspecialchars($tag) . '" gesetzt</div>';
+                // Option 1: Global für alle Belohnungen (wenn Tabelle existiert)
+                $checkTable = $pdo->query("SHOW TABLES LIKE 'customer_email_api_settings'");
+                if ($checkTable->rowCount() > 0) {
+                    $stmt = $pdo->prepare("
+                        UPDATE customer_email_api_settings 
+                        SET reward_tag = ?
+                        WHERE customer_id = ?
+                    ");
+                    $stmt->execute([$tag, $userId]);
+                    
+                    if ($stmt->rowCount() > 0) {
+                        echo '<div class="success">✅ Global-Tag auf "' . htmlspecialchars($tag) . '" gesetzt</div>';
+                        $updated++;
+                    } else {
+                        echo '<div class="info">ℹ️ Keine API-Settings für diesen User gefunden</div>';
+                    }
+                }
                 
                 // Option 2: Für alle Rewards dieses Users
                 $stmt = $pdo->prepare("
@@ -179,7 +206,16 @@ header('Content-Type: text/html; charset=utf-8');
                 $stmt->execute([$tag, $userId]);
                 
                 $affected = $stmt->rowCount();
-                echo '<div class="success">✅ Tag für ' . $affected . ' Belohnungen gesetzt</div>';
+                if ($affected > 0) {
+                    echo '<div class="success">✅ Tag für ' . $affected . ' Belohnungen gesetzt</div>';
+                    $updated++;
+                } else {
+                    echo '<div class="info">ℹ️ Keine Belohnungen für diesen User gefunden</div>';
+                }
+                
+                if ($updated == 0) {
+                    echo '<div class="error">❌ Konnte Tag nicht setzen - User ID existiert nicht?</div>';
+                }
                 
             } catch (Exception $e) {
                 echo '<div class="error">❌ Fehler: ' . $e->getMessage() . '</div>';
@@ -194,7 +230,9 @@ header('Content-Type: text/html; charset=utf-8');
         
         // Prüfe Spalten
         $checkRewardDef = $pdo->query("SHOW COLUMNS FROM reward_definitions LIKE 'reward_tag'");
-        $checkApiSettings = $pdo->query("SHOW COLUMNS FROM customer_email_api_settings LIKE 'reward_tag'");
+        $checkTable = $pdo->query("SHOW TABLES LIKE 'customer_email_api_settings'");
+        $hasApiTable = $checkTable->rowCount() > 0;
+        $checkApiSettings = $hasApiTable ? $pdo->query("SHOW COLUMNS FROM customer_email_api_settings LIKE 'reward_tag'") : null;
         
         echo '<h3>Datenbank-Felder</h3>';
         echo '<table>';
@@ -202,9 +240,15 @@ header('Content-Type: text/html; charset=utf-8');
         echo '<tr><td>reward_definitions</td><td>reward_tag</td><td>' . 
              ($checkRewardDef->rowCount() > 0 ? '<span style="color: #10b981;">✅ Existiert</span>' : '<span style="color: #ef4444;">❌ Fehlt</span>') . 
              '</td></tr>';
-        echo '<tr><td>customer_email_api_settings</td><td>reward_tag</td><td>' . 
-             ($checkApiSettings->rowCount() > 0 ? '<span style="color: #10b981;">✅ Existiert</span>' : '<span style="color: #ef4444;">❌ Fehlt</span>') . 
-             '</td></tr>';
+        
+        if ($hasApiTable) {
+            echo '<tr><td>customer_email_api_settings</td><td>reward_tag</td><td>' . 
+                 ($checkApiSettings->rowCount() > 0 ? '<span style="color: #10b981;">✅ Existiert</span>' : '<span style="color: #ef4444;">❌ Fehlt</span>') . 
+                 '</td></tr>';
+        } else {
+            echo '<tr><td>customer_email_api_settings</td><td>-</td><td><span style="color: #6b7280;">ℹ️ Tabelle existiert nicht</span></td></tr>';
+        }
+        
         echo '</table>';
         
         // Zeige Reward Definitions
@@ -212,18 +256,16 @@ header('Content-Type: text/html; charset=utf-8');
             SELECT 
                 rd.*,
                 u.email as customer_email,
-                eas.reward_tag as global_reward_tag,
-                eas.provider
+                u.company_name
             FROM reward_definitions rd
             LEFT JOIN users u ON rd.user_id = u.id
-            LEFT JOIN customer_email_api_settings eas ON eas.customer_id = rd.user_id
             ORDER BY rd.user_id, rd.tier_level
             LIMIT 10
         ");
         
         echo '<h3>Belohnungs-Definitionen (Top 10)</h3>';
         echo '<table>';
-        echo '<tr><th>ID</th><th>Customer</th><th>Tier</th><th>Titel</th><th>Reward Tag</th><th>Global Tag</th><th>Provider</th></tr>';
+        echo '<tr><th>ID</th><th>Customer</th><th>Tier</th><th>Titel</th><th>Reward Tag</th></tr>';
         
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             echo '<tr>';
@@ -231,12 +273,35 @@ header('Content-Type: text/html; charset=utf-8');
             echo '<td>' . htmlspecialchars($row['customer_email']) . '</td>';
             echo '<td>' . $row['tier_level'] . '</td>';
             echo '<td>' . htmlspecialchars($row['reward_title']) . '</td>';
-            echo '<td>' . ($row['reward_tag'] ? '<strong>' . htmlspecialchars($row['reward_tag']) . '</strong>' : '<em>nicht gesetzt</em>') . '</td>';
-            echo '<td>' . ($row['global_reward_tag'] ? htmlspecialchars($row['global_reward_tag']) : '<em>nicht gesetzt</em>') . '</td>';
-            echo '<td>' . ($row['provider'] ?? '<em>keine API</em>') . '</td>';
+            echo '<td>' . (isset($row['reward_tag']) && $row['reward_tag'] ? '<strong>' . htmlspecialchars($row['reward_tag']) . '</strong>' : '<em>nicht gesetzt</em>') . '</td>';
             echo '</tr>';
         }
         echo '</table>';
+        
+        // API Settings anzeigen wenn vorhanden
+        if ($hasApiTable) {
+            $stmt = $pdo->query("
+                SELECT 
+                    eas.*,
+                    u.email as customer_email
+                FROM customer_email_api_settings eas
+                LEFT JOIN users u ON eas.customer_id = u.id
+                LIMIT 5
+            ");
+            
+            echo '<h3>Email-API-Settings (Top 5)</h3>';
+            echo '<table>';
+            echo '<tr><th>Customer</th><th>Provider</th><th>Global Reward Tag</th></tr>';
+            
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                echo '<tr>';
+                echo '<td>' . htmlspecialchars($row['customer_email'] ?? 'N/A') . '</td>';
+                echo '<td>' . htmlspecialchars($row['provider'] ?? 'N/A') . '</td>';
+                echo '<td>' . (isset($row['reward_tag']) && $row['reward_tag'] ? '<strong>' . htmlspecialchars($row['reward_tag']) . '</strong>' : '<em>nicht gesetzt</em>') . '</td>';
+                echo '</tr>';
+            }
+            echo '</table>';
+        }
         
         echo '</div>';
         
@@ -246,7 +311,7 @@ header('Content-Type: text/html; charset=utf-8');
         
         echo '<div class="info">';
         echo '<strong>Cronjob URL:</strong><br>';
-        echo 'https://31.97.39.234:8443/site/app.mehr-infos-jetzt.de/api/rewards/auto-deliver-cron.php';
+        echo 'https://app.mehr-infos-jetzt.de/api/rewards/auto-deliver-cron.php';
         echo '</div>';
         
         echo '<div class="code">';
@@ -281,7 +346,9 @@ header('Content-Type: text/html; charset=utf-8');
             Verfügbare Platzhalter:<br>
             - {{reward_title}}<br>
             - {{reward_description}}<br>
-            - {{reward_warning}}<br>
+            - {{reward_value}}<br>
+            - {{reward_download_url}}<br>
+            - {{reward_instructions}}<br>
             - {{successful_referrals}}<br>
             - {{current_points}}<br>
             - {{referral_code}}
@@ -292,7 +359,7 @@ header('Content-Type: text/html; charset=utf-8');
         
         echo '<h3>4. Test</h3>';
         echo '<p>Cronjob manuell aufrufen:</p>';
-        echo '<a href="https://31.97.39.234:8443/site/app.mehr-infos-jetzt.de/api/rewards/auto-deliver-cron.php" target="_blank" class="btn">Cronjob testen</a>';
+        echo '<a href="https://app.mehr-infos-jetzt.de/api/rewards/auto-deliver-cron.php" target="_blank" class="btn">Cronjob testen</a>';
         
         echo '</div>';
         
