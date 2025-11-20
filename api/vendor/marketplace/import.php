@@ -1,7 +1,8 @@
 <?php
 /**
- * Marketplace Import API
+ * Marketplace Import API - FIXED VERSION
  * Importiert ein Template in die eigenen reward_definitions
+ * FIX: delivery_type Spalte entfernt (existiert nicht in Tabelle)
  */
 
 session_start();
@@ -74,6 +75,7 @@ try {
     
     try {
         // Template in reward_definitions kopieren
+        // WICHTIG: delivery_type wurde entfernt - existiert nicht in Tabelle
         $stmt = $pdo->prepare("
             INSERT INTO reward_definitions (
                 user_id,
@@ -88,7 +90,6 @@ try {
                 reward_value,
                 reward_icon,
                 reward_color,
-                delivery_type,
                 download_url,
                 access_instructions,
                 freebie_id,
@@ -96,7 +97,7 @@ try {
                 sort_order,
                 created_at
             ) VALUES (
-                ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, NOW()
+                ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, NOW()
             )
         ");
         
@@ -112,7 +113,6 @@ try {
             $template['reward_value'],
             $template['reward_icon'],
             $template['reward_color'],
-            $template['reward_delivery_type'],
             $template['reward_download_url'],
             $template['reward_instructions'],
             $freebie_id
