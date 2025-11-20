@@ -152,8 +152,10 @@ class QuentnProvider extends BaseEmailProvider {
     }
     
     public function testConnection(): array {
+        // FIX: Teste die Verbindung durch Abrufen der Contacts-Liste (limit=1)
+        // Quentn hat keinen /account Endpoint
         $result = $this->makeRequest(
-            $this->baseUrl . '/account',
+            $this->baseUrl . '/contacts?limit=1',
             'GET',
             null,
             ['Authorization: Bearer ' . $this->apiKey]
@@ -162,14 +164,33 @@ class QuentnProvider extends BaseEmailProvider {
         if ($result['success']) {
             return [
                 'success' => true,
-                'message' => 'Verbindung zu Quentn erfolgreich',
-                'details' => $result['response']
+                'message' => 'Verbindung zu Quentn erfolgreich! API-Key ist gültig.',
+                'details' => [
+                    'api_url' => $this->baseUrl,
+                    'contacts_found' => isset($result['response']['data']) ? count($result['response']['data']) : 0
+                ]
             ];
+        }
+        
+        // Detaillierte Fehlermeldung
+        $errorMsg = 'Verbindung fehlgeschlagen';
+        if (!empty($result['error'])) {
+            $errorMsg .= ': ' . $result['error'];
+        } elseif (!empty($result['response']['message'])) {
+            $errorMsg .= ': ' . $result['response']['message'];
+        } elseif ($result['http_code'] === 401) {
+            $errorMsg .= ': Ungültiger API-Key';
+        } elseif ($result['http_code'] === 403) {
+            $errorMsg .= ': Zugriff verweigert';
+        } elseif ($result['http_code'] === 404) {
+            $errorMsg .= ': API-URL nicht gefunden. Bitte überprüfe deine API-URL.';
+        } else {
+            $errorMsg .= ': HTTP ' . ($result['http_code'] ?? 'N/A');
         }
         
         return [
             'success' => false,
-            'message' => 'Verbindung fehlgeschlagen: ' . ($result['error'] ?? 'HTTP ' . ($result['http_code'] ?? 'N/A'))
+            'message' => $errorMsg
         ];
     }
     
