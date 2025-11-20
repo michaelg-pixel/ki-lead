@@ -6,7 +6,6 @@
  * Unterstützt Platzhalter:
  * - {{reward_title}}
  * - {{reward_description}}
- * - {{reward_warning}}
  * - {{successful_referrals}}
  * - {{current_points}}
  * - {{referral_code}}
@@ -257,7 +256,9 @@ class RewardEmailDeliveryService {
                 'last_reward' => $reward['reward_title'],
                 'reward_title' => $reward['reward_title'],
                 'reward_description' => $reward['reward_description'] ?? '',
-                'reward_warning' => $reward['reward_warning'] ?? '',
+                'reward_value' => $reward['reward_value'] ?? '',
+                'reward_instructions' => $reward['reward_instructions'] ?? '',
+                'reward_download_url' => $reward['reward_download_url'] ?? '',
                 'current_points' => $lead['successful_referrals'] // Alias für successful_referrals
             ];
             
@@ -317,12 +318,6 @@ class RewardEmailDeliveryService {
                         </p>
                     </div>
                     
-                    <div style='background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 6px; margin: 15px 0;'>
-                        <p style='margin: 0; color: #92400e;'>
-                            <strong>📋 Wichtig:</strong> {{reward_warning}}
-                        </p>
-                    </div>
-                    
                     <div style='text-align: center; margin: 30px 0;'>
                         <p style='color: #6b7280; font-size: 14px;'>
                             <strong>Dein Empfehlungscode:</strong> {{referral_code}}<br>
@@ -352,7 +347,6 @@ class RewardEmailDeliveryService {
             '{{name}}' => htmlspecialchars($lead['name'] ?? 'Lead'),
             '{{reward_title}}' => htmlspecialchars($reward['reward_title']),
             '{{reward_description}}' => htmlspecialchars($reward['reward_description'] ?? ''),
-            '{{reward_warning}}' => htmlspecialchars($reward['reward_warning'] ?? 'Keine weiteren Hinweise'),
             '{{successful_referrals}}' => $lead['successful_referrals'] ?? 0,
             '{{current_points}}' => $lead['successful_referrals'] ?? 0, // Points = successful_referrals
             '{{referral_code}}' => htmlspecialchars($lead['referral_code'] ?? ''),
