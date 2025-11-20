@@ -165,6 +165,7 @@ $providers = [
     'quentn' => [
         'name' => 'Quentn',
         'requires_api_url' => true,
+        'requires_username' => false,
         'api_url_placeholder' => 'https://YOUR-ID.quentn.com',
         'api_url_help' => 'Format: https://system_id.server_id.quentn.com',
         'supports_tags' => true,
@@ -174,6 +175,7 @@ $providers = [
     'activecampaign' => [
         'name' => 'ActiveCampaign',
         'requires_api_url' => true,
+        'requires_username' => false,
         'api_url_placeholder' => 'https://YOUR-ACCOUNT.api-us1.com',
         'api_url_help' => 'Zu finden in Settings → Developer',
         'supports_tags' => true,
@@ -183,6 +185,7 @@ $providers = [
     'klicktipp' => [
         'name' => 'Klick-Tipp',
         'requires_api_url' => false,
+        'requires_username' => true,
         'default_api_url' => 'http://api.klicktipp.com',
         'supports_tags' => true,
         'supports_campaigns' => false,
@@ -191,6 +194,7 @@ $providers = [
     'brevo' => [
         'name' => 'Brevo (Sendinblue)',
         'requires_api_url' => false,
+        'requires_username' => false,
         'default_api_url' => 'https://api.brevo.com/v3',
         'supports_tags' => true,
         'supports_campaigns' => true,
@@ -199,6 +203,7 @@ $providers = [
     'getresponse' => [
         'name' => 'GetResponse',
         'requires_api_url' => false,
+        'requires_username' => false,
         'default_api_url' => 'https://api.getresponse.com/v3',
         'supports_tags' => true,
         'supports_campaigns' => true,
@@ -1153,36 +1158,6 @@ Dein Team</div>
                 </div>
             </div>
             
-            <!-- Lead URLs Box - AUSGEBLENDET -->
-            <!--
-            <div class="lead-urls-box animate-fade-in-up" style="opacity: 0; animation-delay: 0.15s;">
-                <h3>
-                    <i class="fas fa-users"></i> Lead-Anmeldung & Dashboard
-                </h3>
-                <div class="url-item">
-                    <div class="url-label">📝 Lead-Anmeldeseite (mit Double Opt-in)</div>
-                    <div class="url-link">
-                        <input type="text" class="url-input" readonly value="<?php echo $baseUrl; ?>/lead_login.php?ref=<?php echo $referralCode; ?>" id="lead-login-url">
-                        <button class="btn-copy-url" onclick="copyUrl('lead-login-url')">
-                            <i class="fas fa-copy"></i> Kopieren
-                        </button>
-                    </div>
-                </div>
-                <div class="url-item">
-                    <div class="url-label">📊 Lead-Dashboard (nach Anmeldung)</div>
-                    <div class="url-link">
-                        <input type="text" class="url-input" readonly value="<?php echo $baseUrl; ?>/lead_dashboard.php" id="lead-dashboard-url">
-                        <button class="btn-copy-url" onclick="copyUrl('lead-dashboard-url')">
-                            <i class="fas fa-copy"></i> Kopieren
-                        </button>
-                    </div>
-                </div>
-                <small style="color: rgba(255, 255, 255, 0.8); font-size: 0.875rem; display: block; margin-top: 0.75rem;">
-                    💡 Deine Leads können sich über die Anmeldeseite registrieren und dann im Dashboard ihre eigenen Empfehlungslinks verwalten.
-                </small>
-            </div>
-            -->
-            
             <!-- API Setup / Status -->
             <?php if (!$api_settings): ?>
                 <!-- API Setup Required -->
@@ -1274,11 +1249,22 @@ Dein Team</div>
                                 </div>
                                 <?php endif; ?>
                                 
+                                <?php if ($provider['requires_username']): ?>
                                 <div class="form-group">
                                     <label class="form-label">
-                                        API-Key <span class="required">*</span>
+                                        Username <span class="required">*</span>
                                     </label>
-                                    <input type="password" name="api_key" class="form-input" required placeholder="Dein API-Key">
+                                    <input type="text" name="username" class="form-input" required placeholder="Dein Klick-Tipp Username">
+                                    <div class="form-hint">Dein Login-Name bei Klick-Tipp</div>
+                                </div>
+                                <?php endif; ?>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">
+                                        <?php echo $provider['requires_username'] ? 'Passwort' : 'API-Key'; ?> <span class="required">*</span>
+                                    </label>
+                                    <input type="password" name="api_key" class="form-input" required 
+                                           placeholder="<?php echo $provider['requires_username'] ? 'Dein Passwort' : 'Dein API-Key'; ?>">
                                     <div class="form-hint">Zu finden in deinen <?php echo $provider['name']; ?> Einstellungen</div>
                                 </div>
                             </div>
@@ -1621,6 +1607,11 @@ Dein Team</div>
                 campaign_id: formData.get('campaign_id'),
                 double_optin_enabled: formData.get('double_optin_enabled') ? true : false
             };
+            
+            // Username hinzufügen wenn vorhanden (für Klick-Tipp)
+            if (formData.has('username') && formData.get('username')) {
+                data.username = formData.get('username');
+            }
             
             // API URL - verwende entweder eingegebene URL oder Default
             if (formData.has('api_url') && formData.get('api_url')) {
