@@ -6,12 +6,23 @@
  * DSGVO-konform gem. Art. 28 DSGVO
  */
 
-session_start();
-require_once '../config/database.php';
-require_once '../includes/auth_check.php';
-require_once '../includes/av_contract_helpers.php';
+// Sichere Session-Konfiguration laden
+require_once __DIR__ . '/../config/security.php';
 
-requireAdmin();
+// Starte sichere Session
+startSecureSession();
+
+// Login-Check
+requireLogin('/public/login.php');
+
+// Admin-Rollen-Prüfung
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+    header('Location: /public/login.php');
+    exit;
+}
+
+require_once '../config/database.php';
+require_once '../includes/av_contract_helpers.php';
 
 // Pagination
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
