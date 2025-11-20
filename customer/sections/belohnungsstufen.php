@@ -1,7 +1,7 @@
 <?php
 /**
  * Customer Dashboard - Belohnungsstufen verwalten
- * FIXED VERSION - Mit Bildern im Marktplatz + besseres Design
+ * FIXED VERSION v3 - Mit Bildern im Marktplatz + Debug für Mockups
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -204,6 +204,7 @@ try {
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            position: relative;
         }
         
         .template-card-image img {
@@ -332,6 +333,22 @@ try {
             align-items: center;
             gap: 1rem;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        
+        .image-debug {
+            position: absolute;
+            bottom: 4px;
+            left: 4px;
+            right: 4px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #10b981;
+            font-size: 10px;
+            padding: 4px;
+            border-radius: 4px;
+            font-family: monospace;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         
         @media (max-width: 640px) {
@@ -784,6 +801,9 @@ try {
         let marketplaceTemplates = [];
         let allMarketplaceTemplates = [];
         
+        // Debug-Modus aktivieren
+        const DEBUG_IMAGES = true;
+        
         // Seite laden
         document.addEventListener('DOMContentLoaded', function() {
             loadRewards();
@@ -932,7 +952,7 @@ try {
         }
         
         // ===========================================
-        // MARKTPLATZ FUNKTIONEN - MIT BILDERN!
+        // MARKTPLATZ FUNKTIONEN - MIT BILDERN + DEBUG!
         // ===========================================
         
         function openMarketplace() {
@@ -957,6 +977,15 @@ try {
                     document.getElementById('marketplaceLoading').style.display = 'none';
                     
                     if (data.success) {
+                        console.log('Marktplatz geladen:', data.templates.length, 'Templates');
+                        
+                        // DEBUG: Zeige Bildpfade in Console
+                        if (DEBUG_IMAGES) {
+                            data.templates.forEach(t => {
+                                console.log('Template:', t.template_name, 'Bild:', t.preview_image);
+                            });
+                        }
+                        
                         allMarketplaceTemplates = data.templates;
                         marketplaceTemplates = data.templates;
                         renderMarketplace();
@@ -965,7 +994,7 @@ try {
                     }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
+                    console.error('Marktplatz Fehler:', error);
                     document.getElementById('marketplaceLoading').style.display = 'none';
                     document.getElementById('marketplaceEmpty').style.display = 'block';
                 });
@@ -989,6 +1018,33 @@ try {
             renderMarketplace();
         }
         
+        function getImagePath(template) {
+            // Prüfe verschiedene mögliche Bildpfade
+            if (!template.preview_image) {
+                console.log('❌ Kein Bild für:', template.template_name);
+                return null;
+            }
+            
+            const rawPath = template.preview_image.trim();
+            
+            // Wenn absoluter Pfad, direkt verwenden
+            if (rawPath.startsWith('http://') || rawPath.startsWith('https://')) {
+                console.log('✓ Absoluter Pfad:', rawPath);
+                return rawPath;
+            }
+            
+            // Wenn relativer Pfad, verschiedene Varianten testen
+            const variants = [
+                rawPath,                                    // Original
+                '/' + rawPath,                              // Mit führendem /
+                '/uploads/' + rawPath.replace(/^uploads\//, ''),  // /uploads/ prefix
+                '/vendor-uploads/' + rawPath.replace(/^vendor-uploads\//, ''),  // /vendor-uploads/ prefix
+            ];
+            
+            console.log('🔍 Teste Bildpfade für', template.template_name, ':', variants);
+            return variants[0]; // Nehme erste Variante
+        }
+        
         function renderMarketplace() {
             const grid = document.getElementById('marketplaceGrid');
             const empty = document.getElementById('marketplaceEmpty');
@@ -1004,7 +1060,8 @@ try {
             
             grid.innerHTML = marketplaceTemplates.map(template => {
                 const isImported = template.is_imported_by_me;
-                const hasImage = template.preview_image && template.preview_image.trim() !== '';
+                const imagePath = getImagePath(template);
+                const hasImage = imagePath && imagePath.trim() !== '';
                 
                 return `
                 <div class="template-card ${isImported ? 'imported' : ''}">
@@ -1014,17 +1071,26 @@ try {
                         </div>
                     ` : ''}
                     
-                    <!-- BILD OBEN -->
+                    <!-- BILD OBEN MIT DEBUG -->
                     <div class="template-card-image">
                         ${hasImage ? `
-                            <img src="${escapeHtml(template.preview_image)}" 
+                            <img src="${escapeHtml(imagePath)}" 
                                  alt="${escapeHtml(template.template_name)}"
-                                 onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'color: white; font-size: 3rem;\\'><i class=\\'fas ${template.reward_icon || 'fa-gift'}\\'></i></div>';">
+                                 onload="console.log('✓ Bild geladen:', '${escapeHtml(imagePath)}')"
+                                 onerror="console.error('❌ Fehler beim Laden:', '${escapeHtml(imagePath)}'); this.style.display='none'; this.parentElement.querySelector('.image-fallback').style.display='flex';">
+                            <div class="image-fallback" style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; color: white; font-size: 3rem;">
+                                <i class="fas ${template.reward_icon || 'fa-gift'}"></i>
+                            </div>
                         ` : `
                             <div style="color: white; font-size: 3rem;">
                                 <i class="fas ${template.reward_icon || 'fa-gift'}"></i>
                             </div>
                         `}
+                        ${DEBUG_IMAGES && hasImage ? `
+                            <div class="image-debug" title="${escapeHtml(imagePath)}">
+                                📷 ${escapeHtml(imagePath.length > 30 ? '...' + imagePath.slice(-30) : imagePath)}
+                            </div>
+                        ` : ''}
                     </div>
                     
                     <!-- INHALT -->
@@ -1117,7 +1183,7 @@ try {
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
+                console.error('Import Fehler:', error);
                 showNotification('Verbindungsfehler', 'error');
             });
         }
@@ -1238,7 +1304,7 @@ try {
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
+                console.error('Save Error:', error);
                 showNotification('Verbindungsfehler', 'error');
             });
         }
@@ -1263,7 +1329,7 @@ try {
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
+                console.error('Delete Error:', error);
                 showNotification('Verbindungsfehler', 'error');
             });
         }
