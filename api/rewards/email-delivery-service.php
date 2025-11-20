@@ -1,14 +1,20 @@
 <?php
 /**
- * Reward Email Delivery Service
- * Versendet Belohnungs-Emails über die konfigurierte Customer-Email-API
+ * Universal Reward Email Delivery Service
+ * Versendet Belohnungs-Benachrichtigungen über ALLE konfigurierten Email-Marketing-Provider
  * 
- * Unterstützt Platzhalter:
- * - {{reward_title}}
- * - {{reward_description}}
- * - {{successful_referrals}}
- * - {{current_points}}
- * - {{referral_code}}
+ * ✅ Unterstützte Provider:
+ * - Quentn
+ * - ActiveCampaign
+ * - Klick-Tipp
+ * - Brevo (Sendinblue)
+ * - GetResponse
+ * 
+ * Features:
+ * - Provider-spezifische Custom Fields Updates
+ * - Tag-Trigger für Automationen
+ * - Direkter Email-Versand wo möglich
+ * - Fallback auf System-Email
  */
 
 require_once __DIR__ . '/../../config/database.php';
@@ -18,68 +24,465 @@ class RewardEmailDeliveryService {
     
     private $pdo;
     
+    /**
+     * Provider-spezifische Feld-Mappings
+     * Manche Provider haben unterschiedliche Namenskonventionen
+     */
+    private $fieldMappings = [
+        'quentn' => [
+            'referral_code' => 'referral_code',
+            'referrer_code' => 'referrer_code',
+            'total_referrals' => 'total_referrals',
+            'successful_referrals' => 'successful_referrals',
+            'rewards_earned' => 'rewards_earned',
+            'current_points' => 'current_points',
+            'reward_title' => 'reward_title',
+            'reward_description' => 'reward_description',
+            'reward_warning' => 'reward_warning',
+            'company_name' => 'company_name'
+        ],
+        'activecampaign' => [
+            'referral_code' => 'referral_code',
+            'referrer_code' => 'referrer_code',
+            'total_referrals' => 'total_referrals',
+            'successful_referrals' => 'successful_referrals',
+            'rewards_earned' => 'rewards_earned',
+            'current_points' => 'current_points',
+            'reward_title' => 'reward_title',
+            'reward_description' => 'reward_description',
+            'reward_warning' => 'reward_warning',
+            'company_name' => 'company_name'
+        ],
+        'klicktipp' => [
+            'referral_code' => 'referral_code',
+            'referrer_code' => 'referrer_code',
+            'total_referrals' => 'total_referrals',
+            'successful_referrals' => 'successful_referrals',
+            'rewards_earned' => 'rewards_earned',
+            'current_points' => 'current_points',
+            'reward_title' => 'reward_title',
+            'reward_description' => 'reward_description',
+            'reward_warning' => 'reward_warning',
+            'company_name' => 'company_name'
+        ],
+        'brevo' => [
+            'referral_code' => 'REFERRAL_CODE',
+            'referrer_code' => 'REFERRER_CODE',
+            'total_referrals' => 'TOTAL_REFERRALS',
+            'successful_referrals' => 'SUCCESSFUL_REFERRALS',
+            'rewards_earned' => 'REWARDS_EARNED',
+            'current_points' => 'CURRENT_POINTS',
+            'reward_title' => 'REWARD_TITLE',
+            'reward_description' => 'REWARD_DESCRIPTION',
+            'reward_warning' => 'REWARD_WARNING',
+            'company_name' => 'COMPANY_NAME'
+        ],
+        'getresponse' => [
+            'referral_code' => 'referral_code',
+            'referrer_code' => 'referrer_code',
+            'total_referrals' => 'total_referrals',
+            'successful_referrals' => 'successful_referrals',
+            'rewards_earned' => 'rewards_earned',
+            'current_points' => 'current_points',
+            'reward_title' => 'reward_title',
+            'reward_description' => 'reward_description',
+            'reward_warning' => 'reward_warning',
+            'company_name' => 'company_name'
+        ]
+    ];
+    
     public function __construct() {
         $this->pdo = getDBConnection();
     }
     
     /**
-     * Sendet Belohnungs-Email an Lead über Customer's Email-API
+     * HAUPT-FUNKTION: Sendet Belohnungs-Benachrichtigung
      * 
-     * @param int $customerId Customer-ID
-     * @param int $leadId Lead-ID
+     * @param int $customerId Customer-ID (Freebie-Owner)
+     * @param int $leadId Lead-ID (Empfänger)
      * @param int $rewardId Reward-Definition-ID
-     * @return array ['success' => bool, 'message' => string, 'delivery_method' => string]
+     * @return array ['success' => bool, 'message' => string, 'method' => string]
      */
     public function sendRewardEmail($customerId, $leadId, $rewardId) {
         try {
             // 1. Lead-Daten laden
             $lead = $this->getLeadData($leadId);
             if (!$lead) {
-                return ['success' => false, 'message' => 'Lead nicht gefunden'];
+                return ['success' => false, 'message' => 'Lead nicht gefunden', 'method' => 'none'];
             }
             
             // 2. Reward-Daten laden
             $reward = $this->getRewardData($rewardId);
             if (!$reward) {
-                return ['success' => false, 'message' => 'Belohnung nicht gefunden'];
+                return ['success' => false, 'message' => 'Belohnung nicht gefunden', 'method' => 'none'];
             }
             
             // 3. Email-API-Konfiguration laden
             $apiConfig = $this->getEmailApiConfig($customerId);
+            
             if (!$apiConfig) {
-                return [
-                    'success' => false, 
-                    'message' => 'Keine Email-API konfiguriert. Bitte Email-Integration unter Empfehlungsprogramm einrichten.'
-                ];
+                error_log("⚠️ Keine API-Konfiguration für Customer $customerId - verwende Fallback-Email");
+                // Fallback: System-Email versenden
+                return $this->sendFallbackEmail($lead, $reward);
             }
             
-            // 4. Prüfen ob Provider Direct Email unterstützt
-            if ($this->supportsDirectEmail($apiConfig['provider'])) {
-                // Email direkt versenden
-                return $this->sendViaEmailProvider($lead, $reward, $apiConfig);
+            error_log("📧 Starte Belohnungs-Benachrichtigung via {$apiConfig['provider']} für Lead: {$lead['email']}");
+            
+            // 4. Custom Fields IMMER aktualisieren (egal welcher Provider)
+            $fieldsUpdated = $this->updateCustomFieldsForProvider($lead, $reward, $apiConfig);
+            
+            if (!$fieldsUpdated['success']) {
+                error_log("⚠️ Custom Fields Update fehlgeschlagen: " . $fieldsUpdated['message']);
             } else {
-                // Tag hinzufügen für Kampagnen-Trigger
-                return $this->triggerViaTag($lead, $reward, $apiConfig);
+                error_log("✅ Custom Fields erfolgreich aktualisiert");
             }
+            
+            // 5. Tag hinzufügen (triggert Automation/Kampagne)
+            if (!empty($apiConfig['start_tag'])) {
+                $tagResult = $this->addTagToLead($lead['email'], $apiConfig);
+                
+                if ($tagResult['success']) {
+                    error_log("✅ Tag '{$apiConfig['start_tag']}' erfolgreich hinzugefügt");
+                    return [
+                        'success' => true,
+                        'message' => "Belohnung erfolgreich über {$apiConfig['provider']} benachrichtigt (Tag: {$apiConfig['start_tag']})",
+                        'method' => 'tag_trigger',
+                        'provider' => $apiConfig['provider'],
+                        'tag' => $apiConfig['start_tag'],
+                        'fields_updated' => $fieldsUpdated['success']
+                    ];
+                } else {
+                    error_log("⚠️ Tag konnte nicht hinzugefügt werden: " . $tagResult['message']);
+                }
+            }
+            
+            // 6. Wenn Tag-Trigger nicht möglich/konfiguriert: Direkter Email-Versand
+            if ($this->supportsDirectEmail($apiConfig['provider'])) {
+                return $this->sendViaEmailProvider($lead, $reward, $apiConfig);
+            }
+            
+            // 7. Fallback wenn nichts anderes funktioniert
+            return [
+                'success' => $fieldsUpdated['success'],
+                'message' => $fieldsUpdated['success'] 
+                    ? 'Custom Fields aktualisiert (kein Tag konfiguriert)' 
+                    : 'Benachrichtigung fehlgeschlagen',
+                'method' => 'fields_only',
+                'provider' => $apiConfig['provider']
+            ];
             
         } catch (Exception $e) {
-            error_log("RewardEmailDelivery Error: " . $e->getMessage());
+            error_log("❌ RewardEmailDelivery Error: " . $e->getMessage());
             return [
                 'success' => false, 
-                'message' => 'Fehler beim Email-Versand: ' . $e->getMessage()
+                'message' => 'Fehler beim Email-Versand: ' . $e->getMessage(),
+                'method' => 'error'
             ];
         }
     }
     
     /**
-     * Lädt Lead-Daten mit Empfehlungsstatistiken
+     * Aktualisiert Custom Fields beim Provider
+     * Diese Funktion ist PROVIDER-UNABHÄNGIG und funktioniert für ALLE
+     */
+    private function updateCustomFieldsForProvider($lead, $reward, $apiConfig) {
+        try {
+            $provider = $apiConfig['provider'];
+            $fields = $this->fieldMappings[$provider] ?? $this->fieldMappings['quentn'];
+            
+            // Kundeninfo laden
+            $stmt = $this->pdo->prepare("SELECT company_name FROM users WHERE id = ?");
+            $stmt->execute([$lead['user_id']]);
+            $customer = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            // Daten für Custom Fields vorbereiten
+            $customFieldsData = [
+                $fields['total_referrals'] => $lead['total_referrals'] ?? 0,
+                $fields['successful_referrals'] => $lead['successful_referrals'] ?? 0,
+                $fields['rewards_earned'] => ($lead['rewards_earned'] ?? 0) + 1,
+                $fields['current_points'] => $lead['successful_referrals'] ?? 0,
+                $fields['reward_title'] => $this->truncate($reward['reward_title'] ?? '', 255),
+                $fields['reward_description'] => $this->truncate($reward['reward_description'] ?? '', 500),
+                $fields['reward_warning'] => $this->truncate($reward['reward_warning'] ?? '', 500),
+                $fields['company_name'] => $customer['company_name'] ?? 'Mehr Infos Jetzt'
+            ];
+            
+            // Provider-spezifisches Update
+            return $this->executeProviderFieldsUpdate($lead['email'], $customFieldsData, $apiConfig);
+            
+        } catch (Exception $e) {
+            error_log("Custom Fields Update Error: " . $e->getMessage());
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+    
+    /**
+     * Führt das eigentliche Custom Fields Update durch - provider-spezifisch
+     */
+    private function executeProviderFieldsUpdate($email, $fieldsData, $apiConfig) {
+        switch (strtolower($apiConfig['provider'])) {
+            case 'quentn':
+                return $this->updateQuentnFields($email, $fieldsData, $apiConfig);
+            
+            case 'activecampaign':
+                return $this->updateActiveCampaignFields($email, $fieldsData, $apiConfig);
+            
+            case 'klicktipp':
+            case 'klick-tipp':
+                return $this->updateKlickTippFields($email, $fieldsData, $apiConfig);
+            
+            case 'brevo':
+            case 'sendinblue':
+                return $this->updateBrevoFields($email, $fieldsData, $apiConfig);
+            
+            case 'getresponse':
+                return $this->updateGetResponseFields($email, $fieldsData, $apiConfig);
+            
+            default:
+                return ['success' => false, 'message' => 'Unbekannter Provider'];
+        }
+    }
+    
+    /**
+     * QUENTN: Custom Fields Update
+     */
+    private function updateQuentnFields($email, $fieldsData, $apiConfig) {
+        try {
+            $provider = EmailProviderFactory::create($apiConfig['provider'], $apiConfig['api_key'], [
+                'api_url' => $apiConfig['api_url']
+            ]);
+            
+            $contact = $provider->getContactStatus($email);
+            if (!$contact['exists']) {
+                return ['success' => false, 'message' => 'Kontakt nicht in Quentn gefunden'];
+            }
+            
+            $baseUrl = rtrim($apiConfig['api_url'], '/');
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $baseUrl . '/contact/' . $contact['contact_id']);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+                'contact' => ['fields' => $fieldsData]
+            ]));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Authorization: Bearer ' . $apiConfig['api_key'],
+                'Content-Type: application/json'
+            ]);
+            
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            
+            return [
+                'success' => $httpCode >= 200 && $httpCode < 300,
+                'message' => ($httpCode >= 200 && $httpCode < 300) ? 'Quentn Fields aktualisiert' : "HTTP $httpCode"
+            ];
+            
+        } catch (Exception $e) {
+            return ['success' => false, 'message' => 'Quentn Error: ' . $e->getMessage()];
+        }
+    }
+    
+    /**
+     * ACTIVECAMPAIGN: Custom Fields Update
+     */
+    private function updateActiveCampaignFields($email, $fieldsData, $apiConfig) {
+        try {
+            $provider = EmailProviderFactory::create($apiConfig['provider'], $apiConfig['api_key'], [
+                'api_url' => $apiConfig['api_url']
+            ]);
+            
+            $contact = $provider->getContactStatus($email);
+            if (!$contact['exists']) {
+                return ['success' => false, 'message' => 'Kontakt nicht gefunden'];
+            }
+            
+            $baseUrl = rtrim($apiConfig['api_url'], '/');
+            
+            // Field Values für ActiveCampaign
+            $fieldValues = [];
+            foreach ($fieldsData as $key => $value) {
+                $fieldValues[] = ['field' => $key, 'value' => $value];
+            }
+            
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $baseUrl . '/api/3/contacts/' . $contact['contact_id']);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+                'contact' => ['fieldValues' => $fieldValues]
+            ]));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Api-Token: ' . $apiConfig['api_key'],
+                'Content-Type: application/json'
+            ]);
+            
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            
+            return [
+                'success' => $httpCode >= 200 && $httpCode < 300,
+                'message' => ($httpCode >= 200 && $httpCode < 300) ? 'ActiveCampaign Fields aktualisiert' : "HTTP $httpCode"
+            ];
+            
+        } catch (Exception $e) {
+            return ['success' => false, 'message' => 'ActiveCampaign Error: ' . $e->getMessage()];
+        }
+    }
+    
+    /**
+     * KLICK-TIPP: Custom Fields Update
+     */
+    private function updateKlickTippFields($email, $fieldsData, $apiConfig) {
+        try {
+            $connector = new XmlRpcConnector('https://api.klick-tipp.com');
+            $sessionId = $connector->login($apiConfig['username'], $apiConfig['api_key']);
+            
+            if (!$sessionId) {
+                return ['success' => false, 'message' => 'Login fehlgeschlagen'];
+            }
+            
+            // Klick-Tipp: Fields mit 'field' Prefix
+            $fields = [];
+            foreach ($fieldsData as $key => $value) {
+                $fields['field' . ucfirst($key)] = $value;
+            }
+            
+            $connector->update($sessionId, $email, $fields);
+            
+            return ['success' => true, 'message' => 'Klick-Tipp Fields aktualisiert'];
+            
+        } catch (Exception $e) {
+            return ['success' => false, 'message' => 'Klick-Tipp Error: ' . $e->getMessage()];
+        }
+    }
+    
+    /**
+     * BREVO: Custom Fields Update
+     */
+    private function updateBrevoFields($email, $fieldsData, $apiConfig) {
+        try {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, 'https://api.brevo.com/v3/contacts/' . urlencode($email));
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+                'attributes' => $fieldsData
+            ]));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'api-key: ' . $apiConfig['api_key'],
+                'Content-Type: application/json'
+            ]);
+            
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            
+            return [
+                'success' => $httpCode >= 200 && $httpCode < 300,
+                'message' => ($httpCode >= 200 && $httpCode < 300) ? 'Brevo Attributes aktualisiert' : "HTTP $httpCode"
+            ];
+            
+        } catch (Exception $e) {
+            return ['success' => false, 'message' => 'Brevo Error: ' . $e->getMessage()];
+        }
+    }
+    
+    /**
+     * GETRESPONSE: Custom Fields Update
+     */
+    private function updateGetResponseFields($email, $fieldsData, $apiConfig) {
+        try {
+            $provider = EmailProviderFactory::create($apiConfig['provider'], $apiConfig['api_key']);
+            $contact = $provider->getContactStatus($email);
+            
+            if (!$contact['exists']) {
+                return ['success' => false, 'message' => 'Kontakt nicht gefunden'];
+            }
+            
+            // GetResponse: Custom Field Values
+            $customFieldValues = [];
+            foreach ($fieldsData as $key => $value) {
+                $customFieldValues[] = [
+                    'customFieldId' => $key,
+                    'value' => [$value]
+                ];
+            }
+            
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, 'https://api.getresponse.com/v3/contacts/' . $contact['contact_id']);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+                'customFieldValues' => $customFieldValues
+            ]));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'X-Auth-Token: api-key ' . $apiConfig['api_key'],
+                'Content-Type: application/json'
+            ]);
+            
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            
+            return [
+                'success' => $httpCode >= 200 && $httpCode < 300,
+                'message' => ($httpCode >= 200 && $httpCode < 300) ? 'GetResponse Fields aktualisiert' : "HTTP $httpCode"
+            ];
+            
+        } catch (Exception $e) {
+            return ['success' => false, 'message' => 'GetResponse Error: ' . $e->getMessage()];
+        }
+    }
+    
+    /**
+     * Fügt Tag zum Lead hinzu (triggert Automation)
+     */
+    private function addTagToLead($email, $apiConfig) {
+        try {
+            $provider = EmailProviderFactory::create(
+                $apiConfig['provider'],
+                $apiConfig['api_key'],
+                [
+                    'api_url' => $apiConfig['api_url'] ?? '',
+                    'username' => $apiConfig['username'] ?? ''
+                ]
+            );
+            
+            return $provider->addTag($email, $apiConfig['start_tag']);
+            
+        } catch (Exception $e) {
+            return ['success' => false, 'message' => 'Tag Error: ' . $e->getMessage()];
+        }
+    }
+    
+    /**
+     * Fallback: System-Email versenden wenn kein Provider konfiguriert
+     */
+    private function sendFallbackEmail($lead, $reward) {
+        $subject = "🎁 Glückwunsch! Du hast eine Belohnung freigeschaltet";
+        $message = $this->getEmailBody($lead, $reward);
+        $headers = "MIME-Version: 1.0\r\n";
+        $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+        $headers .= "From: " . ($lead['company_name'] ?? 'Mehr Infos Jetzt') . " <noreply@mehr-infos-jetzt.de>\r\n";
+        
+        $sent = mail($lead['email'], $subject, $message, $headers);
+        
+        return [
+            'success' => $sent,
+            'message' => $sent ? 'Fallback-Email versendet' : 'Email-Versand fehlgeschlagen',
+            'method' => 'fallback_email'
+        ];
+    }
+    
+    /**
+     * Lädt Lead-Daten
      */
     private function getLeadData($leadId) {
         $stmt = $this->pdo->prepare("
-            SELECT 
-                lu.*,
-                u.company_name,
-                u.company_email
+            SELECT lu.*, u.company_name, u.company_email
             FROM lead_users lu
             LEFT JOIN users u ON lu.user_id = u.id
             WHERE lu.id = ?
@@ -92,16 +495,13 @@ class RewardEmailDeliveryService {
      * Lädt Reward-Definition
      */
     private function getRewardData($rewardId) {
-        $stmt = $this->pdo->prepare("
-            SELECT * FROM reward_definitions 
-            WHERE id = ? AND is_active = 1
-        ");
+        $stmt = $this->pdo->prepare("SELECT * FROM reward_definitions WHERE id = ? AND is_active = 1");
         $stmt->execute([$rewardId]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
     
     /**
-     * Lädt Email-API-Konfiguration des Customers
+     * Lädt Email-API-Konfiguration
      */
     private function getEmailApiConfig($customerId) {
         $stmt = $this->pdo->prepare("
@@ -117,178 +517,36 @@ class RewardEmailDeliveryService {
      * Prüft ob Provider direkte Email unterstützt
      */
     private function supportsDirectEmail($provider) {
-        $directEmailProviders = ['brevo', 'sendinblue', 'getresponse'];
-        return in_array(strtolower($provider), $directEmailProviders);
+        return in_array(strtolower($provider), ['brevo', 'sendinblue']);
     }
     
     /**
-     * Versendet Email direkt über Provider (Brevo, GetResponse)
+     * Versendet Email direkt über Provider (nur Brevo)
      */
     private function sendViaEmailProvider($lead, $reward, $apiConfig) {
         try {
-            // Provider initialisieren
-            $config = [
-                'api_url' => $apiConfig['api_url'] ?? null,
-                'account_url' => $apiConfig['api_url'] ?? null,
-                'sender_email' => $lead['company_email'] ?? 'noreply@mehr-infos-jetzt.de',
-                'sender_name' => $lead['company_name'] ?? 'Belohnungsprogramm'
-            ];
-            
-            $provider = EmailProviderFactory::create(
-                $apiConfig['provider'],
-                $apiConfig['api_key'],
-                $config
-            );
-            
-            // Email-Betreff und Body vorbereiten
-            $subject = $this->getEmailSubject($reward);
+            $provider = EmailProviderFactory::create($apiConfig['provider'], $apiConfig['api_key']);
+            $subject = "🎁 Glückwunsch! Du hast eine Belohnung freigeschaltet";
             $body = $this->getEmailBody($lead, $reward);
             
-            // Email versenden
             $result = $provider->sendEmail($lead['email'], $subject, $body);
             
-            if ($result['success']) {
-                error_log("Reward Email erfolgreich über {$apiConfig['provider']} versendet: {$lead['email']} - {$reward['reward_title']}");
-                return [
-                    'success' => true,
-                    'message' => 'Email erfolgreich versendet',
-                    'delivery_method' => 'direct_email',
-                    'provider' => $apiConfig['provider']
-                ];
-            } else {
-                return [
-                    'success' => false,
-                    'message' => 'Email-Versand fehlgeschlagen: ' . $result['message']
-                ];
-            }
-            
-        } catch (Exception $e) {
-            error_log("Provider Email Error: " . $e->getMessage());
             return [
-                'success' => false,
-                'message' => 'Provider-Fehler: ' . $e->getMessage()
+                'success' => $result['success'],
+                'message' => $result['success'] ? 'Email direkt versendet' : $result['message'],
+                'method' => 'direct_email',
+                'provider' => $apiConfig['provider']
             ];
-        }
-    }
-    
-    /**
-     * Triggert Kampagne über Tag (Quentn, Klick-Tipp, ActiveCampaign)
-     */
-    private function triggerViaTag($lead, $reward, $apiConfig) {
-        try {
-            // Provider initialisieren
-            $config = [
-                'api_url' => $apiConfig['api_url'] ?? null,
-                'base_url' => $apiConfig['api_url'] ?? null,
-                'account_url' => $apiConfig['api_url'] ?? null
-            ];
-            
-            $provider = EmailProviderFactory::create(
-                $apiConfig['provider'],
-                $apiConfig['api_key'],
-                $config
-            );
-            
-            // Tag ermitteln: Erst reward_tag prüfen, dann api_settings reward_tag, dann fallback
-            $rewardTag = $this->getRewardTag($reward, $apiConfig);
-            
-            // Custom Fields aktualisieren (BEVOR Tag hinzugefügt wird!)
-            $this->updateLeadCustomFields($lead, $reward, $provider);
-            
-            // Tag hinzufügen
-            $result = $provider->addTag($lead['email'], $rewardTag);
-            
-            if ($result['success']) {
-                error_log("Reward Tag erfolgreich hinzugefügt bei {$apiConfig['provider']}: {$lead['email']} - Tag: {$rewardTag}");
-                return [
-                    'success' => true,
-                    'message' => "Tag '{$rewardTag}' erfolgreich hinzugefügt. Stelle sicher, dass in deinem {$apiConfig['provider']}-Account eine Kampagne für diesen Tag existiert.",
-                    'delivery_method' => 'tag_trigger',
-                    'provider' => $apiConfig['provider'],
-                    'tag' => $rewardTag
-                ];
-            } else {
-                return [
-                    'success' => false,
-                    'message' => 'Tag konnte nicht hinzugefügt werden: ' . $result['message']
-                ];
-            }
             
         } catch (Exception $e) {
-            error_log("Provider Tag Error: " . $e->getMessage());
-            return [
-                'success' => false,
-                'message' => 'Provider-Fehler: ' . $e->getMessage()
-            ];
+            return ['success' => false, 'message' => 'Provider Error: ' . $e->getMessage()];
         }
     }
     
     /**
-     * Ermittelt den Tag-Namen für die Belohnung
-     * Priority: 1. Reward-Definition, 2. API-Settings, 3. Default
-     */
-    private function getRewardTag($reward, $apiConfig) {
-        // 1. Prüfe ob reward_tag in reward_definitions existiert
-        if (!empty($reward['reward_tag'])) {
-            return $reward['reward_tag'];
-        }
-        
-        // 2. Prüfe ob reward_tag in api_settings existiert (global für alle Rewards)
-        if (!empty($apiConfig['reward_tag'])) {
-            return $apiConfig['reward_tag'];
-        }
-        
-        // 3. Fallback: Dynamischer Tag mit Tier-Level
-        return 'reward_' . $reward['tier_level'] . '_earned';
-    }
-    
-    /**
-     * Aktualisiert Custom Fields beim Lead (für alle Provider)
-     */
-    private function updateLeadCustomFields($lead, $reward, $provider) {
-        try {
-            // Custom Field Update nur für Provider die addContact unterstützen
-            $customFields = [
-                'successful_referrals' => $lead['successful_referrals'],
-                'total_referrals' => $lead['total_referrals'],
-                'referral_code' => $lead['referral_code'],
-                'rewards_earned' => $lead['rewards_earned'] ?? 0,
-                'last_reward' => $reward['reward_title'],
-                'reward_title' => $reward['reward_title'],
-                'reward_description' => $reward['reward_description'] ?? '',
-                'reward_value' => $reward['reward_value'] ?? '',
-                'reward_instructions' => $reward['reward_instructions'] ?? '',
-                'reward_download_url' => $reward['reward_download_url'] ?? '',
-                'current_points' => $lead['successful_referrals'] // Alias für successful_referrals
-            ];
-            
-            // Update via addContact (erstellt oder aktualisiert)
-            $provider->addContact([
-                'email' => $lead['email'],
-                'first_name' => $lead['name'],
-                'last_name' => ''
-            ], [
-                'custom_fields' => $customFields
-            ]);
-            
-        } catch (Exception $e) {
-            error_log("Custom Fields Update Error: " . $e->getMessage());
-            // Nicht kritisch, weiter machen
-        }
-    }
-    
-    /**
-     * Generiert Email-Betreff
-     */
-    private function getEmailSubject($reward) {
-        return "🎁 Glückwunsch! Du hast eine Belohnung freigeschaltet";
-    }
-    
-    /**
-     * Generiert Email-Body mit Platzhalter-Ersetzung
+     * Generiert Email-Body mit Platzhaltern
      */
     private function getEmailBody($lead, $reward) {
-        // Basis-Template (Customer muss in seinem Email-System ein besseres Template anlegen)
         $body = "
         <html>
         <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
@@ -325,13 +583,6 @@ class RewardEmailDeliveryService {
                         </p>
                     </div>
                     
-                    <div style='background: #f5f7fa; padding: 20px; border-radius: 8px; margin-top: 30px;'>
-                        <p style='margin: 0; font-size: 14px; color: #6b7280;'>
-                            <strong style='color: #374151;'>💡 Tipp:</strong> 
-                            Empfiehl weiter und schalte noch mehr Belohnungen frei!
-                        </p>
-                    </div>
-                    
                     <p style='color: #888; font-size: 14px; margin-top: 30px; text-align: center;'>
                         Viel Spaß mit deiner Belohnung! 🎁<br>
                         {{company_name}}
@@ -342,46 +593,38 @@ class RewardEmailDeliveryService {
         </html>
         ";
         
-        // Platzhalter ersetzen
         $replacements = [
             '{{name}}' => htmlspecialchars($lead['name'] ?? 'Lead'),
             '{{reward_title}}' => htmlspecialchars($reward['reward_title']),
             '{{reward_description}}' => htmlspecialchars($reward['reward_description'] ?? ''),
             '{{successful_referrals}}' => $lead['successful_referrals'] ?? 0,
-            '{{current_points}}' => $lead['successful_referrals'] ?? 0, // Points = successful_referrals
+            '{{current_points}}' => $lead['successful_referrals'] ?? 0,
             '{{referral_code}}' => htmlspecialchars($lead['referral_code'] ?? ''),
             '{{company_name}}' => htmlspecialchars($lead['company_name'] ?? 'Dein Team')
         ];
         
-        return str_replace(
-            array_keys($replacements),
-            array_values($replacements),
-            $body
-        );
+        return str_replace(array_keys($replacements), array_values($replacements), $body);
+    }
+    
+    /**
+     * Truncate Text
+     */
+    private function truncate($text, $maxLength) {
+        return (strlen($text) <= $maxLength) ? $text : substr($text, 0, $maxLength - 3) . '...';
     }
 }
 
-// Wenn als API-Endpoint aufgerufen
+// API Endpoint
 if (basename(__FILE__) == basename($_SERVER['SCRIPT_FILENAME'])) {
     header('Content-Type: application/json');
-    
-    // POST-Daten lesen
     $input = json_decode(file_get_contents('php://input'), true);
     
     if (!isset($input['customer_id']) || !isset($input['lead_id']) || !isset($input['reward_id'])) {
-        echo json_encode([
-            'success' => false,
-            'message' => 'customer_id, lead_id und reward_id sind erforderlich'
-        ]);
+        echo json_encode(['success' => false, 'message' => 'customer_id, lead_id und reward_id erforderlich']);
         exit;
     }
     
     $service = new RewardEmailDeliveryService();
-    $result = $service->sendRewardEmail(
-        $input['customer_id'],
-        $input['lead_id'],
-        $input['reward_id']
-    );
-    
+    $result = $service->sendRewardEmail($input['customer_id'], $input['lead_id'], $input['reward_id']);
     echo json_encode($result);
 }
