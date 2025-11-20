@@ -190,10 +190,10 @@ class RewardEmailDeliveryService {
                 $config
             );
             
-            // Reward-spezifischen Tag erstellen
-            $rewardTag = 'reward_' . $reward['tier_level'] . '_earned';
+            // Tag ermitteln: Erst reward_tag prüfen, dann api_settings reward_tag, dann fallback
+            $rewardTag = $this->getRewardTag($reward, $apiConfig);
             
-            // Custom Fields aktualisieren
+            // Custom Fields aktualisieren (BEVOR Tag hinzugefügt wird!)
             $this->updateLeadCustomFields($lead, $reward, $provider);
             
             // Tag hinzufügen
@@ -225,6 +225,25 @@ class RewardEmailDeliveryService {
     }
     
     /**
+     * Ermittelt den Tag-Namen für die Belohnung
+     * Priority: 1. Reward-Definition, 2. API-Settings, 3. Default
+     */
+    private function getRewardTag($reward, $apiConfig) {
+        // 1. Prüfe ob reward_tag in reward_definitions existiert
+        if (!empty($reward['reward_tag'])) {
+            return $reward['reward_tag'];
+        }
+        
+        // 2. Prüfe ob reward_tag in api_settings existiert (global für alle Rewards)
+        if (!empty($apiConfig['reward_tag'])) {
+            return $apiConfig['reward_tag'];
+        }
+        
+        // 3. Fallback: Dynamischer Tag mit Tier-Level
+        return 'reward_' . $reward['tier_level'] . '_earned';
+    }
+    
+    /**
      * Aktualisiert Custom Fields beim Lead (für alle Provider)
      */
     private function updateLeadCustomFields($lead, $reward, $provider) {
@@ -235,7 +254,11 @@ class RewardEmailDeliveryService {
                 'total_referrals' => $lead['total_referrals'],
                 'referral_code' => $lead['referral_code'],
                 'rewards_earned' => $lead['rewards_earned'] ?? 0,
-                'last_reward' => $reward['reward_title']
+                'last_reward' => $reward['reward_title'],
+                'reward_title' => $reward['reward_title'],
+                'reward_description' => $reward['reward_description'] ?? '',
+                'reward_warning' => $reward['reward_warning'] ?? '',
+                'current_points' => $lead['successful_referrals'] // Alias für successful_referrals
             ];
             
             // Update via addContact (erstellt oder aktualisiert)
