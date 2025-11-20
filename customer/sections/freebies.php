@@ -299,7 +299,7 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
     color: white;
 }
 
-/* Unlock Status Punkt */
+/* 🔴 Unlock Status Punkt - KLEINE RUNDE PUNKTE rechts unten im Mockup */
 .unlock-status-dot {
     position: absolute;
     bottom: 12px;
@@ -318,15 +318,15 @@ $customFreebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
     opacity: 1;
 }
 
-.status-unlocked {
+.unlock-status-dot.status-unlocked {
     background: #22c55e;
 }
 
-.status-locked {
+.unlock-status-dot.status-locked {
     background: #ef4444;
 }
 
-.status-no-course {
+.unlock-status-dot.status-no-course {
     display: none;
 }
 
@@ -809,12 +809,9 @@ async function deleteFreebie(freebieId) {
     }
 }
 
-// ✅ NEUE FUNKTIONIERENDE API VERWENDEN!
+// ✅ KRITISCHER FIX: querySelector muss spezifisch nur den DOT finden, nicht die Karte!
 async function loadUnlockStatus() {
     try {
-        console.log('🔄 Lade Unlock Status...');
-        
-        // ✅ WICHTIG: Die NEUE API die funktioniert!
         const response = await fetch('/customer/api/template-unlock-status.php');
         
         if (!response.ok) {
@@ -823,51 +820,43 @@ async function loadUnlockStatus() {
         }
         
         const data = await response.json();
-        console.log('✅ API Response:', data);
         
         if (!data.success) {
             console.error('❌ API Response Fehler:', data);
             return;
         }
         
-        console.log(`✅ ${data.total_templates} Templates geladen, ${data.unlocked_count} freigeschaltet`);
-        
         // Status für jedes Template setzen
         for (const [key, status] of Object.entries(data.statuses)) {
             if (key.startsWith('template_')) {
                 const templateId = key.replace('template_', '');
-                const dot = document.querySelector(`[data-template-id="${templateId}"]`);
-                const card = dot?.closest('.freebie-card');
-                const useButton = card?.querySelector('.btn-use-template[data-template-id="' + templateId + '"]');
+                
+                // ✅ KRITISCH: Nur den DOT finden, nicht die Karte!
+                const dot = document.querySelector(`.unlock-status-dot[data-template-id="${templateId}"]`);
                 
                 if (dot) {
-                    // CSS-Klassen setzen
+                    // CSS-Klassen auf dem PUNKT setzen
                     dot.classList.remove('status-unlocked', 'status-locked', 'status-no-course');
                     
                     if (status.unlock_status === 'unlocked') {
                         dot.classList.add('status-unlocked');
                         dot.title = '✓ Freigeschaltet';
-                        console.log(`🟢 Template ${templateId}: UNLOCKED`);
                     } else if (status.unlock_status === 'locked') {
                         dot.classList.add('status-locked');
                         dot.title = '🔒 Gesperrt - Produkt kaufen';
-                        console.log(`🔴 Template ${templateId}: LOCKED`);
                         
                         // Button sperren
+                        const card = dot.closest('.freebie-card');
+                        const useButton = card?.querySelector('.btn-use-template[data-template-id="' + templateId + '"]');
+                        
                         if (useButton && !card.hasAttribute('data-freebie-id')) {
                             useButton.classList.add('locked');
                             useButton.style.pointerEvents = 'none';
                             useButton.innerHTML = '🔒 Gesperrt';
                             useButton.title = 'Dieses Template ist gesperrt. Kaufe das zugehörige Produkt um Zugriff zu erhalten.';
-                            useButton.onclick = (e) => {
-                                e.preventDefault();
-                                alert('🔒 Dieses Template ist gesperrt.\n\nBitte kaufe das zugehörige Produkt um es freizuschalten.');
-                                return false;
-                            };
                         }
                     } else if (status.unlock_status === 'no_course') {
                         dot.classList.add('status-no-course');
-                        console.log(`⚪ Template ${templateId}: NO COURSE`);
                     }
                     
                     // Punkt sichtbar machen
@@ -875,8 +864,6 @@ async function loadUnlockStatus() {
                 }
             }
         }
-        
-        console.log('✅ Unlock Status erfolgreich geladen!');
         
     } catch (error) {
         console.error('❌ JavaScript Fehler beim Laden des Unlock-Status:', error);
@@ -892,7 +879,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const allFreebieCards = document.querySelectorAll('.freebie-card');
     
     // ✅ Unlock Status laden
-    console.log('📋 DOM geladen, starte Unlock Status...');
     loadUnlockStatus();
     
     window.performFreebieSearch = function() {
