@@ -2,6 +2,7 @@
 session_start();
 require_once '../config/database.php';
 require_once '../includes/quentn_helpers.php';
+require_once '../includes/av_contract_helpers.php';
 
 $success = false;
 $error = '';
@@ -33,38 +34,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($stmt->fetch()) {
                 $error = 'Diese E-Mail-Adresse ist bereits registriert.';
             } else {
-                // Registriere neuen Benutzer
-                $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-                $name = $vorname . ' ' . $nachname;
+                // Starte Transaktion für atomare Operation
+                $pdo->beginTransaction();
                 
-                $stmt = $pdo->prepare("
-                    INSERT INTO users (name, email, password, role, created_at) 
-                    VALUES (?, ?, ?, 'customer', NOW())
-                ");
-                $stmt->execute([$name, $email, $hashed_password]);
-                
-                $user_id = $pdo->lastInsertId();
-                
-                // QUENTN INTEGRATION: Kontakt zu Quentn senden mit Tags
-                quentnCreateContact(
-                    $email,
-                    $vorname,
-                    $nachname,
-                    ['registration', 'customer', 'Kunde-OptinPilot']
-                );
-                
-                // Auto-Login nach Registrierung
-                $_SESSION['user_id'] = $user_id;
-                $_SESSION['name'] = $name;
-                $_SESSION['email'] = $email;
-                $_SESSION['role'] = 'customer';
-                $_SESSION['logged_in'] = true;
-                
-                // Weiterleitung zum Dashboard
-                header('Location: /customer/dashboard.php');
-                exit;
+                try {
+                    // Registriere neuen Benutzer
+                    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+                    $name = $vorname . ' ' . $nachname;
+                    
+                    $stmt = $pdo->prepare("
+                        INSERT INTO users (name, email, password, role, created_at) 
+                        VALUES (?, ?, ?, 'customer', NOW())
+                    ");
+                    $stmt->execute([$name, $email, $hashed_password]);
+                    
+                    $user_id = $pdo->lastInsertId();
+                    
+                    // ✅ SPEICHERE AV-VERTRAGS-ZUSTIMMUNG (DSGVO-konform)
+                    $av_saved = saveAvContractAcceptance($pdo, $user_id, 'registration', '1.0');
+                    
+                    if (!$av_saved) {
+                        throw new Exception('Fehler beim Speichern der AV-Vertrags-Zustimmung');
+                    }
+                    
+                    // Commit Transaktion
+                    $pdo->commit();
+                    
+                    // QUENTN INTEGRATION: Kontakt zu Quentn senden mit Tags
+                    quentnCreateContact(
+                        $email,
+                        $vorname,
+                        $nachname,
+                        ['registration', 'customer', 'Kunde-OptinPilot']
+                    );
+                    
+                    // Auto-Login nach Registrierung
+                    $_SESSION['user_id'] = $user_id;
+                    $_SESSION['name'] = $name;
+                    $_SESSION['email'] = $email;
+                    $_SESSION['role'] = 'customer';
+                    $_SESSION['logged_in'] = true;
+                    
+                    // Log erfolgreiche Registrierung mit AV-Zustimmung
+                    error_log("Neue Registrierung mit AV-Zustimmung - User ID: {$user_id}, Email: {$email}");
+                    
+                    // Weiterleitung zum Dashboard
+                    header('Location: /customer/dashboard.php');
+                    exit;
+                    
+                } catch (Exception $e) {
+                    // Rollback bei Fehler
+                    $pdo->rollBack();
+                    throw $e;
+                }
             }
         } catch (PDOException $e) {
+            $error = 'Registrierung fehlgeschlagen. Bitte versuche es später erneut.';
+            error_log("Registration error: " . $e->getMessage());
+        } catch (Exception $e) {
             $error = 'Registrierung fehlgeschlagen. Bitte versuche es später erneut.';
             error_log("Registration error: " . $e->getMessage());
         }
