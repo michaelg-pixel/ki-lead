@@ -5,10 +5,12 @@
  * UNTERSTÜTZT: customer_freebies UND freebies (Templates)
  * MULTI-FREEBIE: Lead kann Zugang zu mehreren Freebies haben
  * 🆕 AUTOMATISCHES REFERRAL TRACKING: Referral Code wird aus URL, Session oder Cookie gelesen
+ * 🚀 API-INTEGRATION: Lead-Daten werden automatisch an Kunden-API übertragen
  */
 
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/freebie/track-referral.php'; // 🆕 Tracking Helper
+require_once __DIR__ . '/customer/includes/EmailProviders.php'; // 🚀 API Provider
 
 // Session nur starten wenn nicht bereits aktiv
 if (session_status() === PHP_SESSION_NONE) {
@@ -72,6 +74,166 @@ try {
     $legal_texts = $stmt->fetch(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     error_log("Fehler beim Laden der Rechtstexte: " . $e->getMessage());
+}
+
+/**
+ * 🚀 FUNKTION: Lead-Daten an Kunden-API senden
+ */
+function sendLeadToCustomerAPI($pdo, $leadId, $customerId) {
+    try {
+        // API-Einstellungen des Kunden laden
+        $stmt = $pdo->prepare("
+            SELECT * FROM customer_email_api_settings 
+            WHERE customer_id = ? AND is_active = TRUE
+            LIMIT 1
+        ");
+        $stmt->execute([$customerId]);
+        $apiSettings = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$apiSettings) {
+            error_log("ℹ️ Keine API-Konfiguration für Customer #{$customerId} - Lead wird nicht übertragen");
+            return false;
+        }
+        
+        // Lead-Daten laden
+        $stmt = $pdo->prepare("
+            SELECT * FROM lead_users WHERE id = ?
+        ");
+        $stmt->execute([$leadId]);
+        $lead = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$lead) {
+            error_log("❌ Lead #{$leadId} nicht gefunden");
+            return false;
+        }
+        
+        // Company Name für Custom Fields
+        $stmt = $pdo->prepare("SELECT company_name FROM users WHERE id = ?");
+        $stmt->execute([$customerId]);
+        $customer = $stmt->fetch(PDO::FETCH_ASSOC);
+        $companyName = $customer['company_name'] ?? '';
+        
+        // Referrer Code ermitteln (falls vorhanden)
+        $referrerCode = '';
+        if (!empty($lead['referrer_id'])) {
+            $stmt = $pdo->prepare("SELECT referral_code FROM lead_users WHERE id = ?");
+            $stmt->execute([$lead['referrer_id']]);
+            $referrer = $stmt->fetch(PDO::FETCH_ASSOC);
+            $referrerCode = $referrer['referral_code'] ?? '';
+        }
+        
+        // Provider instanziieren
+        $config = [
+            'api_url' => $apiSettings['api_url'] ?? '',
+            'base_url' => $apiSettings['api_url'] ?? '',
+            'username' => $apiSettings['username'] ?? '',
+            'list_id' => $apiSettings['list_id'] ?? '',
+            'campaign_id' => $apiSettings['campaign_id'] ?? ''
+        ];
+        
+        $provider = EmailProviderFactory::create(
+            $apiSettings['provider'],
+            $apiSettings['api_key'],
+            $config
+        );
+        
+        // Lead-Daten vorbereiten
+        $leadData = [
+            'email' => $lead['email'],
+            'first_name' => $lead['name'] ?? 'Lead',
+            'last_name' => ''
+        ];
+        
+        // 🆕 CUSTOM FIELDS für Autoresponder
+        $customFields = [
+            'referral_code' => $lead['referral_code'] ?? '',
+            'referrer_code' => $referrerCode,
+            'total_referrals' => intval($lead['total_referrals'] ?? 0),
+            'successful_referrals' => intval($lead['successful_referrals'] ?? 0),
+            'rewards_earned' => intval($lead['rewards_earned'] ?? 0),
+            'current_points' => intval($lead['successful_referrals'] ?? 0),
+            'company_name' => $companyName
+        ];
+        
+        // Provider-spezifisches Custom Field Mapping
+        switch (strtolower($apiSettings['provider'])) {
+            case 'quentn':
+                // Quentn: Custom Fields direkt hinzufügen
+                $leadData = array_merge($leadData, $customFields);
+                break;
+                
+            case 'activecampaign':
+                // ActiveCampaign: fieldValues array
+                $leadData['fieldValues'] = [];
+                foreach ($customFields as $key => $value) {
+                    $leadData['fieldValues'][] = [
+                        'field' => strtoupper($key),
+                        'value' => $value
+                    ];
+                }
+                break;
+                
+            case 'klicktipp':
+            case 'klick-tipp':
+                // Klick-Tipp: fields array
+                $leadData['fields'] = $customFields;
+                break;
+                
+            case 'brevo':
+            case 'sendinblue':
+                // Brevo: attributes
+                $leadData['attributes'] = array_merge(
+                    [
+                        'FIRSTNAME' => $leadData['first_name'],
+                        'LASTNAME' => $leadData['last_name']
+                    ],
+                    array_change_key_case(array_map('strtoupper', array_flip($customFields)))
+                );
+                foreach ($customFields as $key => $value) {
+                    $leadData['attributes'][strtoupper($key)] = $value;
+                }
+                break;
+                
+            case 'getresponse':
+                // GetResponse: customFieldValues array
+                $leadData['customFieldValues'] = [];
+                foreach ($customFields as $key => $value) {
+                    $leadData['customFieldValues'][] = [
+                        'customFieldId' => $key,
+                        'value' => [$value]
+                    ];
+                }
+                break;
+        }
+        
+        // Tags vorbereiten
+        $options = [];
+        if (!empty($apiSettings['start_tag'])) {
+            $options['tags'] = $apiSettings['start_tag'];
+        }
+        if (!empty($apiSettings['list_id'])) {
+            $options['list_id'] = $apiSettings['list_id'];
+        }
+        if (!empty($apiSettings['campaign_id'])) {
+            $options['campaign_id'] = $apiSettings['campaign_id'];
+        }
+        
+        // Lead an API senden
+        $result = $provider->addContact($leadData, $options);
+        
+        if ($result['success']) {
+            error_log("✅ API SUCCESS: Lead {$lead['email']} erfolgreich an {$apiSettings['provider']} übertragen");
+            error_log("📊 Custom Fields: " . json_encode($customFields));
+            return true;
+        } else {
+            error_log("❌ API ERROR: Lead-Übertragung fehlgeschlagen - " . ($result['message'] ?? 'Unbekannter Fehler'));
+            return false;
+        }
+        
+    } catch (Exception $e) {
+        error_log("❌ API EXCEPTION: " . $e->getMessage());
+        return false;
+    }
 }
 
 // Form-Submit
@@ -170,9 +332,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
             $stmt->execute([$email, $customer_id]);
             $existing_lead = $stmt->fetch(PDO::FETCH_ASSOC);
             
+            $isNewLead = false;
+            
             if ($existing_lead) {
                 $lead_id = $existing_lead['id'];
+                error_log("ℹ️ Existierender Lead #{$lead_id} ({$email}) - kein API-Call");
             } else {
+                $isNewLead = true;
+                
                 // Neuen Lead erstellen
                 $referral_code = strtoupper(substr(md5($email . time()), 0, 8));
                 
@@ -208,6 +375,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                     $referrer_id
                 ]);
                 $lead_id = $pdo->lastInsertId();
+                
+                error_log("✅ NEUER LEAD ERSTELLT: #{$lead_id} ({$email}) - Referral Code: {$referral_code}");
                 
                 // 🆕 Referral-Eintrag erstellen + Counter erhöhen
                 if ($referrer_id) {
@@ -257,6 +426,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                         
                         error_log("✅ REFERRAL COUNTER ERHÖHT: Lead #{$referrer_id}");
                         
+                        // 🆕 REFERRER AN API UPDATEN (Counter synchronisieren)
+                        sendLeadToCustomerAPI($pdo, $referrer_id, $customer_id);
+                        
                     } catch (PDOException $e) {
                         error_log("❌ REFERRAL ERROR: " . $e->getMessage());
                     }
@@ -264,6 +436,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                 
                 // 🆕 Referral Code aus Session/Cookie löschen nach erfolgreicher Registrierung
                 clearReferralCode();
+                
+                // 🚀 API-CALL: Lead an Kunden-System übertragen
+                if ($isNewLead) {
+                    sendLeadToCustomerAPI($pdo, $lead_id, $customer_id);
+                }
             }
             
             // FREEBIE-ZUGANG GEWÄHREN (auch wenn Lead bereits existiert!)
