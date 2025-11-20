@@ -154,6 +154,10 @@ $page = $_GET['page'] ?? 'overview';
                 <span class="nav-icon">🎯</span>
                 <span>Angebote</span>
             </a>
+            <a href="/admin/av-contract-acceptances.php" class="nav-item">
+                <span class="nav-icon">🔒</span>
+                <span>AV-Zustimmungen</span>
+            </a>
             <?php /* AUSGEBLENDET: Digistore24 Menüpunkt - kann bei Bedarf wieder aktiviert werden
             <a href="?page=digistore" class="nav-item <?php echo $page === 'digistore' ? 'active' : ''; ?>">
                 <span class="nav-icon">🛒</span>
@@ -262,6 +266,40 @@ $page = $_GET['page'] ?? 'overview';
                         </div>
                         <div class="stat-value"><?php echo $stats['tutorials']; ?></div>
                         <div class="stat-label">Tutorials</div>
+                    </div>
+                </div>
+                
+                <!-- DSGVO / Compliance Section -->
+                <div class="section">
+                    <div class="section-header">
+                        <h3 class="section-title">🔒 DSGVO & Compliance</h3>
+                    </div>
+                    <div class="table-container">
+                        <div style="padding: 20px;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                                <a href="/admin/av-contract-acceptances.php" style="text-decoration: none; color: inherit;">
+                                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; transition: transform 0.2s;">
+                                        <div style="font-size: 32px; margin-bottom: 12px;">🔒</div>
+                                        <h4 style="font-size: 18px; margin-bottom: 8px;">AV-Vertrags-Zustimmungen</h4>
+                                        <p style="font-size: 14px; opacity: 0.9;">DSGVO-konforme Nachweispflicht gem. Art. 28 DSGVO</p>
+                                        <div style="margin-top: 12px; font-size: 12px; opacity: 0.8;">
+                                            Alle Zustimmungen anzeigen →
+                                        </div>
+                                    </div>
+                                </a>
+                                
+                                <a href="/migrations/migrate-av-contract.html" style="text-decoration: none; color: inherit;">
+                                    <div style="background: #f9fafb; border: 2px solid #e5e7eb; padding: 20px; border-radius: 12px; transition: all 0.2s;">
+                                        <div style="font-size: 32px; margin-bottom: 12px;">⚙️</div>
+                                        <h4 style="font-size: 18px; margin-bottom: 8px; color: #1f2937;">Migration durchführen</h4>
+                                        <p style="font-size: 14px; color: #6b7280;">Erstelle die Datenbanktabelle für AV-Zustimmungen</p>
+                                        <div style="margin-top: 12px; font-size: 12px; color: #8b5cf6;">
+                                            Zur Migration →
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
