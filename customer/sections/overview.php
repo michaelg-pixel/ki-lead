@@ -451,15 +451,15 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
                         0 10px 30px rgba(0, 0, 0, 0.3) !important;
         }
         
-        /* Laufschrift-Stile */
+        /* Laufschrift-Stile - ANGEPASST: Transparent, Button rechts, viel langsamer */
         .offer-banner {
             position: relative;
             overflow: hidden;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: transparent;
             border-radius: 16px;
             padding: 20px;
             margin-bottom: 32px;
-            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+            border: 1px solid rgba(102, 126, 234, 0.2);
         }
         
         .marquee-container {
@@ -469,7 +469,7 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
             height: 60px;
             display: flex;
             align-items: center;
-            margin-left: 16px;
+            margin-right: 16px;
         }
         
         .marquee-container::before,
@@ -477,7 +477,7 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
             content: '';
             position: absolute;
             top: 0;
-            width: 80px;
+            width: 100px;
             height: 100%;
             z-index: 10;
             pointer-events: none;
@@ -485,19 +485,19 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
         
         .marquee-container::before {
             left: 0;
-            background: linear-gradient(to right, rgba(102, 126, 234, 1), transparent);
+            background: linear-gradient(to right, rgba(15, 15, 30, 1) 0%, rgba(15, 15, 30, 0.8) 30%, transparent 100%);
         }
         
         .marquee-container::after {
             right: 0;
-            background: linear-gradient(to left, rgba(118, 75, 162, 1), transparent);
+            background: linear-gradient(to left, rgba(15, 15, 30, 1) 0%, rgba(15, 15, 30, 0.8) 30%, transparent 100%);
         }
         
         .marquee-content {
             display: flex;
             white-space: nowrap;
-            animation: marquee 25s linear infinite;
-            gap: 50px;
+            animation: marquee 50s linear infinite;
+            gap: 80px;
         }
         
         .marquee-content span {
@@ -523,7 +523,7 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
             }
             
             .marquee-container {
-                margin-left: 12px;
+                margin-right: 12px;
                 height: 50px;
             }
             
@@ -569,19 +569,10 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
             </div>
         </div>
         
-        <!-- ===== ANGEBOTS-LAUFSCHRIFT ===== -->
+        <!-- ===== ANGEBOTS-LAUFSCHRIFT - ANGEPASST: Button rechts, transparenter Hintergrund ===== -->
         <?php if ($active_offer): ?>
         <div class="offer-banner animate-fade-in-up" style="animation-delay: 0.1s;">
             <div class="flex items-center">
-                <a href="<?php echo htmlspecialchars($active_offer['button_link']); ?>" 
-                   target="_blank"
-                   rel="noopener noreferrer"
-                   class="cta-button flex-shrink-0 bg-white text-purple-600 px-6 py-3 rounded-xl font-bold hover:bg-purple-50 transition-all shadow-lg"
-                   data-track="offer-button">
-                    <i class="fas fa-gift mr-2"></i>
-                    <?php echo htmlspecialchars($active_offer['button_text']); ?>
-                </a>
-                
                 <div class="marquee-container">
                     <div class="marquee-content">
                         <span class="text-white font-semibold text-lg">
@@ -594,9 +585,20 @@ $tracking_available = !empty($activity_chart_data) || $total_page_views > 0;
                         </span>
                     </div>
                 </div>
+                
+                <a href="<?php echo htmlspecialchars($active_offer['button_link']); ?>" 
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="cta-button flex-shrink-0 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg"
+                   data-track="offer-button">
+                    <i class="fas fa-gift mr-2"></i>
+                    <?php echo htmlspecialchars($active_offer['button_text']); ?>
+                </a>
             </div>
         </div>
         <?php endif; ?>
+        
+        <!-- REST DER DATEI BLEIBT GLEICH - Statistiken, Charts, etc. -->
         
         <!-- ===== ECHTZEIT STATISTIKÜBERSICHT ===== -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
