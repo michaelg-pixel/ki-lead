@@ -20,7 +20,14 @@ class AddRewardTagField {
         echo "🔄 Migration START: reward_tag Felder hinzufügen\n";
         
         try {
-            // 1. reward_tag zu reward_definitions hinzufügen
+            // 1. Prüfe aktuelle Struktur von reward_definitions
+            echo "  ➜ Prüfe reward_definitions Struktur...\n";
+            $columns = $this->pdo->query("SHOW COLUMNS FROM reward_definitions")->fetchAll(PDO::FETCH_ASSOC);
+            $columnNames = array_column($columns, 'Field');
+            
+            echo "  ℹ️  Gefundene Spalten: " . implode(', ', $columnNames) . "\n";
+            
+            // 2. reward_tag zu reward_definitions hinzufügen
             echo "  ➜ Füge reward_tag zu reward_definitions hinzu...\n";
             
             $checkColumn = $this->pdo->query("
@@ -28,34 +35,51 @@ class AddRewardTagField {
             ");
             
             if ($checkColumn->rowCount() == 0) {
+                // Finde die letzte Spalte für AFTER clause
+                $lastColumn = end($columnNames);
+                
                 $this->pdo->exec("
                     ALTER TABLE reward_definitions
                     ADD COLUMN reward_tag VARCHAR(100) NULL 
                     COMMENT 'Optional: Benutzerdefinierter Tag für Kampagnen-Trigger (z.B. Optinpilot-Belohnung)'
-                    AFTER reward_warning
+                    AFTER {$lastColumn}
                 ");
-                echo "  ✅ reward_tag Feld zu reward_definitions hinzugefügt\n";
+                echo "  ✅ reward_tag Feld zu reward_definitions hinzugefügt (nach {$lastColumn})\n";
             } else {
                 echo "  ℹ️  reward_tag Feld existiert bereits in reward_definitions\n";
             }
             
-            // 2. reward_tag zu customer_email_api_settings hinzufügen (global für alle Rewards)
+            // 3. reward_tag zu customer_email_api_settings hinzufügen (global für alle Rewards)
             echo "  ➜ Füge reward_tag zu customer_email_api_settings hinzu...\n";
             
-            $checkColumn = $this->pdo->query("
-                SHOW COLUMNS FROM customer_email_api_settings LIKE 'reward_tag'
-            ");
+            // Prüfe zuerst ob Tabelle existiert
+            $checkTable = $this->pdo->query("SHOW TABLES LIKE 'customer_email_api_settings'");
             
-            if ($checkColumn->rowCount() == 0) {
-                $this->pdo->exec("
-                    ALTER TABLE customer_email_api_settings
-                    ADD COLUMN reward_tag VARCHAR(100) NULL 
-                    COMMENT 'Optional: Globaler Tag für alle Belohnungen (falls nicht in reward_definitions definiert)'
-                    AFTER api_url
-                ");
-                echo "  ✅ reward_tag Feld zu customer_email_api_settings hinzugefügt\n";
+            if ($checkTable->rowCount() == 0) {
+                echo "  ℹ️  Tabelle customer_email_api_settings existiert nicht - überspringe\n";
             } else {
-                echo "  ℹ️  reward_tag Feld existiert bereits in customer_email_api_settings\n";
+                $checkColumn = $this->pdo->query("
+                    SHOW COLUMNS FROM customer_email_api_settings LIKE 'reward_tag'
+                ");
+                
+                if ($checkColumn->rowCount() == 0) {
+                    // Finde die Spalte api_url oder eine andere gute Position
+                    $apiColumns = $this->pdo->query("SHOW COLUMNS FROM customer_email_api_settings")->fetchAll(PDO::FETCH_ASSOC);
+                    $apiColumnNames = array_column($apiColumns, 'Field');
+                    
+                    // Versuche nach api_url, sonst nach letzter Spalte
+                    $afterColumn = in_array('api_url', $apiColumnNames) ? 'api_url' : end($apiColumnNames);
+                    
+                    $this->pdo->exec("
+                        ALTER TABLE customer_email_api_settings
+                        ADD COLUMN reward_tag VARCHAR(100) NULL 
+                        COMMENT 'Optional: Globaler Tag für alle Belohnungen (falls nicht in reward_definitions definiert)'
+                        AFTER {$afterColumn}
+                    ");
+                    echo "  ✅ reward_tag Feld zu customer_email_api_settings hinzugefügt (nach {$afterColumn})\n";
+                } else {
+                    echo "  ℹ️  reward_tag Feld existiert bereits in customer_email_api_settings\n";
+                }
             }
             
             echo "✅ Migration ERFOLGREICH abgeschlossen\n";
@@ -89,16 +113,20 @@ class AddRewardTagField {
             }
             
             // reward_tag von customer_email_api_settings entfernen
-            $checkColumn = $this->pdo->query("
-                SHOW COLUMNS FROM customer_email_api_settings LIKE 'reward_tag'
-            ");
+            $checkTable = $this->pdo->query("SHOW TABLES LIKE 'customer_email_api_settings'");
             
-            if ($checkColumn->rowCount() > 0) {
-                $this->pdo->exec("
-                    ALTER TABLE customer_email_api_settings
-                    DROP COLUMN reward_tag
+            if ($checkTable->rowCount() > 0) {
+                $checkColumn = $this->pdo->query("
+                    SHOW COLUMNS FROM customer_email_api_settings LIKE 'reward_tag'
                 ");
-                echo "  ✅ reward_tag Feld von customer_email_api_settings entfernt\n";
+                
+                if ($checkColumn->rowCount() > 0) {
+                    $this->pdo->exec("
+                        ALTER TABLE customer_email_api_settings
+                        DROP COLUMN reward_tag
+                    ");
+                    echo "  ✅ reward_tag Feld von customer_email_api_settings entfernt\n";
+                }
             }
             
             echo "✅ Rollback ERFOLGREICH abgeschlossen\n";
