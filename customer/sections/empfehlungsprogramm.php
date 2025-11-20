@@ -3,6 +3,7 @@
  * Customer Dashboard - Empfehlungsprogramm Section
  * MIT INTEGRIERTER API-KONFIGURATION
  * Zeigt API-Setup wenn Empfehlungsprogramm aktiviert wird
+ * 🆕 PROVIDER-SPEZIFISCHE PLATZHALTER
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -159,6 +160,60 @@ try {
 $referralEnabled = $user['referral_enabled'] ?? 0;
 $referralCode = $user['ref_code'] ?? '';
 $baseUrl = 'https://app.mehr-infos-jetzt.de';
+
+// 🆕 Provider-spezifische Platzhalter definieren
+$providerPlaceholders = [
+    'quentn' => [
+        'name' => '{$name}',
+        'reward_title' => '{$reward_title}',
+        'reward_description' => '{$reward_description}',
+        'reward_warning' => '{$reward_warning}',
+        'successful_referrals' => '{$successful_referrals}',
+        'current_points' => '{$current_points}',
+        'referral_code' => '{$referral_code}',
+        'company_name' => '{$company_name}'
+    ],
+    'activecampaign' => [
+        'name' => '%FIRSTNAME%',
+        'reward_title' => '%REWARD_TITLE%',
+        'reward_description' => '%REWARD_DESCRIPTION%',
+        'reward_warning' => '%REWARD_WARNING%',
+        'successful_referrals' => '%SUCCESSFUL_REFERRALS%',
+        'current_points' => '%CURRENT_POINTS%',
+        'referral_code' => '%REFERRAL_CODE%',
+        'company_name' => '%COMPANY_NAME%'
+    ],
+    'klicktipp' => [
+        'name' => '[vorname]',
+        'reward_title' => '[reward_title]',
+        'reward_description' => '[reward_description]',
+        'reward_warning' => '[reward_warning]',
+        'successful_referrals' => '[successful_referrals]',
+        'current_points' => '[current_points]',
+        'referral_code' => '[referral_code]',
+        'company_name' => '[company_name]'
+    ],
+    'brevo' => [
+        'name' => '{{ contact.FIRSTNAME }}',
+        'reward_title' => '{{ contact.REWARD_TITLE }}',
+        'reward_description' => '{{ contact.REWARD_DESCRIPTION }}',
+        'reward_warning' => '{{ contact.REWARD_WARNING }}',
+        'successful_referrals' => '{{ contact.SUCCESSFUL_REFERRALS }}',
+        'current_points' => '{{ contact.CURRENT_POINTS }}',
+        'referral_code' => '{{ contact.REFERRAL_CODE }}',
+        'company_name' => '{{ contact.COMPANY_NAME }}'
+    ],
+    'getresponse' => [
+        'name' => '[[name]]',
+        'reward_title' => '[[custom "reward_title"]]',
+        'reward_description' => '[[custom "reward_description"]]',
+        'reward_warning' => '[[custom "reward_warning"]]',
+        'successful_referrals' => '[[custom "successful_referrals"]]',
+        'current_points' => '[[custom "current_points"]]',
+        'referral_code' => '[[custom "referral_code"]]',
+        'company_name' => '[[custom "company_name"]]'
+    ]
+];
 
 // Verfügbare Provider mit API URL Info
 $providers = [
@@ -367,6 +422,61 @@ $providers = [
             border-radius: 8px;
             font-size: 10px;
             font-weight: 600;
+        }
+        
+        /* 🆕 Provider-spezifische Platzhalter Box */
+        .provider-placeholders-box {
+            background: rgba(16, 185, 129, 0.1);
+            border: 2px solid #10b981;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .provider-placeholders-box h4 {
+            color: #10b981;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .placeholder-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .placeholder-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .placeholder-label {
+            color: #9ca3af;
+            font-size: 0.875rem;
+        }
+        
+        .placeholder-code {
+            font-family: 'Courier New', monospace;
+            color: #10b981;
+            font-weight: 600;
+            background: rgba(16, 185, 129, 0.1);
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .placeholder-code:hover {
+            background: rgba(16, 185, 129, 0.2);
+            transform: scale(1.05);
         }
         
         /* Config Form */
@@ -871,6 +981,12 @@ $providers = [
                 width: 100%;
                 justify-content: center;
             }
+            
+            .placeholder-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
         }
     </style>
 </head>
@@ -1128,7 +1244,7 @@ Dein Team</div>
                         <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid #3b82f6; border-radius: 0.75rem; padding: 1.5rem; margin-top: 1.5rem;">
                             <h4 style="color: #3b82f6; font-size: 1rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
                                 <i class="fas fa-info-circle"></i>
-                                Verfügbare Platzhalter
+                                Universelle Platzhalter (Diese {{...}} werden automatisch ersetzt)
                             </h4>
                             <div style="color: #9ca3af; font-size: 0.875rem; line-height: 1.8;">
                                 <div style="margin-bottom: 0.5rem;">
@@ -1231,6 +1347,30 @@ Dein Team</div>
                             </button>
                         </div>
                         
+                        <!-- 🆕 Provider-spezifische Platzhalter anzeigen -->
+                        <div class="provider-placeholders-box">
+                            <h4>
+                                <i class="fas fa-tags"></i>
+                                Platzhalter für <?php echo htmlspecialchars($provider['name']); ?>
+                            </h4>
+                            <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 1rem;">
+                                Verwende diese Platzhalter in deinen E-Mail-Kampagnen:
+                            </p>
+                            
+                            <?php foreach ($providerPlaceholders[$key] as $field => $placeholder): ?>
+                            <div class="placeholder-item" onclick="copyPlaceholder('<?php echo htmlspecialchars($placeholder); ?>', this)">
+                                <span class="placeholder-label"><?php echo ucfirst(str_replace('_', ' ', $field)); ?></span>
+                                <span class="placeholder-code"><?php echo htmlspecialchars($placeholder); ?></span>
+                            </div>
+                            <?php endforeach; ?>
+                            
+                            <div style="background: rgba(59, 130, 246, 0.1); border-radius: 0.5rem; padding: 0.75rem; margin-top: 1rem;">
+                                <small style="color: #9ca3af; font-size: 0.75rem;">
+                                    💡 <strong>Tipp:</strong> Klicke auf einen Platzhalter, um ihn in die Zwischenablage zu kopieren
+                                </small>
+                            </div>
+                        </div>
+                        
                         <form onsubmit="saveApiConfig(event, '<?php echo $key; ?>')">
                             <!-- API-Zugangsdaten -->
                             <div style="background: rgba(0, 0, 0, 0.2); border-radius: 0.75rem; padding: 1.5rem; margin-bottom: 1.5rem;">
@@ -1277,8 +1417,8 @@ Dein Team</div>
                                 
                                 <div class="form-group">
                                     <label class="form-label">Start-Tag</label>
-                                    <input type="text" name="start_tag" class="form-input" placeholder="z.B. lead_empfehlung">
-                                    <div class="form-hint">Wird jedem neuen Lead zugewiesen</div>
+                                    <input type="text" name="start_tag" class="form-input" placeholder="z.B. Optinpilot-Belohnung">
+                                    <div class="form-hint">Wird jedem neuen Lead zugewiesen (für Tag-Trigger)</div>
                                 </div>
                                 
                                 <div class="form-group">
@@ -1324,7 +1464,7 @@ Dein Team</div>
                 </div>
                 
             <?php else: ?>
-                <!-- API Configured - Show Status -->
+                <!-- API Configured - Show Status with Placeholders -->
                 <div class="existing-api-config animate-fade-in-up" style="opacity: 0; animation-delay: 0.2s;">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
                         <div>
@@ -1384,6 +1524,32 @@ Dein Team</div>
                             <?php echo $api_settings['double_optin_enabled'] ? '✅ Aktiviert' : '❌ Deaktiviert'; ?>
                         </span>
                     </div>
+                    
+                    <!-- 🆕 Platzhalter für konfigurierten Provider anzeigen -->
+                    <?php if (isset($providerPlaceholders[$api_settings['provider']])): ?>
+                    <div class="provider-placeholders-box" style="margin-top: 1.5rem;">
+                        <h4>
+                            <i class="fas fa-tags"></i>
+                            Platzhalter für <?php echo ucfirst($api_settings['provider']); ?>
+                        </h4>
+                        <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 1rem;">
+                            Verwende diese Platzhalter in deinen E-Mail-Kampagnen:
+                        </p>
+                        
+                        <?php foreach ($providerPlaceholders[$api_settings['provider']] as $field => $placeholder): ?>
+                        <div class="placeholder-item" onclick="copyPlaceholder('<?php echo htmlspecialchars($placeholder); ?>', this)">
+                            <span class="placeholder-label"><?php echo ucfirst(str_replace('_', ' ', $field)); ?></span>
+                            <span class="placeholder-code"><?php echo htmlspecialchars($placeholder); ?></span>
+                        </div>
+                        <?php endforeach; ?>
+                        
+                        <div style="background: rgba(59, 130, 246, 0.1); border-radius: 0.5rem; padding: 0.75rem; margin-top: 1rem;">
+                            <small style="color: #9ca3af; font-size: 0.75rem;">
+                                💡 <strong>Tipp:</strong> Klicke auf einen Platzhalter, um ihn in die Zwischenablage zu kopieren
+                            </small>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </div>
                 
             <?php endif; ?>
@@ -1554,6 +1720,32 @@ Dein Team</div>
             }, 2000);
             
             showNotification('✅ E-Mail-Vorlage kopiert!', 'success');
+        }
+        
+        // 🆕 Platzhalter kopieren
+        function copyPlaceholder(placeholder, element) {
+            const textarea = document.createElement('textarea');
+            textarea.value = placeholder;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            
+            // Visual Feedback
+            const codeElement = element.querySelector('.placeholder-code');
+            const originalHTML = codeElement.innerHTML;
+            codeElement.innerHTML = '<i class="fas fa-check"></i> Kopiert!';
+            codeElement.style.background = 'rgba(16, 185, 129, 0.3)';
+            
+            setTimeout(() => {
+                codeElement.innerHTML = originalHTML;
+                codeElement.style.background = '';
+            }, 1500);
+            
+            showNotification('✅ Platzhalter "' + placeholder + '" kopiert!', 'success');
         }
         
         // Close modal on Escape key
