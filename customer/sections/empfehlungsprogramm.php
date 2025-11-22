@@ -172,8 +172,17 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
             to { opacity: 1; transform: translateY(0); }
         }
         
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
         .animate-fade-in-up {
             animation: fadeInUp 0.6s ease-out forwards;
+        }
+        
+        .animate-pulse {
+            animation: pulse 2s ease-in-out infinite;
         }
         
         .toggle-switch {
@@ -189,8 +198,8 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
         }
         
         .toggle-switch input:disabled + .toggle-slider {
-            cursor: not-allowed;
-            opacity: 0.5;
+            cursor: pointer; /* Macht es klickbar auch wenn disabled */
+            opacity: 0.7;
         }
         
         .toggle-slider {
@@ -309,6 +318,39 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
         .consent-button:hover {
             transform: translateY(-2px);
             box-shadow: 0 15px 25px -5px rgba(16, 185, 129, 0.4);
+        }
+        
+        /* Step Indicator */
+        .step-indicator {
+            background: rgba(251, 191, 36, 0.2);
+            border: 2px solid #fbbf24;
+            border-radius: 0.75rem;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .step-number {
+            width: 40px;
+            height: 40px;
+            background: #fbbf24;
+            color: #78350f;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        
+        .step-text {
+            flex: 1;
+            color: #78350f;
+            font-size: 1rem;
+            font-weight: 600;
         }
         
         /* Modal */
@@ -545,7 +587,7 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
                         <span style="color: white; font-weight: 600; font-size: 0.875rem;">
                             <?php echo $referralEnabled ? 'Aktiviert' : 'Deaktiviert'; ?>
                         </span>
-                        <label class="toggle-switch">
+                        <label class="toggle-switch" id="toggleContainer" <?php echo !$mailgunConsentGiven ? 'onclick="handleDisabledToggleClick()"' : ''; ?>>
                             <input type="checkbox" 
                                    id="referralToggle" 
                                    <?php echo $referralEnabled ? 'checked' : ''; ?>
@@ -560,7 +602,7 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
                 <div style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); border-radius: 0.5rem; padding: 0.75rem; margin-top: 1rem;">
                     <p style="color: white; font-size: 0.875rem; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
                         <i class="fas fa-lock"></i>
-                        <strong>Zustimmung erforderlich:</strong> Bitte akzeptiere erst die Mailgun-Nutzung und den AVV unten.
+                        <strong>Gesperrt:</strong> Um das Empfehlungsprogramm zu nutzen, akzeptiere bitte zuerst die Nutzungsbedingungen unten.
                     </p>
                 </div>
                 <?php endif; ?>
@@ -568,6 +610,14 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
         </div>
         
         <?php if (!$mailgunConsentGiven): ?>
+            
+            <!-- STEP INDICATOR -->
+            <div class="step-indicator animate-fade-in-up" style="opacity: 0; animation-delay: 0.05s;">
+                <div class="step-number animate-pulse">1</div>
+                <div class="step-text">
+                    Bitte lies die Informationen unten und klicke dann auf "Ich verstehe und stimme zu"
+                </div>
+            </div>
             
             <!-- ===== MAILGUN TRANSPARENZ BANNER ===== -->
             <div class="mailgun-banner animate-fade-in-up" style="opacity: 0; animation-delay: 0.1s;">
@@ -625,7 +675,7 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
                 </div>
                 
                 <div style="text-align: center; margin-top: 2rem;">
-                    <button class="consent-button" onclick="openConsentModal()">
+                    <button class="consent-button animate-pulse" onclick="openConsentModal()">
                         <i class="fas fa-check-circle"></i>
                         Ich verstehe und stimme zu
                     </button>
@@ -801,6 +851,12 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
     </div>
     
     <script>
+        // Disabled Toggle Click Handler
+        function handleDisabledToggleClick() {
+            // Modal direkt öffnen
+            openConsentModal();
+        }
+        
         // Modal öffnen/schließen
         function openConsentModal() {
             document.getElementById('consentModal').classList.add('active');
