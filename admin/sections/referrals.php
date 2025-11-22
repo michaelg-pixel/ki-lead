@@ -2,6 +2,7 @@
 /**
  * Admin Dashboard Section: Empfehlungsprogramm-Übersicht
  * Zeigt alle Referral-Aktivitäten aller Kunden + Lead Users
+ * ✨ Features: Suche, Export, Detailansicht, Zeitfilter
  */
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
@@ -11,6 +12,83 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 
 require_once __DIR__ . '/../../config/database.php';
 $pdo = getDBConnection();
+
+// Filter-Parameter
+$search = $_GET['search'] ?? '';
+$time_filter = $_GET['time_filter'] ?? '30'; // 1, 7, 30 (Tage)
+$customer_filter = $_GET['customer'] ?? '';
+
+// Export-Handler
+if (isset($_GET['export']) && !empty($_GET['customer'])) {
+    $customer_id = (int)$_GET['customer'];
+    
+    // Customer-Daten holen
+    $stmt = $pdo->prepare("SELECT name, company_name FROM users WHERE id = ?");
+    $stmt->execute([$customer_id]);
+    $customer = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    // Lead Users für diesen Customer
+    $stmt = $pdo->prepare("
+        SELECT 
+            lu.id,
+            lu.email,
+            lu.name,
+            lu.referral_code,
+            lu.successful_referrals,
+            lu.total_referrals,
+            lu.rewards_earned,
+            lu.status,
+            lu.created_at,
+            (SELECT COUNT(*) FROM lead_users WHERE referrer_id = lu.id) as referred_count
+        FROM lead_users lu
+        WHERE lu.user_id = ?
+        ORDER BY lu.created_at DESC
+    ");
+    $stmt->execute([$customer_id]);
+    $leads = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // CSV generieren
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="leads_customer_' . $customer_id . '_' . date('Y-m-d') . '.csv"');
+    
+    $output = fopen('php://output', 'w');
+    
+    // BOM für Excel UTF-8
+    fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+    
+    // Header
+    fputcsv($output, [
+        'ID',
+        'E-Mail',
+        'Name',
+        'Referral Code',
+        'Erfolgreiche Empfehlungen',
+        'Gesamt Empfehlungen',
+        'Belohnungen',
+        'Hat empfohlen',
+        'Status',
+        'Registriert am'
+    ], ';');
+    
+    // Daten
+    foreach ($leads as $lead) {
+        fputcsv($output, [
+            $lead['id'],
+            $lead['email'],
+            $lead['name'] ?? 'Lead',
+            $lead['referral_code'],
+            $lead['successful_referrals'],
+            $lead['total_referrals'],
+            $lead['rewards_earned'],
+            $lead['referred_count'],
+            $lead['status'],
+            date('d.m.Y H:i', strtotime($lead['created_at']))
+        ], ';');
+    }
+    
+    fclose($output);
+    exit;
+}
 
 // Statistiken abrufen
 $stats = [];
@@ -52,6 +130,16 @@ $lead_stats = [];
 $table_exists = $pdo->query("SHOW TABLES LIKE 'lead_users'")->rowCount() > 0;
 
 if ($table_exists) {
+    // Zeitfilter für Statistiken
+    $time_where = "";
+    if ($time_filter == '1') {
+        $time_where = "WHERE created_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)";
+    } elseif ($time_filter == '7') {
+        $time_where = "WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+    } elseif ($time_filter == '30') {
+        $time_where = "WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+    }
+    
     // Gesamtanzahl Lead Users
     $lead_stats['total_lead_users'] = $pdo->query("
         SELECT COUNT(*) FROM lead_users
@@ -80,7 +168,8 @@ if ($table_exists) {
         SELECT COALESCE(SUM(successful_referrals), 0) FROM lead_users
     ")->fetchColumn() ?: 0;
     
-    // Top Customers mit meisten Leads
+    // Top Customers mit meisten Leads (mit Zeitfilter)
+    $customer_time_where = $time_filter ? "AND lu.created_at >= DATE_SUB(NOW(), INTERVAL {$time_filter} DAY)" : "";
     $top_customers = $pdo->query("
         SELECT 
             u.id,
@@ -93,7 +182,7 @@ if ($table_exists) {
             COUNT(CASE WHEN lu.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as leads_30days,
             COALESCE(SUM(lu.successful_referrals), 0) as total_referrals
         FROM users u
-        LEFT JOIN lead_users lu ON lu.user_id = u.id
+        LEFT JOIN lead_users lu ON lu.user_id = u.id {$customer_time_where}
         WHERE u.role = 'customer'
         GROUP BY u.id
         HAVING total_leads > 0
@@ -101,10 +190,35 @@ if ($table_exists) {
         LIMIT 50
     ")->fetchAll(PDO::FETCH_ASSOC);
     
-    // Letzte Lead-Registrierungen (ANONYMISIERT für Datenschutz)
-    $recent_lead_users = $pdo->query("
+    // Letzte Lead-Registrierungen mit Such- und Zeitfilter
+    $where_conditions = ["1=1"];
+    $params = [];
+    
+    if (!empty($search)) {
+        $where_conditions[] = "(lu.email LIKE ? OR lu.referral_code LIKE ? OR u.name LIKE ? OR u.company_name LIKE ?)";
+        $search_param = '%' . $search . '%';
+        $params[] = $search_param;
+        $params[] = $search_param;
+        $params[] = $search_param;
+        $params[] = $search_param;
+    }
+    
+    if (!empty($customer_filter)) {
+        $where_conditions[] = "lu.user_id = ?";
+        $params[] = (int)$customer_filter;
+    }
+    
+    if ($time_filter) {
+        $where_conditions[] = "lu.created_at >= DATE_SUB(NOW(), INTERVAL {$time_filter} DAY)";
+    }
+    
+    $where_sql = implode(' AND ', $where_conditions);
+    
+    $stmt = $pdo->prepare("
         SELECT 
             lu.id,
+            lu.email,
+            lu.name as lead_name,
             CONCAT(LEFT(lu.email, 3), '***@***', RIGHT(SUBSTRING_INDEX(lu.email, '@', -1), 3)) as email_masked,
             lu.referral_code,
             lu.successful_referrals,
@@ -113,12 +227,17 @@ if ($table_exists) {
             lu.created_at,
             u.name as customer_name,
             u.company_name,
-            u.id as customer_id
+            u.id as customer_id,
+            (SELECT COUNT(*) FROM lead_users WHERE referrer_id = lu.id) as referred_count
         FROM lead_users lu
         LEFT JOIN users u ON lu.user_id = u.id
+        WHERE {$where_sql}
         ORDER BY lu.created_at DESC
-        LIMIT 50
-    ")->fetchAll(PDO::FETCH_ASSOC);
+        LIMIT 100
+    ");
+    $stmt->execute($params);
+    $recent_lead_users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
 } else {
     $lead_stats = [
         'total_lead_users' => 0,
@@ -130,6 +249,14 @@ if ($table_exists) {
     $top_customers = [];
     $recent_lead_users = [];
 }
+
+// Alle Kunden für Filter-Dropdown
+$all_customers = $pdo->query("
+    SELECT id, name, company_name 
+    FROM users 
+    WHERE role = 'customer' 
+    ORDER BY name
+")->fetchAll(PDO::FETCH_ASSOC);
 
 // User-Übersicht mit Referral-Stats (ALTES SYSTEM)
 $users_query = "
@@ -213,7 +340,7 @@ $recent_leads = $pdo->query("
         color: var(--text-muted);
     }
     
-    /* 🆕 Lead Users Stats - andere Farbe */
+    /* Lead Users Stats - andere Farbe */
     .stat-card.lead-stat {
         background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05));
         border-color: rgba(16, 185, 129, 0.3);
@@ -236,6 +363,8 @@ $recent_leads = $pdo->query("
         justify-content: space-between;
         align-items: center;
         margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 16px;
     }
     
     .section-title {
@@ -248,6 +377,111 @@ $recent_leads = $pdo->query("
         font-size: 13px;
         color: var(--text-muted);
         margin-top: 4px;
+    }
+    
+    /* Filter & Search */
+    .filter-bar {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        background: rgba(168, 85, 247, 0.05);
+        padding: 16px;
+        border-radius: 8px;
+    }
+    
+    .filter-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .filter-group label {
+        display: block;
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-bottom: 6px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .filter-group input,
+    .filter-group select {
+        width: 100%;
+        padding: 10px 12px;
+        background: var(--bg-primary);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: white;
+        font-size: 14px;
+    }
+    
+    .filter-group input:focus,
+    .filter-group select:focus {
+        outline: none;
+        border-color: var(--primary);
+    }
+    
+    .filter-actions {
+        display: flex;
+        gap: 8px;
+        align-items: flex-end;
+    }
+    
+    .btn-filter {
+        padding: 10px 20px;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+    
+    .btn-filter:hover {
+        background: var(--primary-dark);
+        transform: translateY(-1px);
+    }
+    
+    .btn-export {
+        padding: 10px 20px;
+        background: #10b981;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        white-space: nowrap;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .btn-export:hover {
+        background: #059669;
+        transform: translateY(-1px);
+    }
+    
+    .btn-reset {
+        padding: 10px 20px;
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        white-space: nowrap;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .btn-reset:hover {
+        background: rgba(239, 68, 68, 0.2);
     }
     
     .tabs {
@@ -362,10 +596,43 @@ $recent_leads = $pdo->query("
     .info-box strong {
         color: #3b82f6;
     }
+    
+    /* Detail View Button */
+    .btn-detail {
+        padding: 6px 12px;
+        background: rgba(168, 85, 247, 0.1);
+        color: var(--primary-light);
+        border: 1px solid rgba(168, 85, 247, 0.3);
+        border-radius: 6px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .btn-detail:hover {
+        background: rgba(168, 85, 247, 0.2);
+    }
+    
+    .email-full {
+        color: var(--primary-light);
+        font-weight: 600;
+    }
+    
+    .time-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        background: rgba(168, 85, 247, 0.1);
+        border-radius: 4px;
+        font-size: 11px;
+        color: var(--primary-light);
+        margin-left: 8px;
+    }
 </style>
 
 <div class="referral-admin">
-    <!-- 🆕 LEAD USERS STATISTIKEN -->
+    <!-- LEAD USERS STATISTIKEN -->
     <?php if ($table_exists && $lead_stats['total_lead_users'] > 0): ?>
     <div class="section">
         <div class="section-header">
@@ -436,7 +703,7 @@ $recent_leads = $pdo->query("
         </div>
     </div>
     
-    <!-- 🆕 TOP CUSTOMERS MIT LEADS -->
+    <!-- TOP CUSTOMERS MIT LEADS -->
     <?php if ($table_exists && count($top_customers) > 0): ?>
     <div class="section">
         <div class="section-header">
@@ -457,14 +724,15 @@ $recent_leads = $pdo->query("
                         <th>7 Tage</th>
                         <th>30 Tage</th>
                         <th>Empfehlungen</th>
+                        <th>Aktionen</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($top_customers as $customer): ?>
                     <tr>
                         <td>
-                            <strong><?php echo htmlspecialchars($customer['name']); ?></strong>
-                            <?php if ($customer['company_name']): ?>
+                            <strong><?php echo htmlspecialchars($customer['name'] ?? 'Unbekannt'); ?></strong>
+                            <?php if (!empty($customer['company_name'])): ?>
                             <br><small style="color: var(--text-muted);"><?php echo htmlspecialchars($customer['company_name']); ?></small>
                             <?php endif; ?>
                         </td>
@@ -479,6 +747,10 @@ $recent_leads = $pdo->query("
                         <td><?php echo number_format($customer['leads_7days'], 0, ',', '.'); ?></td>
                         <td><?php echo number_format($customer['leads_30days'], 0, ',', '.'); ?></td>
                         <td><?php echo number_format($customer['total_referrals'], 0, ',', '.'); ?></td>
+                        <td>
+                            <a href="?page=referrals&customer=<?php echo $customer['id']; ?>" class="btn-detail">📋 Filtern</a>
+                            <a href="?page=referrals&export=csv&customer=<?php echo $customer['id']; ?>" class="btn-export" style="padding: 6px 12px; font-size: 12px; margin-left: 4px;">📥 CSV</a>
+                        </td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
@@ -510,9 +782,9 @@ $recent_leads = $pdo->query("
                     <?php if (count($users) > 0): ?>
                         <?php foreach ($users as $user): ?>
                         <tr>
-                            <td><?php echo htmlspecialchars($user['name']); ?></td>
-                            <td><?php echo htmlspecialchars($user['email']); ?></td>
-                            <td><code><?php echo htmlspecialchars($user['ref_code'] ?: '-'); ?></code></td>
+                            <td><?php echo htmlspecialchars($user['name'] ?? 'Unbekannt'); ?></td>
+                            <td><?php echo htmlspecialchars($user['email'] ?? ''); ?></td>
+                            <td><code><?php echo htmlspecialchars($user['ref_code'] ?? '-'); ?></code></td>
                             <td>
                                 <?php if ($user['referral_enabled']): ?>
                                     <span class="badge badge-success">Aktiv</span>
@@ -539,19 +811,68 @@ $recent_leads = $pdo->query("
     
     <!-- Aktivitäten-Tabs -->
     <div class="section">
+        <!-- FILTER & SUCHE -->
+        <?php if ($table_exists && count($recent_lead_users) > 0): ?>
+        <form method="GET" action="">
+            <input type="hidden" name="page" value="referrals">
+            <div class="filter-bar">
+                <div class="filter-group">
+                    <label>🔍 Suche</label>
+                    <input type="text" name="search" placeholder="E-Mail, Referral Code, Kunde..." value="<?php echo htmlspecialchars($search); ?>">
+                </div>
+                
+                <div class="filter-group">
+                    <label>👤 Kunde</label>
+                    <select name="customer">
+                        <option value="">Alle Kunden</option>
+                        <?php foreach ($all_customers as $cust): ?>
+                        <option value="<?php echo $cust['id']; ?>" <?php echo $customer_filter == $cust['id'] ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($cust['name'] ?? 'Unbekannt'); ?>
+                            <?php if (!empty($cust['company_name'])): ?>
+                                (<?php echo htmlspecialchars($cust['company_name']); ?>)
+                            <?php endif; ?>
+                        </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>📅 Zeitraum</label>
+                    <select name="time_filter">
+                        <option value="">Alle Zeit</option>
+                        <option value="1" <?php echo $time_filter == '1' ? 'selected' : ''; ?>>Letzte 24h</option>
+                        <option value="7" <?php echo $time_filter == '7' ? 'selected' : ''; ?>>Letzte 7 Tage</option>
+                        <option value="30" <?php echo $time_filter == '30' ? 'selected' : ''; ?>>Letzte 30 Tage</option>
+                    </select>
+                </div>
+                
+                <div class="filter-actions">
+                    <button type="submit" class="btn-filter">🔍 Filtern</button>
+                    <a href="?page=referrals" class="btn-reset">↻ Reset</a>
+                </div>
+            </div>
+        </form>
+        <?php endif; ?>
+        
         <div class="tabs">
             <?php if ($table_exists && count($recent_lead_users) > 0): ?>
-            <button class="tab active" onclick="switchTab('lead-users')">🚀 Lead Users (<?php echo count($recent_lead_users); ?>)</button>
+            <button class="tab active" onclick="switchTab('lead-users')">
+                🚀 Lead Users (<?php echo count($recent_lead_users); ?>)
+                <?php if ($search || $customer_filter || $time_filter): ?>
+                <span class="time-badge">Gefiltert</span>
+                <?php endif; ?>
+            </button>
             <?php endif; ?>
             <button class="tab <?php echo ($table_exists && count($recent_lead_users) > 0) ? '' : 'active'; ?>" onclick="switchTab('clicks')">Letzte Klicks (Legacy)</button>
             <button class="tab" onclick="switchTab('leads')">Letzte Leads (Legacy)</button>
         </div>
         
-        <!-- 🆕 Lead Users Tab -->
+        <!-- LEAD USERS TAB -->
         <?php if ($table_exists && count($recent_lead_users) > 0): ?>
         <div id="tab-lead-users" class="tab-content active">
             <div class="info-box">
-                <strong>🔒 Datenschutz:</strong> E-Mail-Adressen sind anonymisiert (z.B. "abc***@***.de"). Für Support-Anfragen können Details im Einzelfall eingesehen werden.
+                <strong>🔒 Datenschutz:</strong> E-Mail-Adressen sind standardmäßig anonymisiert. 
+                Klicke auf "Details" um die vollständige E-Mail für Support-Zwecke anzuzeigen.
             </div>
             
             <div class="table-container">
@@ -559,27 +880,39 @@ $recent_leads = $pdo->query("
                     <thead>
                         <tr>
                             <th>Registrierung</th>
-                            <th>E-Mail (anonymisiert)</th>
+                            <th>E-Mail</th>
                             <th>Kunde</th>
                             <th>Referral Code</th>
                             <th>Empfehlungen</th>
+                            <th>Hat empfohlen</th>
                             <th>Belohnungen</th>
+                            <th>Aktion</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($recent_lead_users as $lead): ?>
-                        <tr>
+                        <tr id="lead-<?php echo $lead['id']; ?>">
                             <td><?php echo date('d.m.Y H:i', strtotime($lead['created_at'])); ?></td>
-                            <td><code><?php echo htmlspecialchars($lead['email_masked']); ?></code></td>
                             <td>
-                                <strong><?php echo htmlspecialchars($lead['customer_name']); ?></strong>
-                                <?php if ($lead['company_name']): ?>
+                                <code class="email-masked"><?php echo htmlspecialchars($lead['email_masked']); ?></code>
+                                <code class="email-full" style="display: none;"><?php echo htmlspecialchars($lead['email'] ?? ''); ?></code>
+                            </td>
+                            <td>
+                                <strong><?php echo htmlspecialchars($lead['customer_name'] ?? 'Unbekannt'); ?></strong>
+                                <?php if (!empty($lead['company_name'])): ?>
                                 <br><small style="color: var(--text-muted);"><?php echo htmlspecialchars($lead['company_name']); ?></small>
                                 <?php endif; ?>
                             </td>
-                            <td><code><?php echo htmlspecialchars($lead['referral_code']); ?></code></td>
+                            <td><code><?php echo htmlspecialchars($lead['referral_code'] ?? '-'); ?></code></td>
                             <td>
                                 <span class="badge badge-info"><?php echo $lead['successful_referrals']; ?> / <?php echo $lead['total_referrals']; ?></span>
+                            </td>
+                            <td>
+                                <?php if ($lead['referred_count'] > 0): ?>
+                                    <span class="badge badge-success">✓ <?php echo $lead['referred_count']; ?></span>
+                                <?php else: ?>
+                                    <span style="color: var(--text-muted);">-</span>
+                                <?php endif; ?>
                             </td>
                             <td>
                                 <?php if ($lead['rewards_earned'] > 0): ?>
@@ -587,6 +920,11 @@ $recent_leads = $pdo->query("
                                 <?php else: ?>
                                     <span style="color: var(--text-muted);">-</span>
                                 <?php endif; ?>
+                            </td>
+                            <td>
+                                <button class="btn-detail" onclick="toggleEmailDetail(<?php echo $lead['id']; ?>)">
+                                    <span class="toggle-text">👁️ Details</span>
+                                </button>
                             </td>
                         </tr>
                         <?php endforeach; ?>
@@ -614,11 +952,11 @@ $recent_leads = $pdo->query("
                             <tr>
                                 <td><?php echo date('d.m.Y H:i', strtotime($click['created_at'])); ?></td>
                                 <td>
-                                    <?php echo htmlspecialchars($click['user_name'] ?: 'Unbekannt'); ?><br>
-                                    <small style="color: var(--text-muted);"><?php echo htmlspecialchars($click['user_email']); ?></small>
+                                    <?php echo htmlspecialchars($click['user_name'] ?? 'Unbekannt'); ?><br>
+                                    <small style="color: var(--text-muted);"><?php echo htmlspecialchars($click['user_email'] ?? ''); ?></small>
                                 </td>
-                                <td><code><?php echo htmlspecialchars($click['ref_code']); ?></code></td>
-                                <td><code style="font-size: 11px;"><?php echo substr($click['fingerprint'], 0, 16); ?>...</code></td>
+                                <td><code><?php echo htmlspecialchars($click['ref_code'] ?? '-'); ?></code></td>
+                                <td><code style="font-size: 11px;"><?php echo substr($click['fingerprint'] ?? '', 0, 16); ?>...</code></td>
                             </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
@@ -651,12 +989,12 @@ $recent_leads = $pdo->query("
                             <?php foreach ($recent_leads as $lead): ?>
                             <tr>
                                 <td><?php echo date('d.m.Y H:i', strtotime($lead['created_at'])); ?></td>
-                                <td><?php echo htmlspecialchars($lead['email']); ?></td>
+                                <td><?php echo htmlspecialchars($lead['email'] ?? ''); ?></td>
                                 <td>
-                                    <?php echo htmlspecialchars($lead['user_name'] ?: 'Unbekannt'); ?><br>
-                                    <small style="color: var(--text-muted);"><?php echo htmlspecialchars($lead['user_email']); ?></small>
+                                    <?php echo htmlspecialchars($lead['user_name'] ?? 'Unbekannt'); ?><br>
+                                    <small style="color: var(--text-muted);"><?php echo htmlspecialchars($lead['user_email'] ?? ''); ?></small>
                                 </td>
-                                <td><code><?php echo htmlspecialchars($lead['ref_code']); ?></code></td>
+                                <td><code><?php echo htmlspecialchars($lead['ref_code'] ?? '-'); ?></code></td>
                                 <td>
                                     <?php if ($lead['confirmed']): ?>
                                         <span class="badge badge-success">Bestätigt</span>
@@ -695,5 +1033,27 @@ function switchTab(tabName) {
     // Aktiven Tab aktivieren
     event.target.classList.add('active');
     document.getElementById('tab-' + tabName).classList.add('active');
+}
+
+// Detail-Ansicht Toggle
+function toggleEmailDetail(leadId) {
+    const row = document.getElementById('lead-' + leadId);
+    const maskedEmail = row.querySelector('.email-masked');
+    const fullEmail = row.querySelector('.email-full');
+    const toggleBtn = row.querySelector('.toggle-text');
+    
+    if (maskedEmail.style.display === 'none') {
+        // Zurück zu anonymisiert
+        maskedEmail.style.display = 'inline';
+        fullEmail.style.display = 'none';
+        toggleBtn.textContent = '👁️ Details';
+    } else {
+        // Vollständige E-Mail anzeigen
+        if (confirm('⚠️ DATENSCHUTZ: Möchtest du die vollständige E-Mail-Adresse für Support-Zwecke anzeigen?')) {
+            maskedEmail.style.display = 'none';
+            fullEmail.style.display = 'inline';
+            toggleBtn.textContent = '🔒 Verbergen';
+        }
+    }
 }
 </script>
