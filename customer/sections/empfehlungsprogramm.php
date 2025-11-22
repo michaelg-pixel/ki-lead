@@ -1,9 +1,12 @@
 <?php
 /**
  * Customer Dashboard - Empfehlungsprogramm Section
- * MIT INTEGRIERTER API-KONFIGURATION
- * Zeigt API-Setup wenn Empfehlungsprogramm aktiviert wird
- * 🆕 PROVIDER-SPEZIFISCHE PLATZHALTER (KORRIGIERT)
+ * ÜBERARBEITET: Mailgun-Transparenz + AVV ZUERST
+ * 
+ * Rechtliche Reihenfolge:
+ * 1. Transparenz-Info über Mailgun (EU-Server, Belohnungs-Mails)
+ * 2. Zustimmung zu Mailgun + AVV
+ * 3. Erst dann: Empfehlungsprogramm nutzbar
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -11,20 +14,25 @@ if (!isset($customer_id)) {
     die('Nicht autorisiert');
 }
 
-// Provider-Klassen laden
-require_once __DIR__ . '/../includes/EmailProviders.php';
-
-// Benutzer-Details laden
 try {
+    $pdo = getDBConnection();
+    
+    // Benutzer-Details + Mailgun-Zustimmung laden
     $stmt = $pdo->prepare("
         SELECT 
-            referral_enabled,
-            ref_code,
-            company_name,
-            company_email,
-            company_imprint_html
-        FROM users 
-        WHERE id = ?
+            u.referral_enabled,
+            u.ref_code,
+            u.company_name,
+            u.company_email,
+            u.company_imprint_html,
+            (
+                SELECT COUNT(*) 
+                FROM av_contract_acceptances 
+                WHERE user_id = u.id 
+                AND acceptance_type = 'mailgun_consent'
+            ) as mailgun_consent_given
+        FROM users u
+        WHERE u.id = ?
     ");
     $stmt->execute([$customer_id]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -33,19 +41,7 @@ try {
         throw new Exception("User nicht gefunden");
     }
     
-    // API-Einstellungen laden
-    $stmt_api = $pdo->prepare("
-        SELECT * FROM customer_email_api_settings 
-        WHERE customer_id = ? AND is_active = TRUE
-        LIMIT 1
-    ");
-    $stmt_api->execute([$customer_id]);
-    $api_settings = $stmt_api->fetch(PDO::FETCH_ASSOC);
-    
-    // API-Key maskieren wenn vorhanden
-    if ($api_settings && !empty($api_settings['api_key'])) {
-        $api_settings['api_key_masked'] = '••••••••' . substr($api_settings['api_key'], -4);
-    }
+    $mailgunConsentGiven = $user['mailgun_consent_given'] > 0;
     
     // EMPFEHLUNGS-SLOTS LADEN
     $stmt_slots = $pdo->prepare("
@@ -147,124 +143,20 @@ try {
         'ref_code' => '',
         'company_name' => '',
         'company_email' => '',
-        'company_imprint_html' => ''
+        'company_imprint_html' => '',
+        'mailgun_consent_given' => 0
     ];
+    $mailgunConsentGiven = false;
     $stats = ['total_leads' => 0, 'referred_leads' => 0, 'total_referrals' => 0, 'successful_referrals' => 0];
     $freebies = [];
     $total_slots = 0;
     $used_slots = 0;
     $available_slots = 0;
-    $api_settings = null;
 }
 
 $referralEnabled = $user['referral_enabled'] ?? 0;
 $referralCode = $user['ref_code'] ?? '';
 $baseUrl = 'https://app.mehr-infos-jetzt.de';
-
-// 🆕 Provider-spezifische Platzhalter definieren (KORRIGIERT)
-$providerPlaceholders = [
-    'quentn' => [
-        'name' => '[[vorname]]',
-        'reward_title' => '[[reward_title]]',
-        'reward_description' => '[[reward_description]]',
-        'reward_warning' => '[[reward_warning]]',
-        'successful_referrals' => '[[successful_referrals]]',
-        'current_points' => '[[current_points]]',
-        'referral_code' => '[[referral_code]]',
-        'company_name' => '[[company_name]]'
-    ],
-    'activecampaign' => [
-        'name' => '%FIRSTNAME%',
-        'reward_title' => '%REWARD_TITLE%',
-        'reward_description' => '%REWARD_DESCRIPTION%',
-        'reward_warning' => '%REWARD_WARNING%',
-        'successful_referrals' => '%SUCCESSFUL_REFERRALS%',
-        'current_points' => '%CURRENT_POINTS%',
-        'referral_code' => '%REFERRAL_CODE%',
-        'company_name' => '%COMPANY_NAME%'
-    ],
-    'klicktipp' => [
-        'name' => '{vorname}',
-        'reward_title' => '{reward_title}',
-        'reward_description' => '{reward_description}',
-        'reward_warning' => '{reward_warning}',
-        'successful_referrals' => '{successful_referrals}',
-        'current_points' => '{current_points}',
-        'referral_code' => '{referral_code}',
-        'company_name' => '{company_name}'
-    ],
-    'brevo' => [
-        'name' => '{{ contact.FIRSTNAME }}',
-        'reward_title' => '{{ contact.REWARD_TITLE }}',
-        'reward_description' => '{{ contact.REWARD_DESCRIPTION }}',
-        'reward_warning' => '{{ contact.REWARD_WARNING }}',
-        'successful_referrals' => '{{ contact.SUCCESSFUL_REFERRALS }}',
-        'current_points' => '{{ contact.CURRENT_POINTS }}',
-        'referral_code' => '{{ contact.REFERRAL_CODE }}',
-        'company_name' => '{{ contact.COMPANY_NAME }}'
-    ],
-    'getresponse' => [
-        'name' => '[[firstname]]',
-        'reward_title' => '[[custom "reward_title"]]',
-        'reward_description' => '[[custom "reward_description"]]',
-        'reward_warning' => '[[custom "reward_warning"]]',
-        'successful_referrals' => '[[custom "successful_referrals"]]',
-        'current_points' => '[[custom "current_points"]]',
-        'referral_code' => '[[custom "referral_code"]]',
-        'company_name' => '[[custom "company_name"]]'
-    ]
-];
-
-// Verfügbare Provider mit API URL Info
-$providers = [
-    'quentn' => [
-        'name' => 'Quentn',
-        'requires_api_url' => true,
-        'requires_username' => false,
-        'api_url_placeholder' => 'https://YOUR-ID.quentn.com',
-        'api_url_help' => 'Format: https://system_id.server_id.quentn.com',
-        'supports_tags' => true,
-        'supports_campaigns' => true,
-        'supports_direct_email' => true,
-    ],
-    'activecampaign' => [
-        'name' => 'ActiveCampaign',
-        'requires_api_url' => true,
-        'requires_username' => false,
-        'api_url_placeholder' => 'https://YOUR-ACCOUNT.api-us1.com',
-        'api_url_help' => 'Zu finden in Settings → Developer',
-        'supports_tags' => true,
-        'supports_campaigns' => true,
-        'supports_direct_email' => true,
-    ],
-    'klicktipp' => [
-        'name' => 'Klick-Tipp',
-        'requires_api_url' => false,
-        'requires_username' => true,
-        'default_api_url' => 'http://api.klicktipp.com',
-        'supports_tags' => true,
-        'supports_campaigns' => false,
-        'supports_direct_email' => false,
-    ],
-    'brevo' => [
-        'name' => 'Brevo (Sendinblue)',
-        'requires_api_url' => false,
-        'requires_username' => false,
-        'default_api_url' => 'https://api.brevo.com/v3',
-        'supports_tags' => true,
-        'supports_campaigns' => true,
-        'supports_direct_email' => true,
-    ],
-    'getresponse' => [
-        'name' => 'GetResponse',
-        'requires_api_url' => false,
-        'requires_username' => false,
-        'default_api_url' => 'https://api.getresponse.com/v3',
-        'supports_tags' => true,
-        'supports_campaigns' => true,
-        'supports_direct_email' => true,
-    ],
-];
 ?>
 
 <!DOCTYPE html>
@@ -307,6 +199,11 @@ $providers = [
             transition: 0.3s;
         }
         
+        .toggle-slider.disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        
         .toggle-slider:before {
             position: absolute;
             content: "";
@@ -327,231 +224,220 @@ $providers = [
             transform: translateX(30px);
         }
         
-        /* Freebie Mockup Image */
-        .freebie-mockup {
-            width: 80px;
-            height: 80px;
-            object-fit: cover;
-            border-radius: 0.75rem;
-            border: 2px solid rgba(102, 126, 234, 0.3);
-            flex-shrink: 0;
-        }
-        
-        /* API Setup Box */
-        .api-setup-box {
-            background: linear-gradient(to bottom right, #1f2937, #374151);
-            border: 2px solid rgba(251, 191, 36, 0.5);
+        /* Mailgun Transparenz Banner */
+        .mailgun-banner {
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            border: 3px solid #d97706;
             border-radius: 1rem;
             padding: 2rem;
             margin-bottom: 2rem;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 10px 25px -5px rgba(251, 191, 36, 0.3);
         }
         
-        .api-setup-header {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        .api-setup-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: rgba(251, 191, 36, 0.2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.75rem;
-            color: #fbbf24;
-        }
-        
-        .provider-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin: 1.5rem 0;
-        }
-        
-        .provider-card {
-            background: rgba(0, 0, 0, 0.3);
-            border: 2px solid rgba(102, 126, 234, 0.3);
-            border-radius: 0.75rem;
-            padding: 1.25rem;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-align: center;
-        }
-        
-        .provider-card:hover {
-            border-color: #667eea;
-            transform: translateY(-4px);
-            box-shadow: 0 10px 20px -5px rgba(102, 126, 234, 0.3);
-        }
-        
-        .provider-card.selected {
-            border-color: #10b981;
-            background: rgba(16, 185, 129, 0.1);
-        }
-        
-        .provider-icon {
-            font-size: 2.5rem;
-            margin-bottom: 0.75rem;
-        }
-        
-        .provider-name {
-            color: white;
-            font-weight: 600;
-            font-size: 1rem;
-            margin-bottom: 0.5rem;
-        }
-        
-        .provider-features {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin-top: 0.75rem;
-        }
-        
-        .feature-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            background: rgba(59, 130, 246, 0.2);
-            color: #3b82f6;
-            border-radius: 8px;
-            font-size: 10px;
-            font-weight: 600;
-        }
-        
-        /* 🆕 Provider-spezifische Platzhalter Box */
-        .provider-placeholders-box {
-            background: rgba(16, 185, 129, 0.1);
-            border: 2px solid #10b981;
-            border-radius: 0.75rem;
-            padding: 1.5rem;
-            margin-top: 1.5rem;
-        }
-        
-        .provider-placeholders-box h4 {
-            color: #10b981;
-            font-size: 1rem;
-            font-weight: 600;
+        .mailgun-banner h3 {
+            color: #78350f;
+            font-size: 1.5rem;
+            font-weight: 700;
             margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .placeholder-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.75rem;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 0.5rem;
-            margin-bottom: 0.5rem;
-        }
-        
-        .placeholder-item:last-child {
-            margin-bottom: 0;
-        }
-        
-        .placeholder-label {
-            color: #9ca3af;
-            font-size: 0.875rem;
-        }
-        
-        .placeholder-code {
-            font-family: 'Courier New', monospace;
-            color: #10b981;
-            font-weight: 600;
-            background: rgba(16, 185, 129, 0.1);
-            padding: 0.25rem 0.75rem;
-            border-radius: 0.25rem;
-            font-size: 0.875rem;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .placeholder-code:hover {
-            background: rgba(16, 185, 129, 0.2);
-            transform: scale(1.05);
-        }
-        
-        /* Config Form */
-        .config-form {
-            display: none;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 0.75rem;
-            padding: 1.5rem;
-            margin-top: 1.5rem;
-        }
-        
-        .config-form.active {
-            display: block;
-        }
-        
-        .form-group {
-            margin-bottom: 1.25rem;
-        }
-        
-        .form-label {
-            display: block;
-            color: #9ca3af;
-            font-size: 0.875rem;
-            font-weight: 500;
-            margin-bottom: 0.5rem;
-        }
-        
-        .form-label .required {
-            color: #ef4444;
-        }
-        
-        .form-input, .form-select {
-            width: 100%;
-            padding: 0.75rem;
-            background: #111827;
-            border: 1px solid #374151;
-            border-radius: 0.5rem;
-            color: white;
-            font-size: 0.9375rem;
-            transition: all 0.3s;
-        }
-        
-        .form-input:focus, .form-select:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-        
-        .form-hint {
-            color: #6b7280;
-            font-size: 0.75rem;
-            margin-top: 0.25rem;
-        }
-        
-        .checkbox-group {
             display: flex;
             align-items: center;
             gap: 0.75rem;
-            padding: 0.75rem;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 0.5rem;
+        }
+        
+        .mailgun-banner-icon {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            flex-shrink: 0;
+        }
+        
+        .mailgun-info-box {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .mailgun-info-box h4 {
+            color: #78350f;
+            font-size: 1.125rem;
+            font-weight: 600;
             margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .mailgun-info-list {
+            color: #1f2937;
+            font-size: 0.9375rem;
+            line-height: 1.8;
+            margin: 0;
+            padding-left: 1.5rem;
+        }
+        
+        .mailgun-info-list li {
+            margin-bottom: 0.5rem;
+        }
+        
+        .mailgun-info-list strong {
+            color: #78350f;
+        }
+        
+        .consent-button {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 0.75rem;
+            font-size: 1.125rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);
+        }
+        
+        .consent-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 25px -5px rgba(16, 185, 129, 0.4);
+        }
+        
+        /* Modal */
+        .consent-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 10000;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+        
+        .consent-modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 1rem;
+            max-width: 700px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        
+        .modal-header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 2rem;
+            border-radius: 1rem 1rem 0 0;
+        }
+        
+        .modal-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .modal-subtitle {
+            font-size: 0.9375rem;
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .modal-body {
+            padding: 2rem;
+        }
+        
+        .consent-section {
+            background: #f9fafb;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .consent-section h4 {
+            color: #1f2937;
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .consent-section ul {
+            color: #4b5563;
+            font-size: 0.9375rem;
+            line-height: 1.8;
+            margin: 0;
+            padding-left: 1.5rem;
+        }
+        
+        .consent-section li {
+            margin-bottom: 0.5rem;
+        }
+        
+        .checkbox-group {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .checkbox-group:hover {
+            border-color: #667eea;
+        }
+        
+        .checkbox-group.checked {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.05);
         }
         
         .checkbox-group input[type="checkbox"] {
-            width: 1.25rem;
-            height: 1.25rem;
+            width: 1.5rem;
+            height: 1.5rem;
             cursor: pointer;
+            margin-right: 1rem;
         }
         
-        .checkbox-group label {
-            color: #e5e7eb;
-            font-size: 0.9375rem;
-            cursor: pointer;
+        .checkbox-label {
             flex: 1;
+            color: #1f2937;
+            font-size: 0.9375rem;
+            line-height: 1.6;
+        }
+        
+        .checkbox-label strong {
+            color: #667eea;
+            font-size: 1rem;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            padding-top: 1rem;
+            border-top: 1px solid #e5e7eb;
         }
         
         .btn {
@@ -567,379 +453,40 @@ $providers = [
             gap: 0.5rem;
         }
         
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+        .btn-cancel {
+            background: #6b7280;
             color: white;
         }
         
-        .btn-primary:hover:not(:disabled) {
+        .btn-cancel:hover {
+            background: #4b5563;
+        }
+        
+        .btn-confirm {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+        
+        .btn-confirm:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px -5px rgba(102, 126, 234, 0.5);
+            box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.5);
         }
         
-        .btn-test {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            color: white;
-        }
-        
-        .btn-secondary {
-            background: #374151;
-            color: white;
-        }
-        
-        .btn:disabled {
-            opacity: 0.6;
+        .btn-confirm:disabled {
+            opacity: 0.5;
             cursor: not-allowed;
         }
         
-        /* API Status Badge */
-        .api-status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            border-radius: 9999px;
-            font-size: 0.875rem;
-            font-weight: 600;
-        }
-        
-        .status-verified {
-            background: rgba(16, 185, 129, 0.2);
-            color: #10b981;
-        }
-        
-        .status-unverified {
-            background: rgba(251, 191, 36, 0.2);
-            color: #fbbf24;
-        }
-        
-        .status-none {
-            background: rgba(107, 114, 128, 0.2);
-            color: #9ca3af;
-        }
-        
-        /* Existing Config Display */
-        .existing-api-config {
-            background: rgba(16, 185, 129, 0.1);
-            border: 2px solid #10b981;
+        /* Freebie Mockup Image */
+        .freebie-mockup {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
             border-radius: 0.75rem;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        .config-detail {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .config-detail:last-child {
-            border-bottom: none;
-        }
-        
-        /* Custom Fields Info Box */
-        .custom-fields-box {
-            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-            border-radius: 1rem;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            color: white;
-        }
-        
-        .custom-fields-box h3 {
-            font-size: 1.125rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            justify-content: space-between;
-            flex-wrap: wrap;
-        }
-        
-        .custom-fields-box h3 .title-part {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .btn-template {
-            padding: 0.5rem 1rem;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 0.5rem;
-            cursor: pointer;
-            font-size: 0.875rem;
-            font-weight: 600;
-            transition: all 0.3s;
-            white-space: nowrap;
-        }
-        
-        .btn-template:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-        }
-        
-        /* Email Templates Modal */
-        .email-templates-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 10000;
-            padding: 2rem;
-            overflow-y: auto;
-        }
-        
-        .email-templates-modal.active {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .modal-content {
-            background: linear-gradient(to bottom right, #1f2937, #111827);
             border: 2px solid rgba(102, 126, 234, 0.3);
-            border-radius: 1rem;
-            max-width: 900px;
-            width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            flex-shrink: 0;
         }
         
-        .modal-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: sticky;
-            top: 0;
-            background: linear-gradient(to bottom right, #1f2937, #111827);
-            z-index: 10;
-        }
-        
-        .modal-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: white;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-        
-        .modal-close {
-            background: rgba(239, 68, 68, 0.2);
-            border: 1px solid #ef4444;
-            color: #ef4444;
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-        
-        .modal-close:hover {
-            background: #ef4444;
-            color: white;
-        }
-        
-        .modal-body {
-            padding: 1.5rem;
-        }
-        
-        .email-template-card {
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(102, 126, 234, 0.3);
-            border-radius: 0.75rem;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        .email-template-card:last-child {
-            margin-bottom: 0;
-        }
-        
-        .template-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 1rem;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-        
-        .template-title {
-            font-size: 1.125rem;
-            font-weight: 600;
-            color: white;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .template-copy-btn {
-            padding: 0.5rem 1rem;
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
-            border: none;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 0.875rem;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .template-copy-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px -3px rgba(16, 185, 129, 0.5);
-        }
-        
-        .template-preview {
-            background: #111827;
-            border: 1px solid #374151;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            color: #9ca3af;
-            font-size: 0.875rem;
-            line-height: 1.6;
-            white-space: pre-wrap;
-            font-family: 'Courier New', monospace;
-        }
-        
-        .template-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            margin-top: 1rem;
-        }
-        
-        .template-tag {
-            display: inline-block;
-            padding: 0.25rem 0.75rem;
-            background: rgba(59, 130, 246, 0.2);
-            color: #3b82f6;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        
-        .field-item {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 1rem;
-            border-radius: 0.5rem;
-            margin-bottom: 0.75rem;
-        }
-        
-        .field-item:last-child {
-            margin-bottom: 0;
-        }
-        
-        .field-name {
-            font-family: 'Courier New', monospace;
-            font-weight: 700;
-            font-size: 0.875rem;
-            color: #fbbf24;
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .field-type {
-            display: inline-block;
-            background: rgba(59, 130, 246, 0.3);
-            color: #93c5fd;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        
-        .field-description {
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 0.875rem;
-            line-height: 1.5;
-        }
-        
-        /* Lead URLs Box */
-        .lead-urls-box {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            border-radius: 1rem;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            color: white;
-        }
-        
-        .lead-urls-box h3 {
-            font-size: 1.125rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .url-item {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 1rem;
-            border-radius: 0.5rem;
-            margin-bottom: 0.75rem;
-        }
-        
-        .url-item:last-child {
-            margin-bottom: 0;
-        }
-        
-        .url-label {
-            font-size: 0.75rem;
-            color: rgba(255, 255, 255, 0.8);
-            margin-bottom: 0.5rem;
-        }
-        
-        .url-link {
-            display: flex;
-            gap: 0.5rem;
-            align-items: center;
-        }
-        
-        .url-input {
-            flex: 1;
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 0.5rem;
-            color: white;
-            padding: 0.5rem;
-            font-size: 0.875rem;
-            font-family: monospace;
-        }
-        
-        .btn-copy-url {
-            padding: 0.5rem 1rem;
-            background: white;
-            color: #3b82f6;
-            border: none;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            font-size: 0.875rem;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-        
-        .btn-copy-url:hover {
-            background: #f0f9ff;
-        }
-        
-        /* Rest of existing styles ... */
         .freebie-card-expanded {
             background: linear-gradient(to bottom right, #1f2937, #374151);
             border: 1px solid rgba(102, 126, 234, 0.3);
@@ -950,21 +497,14 @@ $providers = [
         }
         
         @media (max-width: 768px) {
-            .provider-grid {
-                grid-template-columns: 1fr;
+            .mailgun-banner {
+                padding: 1.5rem;
             }
             
-            .url-link {
+            .mailgun-banner h3 {
+                font-size: 1.25rem;
                 flex-direction: column;
-            }
-            
-            .btn-copy-url {
-                width: 100%;
-            }
-            
-            .freebie-mockup {
-                width: 60px;
-                height: 60px;
+                text-align: center;
             }
             
             .modal-content {
@@ -972,20 +512,14 @@ $providers = [
                 max-height: calc(100vh - 2rem);
             }
             
-            .template-header {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-            
-            .template-copy-btn {
+            .consent-button {
                 width: 100%;
                 justify-content: center;
             }
             
-            .placeholder-item {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 0.5rem;
+            .freebie-mockup {
+                width: 60px;
+                height: 60px;
             }
         }
     </style>
@@ -1014,650 +548,121 @@ $providers = [
                             <input type="checkbox" 
                                    id="referralToggle" 
                                    <?php echo $referralEnabled ? 'checked' : ''; ?>
+                                   <?php echo !$mailgunConsentGiven ? 'disabled' : ''; ?>
                                    onchange="toggleReferralProgram(this.checked)">
-                            <span class="toggle-slider"></span>
+                            <span class="toggle-slider <?php echo !$mailgunConsentGiven ? 'disabled' : ''; ?>"></span>
                         </label>
                     </div>
                 </div>
+                
+                <?php if (!$mailgunConsentGiven): ?>
+                <div style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); border-radius: 0.5rem; padding: 0.75rem; margin-top: 1rem;">
+                    <p style="color: white; font-size: 0.875rem; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-lock"></i>
+                        <strong>Zustimmung erforderlich:</strong> Bitte akzeptiere erst die Mailgun-Nutzung und den AVV unten.
+                    </p>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
         
-        <?php if ($referralEnabled): ?>
+        <?php if (!$mailgunConsentGiven): ?>
             
-            <!-- Custom Fields Infobox - NEUE ERWEITERTE VERSION -->
-            <div class="custom-fields-box animate-fade-in-up" style="opacity: 0; animation-delay: 0.1s;">
-                <h3>
-                    <div class="title-part">
-                        <i class="fas fa-database"></i>
-                        <span>Benutzerdefinierte Felder für deinen Autoresponder</span>
+            <!-- ===== MAILGUN TRANSPARENZ BANNER ===== -->
+            <div class="mailgun-banner animate-fade-in-up" style="opacity: 0; animation-delay: 0.1s;">
+                <div style="display: flex; gap: 1.5rem; margin-bottom: 1.5rem; align-items: center; flex-wrap: wrap;">
+                    <div class="mailgun-banner-icon">
+                        <i class="fas fa-shield-alt"></i>
                     </div>
-                    <button class="btn-template" onclick="openEmailTemplatesModal()">
-                        <i class="fas fa-envelope"></i> E-Mail-Vorlagen
+                    <div style="flex: 1; min-width: 200px;">
+                        <h3 style="margin: 0;">
+                            Transparenz & Datenschutz
+                        </h3>
+                        <p style="color: #78350f; font-size: 0.9375rem; margin: 0;">
+                            So schützen wir deine Daten bei der Nutzung des Empfehlungsprogramms
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="mailgun-info-box">
+                    <h4>
+                        <i class="fas fa-envelope"></i>
+                        Automatische Belohnungs-E-Mails via Mailgun
+                    </h4>
+                    <ul class="mailgun-info-list">
+                        <li><strong>Warum Mailgun?</strong> Professioneller E-Mail-Versand für Belohnungs-Benachrichtigungen an deine Leads</li>
+                        <li><strong>Server-Standort:</strong> Alle E-Mails werden über <strong>EU-Server (Europa)</strong> versendet - volle DSGVO-Konformität</li>
+                        <li><strong>Dein Impressum:</strong> Jede E-Mail enthält automatisch deine Impressumsdaten</li>
+                        <li><strong>Deine Kontrolle:</strong> Du bestimmst, welche Belohnungen deine Leads erhalten</li>
+                    </ul>
+                </div>
+                
+                <div class="mailgun-info-box">
+                    <h4>
+                        <i class="fas fa-database"></i>
+                        Welche Daten werden verarbeitet?
+                    </h4>
+                    <ul class="mailgun-info-list">
+                        <li><strong>Lead-Daten:</strong> Name, E-Mail-Adresse deiner Leads (die sich freiwillig registriert haben)</li>
+                        <li><strong>Belohnungs-Info:</strong> Informationen über erreichte Stufen und freigeschaltete Belohnungen</li>
+                        <li><strong>Versand-Statistiken:</strong> Zustellstatus, Öffnungsrate (technisch notwendig für Qualitätssicherung)</li>
+                        <li><strong>Keine Weitergabe:</strong> Daten werden ausschließlich für den E-Mail-Versand genutzt, nicht an Dritte verkauft</li>
+                    </ul>
+                </div>
+                
+                <div class="mailgun-info-box">
+                    <h4>
+                        <i class="fas fa-file-contract"></i>
+                        Auftragsverarbeitungsvertrag (AVV)
+                    </h4>
+                    <ul class="mailgun-info-list">
+                        <li><strong>Rechtliche Grundlage:</strong> Wir schließen einen AVV nach Art. 28 DSGVO mit dir ab</li>
+                        <li><strong>Deine Rolle:</strong> Du bleibst Verantwortlicher für deine Lead-Daten</li>
+                        <li><strong>Unsere Rolle:</strong> Wir verarbeiten die Daten nur nach deiner Weisung (E-Mail-Versand)</li>
+                        <li><strong>Sicherheit:</strong> Technische und organisatorische Maßnahmen gemäß DSGVO</li>
+                    </ul>
+                </div>
+                
+                <div style="text-align: center; margin-top: 2rem;">
+                    <button class="consent-button" onclick="openConsentModal()">
+                        <i class="fas fa-check-circle"></i>
+                        Ich verstehe und stimme zu
                     </button>
-                </h3>
-                <div style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem;">
-                    <p style="color: rgba(255, 255, 255, 0.9); font-size: 0.875rem; line-height: 1.6; margin: 0;">
-                        <i class="fas fa-info-circle"></i> <strong>Wichtig:</strong> Lege ALLE diese benutzerdefinierten Felder in deinem Email-Marketing-System an, bevor du deine API-Zugangsdaten eingibst. Diese Felder werden automatisch bei der Lead-Registrierung und Belohnungs-Freischaltung übertragen.
+                    <p style="color: #78350f; font-size: 0.875rem; margin-top: 1rem;">
+                        Mit deiner Zustimmung akzeptierst du die Nutzung von Mailgun und den AVV
                     </p>
                 </div>
-                
-                <!-- SECTION 1: Basis Lead-Daten -->
-                <div style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 0.75rem; padding: 1rem; margin-bottom: 1rem;">
-                    <h4 style="color: #3b82f6; font-size: 0.9375rem; font-weight: 600; margin-bottom: 0.75rem;">
-                        📋 Basis Lead-Daten (Bei Registrierung)
-                    </h4>
-                    
-                    <div class="field-item">
-                        <div class="field-name">
-                            referral_code
-                            <span class="field-type">Text</span>
-                        </div>
-                        <div class="field-description">
-                            Der eindeutige Empfehlungscode des Leads (z.B. "LEAD12AB34CD"). Wird für die Zuordnung von Sub-Empfehlungen verwendet.
-                        </div>
-                    </div>
-                    
-                    <div class="field-item">
-                        <div class="field-name">
-                            referrer_code
-                            <span class="field-type">Text</span>
-                        </div>
-                        <div class="field-description">
-                            Der Code des Empfehlungsgebers (falls vorhanden). Zeigt, wer diesen Lead empfohlen hat.
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- SECTION 2: Statistik-Felder -->
-                <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 0.75rem; padding: 1rem; margin-bottom: 1rem;">
-                    <h4 style="color: #10b981; font-size: 0.9375rem; font-weight: 600; margin-bottom: 0.75rem;">
-                        📊 Statistik-Felder (Automatisch aktualisiert)
-                    </h4>
-                    
-                    <div class="field-item">
-                        <div class="field-name">
-                            total_referrals
-                            <span class="field-type">Zahl</span>
-                        </div>
-                        <div class="field-description">
-                            Gesamtanzahl aller Empfehlungen, die dieser Lead generiert hat (inklusive ausstehender Registrierungen).
-                        </div>
-                    </div>
-                    
-                    <div class="field-item">
-                        <div class="field-name">
-                            successful_referrals
-                            <span class="field-type">Zahl</span>
-                        </div>
-                        <div class="field-description">
-                            Anzahl der erfolgreichen, bestätigten Empfehlungen. Wird für die Belohnungsstufen verwendet.
-                        </div>
-                    </div>
-                    
-                    <div class="field-item">
-                        <div class="field-name">
-                            rewards_earned
-                            <span class="field-type">Zahl</span>
-                        </div>
-                        <div class="field-description">
-                            Anzahl der bereits erhaltenen Belohnungen. Nützlich für Segmentierung und Follow-up-Kampagnen.
-                        </div>
-                    </div>
-                    
-                    <div class="field-item">
-                        <div class="field-name">
-                            current_points
-                            <span class="field-type">Zahl</span>
-                        </div>
-                        <div class="field-description">
-                            Aktuelle Punktzahl des Leads basierend auf erfolgreichen Empfehlungen. Wird in Belohnungs-Emails verwendet.
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- SECTION 3: Belohnungs-Felder -->
-                <div style="background: rgba(251, 191, 36, 0.05); border: 1px solid rgba(251, 191, 36, 0.2); border-radius: 0.75rem; padding: 1rem; margin-bottom: 1rem;">
-                    <h4 style="color: #fbbf24; font-size: 0.9375rem; font-weight: 600; margin-bottom: 0.75rem;">
-                        🎁 Belohnungs-Felder (Bei Stufen-Freischaltung)
-                    </h4>
-                    
-                    <div class="field-item">
-                        <div class="field-name">
-                            reward_title
-                            <span class="field-type">Text</span>
-                        </div>
-                        <div class="field-description">
-                            Titel der aktuell freigeschalteten Belohnung (z.B. "Premium E-Book: Marketing Secrets"). Wird dynamisch bei Erreichen einer Stufe gesetzt.
-                        </div>
-                    </div>
-                    
-                    <div class="field-item">
-                        <div class="field-name">
-                            reward_description
-                            <span class="field-type">Text</span>
-                        </div>
-                        <div class="field-description">
-                            Ausführliche Beschreibung der Belohnung. Erklärt, was der Lead erhält und wie er davon profitiert.
-                        </div>
-                    </div>
-                    
-                    <div class="field-item">
-                        <div class="field-name">
-                            reward_warning
-                            <span class="field-type">Text</span>
-                        </div>
-                        <div class="field-description">
-                            Wichtige Hinweise zur Belohnung (z.B. "Aktiviere deine Belohnung innerhalb von 7 Tagen"). Wird in der Belohnungs-Email prominent angezeigt.
-                        </div>
-                    </div>
-                    
-                    <div class="field-item">
-                        <div class="field-name">
-                            company_name
-                            <span class="field-type">Text</span>
-                        </div>
-                        <div class="field-description">
-                            Dein Firmenname für personalisierte E-Mails. Wird automatisch aus deinen Einstellungen übernommen.
-                        </div>
-                    </div>
-                </div>
-                
-                <div style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 0.5rem; padding: 1rem; margin-top: 1rem;">
-                    <div style="display: flex; align-items: start; gap: 1rem;">
-                        <div style="color: #8b5cf6; font-size: 1.5rem; flex-shrink: 0;">
-                            <i class="fas fa-lightbulb"></i>
-                        </div>
-                        <div>
-                            <h4 style="color: white; font-size: 0.9375rem; font-weight: 600; margin-bottom: 0.5rem;">
-                                💡 So funktioniert's
-                            </h4>
-                            <ul style="color: rgba(255, 255, 255, 0.8); font-size: 0.8125rem; line-height: 1.8; margin: 0; padding-left: 1.25rem;">
-                                <li><strong>Bei Lead-Registrierung:</strong> Basis-Daten und Statistik-Felder werden übertragen</li>
-                                <li><strong>Bei Empfehlungs-Erfolg:</strong> Statistik-Felder werden automatisch aktualisiert</li>
-                                <li><strong>Bei Belohnungs-Freischaltung:</strong> Belohnungs-Felder werden gefüllt und Automation-E-Mail wird getriggert</li>
-                                <li><strong>Für Tag-Trigger:</strong> Nutze den "Start-Tag" in den API-Einstellungen unten</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
             </div>
             
-            <!-- Email Templates Modal -->
-            <div id="emailTemplatesModal" class="email-templates-modal">
-                <div class="modal-content" onclick="event.stopPropagation()">
-                    <div class="modal-header">
-                        <div class="modal-title">
-                            <i class="fas fa-envelope-open-text"></i>
-                            E-Mail-Vorlagen für Belohnungen
-                        </div>
-                        <button class="modal-close" onclick="closeEmailTemplatesModal()">
-                            <i class="fas fa-times"></i> Schließen
-                        </button>
-                    </div>
-                    <div class="modal-body">
-                        
-                        <!-- Template 1: Klassisch -->
-                        <div class="email-template-card">
-                            <div class="template-header">
-                                <div class="template-title">
-                                    📧 Vorlage 1: Klassisch & Professionell
-                                </div>
-                                <button class="template-copy-btn" onclick="copyTemplate('template1')">
-                                    <i class="fas fa-copy"></i> Kopieren
-                                </button>
-                            </div>
-                            <div class="template-preview" id="template1">Betreff: 🎉 Glückwunsch! Du hast eine Belohnung freigeschaltet
-
-Hallo!
-
-🎉 Herzlichen Glückwunsch!
-
-Du hast es geschafft und eine neue Belohnung in unserem Empfehlungsprogramm erreicht!
-
----
-
-📊 Deine aktuelle Statistik:
-✅ Erfolgreiche Empfehlungen: {{successful_referrals}}
-⭐ Gesammelte Punkte: {{current_points}}
-🎁 Dein Empfehlungscode: {{referral_code}}
-
----
-
-🎁 Deine freigeschaltete Belohnung:
-
-{{reward_title}}
-
-{{reward_warning}}
-
----
-
-💪 Weiter so!
-
-Du machst das großartig! Teile deinen Empfehlungscode weiterhin mit Freunden und Bekannten.
-
-Viele Grüße
-Dein Team</div>
-                            <div class="template-tags">
-                                <span class="template-tag">Professionell</span>
-                                <span class="template-tag">Strukturiert</span>
-                                <span class="template-tag">Klar</span>
-                            </div>
-                        </div>
-                        
-                        <!-- Template 2: Motivierend -->
-                        <div class="email-template-card">
-                            <div class="template-header">
-                                <div class="template-title">
-                                    🚀 Vorlage 2: Motivierend & Dynamisch
-                                </div>
-                                <button class="template-copy-btn" onclick="copyTemplate('template2')">
-                                    <i class="fas fa-copy"></i> Kopieren
-                                </button>
-                            </div>
-                            <div class="template-preview" id="template2">Betreff: ⭐ Level up! Du hast {{current_points}} Punkte erreicht
-
-Hey! 🌟
-
-WOW - du hast gerade Level up gemacht! 🚀
-
-Mit {{successful_referrals}} erfolgreichen Empfehlungen hast du dir folgende Belohnung verdient:
-
-🎁 {{reward_title}}
-
-{{reward_warning}}
-
----
-
-📈 DEIN FORTSCHRITT:
-Aktuelle Punkte: {{current_points}}
-Dein Code: {{referral_code}}
-
----
-
-🔥 NÄCHSTES ZIEL:
-Empfehle weiter und sichere dir noch mehr exklusive Belohnungen!
-
----
-
-Danke, dass du uns unterstützt! 💙
-
-Dein Team</div>
-                            <div class="template-tags">
-                                <span class="template-tag">Motivierend</span>
-                                <span class="template-tag">Dynamisch</span>
-                                <span class="template-tag">Modern</span>
-                            </div>
-                        </div>
-                        
-                        <!-- Template 3: Minimalistisch -->
-                        <div class="email-template-card">
-                            <div class="template-header">
-                                <div class="template-title">
-                                    ✨ Vorlage 3: Minimalistisch & Elegant
-                                </div>
-                                <button class="template-copy-btn" onclick="copyTemplate('template3')">
-                                    <i class="fas fa-copy"></i> Kopieren
-                                </button>
-                            </div>
-                            <div class="template-preview" id="template3">Betreff: Deine Belohnung ist bereit
-
-Hallo,
-
-du hast {{current_points}} Punkte erreicht.
-
-Deine Belohnung:
-{{reward_title}}
-
-{{reward_warning}}
-
----
-
-Erfolgreiche Empfehlungen: {{successful_referrals}}
-Dein Code: {{referral_code}}
-
----
-
-Beste Grüße
-Dein Team</div>
-                            <div class="template-tags">
-                                <span class="template-tag">Minimalistisch</span>
-                                <span class="template-tag">Elegant</span>
-                                <span class="template-tag">Kurz</span>
-                            </div>
-                        </div>
-                        
-                        <!-- Platzhalter-Erklärungen -->
-                        <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid #3b82f6; border-radius: 0.75rem; padding: 1.5rem; margin-top: 1.5rem;">
-                            <h4 style="color: #3b82f6; font-size: 1rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                                <i class="fas fa-info-circle"></i>
-                                Universelle Platzhalter (Diese {{...}} werden automatisch ersetzt)
-                            </h4>
-                            <div style="color: #9ca3af; font-size: 0.875rem; line-height: 1.8;">
-                                <div style="margin-bottom: 0.5rem;">
-                                    <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #fbbf24;">{{reward_title}}</code>
-                                    - Titel der Belohnung
-                                </div>
-                                <div style="margin-bottom: 0.5rem;">
-                                    <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #fbbf24;">{{reward_warning}}</code>
-                                    - Hinweis/Warnung zur Belohnung
-                                </div>
-                                <div style="margin-bottom: 0.5rem;">
-                                    <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #fbbf24;">{{successful_referrals}}</code>
-                                    - Anzahl erfolgreicher Empfehlungen
-                                </div>
-                                <div style="margin-bottom: 0.5rem;">
-                                    <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #fbbf24;">{{current_points}}</code>
-                                    - Aktuelle Punktzahl
-                                </div>
-                                <div>
-                                    <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #fbbf24;">{{referral_code}}</code>
-                                    - Empfehlungscode des Leads
-                                </div>
-                            </div>
-                        </div>
-                        
-                    </div>
-                </div>
-            </div>
+        <?php else: ?>
             
-            <!-- API Setup / Status -->
-            <?php if (!$api_settings): ?>
-                <!-- API Setup Required -->
-                <div class="api-setup-box animate-fade-in-up" style="opacity: 0; animation-delay: 0.2s;">
-                    <div class="api-setup-header">
-                        <div class="api-setup-icon">
-                            <i class="fas fa-plug"></i>
-                        </div>
-                        <div style="flex: 1;">
-                            <h2 style="color: white; font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem;">
-                                Email-Marketing Integration
-                            </h2>
-                            <p style="color: #9ca3af; font-size: 0.875rem;">
-                                Verbinde dein Email-Marketing-System für automatische Belohnungs-Emails
-                            </p>
-                        </div>
-                    </div>
-                    
-                    <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid #3b82f6; border-radius: 0.75rem; padding: 1rem; margin-bottom: 1.5rem;">
-                        <div style="display: flex; align-items: start; gap: 1rem;">
-                            <i class="fas fa-info-circle" style="color: #3b82f6; font-size: 1.5rem;"></i>
-                            <div style="flex: 1;">
-                                <h4 style="color: white; font-size: 0.9375rem; font-weight: 600; margin-bottom: 0.5rem;">
-                                    Warum API-Integration?
-                                </h4>
-                                <ul style="color: #9ca3af; font-size: 0.875rem; line-height: 1.6; margin: 0; padding-left: 1.25rem;">
-                                    <li>Automatische Lead-Eintragung in dein Email-System</li>
-                                    <li>Automatischer Versand von Belohnungs-Emails</li>
-                                    <li>Tag-Management für bessere Segmentierung</li>
-                                    <li>DSGVO-konformes Double Opt-in</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <h3 style="color: white; font-size: 1.125rem; font-weight: 600; margin-bottom: 1rem;">
-                        Wähle deinen Email-Marketing-Anbieter
-                    </h3>
-                    
-                    <div class="provider-grid">
-                        <?php foreach ($providers as $key => $provider): ?>
-                        <div class="provider-card" 
-                             data-provider="<?php echo $key; ?>"
-                             onclick="selectProvider('<?php echo $key; ?>')">
-                            <div class="provider-icon">📧</div>
-                            <div class="provider-name"><?php echo htmlspecialchars($provider['name']); ?></div>
-                            <div class="provider-features">
-                                <?php if ($provider['supports_direct_email']): ?>
-                                <span class="feature-badge">📨 Email</span>
-                                <?php endif; ?>
-                                <?php if ($provider['supports_tags']): ?>
-                                <span class="feature-badge">🏷️ Tags</span>
-                                <?php endif; ?>
-                                <?php if ($provider['supports_campaigns']): ?>
-                                <span class="feature-badge">📣 Kampagnen</span>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                        <?php endforeach; ?>
-                    </div>
-                    
-                    <!-- Config Forms for each provider -->
-                    <?php foreach ($providers as $key => $provider): ?>
-                    <div id="config-<?php echo $key; ?>" class="config-form">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                            <h3 style="color: white; font-size: 1.125rem; font-weight: 600;">
-                                <?php echo htmlspecialchars($provider['name']); ?> konfigurieren
-                            </h3>
-                            <button onclick="cancelConfig()" style="background: none; border: none; color: #9ca3af; cursor: pointer; font-size: 0.875rem;">
-                                <i class="fas fa-times"></i> Abbrechen
-                            </button>
-                        </div>
-                        
-                        <!-- 🆕 Provider-spezifische Platzhalter anzeigen -->
-                        <div class="provider-placeholders-box">
-                            <h4>
-                                <i class="fas fa-tags"></i>
-                                Platzhalter für <?php echo htmlspecialchars($provider['name']); ?>
-                            </h4>
-                            <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 1rem;">
-                                Verwende diese Platzhalter in deinen E-Mail-Kampagnen:
-                            </p>
-                            
-                            <?php foreach ($providerPlaceholders[$key] as $field => $placeholder): ?>
-                            <div class="placeholder-item" onclick="copyPlaceholder('<?php echo htmlspecialchars($placeholder); ?>', this)">
-                                <span class="placeholder-label"><?php echo ucfirst(str_replace('_', ' ', $field)); ?></span>
-                                <span class="placeholder-code"><?php echo htmlspecialchars($placeholder); ?></span>
-                            </div>
-                            <?php endforeach; ?>
-                            
-                            <div style="background: rgba(59, 130, 246, 0.1); border-radius: 0.5rem; padding: 0.75rem; margin-top: 1rem;">
-                                <small style="color: #9ca3af; font-size: 0.75rem;">
-                                    💡 <strong>Tipp:</strong> Klicke auf einen Platzhalter, um ihn in die Zwischenablage zu kopieren
-                                </small>
-                            </div>
-                        </div>
-                        
-                        <form onsubmit="saveApiConfig(event, '<?php echo $key; ?>')">
-                            <!-- API-Zugangsdaten -->
-                            <div style="background: rgba(0, 0, 0, 0.2); border-radius: 0.75rem; padding: 1.5rem; margin-bottom: 1.5rem;">
-                                <h4 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 1rem;">
-                                    <i class="fas fa-key"></i> API-Zugangsdaten
-                                </h4>
-                                
-                                <?php if ($provider['requires_api_url']): ?>
-                                <div class="form-group">
-                                    <label class="form-label">
-                                        API URL <span class="required">*</span>
-                                    </label>
-                                    <input type="url" name="api_url" class="form-input" required 
-                                           placeholder="<?php echo $provider['api_url_placeholder']; ?>">
-                                    <div class="form-hint"><?php echo $provider['api_url_help']; ?></div>
-                                </div>
-                                <?php endif; ?>
-                                
-                                <?php if ($provider['requires_username']): ?>
-                                <div class="form-group">
-                                    <label class="form-label">
-                                        Username <span class="required">*</span>
-                                    </label>
-                                    <input type="text" name="username" class="form-input" required placeholder="Dein Klick-Tipp Username">
-                                    <div class="form-hint">Dein Login-Name bei Klick-Tipp</div>
-                                </div>
-                                <?php endif; ?>
-                                
-                                <div class="form-group">
-                                    <label class="form-label">
-                                        <?php echo $provider['requires_username'] ? 'Passwort' : 'API-Key'; ?> <span class="required">*</span>
-                                    </label>
-                                    <input type="password" name="api_key" class="form-input" required 
-                                           placeholder="<?php echo $provider['requires_username'] ? 'Dein Passwort' : 'Dein API-Key'; ?>">
-                                    <div class="form-hint">Zu finden in deinen <?php echo $provider['name']; ?> Einstellungen</div>
-                                </div>
-                            </div>
-                            
-                            <!-- Listen & Tags -->
-                            <div style="background: rgba(0, 0, 0, 0.2); border-radius: 0.75rem; padding: 1.5rem; margin-bottom: 1.5rem;">
-                                <h4 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 1rem;">
-                                    <i class="fas fa-tags"></i> Listen & Tags
-                                </h4>
-                                
-                                <div class="form-group">
-                                    <label class="form-label">Start-Tag</label>
-                                    <input type="text" name="start_tag" class="form-input" placeholder="z.B. Optinpilot-Belohnung">
-                                    <div class="form-hint">Wird jedem neuen Lead zugewiesen (für Tag-Trigger)</div>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label class="form-label">Listen-ID</label>
-                                    <input type="text" name="list_id" class="form-input" placeholder="z.B. 12345">
-                                </div>
-                                
-                                <?php if ($provider['supports_campaigns']): ?>
-                                <div class="form-group">
-                                    <label class="form-label">Kampagnen-ID</label>
-                                    <input type="text" name="campaign_id" class="form-input" placeholder="z.B. 67890">
-                                </div>
-                                <?php endif; ?>
-                            </div>
-                            
-                            <!-- Double Opt-in -->
-                            <div style="background: rgba(0, 0, 0, 0.2); border-radius: 0.75rem; padding: 1.5rem; margin-bottom: 1.5rem;">
-                                <h4 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 1rem;">
-                                    <i class="fas fa-shield-alt"></i> Double Opt-in
-                                </h4>
-                                
-                                <div class="checkbox-group">
-                                    <input type="checkbox" name="double_optin_enabled" id="doi-<?php echo $key; ?>" checked>
-                                    <label for="doi-<?php echo $key; ?>">
-                                        <strong>Double Opt-in aktivieren</strong><br>
-                                        <small style="color: #9ca3af;">Empfohlen für DSGVO-Konformität</small>
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <!-- Buttons -->
-                            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                                <button type="button" onclick="cancelConfig()" class="btn btn-secondary">
-                                    <i class="fas fa-times"></i> Abbrechen
-                                </button>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-save"></i> Speichern & Testen
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-                
-            <?php else: ?>
-                <!-- API Configured - Show Status with Placeholders -->
-                <div class="existing-api-config animate-fade-in-up" style="opacity: 0; animation-delay: 0.2s;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
-                        <div>
-                            <h3 style="color: white; font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem;">
-                                <i class="fas fa-check-circle"></i> Email-Marketing verbunden
-                            </h3>
-                            <span class="api-status-badge <?php echo $api_settings['is_verified'] ? 'status-verified' : 'status-unverified'; ?>">
-                                <i class="fas fa-circle" style="font-size: 0.5rem;"></i>
-                                <?php echo $api_settings['is_verified'] ? 'Verifiziert' : 'Nicht verifiziert'; ?>
-                            </span>
-                        </div>
-                        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
-                            <button onclick="testApiConnection()" class="btn btn-test">
-                                <i class="fas fa-check-circle"></i> Testen
-                            </button>
-                            <button onclick="deleteApiConfig()" class="btn" style="background: #ef4444; color: white;">
-                                <i class="fas fa-trash"></i> Löschen
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="config-detail">
-                        <span style="color: #9ca3af;">Provider:</span>
-                        <span style="color: white; font-weight: 600;">
-                            <?php echo ucfirst($api_settings['provider']); ?>
-                        </span>
-                    </div>
-                    
-                    <div class="config-detail">
-                        <span style="color: #9ca3af;">API Key:</span>
-                        <span style="color: white; font-family: monospace; font-size: 0.875rem;">
-                            <?php echo $api_settings['api_key_masked'] ?? '••••••••'; ?>
-                        </span>
-                    </div>
-                    
-                    <?php if ($api_settings['start_tag']): ?>
-                    <div class="config-detail">
-                        <span style="color: #9ca3af;">Start-Tag:</span>
-                        <span style="color: #10b981; font-weight: 500;">
-                            <?php echo htmlspecialchars($api_settings['start_tag']); ?>
-                        </span>
-                    </div>
-                    <?php endif; ?>
-                    
-                    <?php if ($api_settings['list_id']): ?>
-                    <div class="config-detail">
-                        <span style="color: #9ca3af;">Listen-ID:</span>
-                        <span style="color: #3b82f6; font-weight: 500;">
-                            <?php echo htmlspecialchars($api_settings['list_id']); ?>
-                        </span>
-                    </div>
-                    <?php endif; ?>
-                    
-                    <div class="config-detail">
-                        <span style="color: #9ca3af;">Double Opt-in:</span>
-                        <span style="color: white;">
-                            <?php echo $api_settings['double_optin_enabled'] ? '✅ Aktiviert' : '❌ Deaktiviert'; ?>
-                        </span>
-                    </div>
-                    
-                    <!-- 🆕 Platzhalter für konfigurierten Provider anzeigen -->
-                    <?php if (isset($providerPlaceholders[$api_settings['provider']])): ?>
-                    <div class="provider-placeholders-box" style="margin-top: 1.5rem;">
-                        <h4>
-                            <i class="fas fa-tags"></i>
-                            Platzhalter für <?php echo ucfirst($api_settings['provider']); ?>
-                        </h4>
-                        <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 1rem;">
-                            Verwende diese Platzhalter in deinen E-Mail-Kampagnen:
-                        </p>
-                        
-                        <?php foreach ($providerPlaceholders[$api_settings['provider']] as $field => $placeholder): ?>
-                        <div class="placeholder-item" onclick="copyPlaceholder('<?php echo htmlspecialchars($placeholder); ?>', this)">
-                            <span class="placeholder-label"><?php echo ucfirst(str_replace('_', ' ', $field)); ?></span>
-                            <span class="placeholder-code"><?php echo htmlspecialchars($placeholder); ?></span>
-                        </div>
-                        <?php endforeach; ?>
-                        
-                        <div style="background: rgba(59, 130, 246, 0.1); border-radius: 0.5rem; padding: 0.75rem; margin-top: 1rem;">
-                            <small style="color: #9ca3af; font-size: 0.75rem;">
-                                💡 <strong>Tipp:</strong> Klicke auf einen Platzhalter, um ihn in die Zwischenablage zu kopieren
-                            </small>
-                        </div>
-                    </div>
-                    <?php endif; ?>
-                </div>
-                
-            <?php endif; ?>
+            <!-- ===== EMPFEHLUNGSPROGRAMM CONTENT ===== -->
             
             <!-- Statistiken -->
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-                <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.3s; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+                <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.2s; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
                     <div style="color: white;">
                         <div style="font-size: 3rem; font-weight: 700; margin-bottom: 0.5rem;"><?php echo $stats['total_leads']; ?></div>
                         <div style="color: rgba(255,255,255,0.8); font-size: 0.875rem;">Gesamt Leads</div>
                     </div>
                 </div>
                 
-                <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.4s; background: linear-gradient(135deg, #10b981, #059669); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+                <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.3s; background: linear-gradient(135deg, #10b981, #059669); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
                     <div style="color: white;">
                         <div style="font-size: 3rem; font-weight: 700; margin-bottom: 0.5rem;"><?php echo $available_slots; ?></div>
                         <div style="color: rgba(255,255,255,0.8); font-size: 0.875rem;">Verfügbare Slots</div>
                     </div>
                 </div>
+                
+                <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.4s; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+                    <div style="color: white;">
+                        <div style="font-size: 3rem; font-weight: 700; margin-bottom: 0.5rem;"><?php echo $stats['successful_referrals']; ?></div>
+                        <div style="color: rgba(255,255,255,0.8); font-size: 0.875rem;">Erfolgreiche Empfehlungen</div>
+                    </div>
+                </div>
             </div>
             
-            <!-- Freebies Liste mit Mockup-Bildern -->
+            <!-- Freebies Liste -->
             <div class="animate-fade-in-up" style="opacity: 0; animation-delay: 0.5s;">
                 <h2 style="color: white; font-size: 1.5rem; font-weight: 600; margin-bottom: 1.5rem;">
                     <i class="fas fa-gift"></i> Deine Freebies (<?php echo count($freebies); ?>)
@@ -1708,7 +713,7 @@ Dein Team</div>
                                 <div style="display: flex; gap: 0.5rem;">
                                     <input type="text" readonly value="<?php echo htmlspecialchars($referralLink); ?>" 
                                            style="flex: 1; background: #111827; border: 1px solid #374151; border-radius: 0.5rem; color: white; padding: 0.5rem; font-size: 0.75rem; font-family: monospace;">
-                                    <button onclick="copyLink(this)" class="btn btn-primary" style="padding: 0.5rem 1rem;">
+                                    <button onclick="copyLink(this)" class="btn" style="padding: 0.5rem 1rem; background: linear-gradient(135deg, #667eea, #764ba2); color: white;">
                                         <i class="fas fa-copy"></i>
                                     </button>
                                 </div>
@@ -1717,7 +722,7 @@ Dein Team</div>
                             <div style="background: rgba(0, 0, 0, 0.2); border-radius: 0.75rem; padding: 1rem;">
                                 <div style="color: #9ca3af; font-size: 0.75rem; margin-bottom: 0.5rem;">Belohnungen</div>
                                 <a href="?page=belohnungsstufen&freebie_id=<?php echo $freebie['customer_freebie_id']; ?>" 
-                                   class="btn btn-primary" style="width: 100%; justify-content: center;">
+                                   class="btn" style="width: 100%; justify-content: center; background: linear-gradient(135deg, #667eea, #764ba2); color: white; text-decoration: none;">
                                     <i class="fas fa-trophy"></i>
                                     <?php echo $freebie['reward_count'] > 0 ? 'Verwalten (' . $freebie['reward_count'] . ')' : 'Einrichten'; ?>
                                 </a>
@@ -1728,242 +733,138 @@ Dein Team</div>
                 <?php endif; ?>
             </div>
             
-        <?php else: ?>
-            <!-- Empfehlungsprogramm ist deaktiviert -->
-            <div style="text-align: center; padding: 4rem 2rem; background: rgba(0, 0, 0, 0.2); border-radius: 1rem; margin-top: 2rem;">
-                <div style="font-size: 4rem; color: #374151; margin-bottom: 1.5rem;">
-                    <i class="fas fa-power-off"></i>
-                </div>
-                <h3 style="color: white; font-size: 1.5rem; margin-bottom: 1rem;">
-                    Empfehlungsprogramm ist deaktiviert
-                </h3>
-                <p style="color: #9ca3af; margin-bottom: 2rem; max-width: 600px; margin-left: auto; margin-right: auto;">
-                    Aktiviere das Empfehlungsprogramm über den Schieber oben rechts, um deine Freebies zu teilen und Belohnungen zu konfigurieren.
-                </p>
-                <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid #3b82f6; border-radius: 0.75rem; padding: 1.5rem; max-width: 600px; margin: 0 auto;">
-                    <h4 style="color: #3b82f6; font-size: 1.125rem; margin-bottom: 1rem;">
-                        <i class="fas fa-info-circle"></i> Was passiert beim Aktivieren?
-                    </h4>
-                    <ul style="color: #9ca3af; text-align: left; line-height: 1.8;">
-                        <li>Du kannst deine Email-Marketing-Integration einrichten</li>
-                        <li>Du erhältst Zugriff auf Lead-Anmeldeseiten</li>
-                        <li>Deine Freebies werden mit Empfehlungslinks versehen</li>
-                        <li>Du kannst Belohnungsstufen konfigurieren</li>
-                    </ul>
-                </div>
-            </div>
         <?php endif; ?>
         
     </div>
     
+    <!-- Consent Modal -->
+    <div id="consentModal" class="consent-modal">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <i class="fas fa-shield-alt"></i>
+                    Zustimmung erforderlich
+                </div>
+                <div class="modal-subtitle">
+                    Bitte bestätige die folgenden Punkte, um das Empfehlungsprogramm zu nutzen
+                </div>
+            </div>
+            
+            <div class="modal-body">
+                <div class="consent-section">
+                    <h4>
+                        <i class="fas fa-envelope"></i>
+                        Mailgun E-Mail-Versand
+                    </h4>
+                    <ul>
+                        <li>Ich verstehe, dass Mailgun (EU-Server) für den Versand von Belohnungs-E-Mails genutzt wird</li>
+                        <li>Die Daten meiner Leads (Name, E-Mail) werden nur für den E-Mail-Versand verwendet</li>
+                        <li>Mein Impressum wird automatisch in jede E-Mail eingefügt</li>
+                        <li>Alle Daten bleiben in Europa und werden DSGVO-konform verarbeitet</li>
+                    </ul>
+                </div>
+                
+                <div class="consent-section">
+                    <h4>
+                        <i class="fas fa-file-contract"></i>
+                        Auftragsverarbeitungsvertrag (AVV)
+                    </h4>
+                    <ul>
+                        <li>Ich akzeptiere den AVV nach Art. 28 DSGVO</li>
+                        <li>Ich bleibe Verantwortlicher für die Verarbeitung meiner Lead-Daten</li>
+                        <li>Die Daten werden nur nach meiner Weisung verarbeitet</li>
+                        <li>Technische und organisatorische Maßnahmen werden eingehalten</li>
+                    </ul>
+                </div>
+                
+                <label class="checkbox-group" id="mailgunCheckbox" onclick="toggleCheckbox('mailgunCheck')">
+                    <input type="checkbox" id="mailgunCheck" onclick="event.stopPropagation(); updateConfirmButton()">
+                    <div class="checkbox-label">
+                        <strong>Ja, ich stimme zu</strong><br>
+                        Ich habe die Informationen gelesen und akzeptiere die Nutzung von Mailgun sowie den Auftragsverarbeitungsvertrag.
+                    </div>
+                </label>
+                
+                <div class="modal-actions">
+                    <button class="btn btn-cancel" onclick="closeConsentModal()">
+                        <i class="fas fa-times"></i>
+                        Abbrechen
+                    </button>
+                    <button class="btn btn-confirm" id="confirmButton" disabled onclick="saveConsent()">
+                        <i class="fas fa-check"></i>
+                        Zustimmung speichern
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <script>
-        let selectedProvider = null;
-        const providerDefaults = <?php echo json_encode($providers); ?>;
-        
-        // Email Templates Modal
-        function openEmailTemplatesModal() {
-            document.getElementById('emailTemplatesModal').classList.add('active');
+        // Modal öffnen/schließen
+        function openConsentModal() {
+            document.getElementById('consentModal').classList.add('active');
             document.body.style.overflow = 'hidden';
         }
         
-        function closeEmailTemplatesModal() {
-            document.getElementById('emailTemplatesModal').classList.remove('active');
+        function closeConsentModal() {
+            document.getElementById('consentModal').classList.remove('active');
             document.body.style.overflow = '';
         }
         
-        // Close modal on overlay click
-        document.getElementById('emailTemplatesModal')?.addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeEmailTemplatesModal();
-            }
-        });
-        
-        // Copy email template
-        function copyTemplate(templateId) {
-            const template = document.getElementById(templateId);
-            const text = template.textContent;
-            
-            // Create temporary textarea
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            textarea.style.position = 'fixed';
-            textarea.style.opacity = '0';
-            document.body.appendChild(textarea);
-            
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
-            
-            // Show success feedback
-            const btn = event.target.closest('.template-copy-btn');
-            const originalHTML = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-check"></i> Kopiert!';
-            btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-            
-            setTimeout(() => {
-                btn.innerHTML = originalHTML;
-                btn.style.background = '';
-            }, 2000);
-            
-            showNotification('✅ E-Mail-Vorlage kopiert!', 'success');
+        // Checkbox toggle
+        function toggleCheckbox(id) {
+            const checkbox = document.getElementById(id);
+            checkbox.checked = !checkbox.checked;
+            updateConfirmButton();
         }
         
-        // 🆕 Platzhalter kopieren
-        function copyPlaceholder(placeholder, element) {
-            const textarea = document.createElement('textarea');
-            textarea.value = placeholder;
-            textarea.style.position = 'fixed';
-            textarea.style.opacity = '0';
-            document.body.appendChild(textarea);
+        // Confirm Button aktivieren/deaktivieren
+        function updateConfirmButton() {
+            const mailgunCheck = document.getElementById('mailgunCheck').checked;
+            const confirmBtn = document.getElementById('confirmButton');
+            const checkboxGroup = document.getElementById('mailgunCheckbox');
             
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
+            confirmBtn.disabled = !mailgunCheck;
             
-            // Visual Feedback
-            const codeElement = element.querySelector('.placeholder-code');
-            const originalHTML = codeElement.innerHTML;
-            codeElement.innerHTML = '<i class="fas fa-check"></i> Kopiert!';
-            codeElement.style.background = 'rgba(16, 185, 129, 0.3)';
-            
-            setTimeout(() => {
-                codeElement.innerHTML = originalHTML;
-                codeElement.style.background = '';
-            }, 1500);
-            
-            showNotification('✅ Platzhalter "' + placeholder + '" kopiert!', 'success');
+            if (mailgunCheck) {
+                checkboxGroup.classList.add('checked');
+            } else {
+                checkboxGroup.classList.remove('checked');
+            }
         }
         
-        // Close modal on Escape key
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                closeEmailTemplatesModal();
-            }
-        });
-        
-        // Provider auswählen
-        function selectProvider(provider) {
-            selectedProvider = provider;
-            
-            // Alle Cards deselektieren
-            document.querySelectorAll('.provider-card').forEach(card => {
-                card.classList.remove('selected');
-            });
-            
-            // Gewählte Card selektieren
-            document.querySelector(`[data-provider="${provider}"]`).classList.add('selected');
-            
-            // Alle Forms ausblenden
-            document.querySelectorAll('.config-form').forEach(form => {
-                form.classList.remove('active');
-            });
-            
-            // Gewähltes Form anzeigen
-            document.getElementById(`config-${provider}`).classList.add('active');
-        }
-        
-        function cancelConfig() {
-            document.querySelectorAll('.config-form').forEach(form => {
-                form.classList.remove('active');
-            });
-            document.querySelectorAll('.provider-card').forEach(card => {
-                card.classList.remove('selected');
-            });
-            selectedProvider = null;
-        }
-        
-        // API Config speichern
-        async function saveApiConfig(event, provider) {
-            event.preventDefault();
-            
-            const formData = new FormData(event.target);
-            const data = {
-                provider: provider,
-                api_key: formData.get('api_key'),
-                start_tag: formData.get('start_tag'),
-                list_id: formData.get('list_id'),
-                campaign_id: formData.get('campaign_id'),
-                double_optin_enabled: formData.get('double_optin_enabled') ? true : false
-            };
-            
-            // Username hinzufügen wenn vorhanden (für Klick-Tipp)
-            if (formData.has('username') && formData.get('username')) {
-                data.username = formData.get('username');
-            }
-            
-            // API URL - verwende entweder eingegebene URL oder Default
-            if (formData.has('api_url') && formData.get('api_url')) {
-                data.api_url = formData.get('api_url');
-            } else if (providerDefaults[provider].default_api_url) {
-                data.api_url = providerDefaults[provider].default_api_url;
-            }
+        // Zustimmung speichern
+        async function saveConsent() {
+            const confirmBtn = document.getElementById('confirmButton');
+            const originalHTML = confirmBtn.innerHTML;
+            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Speichere...';
+            confirmBtn.disabled = true;
             
             try {
-                const response = await fetch('/api/email-settings/save.php', {
+                const response = await fetch('/api/mailgun/consent.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify({ 
+                        consent_given: true,
+                        acceptance_type: 'mailgun_consent'
+                    })
                 });
                 
                 const result = await response.json();
                 
                 if (result.success) {
-                    showNotification('✅ Einstellungen gespeichert! Teste jetzt die Verbindung...', 'success');
-                    setTimeout(() => location.reload(), 2000);
+                    showNotification('✅ Zustimmung gespeichert! Seite wird neu geladen...', 'success');
+                    setTimeout(() => location.reload(), 1500);
                 } else {
-                    showNotification('❌ Fehler: ' + result.error, 'error');
+                    showNotification('❌ Fehler: ' + (result.error || 'Unbekannter Fehler'), 'error');
+                    confirmBtn.innerHTML = originalHTML;
+                    confirmBtn.disabled = false;
                 }
             } catch (error) {
                 console.error('Error:', error);
                 showNotification('❌ Verbindungsfehler beim Speichern', 'error');
-            }
-        }
-        
-        // API-Verbindung testen
-        async function testApiConnection() {
-            showNotification('🔄 Teste Verbindung...', 'info');
-            
-            try {
-                const response = await fetch('/api/email-settings/test.php', {
-                    method: 'POST'
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    showNotification('✅ Verbindung erfolgreich! ' + result.message, 'success');
-                    setTimeout(() => location.reload(), 2000);
-                } else {
-                    showNotification('❌ Verbindung fehlgeschlagen: ' + result.error, 'error');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                showNotification('❌ Fehler beim Testen', 'error');
-            }
-        }
-        
-        // API-Config löschen
-        async function deleteApiConfig() {
-            if (!confirm('API-Konfiguration wirklich löschen? Dies kann nicht rückgängig gemacht werden.')) {
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/email-settings/delete.php', {
-                    method: 'POST'
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    showNotification('✅ Konfiguration gelöscht', 'success');
-                    setTimeout(() => location.reload(), 1500);
-                } else {
-                    showNotification('❌ Fehler: ' + result.error, 'error');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                showNotification('❌ Verbindungsfehler', 'error');
+                confirmBtn.innerHTML = originalHTML;
+                confirmBtn.disabled = false;
             }
         }
         
@@ -1994,23 +895,6 @@ Dein Team</div>
             });
         }
         
-        // URL kopieren
-        function copyUrl(inputId) {
-            const input = document.getElementById(inputId);
-            input.select();
-            document.execCommand('copy');
-            
-            const btn = event.target.closest('button');
-            const originalHTML = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-check"></i> Kopiert!';
-            btn.style.background = '#10b981';
-            
-            setTimeout(() => {
-                btn.innerHTML = originalHTML;
-                btn.style.background = '';
-            }, 2000);
-        }
-        
         // Link kopieren
         function copyLink(button) {
             const input = button.previousElementSibling;
@@ -2018,13 +902,15 @@ Dein Team</div>
             document.execCommand('copy');
             
             const originalHTML = button.innerHTML;
-            button.innerHTML = '<i class="fas fa-check"></i> Kopiert!';
+            button.innerHTML = '<i class="fas fa-check"></i>';
             button.style.background = '#10b981';
             
             setTimeout(() => {
                 button.innerHTML = originalHTML;
                 button.style.background = '';
             }, 2000);
+            
+            showNotification('✅ Link kopiert!', 'success');
         }
         
         // Notification
@@ -2073,6 +959,20 @@ Dein Team</div>
             }
         `;
         document.head.appendChild(style);
+        
+        // Close modal on overlay click
+        document.getElementById('consentModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeConsentModal();
+            }
+        });
+        
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeConsentModal();
+            }
+        });
     </script>
 </body>
 </html>
