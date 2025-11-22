@@ -34,8 +34,12 @@ try {
         SELECT 
             id,
             freebie_id,
+            tier_name,
+            tier_description,
+            reward_type,
             reward_title,
             reward_description,
+            reward_value,
             required_referrals,
             reward_icon,
             reward_color,
@@ -61,7 +65,7 @@ try {
     
     echo json_encode([
         'success' => true,
-        'reward' => $reward  // Changed from 'data' to 'reward'
+        'reward' => $reward
     ]);
     
 } catch (Exception $e) {
