@@ -181,6 +181,7 @@ try {
         .info-value {
             color: #1f2937;
             font-size: 14px;
+            word-break: break-word;
         }
         
         .info-value strong {
@@ -267,6 +268,7 @@ try {
             gap: 8px;
             text-decoration: none;
             transition: all 0.2s;
+            z-index: 1000;
         }
         
         .download-btn:hover {
@@ -274,8 +276,294 @@ try {
             box-shadow: 0 6px 12px rgba(139, 92, 246, 0.4);
         }
         
+        .contract-parties {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        
+        .party-box p {
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .party-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
         @page {
             margin: 2cm;
+        }
+        
+        /* ==================== MOBILE OPTIMIERUNG ==================== */
+        
+        /* Tablets und kleinere Bildschirme */
+        @media screen and (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                box-shadow: none;
+                border-radius: 0;
+            }
+            
+            .pdf-content {
+                padding: 30px 20px;
+            }
+            
+            .header h1 {
+                font-size: 22px;
+                line-height: 1.3;
+            }
+            
+            .header .subtitle {
+                font-size: 13px;
+                line-height: 1.5;
+            }
+            
+            .header {
+                padding-bottom: 20px;
+                margin-bottom: 25px;
+            }
+            
+            .section-title {
+                font-size: 16px;
+                margin-bottom: 12px;
+            }
+            
+            .section {
+                margin-bottom: 25px;
+            }
+            
+            /* Info-Grid wird einspaltiger auf Tablets */
+            .info-grid {
+                grid-template-columns: 140px 1fr;
+                gap: 10px 15px;
+            }
+            
+            .info-label {
+                font-size: 13px;
+            }
+            
+            .info-value {
+                font-size: 13px;
+            }
+            
+            .doc-id {
+                padding: 12px;
+                font-size: 13px;
+            }
+            
+            .highlight-box,
+            .legal-box {
+                padding: 15px;
+                margin: 15px 0;
+            }
+            
+            .highlight-box h3,
+            .legal-box h3 {
+                font-size: 14px;
+            }
+            
+            .highlight-box p,
+            .legal-box p {
+                font-size: 13px;
+            }
+            
+            /* Vertragsparteien werden einspaltiger */
+            .contract-parties {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .download-btn {
+                top: 10px;
+                right: 10px;
+                padding: 10px 18px;
+                font-size: 13px;
+            }
+            
+            .footer {
+                margin-top: 30px;
+                font-size: 11px;
+                padding: 15px 10px;
+            }
+        }
+        
+        /* Smartphones im Hochformat */
+        @media screen and (max-width: 480px) {
+            body {
+                padding: 0;
+                background: white;
+            }
+            
+            .container {
+                box-shadow: none;
+            }
+            
+            .pdf-content {
+                padding: 20px 15px;
+            }
+            
+            .header {
+                border-bottom: 3px solid #8b5cf6;
+                padding-bottom: 15px;
+                margin-bottom: 20px;
+            }
+            
+            .header h1 {
+                font-size: 20px;
+                line-height: 1.3;
+            }
+            
+            .header .subtitle {
+                font-size: 12px;
+                line-height: 1.4;
+            }
+            
+            .section-title {
+                font-size: 15px;
+                margin-bottom: 10px;
+                padding-bottom: 6px;
+            }
+            
+            .section {
+                margin-bottom: 20px;
+            }
+            
+            /* Info-Grid wird vollständig gestackt */
+            .info-grid {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+            
+            .info-label {
+                font-size: 12px;
+                font-weight: 700;
+                margin-bottom: 2px;
+            }
+            
+            .info-value {
+                font-size: 13px;
+                margin-bottom: 12px;
+                padding-bottom: 12px;
+                border-bottom: 1px solid #f3f4f6;
+            }
+            
+            .info-value:last-child {
+                border-bottom: none;
+            }
+            
+            .doc-id {
+                padding: 10px;
+                font-size: 12px;
+                line-height: 1.6;
+            }
+            
+            .highlight-box,
+            .legal-box {
+                padding: 12px;
+                margin: 12px 0;
+                border-radius: 6px;
+            }
+            
+            .highlight-box h3 {
+                font-size: 13px;
+                margin-bottom: 8px;
+            }
+            
+            .highlight-box p {
+                font-size: 12px;
+                line-height: 1.6;
+            }
+            
+            .legal-box h3 {
+                font-size: 13px;
+                margin-bottom: 8px;
+            }
+            
+            .legal-box p {
+                font-size: 12px;
+                line-height: 1.6;
+            }
+            
+            .contract-parties {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .party-box p {
+                font-size: 12px;
+            }
+            
+            .party-title {
+                font-size: 13px;
+            }
+            
+            /* Download-Button wird kleiner und verschiebt sich */
+            .download-btn {
+                position: fixed;
+                bottom: 20px;
+                right: 50%;
+                transform: translateX(50%);
+                top: auto;
+                left: auto;
+                padding: 12px 20px;
+                font-size: 13px;
+                border-radius: 50px;
+                box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+            }
+            
+            .download-btn:hover {
+                transform: translateX(50%) translateY(-2px);
+            }
+            
+            .footer {
+                margin-top: 25px;
+                padding-top: 15px;
+                font-size: 10px;
+                line-height: 1.5;
+            }
+            
+            .footer p {
+                word-break: break-word;
+            }
+        }
+        
+        /* Extra kleine Smartphones */
+        @media screen and (max-width: 360px) {
+            .pdf-content {
+                padding: 15px 10px;
+            }
+            
+            .header h1 {
+                font-size: 18px;
+            }
+            
+            .section-title {
+                font-size: 14px;
+            }
+            
+            .download-btn {
+                padding: 10px 16px;
+                font-size: 12px;
+            }
+            
+            .doc-id {
+                font-size: 11px;
+            }
+        }
+        
+        /* Touch-Optimierung für alle mobilen Geräte */
+        @media (hover: none) and (pointer: coarse) {
+            .download-btn {
+                min-height: 44px;
+                min-width: 44px;
+            }
         }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -380,10 +668,10 @@ try {
             
             <div class="section">
                 <div class="section-title">Vertragsparteien</div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 20px;">
-                    <div>
-                        <p style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">Verantwortlicher:</p>
-                        <p style="font-size: 13px; line-height: 1.6;">
+                <div class="contract-parties">
+                    <div class="party-box">
+                        <p class="party-title">Verantwortlicher:</p>
+                        <p>
                             <?= htmlspecialchars($data['user_name']) ?><br>
                             <?= htmlspecialchars($data['user_email']) ?><br>
                             <?php if (!empty($data['company_name'])): ?>
@@ -391,9 +679,9 @@ try {
                             <?php endif; ?>
                         </p>
                     </div>
-                    <div>
-                        <p style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">Auftragsverarbeiter:</p>
-                        <p style="font-size: 13px; line-height: 1.6;">
+                    <div class="party-box">
+                        <p class="party-title">Auftragsverarbeiter:</p>
+                        <p>
                             KI Leadsystem<br>
                             app.mehr-infos-jetzt.de<br>
                             Deutschland
