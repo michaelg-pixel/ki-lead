@@ -6,11 +6,13 @@
  * MULTI-FREEBIE: Lead kann Zugang zu mehreren Freebies haben
  * 🆕 AUTOMATISCHES REFERRAL TRACKING: Referral Code wird aus URL, Session oder Cookie gelesen
  * 🚀 API-INTEGRATION: Lead-Daten werden automatisch an Kunden-API übertragen
+ * 📧 MAILGUN-INTEGRATION: Automatischer Belohnungs-Email-Versand via Mailgun
  */
 
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/freebie/track-referral.php'; // 🆕 Tracking Helper
 require_once __DIR__ . '/customer/includes/EmailProviders.php'; // 🚀 API Provider
+require_once __DIR__ . '/includes/MailgunRewardHelper.php'; // 📧 Mailgun Email Helper
 
 // Session nur starten wenn nicht bereits aktiv
 if (session_status() === PHP_SESSION_NONE) {
@@ -429,6 +431,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                         // 🆕 REFERRER AN API UPDATEN (Counter synchronisieren)
                         sendLeadToCustomerAPI($pdo, $referrer_id, $customer_id);
                         
+                        // 📧 MAILGUN: Neue Belohnungen für Referrer prüfen
+                        MailgunRewardHelper::checkAndSendRewards($referrer_id, $customer_id);
+                        
                     } catch (PDOException $e) {
                         error_log("❌ REFERRAL ERROR: " . $e->getMessage());
                     }
@@ -440,6 +445,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                 // 🚀 API-CALL: Lead an Kunden-System übertragen
                 if ($isNewLead) {
                     sendLeadToCustomerAPI($pdo, $lead_id, $customer_id);
+                    
+                    // 📧 MAILGUN: Belohnungen prüfen für neuen Lead
+                    MailgunRewardHelper::checkAndSendRewards($lead_id, $customer_id);
                 }
             }
             
