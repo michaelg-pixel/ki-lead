@@ -4,8 +4,8 @@
  * Testet den Email-Versand über Mailgun
  */
 
-require_once __DIR__ . '/config/database.php';
-require_once __DIR__ . '/mailgun/includes/MailgunService.php';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/includes/MailgunService.php';
 
 echo "🧪 Mailgun Test-Script\n";
 echo "====================\n\n";
@@ -16,7 +16,7 @@ try {
     
     // Test-Daten
     $testLead = [
-        'email' => 'deine@email.de', // <-- HIER DEINE EMAIL EINTRAGEN!
+        'email' => 'test@optinpilot.de', // <-- HIER DEINE EMAIL EINTRAGEN!
         'name' => 'Test Lead',
         'referral_code' => 'TEST123',
         'successful_referrals' => 5,
@@ -46,7 +46,7 @@ try {
     if ($result['success']) {
         echo "✅ EMAIL ERFOLGREICH VERSENDET!\n";
         echo "Message ID: " . $result['message_id'] . "\n\n";
-        echo "📬 Prüfe dein Postfach (auch Spam-Ordner!)  \n";
+        echo "📬 Prüfe dein Postfach (auch Spam-Ordner!)\n";
     } else {
         echo "❌ EMAIL-VERSAND FEHLGESCHLAGEN!\n";
         echo "Fehler: " . ($result['error'] ?? 'Unbekannter Fehler') . "\n";
