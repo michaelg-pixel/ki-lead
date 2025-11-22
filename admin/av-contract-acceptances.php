@@ -5,7 +5,7 @@
  * Zeigt alle AV-Vertrags-Zustimmungen für Audit und rechtliche Nachweispflicht
  * DSGVO-konform gem. Art. 28 DSGVO
  * 
- * ERWEITERT: Inkl. Mailgun-Zustimmungen
+ * ERWEITERT: Inkl. Mailgun-Zustimmungen + PDF-Export
  */
 
 // Sichere Session-Konfiguration laden
@@ -121,6 +121,7 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AV-Vertrags-Zustimmungen - Admin</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -131,7 +132,7 @@ try {
         }
         
         .container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
         }
         
@@ -241,16 +242,38 @@ try {
             background: #7c3aed;
         }
         
+        .btn-download {
+            padding: 6px 12px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        
+        .btn-download:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
+        }
+        
         .table-container {
             background: white;
             border-radius: 12px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            overflow: hidden;
+            overflow-x: auto;
         }
         
         table {
             width: 100%;
             border-collapse: collapse;
+            min-width: 1200px;
         }
         
         thead {
@@ -373,6 +396,10 @@ try {
         .back-link:hover {
             text-decoration: underline;
         }
+        
+        .actions-cell {
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
@@ -453,6 +480,7 @@ try {
                         <th>Typ</th>
                         <th>Version</th>
                         <th>User-Agent</th>
+                        <th>Aktion</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -482,6 +510,15 @@ try {
                             <div class="user-agent" title="<?= htmlspecialchars($acceptance['user_agent']) ?>">
                                 <?= htmlspecialchars($acceptance['user_agent']) ?>
                             </div>
+                        </td>
+                        <td class="actions-cell">
+                            <a href="av-contract-pdf.php?id=<?= $acceptance['id'] ?>" 
+                               target="_blank" 
+                               class="btn-download"
+                               title="Zustimmung als PDF herunterladen">
+                                <i class="fas fa-file-pdf"></i>
+                                PDF
+                            </a>
                         </td>
                     </tr>
                     <?php endforeach; ?>
