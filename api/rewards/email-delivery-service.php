@@ -1,24 +1,20 @@
 <?php
 /**
  * Universal Reward Email Delivery Service
- * Versendet Belohnungs-Benachrichtigungen über ALLE konfigurierten Email-Marketing-Provider
- * 
- * ✅ Unterstützte Provider:
- * - Quentn
- * - ActiveCampaign
- * - Klick-Tipp
- * - Brevo (Sendinblue)
- * - GetResponse
+ * Versendet Belohnungs-Benachrichtigungen über:
+ * 1. E-Mail-Marketing-Provider (Quentn, ActiveCampaign, etc.) ODER
+ * 2. Mailgun (Fallback mit automatischem Impressum)
  * 
  * Features:
  * - Provider-spezifische Custom Fields Updates
  * - Tag-Trigger für Automationen
  * - Direkter Email-Versand wo möglich
- * - Fallback auf System-Email
+ * - Mailgun-Fallback mit Impressum
  */
 
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../customer/includes/EmailProviders.php';
+require_once __DIR__ . '/mailgun-reward-service.php';
 
 class RewardEmailDeliveryService {
     
@@ -26,7 +22,6 @@ class RewardEmailDeliveryService {
     
     /**
      * Provider-spezifische Feld-Mappings
-     * Manche Provider haben unterschiedliche Namenskonventionen
      */
     private $fieldMappings = [
         'quentn' => [
@@ -121,9 +116,9 @@ class RewardEmailDeliveryService {
             $apiConfig = $this->getEmailApiConfig($customerId);
             
             if (!$apiConfig) {
-                error_log("⚠️ Keine API-Konfiguration für Customer $customerId - verwende Fallback-Email");
-                // Fallback: System-Email versenden
-                return $this->sendFallbackEmail($lead, $reward);
+                error_log("⚠️ Keine API-Konfiguration für Customer $customerId - verwende Mailgun-Fallback");
+                // *** MAILGUN FALLBACK ***
+                return $this->sendViaMailgun($leadId, $rewardId);
             }
             
             error_log("📧 Starte Belohnungs-Benachrichtigung via {$apiConfig['provider']} für Lead: {$lead['email']}");
@@ -147,6 +142,7 @@ class RewardEmailDeliveryService {
                         'success' => true,
                         'message' => "Belohnung erfolgreich über {$apiConfig['provider']} benachrichtigt (Tag: {$apiConfig['start_tag']})",
                         'method' => 'tag_trigger',
+                        'delivery_method' => 'tag_trigger',
                         'provider' => $apiConfig['provider'],
                         'tag' => $apiConfig['start_tag'],
                         'fields_updated' => $fieldsUpdated['success']
@@ -161,20 +157,14 @@ class RewardEmailDeliveryService {
                 return $this->sendViaEmailProvider($lead, $reward, $apiConfig);
             }
             
-            // 7. Fallback wenn nichts anderes funktioniert
-            return [
-                'success' => $fieldsUpdated['success'],
-                'message' => $fieldsUpdated['success'] 
-                    ? 'Custom Fields aktualisiert (kein Tag konfiguriert)' 
-                    : 'Benachrichtigung fehlgeschlagen',
-                'method' => 'fields_only',
-                'provider' => $apiConfig['provider']
-            ];
+            // 7. Wenn auch das nicht geht: Mailgun-Fallback
+            error_log("⚠️ Kein Tag konfiguriert und kein direkter Email-Versand möglich - verwende Mailgun-Fallback");
+            return $this->sendViaMailgun($leadId, $rewardId);
             
         } catch (Exception $e) {
             error_log("❌ RewardEmailDelivery Error: " . $e->getMessage());
             return [
-                'success' => false, 
+                'success' => false,
                 'message' => 'Fehler beim Email-Versand: ' . $e->getMessage(),
                 'method' => 'error'
             ];
@@ -182,8 +172,37 @@ class RewardEmailDeliveryService {
     }
     
     /**
+     * *** NEU: Mailgun-Fallback ***
+     * Versendet Belohnungs-Email über Mailgun mit automatischem Impressum
+     */
+    private function sendViaMailgun($leadId, $rewardId) {
+        try {
+            $mailgunService = new MailgunRewardService($this->pdo);
+            $result = $mailgunService->sendRewardEmail($leadId, $rewardId);
+            
+            // Return mit standardisiertem Format
+            return [
+                'success' => $result['success'],
+                'message' => $result['message'],
+                'method' => 'mailgun',
+                'delivery_method' => 'mailgun',
+                'provider' => 'Mailgun EU',
+                'message_id' => $result['message_id'] ?? null
+            ];
+            
+        } catch (Exception $e) {
+            error_log("❌ Mailgun Fallback Error: " . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Mailgun-Fallback fehlgeschlagen: ' . $e->getMessage(),
+                'method' => 'mailgun',
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+    
+    /**
      * Aktualisiert Custom Fields beim Provider
-     * Diese Funktion ist PROVIDER-UNABHÄNGIG und funktioniert für ALLE
      */
     private function updateCustomFieldsForProvider($lead, $reward, $apiConfig) {
         try {
@@ -459,25 +478,6 @@ class RewardEmailDeliveryService {
     }
     
     /**
-     * Fallback: System-Email versenden wenn kein Provider konfiguriert
-     */
-    private function sendFallbackEmail($lead, $reward) {
-        $subject = "🎁 Glückwunsch! Du hast eine Belohnung freigeschaltet";
-        $message = $this->getEmailBody($lead, $reward);
-        $headers = "MIME-Version: 1.0\r\n";
-        $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
-        $headers .= "From: " . ($lead['company_name'] ?? 'Mehr Infos Jetzt') . " <noreply@mehr-infos-jetzt.de>\r\n";
-        
-        $sent = mail($lead['email'], $subject, $message, $headers);
-        
-        return [
-            'success' => $sent,
-            'message' => $sent ? 'Fallback-Email versendet' : 'Email-Versand fehlgeschlagen',
-            'method' => 'fallback_email'
-        ];
-    }
-    
-    /**
      * Lädt Lead-Daten
      */
     private function getLeadData($leadId) {
@@ -535,6 +535,7 @@ class RewardEmailDeliveryService {
                 'success' => $result['success'],
                 'message' => $result['success'] ? 'Email direkt versendet' : $result['message'],
                 'method' => 'direct_email',
+                'delivery_method' => 'direct_email',
                 'provider' => $apiConfig['provider']
             ];
             
@@ -544,7 +545,7 @@ class RewardEmailDeliveryService {
     }
     
     /**
-     * Generiert Email-Body mit Platzhaltern
+     * Generiert Email-Body mit Platzhaltern (für Brevo Direct-Send)
      */
     private function getEmailBody($lead, $reward) {
         $body = "
@@ -562,30 +563,23 @@ class RewardEmailDeliveryService {
                 <div style='background: white; padding: 30px; border-radius: 0 0 12px 12px; 
                             box-shadow: 0 4px 12px rgba(0,0,0,0.1);'>
                     
-                    <p style='font-size: 16px;'>Hallo {{name}},</p>
+                    <p style='font-size: 16px;'>Hallo " . htmlspecialchars($lead['name'] ?? 'Lead') . ",</p>
                     
-                    <p>durch deine {{successful_referrals}} erfolgreichen Empfehlungen hast du folgende Belohnung freigeschaltet:</p>
+                    <p>durch deine " . ($lead['successful_referrals'] ?? 0) . " erfolgreichen Empfehlungen hast du folgende Belohnung freigeschaltet:</p>
                     
                     <div style='background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%); 
                                 padding: 24px; border-radius: 12px; margin: 20px 0; text-align: center;'>
                         <h2 style='color: white; margin: 0 0 8px 0; font-size: 24px;'>
-                            {{reward_title}}
+                            " . htmlspecialchars($reward['reward_title']) . "
                         </h2>
                         <p style='color: rgba(255,255,255,0.9); margin: 0; font-size: 14px;'>
-                            {{reward_description}}
-                        </p>
-                    </div>
-                    
-                    <div style='text-align: center; margin: 30px 0;'>
-                        <p style='color: #6b7280; font-size: 14px;'>
-                            <strong>Dein Empfehlungscode:</strong> {{referral_code}}<br>
-                            <strong>Deine Punkte:</strong> {{current_points}}
+                            " . htmlspecialchars($reward['reward_description'] ?? '') . "
                         </p>
                     </div>
                     
                     <p style='color: #888; font-size: 14px; margin-top: 30px; text-align: center;'>
                         Viel Spaß mit deiner Belohnung! 🎁<br>
-                        {{company_name}}
+                        " . htmlspecialchars($lead['company_name'] ?? 'Dein Team') . "
                     </p>
                 </div>
             </div>
@@ -593,17 +587,7 @@ class RewardEmailDeliveryService {
         </html>
         ";
         
-        $replacements = [
-            '{{name}}' => htmlspecialchars($lead['name'] ?? 'Lead'),
-            '{{reward_title}}' => htmlspecialchars($reward['reward_title']),
-            '{{reward_description}}' => htmlspecialchars($reward['reward_description'] ?? ''),
-            '{{successful_referrals}}' => $lead['successful_referrals'] ?? 0,
-            '{{current_points}}' => $lead['successful_referrals'] ?? 0,
-            '{{referral_code}}' => htmlspecialchars($lead['referral_code'] ?? ''),
-            '{{company_name}}' => htmlspecialchars($lead['company_name'] ?? 'Dein Team')
-        ];
-        
-        return str_replace(array_keys($replacements), array_values($replacements), $body);
+        return $body;
     }
     
     /**
@@ -612,19 +596,4 @@ class RewardEmailDeliveryService {
     private function truncate($text, $maxLength) {
         return (strlen($text) <= $maxLength) ? $text : substr($text, 0, $maxLength - 3) . '...';
     }
-}
-
-// API Endpoint
-if (basename(__FILE__) == basename($_SERVER['SCRIPT_FILENAME'])) {
-    header('Content-Type: application/json');
-    $input = json_decode(file_get_contents('php://input'), true);
-    
-    if (!isset($input['customer_id']) || !isset($input['lead_id']) || !isset($input['reward_id'])) {
-        echo json_encode(['success' => false, 'message' => 'customer_id, lead_id und reward_id erforderlich']);
-        exit;
-    }
-    
-    $service = new RewardEmailDeliveryService();
-    $result = $service->sendRewardEmail($input['customer_id'], $input['lead_id'], $input['reward_id']);
-    echo json_encode($result);
 }
