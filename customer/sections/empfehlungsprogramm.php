@@ -1,7 +1,7 @@
 <?php
 /**
  * Customer Dashboard - Empfehlungsprogramm Section
- * ÜBERARBEITET: Mailgun-Transparenz + AVV ZUERST
+ * FINAL VERSION: Mailgun-Transparenz + AVV ZUERST
  * 
  * Rechtliche Reihenfolge:
  * 1. Transparenz-Info über Mailgun (EU-Server, Belohnungs-Mails)
@@ -18,7 +18,7 @@ try {
     $pdo = getDBConnection();
     
     // Benutzer-Details + Mailgun-Zustimmung laden
-    // WICHTIG: Prüfe auf 'registration' ODER 'mailgun_consent'
+    // WICHTIG: Prüfe NUR auf 'mailgun_consent' (separat von registration)
     $stmt = $pdo->prepare("
         SELECT 
             u.referral_enabled,
@@ -30,7 +30,7 @@ try {
                 SELECT COUNT(*) 
                 FROM av_contract_acceptances 
                 WHERE user_id = u.id 
-                AND acceptance_type IN ('registration', 'mailgun_consent')
+                AND acceptance_type = 'mailgun_consent'
             ) as mailgun_consent_given
         FROM users u
         WHERE u.id = ?
@@ -445,6 +445,9 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
             margin-bottom: 1.5rem;
             cursor: pointer;
             transition: all 0.3s;
+            display: flex;
+            align-items: start;
+            gap: 1rem;
         }
         
         .checkbox-group:hover {
@@ -460,7 +463,8 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
             width: 1.5rem;
             height: 1.5rem;
             cursor: pointer;
-            margin-right: 1rem;
+            flex-shrink: 0;
+            margin-top: 0.125rem;
         }
         
         .checkbox-label {
