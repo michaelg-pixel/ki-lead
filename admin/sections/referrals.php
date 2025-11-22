@@ -1,7 +1,7 @@
 <?php
 /**
  * Admin Dashboard Section: Empfehlungsprogramm-Übersicht
- * Zeigt alle Referral-Aktivitäten aller Kunden
+ * Zeigt alle Referral-Aktivitäten aller Kunden + Lead Users
  */
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
@@ -45,7 +45,93 @@ $stats['active_users'] = $pdo->query("
     SELECT COUNT(*) FROM users WHERE referral_enabled = 1
 ")->fetchColumn() ?: 0;
 
-// User-Übersicht mit Referral-Stats
+// 🆕 LEAD USERS STATISTIKEN
+$lead_stats = [];
+
+// Prüfen ob lead_users Tabelle existiert
+$table_exists = $pdo->query("SHOW TABLES LIKE 'lead_users'")->rowCount() > 0;
+
+if ($table_exists) {
+    // Gesamtanzahl Lead Users
+    $lead_stats['total_lead_users'] = $pdo->query("
+        SELECT COUNT(*) FROM lead_users
+    ")->fetchColumn() ?: 0;
+    
+    // Neue Leads letzte 7 Tage
+    $lead_stats['leads_7days'] = $pdo->query("
+        SELECT COUNT(*) FROM lead_users 
+        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+    ")->fetchColumn() ?: 0;
+    
+    // Neue Leads letzte 30 Tage
+    $lead_stats['leads_30days'] = $pdo->query("
+        SELECT COUNT(*) FROM lead_users 
+        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    ")->fetchColumn() ?: 0;
+    
+    // Leads mit aktiven Referrals
+    $lead_stats['leads_with_referrals'] = $pdo->query("
+        SELECT COUNT(*) FROM lead_users 
+        WHERE total_referrals > 0
+    ")->fetchColumn() ?: 0;
+    
+    // Gesamte Empfehlungen (erfolgreich)
+    $lead_stats['total_successful_referrals'] = $pdo->query("
+        SELECT COALESCE(SUM(successful_referrals), 0) FROM lead_users
+    ")->fetchColumn() ?: 0;
+    
+    // Top Customers mit meisten Leads
+    $top_customers = $pdo->query("
+        SELECT 
+            u.id,
+            u.name,
+            u.company_name,
+            u.email,
+            u.referral_enabled,
+            COUNT(lu.id) as total_leads,
+            COUNT(CASE WHEN lu.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 END) as leads_7days,
+            COUNT(CASE WHEN lu.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as leads_30days,
+            COALESCE(SUM(lu.successful_referrals), 0) as total_referrals
+        FROM users u
+        LEFT JOIN lead_users lu ON lu.user_id = u.id
+        WHERE u.role = 'customer'
+        GROUP BY u.id
+        HAVING total_leads > 0
+        ORDER BY total_leads DESC, total_referrals DESC
+        LIMIT 50
+    ")->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Letzte Lead-Registrierungen (ANONYMISIERT für Datenschutz)
+    $recent_lead_users = $pdo->query("
+        SELECT 
+            lu.id,
+            CONCAT(LEFT(lu.email, 3), '***@***', RIGHT(SUBSTRING_INDEX(lu.email, '@', -1), 3)) as email_masked,
+            lu.referral_code,
+            lu.successful_referrals,
+            lu.total_referrals,
+            lu.rewards_earned,
+            lu.created_at,
+            u.name as customer_name,
+            u.company_name,
+            u.id as customer_id
+        FROM lead_users lu
+        LEFT JOIN users u ON lu.user_id = u.id
+        ORDER BY lu.created_at DESC
+        LIMIT 50
+    ")->fetchAll(PDO::FETCH_ASSOC);
+} else {
+    $lead_stats = [
+        'total_lead_users' => 0,
+        'leads_7days' => 0,
+        'leads_30days' => 0,
+        'leads_with_referrals' => 0,
+        'total_successful_referrals' => 0
+    ];
+    $top_customers = [];
+    $recent_lead_users = [];
+}
+
+// User-Übersicht mit Referral-Stats (ALTES SYSTEM)
 $users_query = "
     SELECT 
         u.id,
@@ -63,7 +149,7 @@ $users_query = "
 ";
 $users = $pdo->query($users_query)->fetchAll(PDO::FETCH_ASSOC);
 
-// Letzte Aktivitäten
+// Letzte Aktivitäten (ALTES SYSTEM)
 $recent_clicks = $pdo->query("
     SELECT 
         rc.*,
@@ -127,6 +213,16 @@ $recent_leads = $pdo->query("
         color: var(--text-muted);
     }
     
+    /* 🆕 Lead Users Stats - andere Farbe */
+    .stat-card.lead-stat {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05));
+        border-color: rgba(16, 185, 129, 0.3);
+    }
+    
+    .stat-card.lead-stat .value {
+        color: #10b981;
+    }
+    
     .section {
         background: var(--bg-card);
         border: 1px solid var(--border);
@@ -148,11 +244,18 @@ $recent_leads = $pdo->query("
         color: white;
     }
     
+    .section-subtitle {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-top: 4px;
+    }
+    
     .tabs {
         display: flex;
         gap: 10px;
         margin-bottom: 20px;
         border-bottom: 1px solid var(--border);
+        flex-wrap: wrap;
     }
     
     .tab {
@@ -163,6 +266,7 @@ $recent_leads = $pdo->query("
         cursor: pointer;
         border-bottom: 2px solid transparent;
         transition: all 0.2s;
+        white-space: nowrap;
     }
     
     .tab:hover {
@@ -234,15 +338,78 @@ $recent_leads = $pdo->query("
         color: var(--danger);
     }
     
+    .badge-info {
+        background: rgba(59, 130, 246, 0.2);
+        color: #3b82f6;
+    }
+    
     .empty-state {
         text-align: center;
         padding: 40px;
         color: var(--text-muted);
     }
+    
+    .info-box {
+        background: rgba(59, 130, 246, 0.1);
+        border-left: 4px solid #3b82f6;
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+    
+    .info-box strong {
+        color: #3b82f6;
+    }
 </style>
 
 <div class="referral-admin">
-    <!-- Statistiken -->
+    <!-- 🆕 LEAD USERS STATISTIKEN -->
+    <?php if ($table_exists && $lead_stats['total_lead_users'] > 0): ?>
+    <div class="section">
+        <div class="section-header">
+            <div>
+                <h2 class="section-title">🚀 Lead Users Dashboard-Zugang</h2>
+                <p class="section-subtitle">Registrierte Leads mit Dashboard-Zugang und Empfehlungsprogramm</p>
+            </div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card lead-stat">
+                <h3>📧 Gesamt Leads</h3>
+                <div class="value"><?php echo number_format($lead_stats['total_lead_users'], 0, ',', '.'); ?></div>
+                <div class="label">registrierte Lead Users</div>
+            </div>
+            
+            <div class="stat-card lead-stat">
+                <h3>📅 Neue (7 Tage)</h3>
+                <div class="value"><?php echo number_format($lead_stats['leads_7days'], 0, ',', '.'); ?></div>
+                <div class="label">letzte Woche</div>
+            </div>
+            
+            <div class="stat-card lead-stat">
+                <h3>📅 Neue (30 Tage)</h3>
+                <div class="value"><?php echo number_format($lead_stats['leads_30days'], 0, ',', '.'); ?></div>
+                <div class="label">letzter Monat</div>
+            </div>
+            
+            <div class="stat-card lead-stat">
+                <h3>🎯 Aktive Empfehler</h3>
+                <div class="value"><?php echo number_format($lead_stats['leads_with_referrals'], 0, ',', '.'); ?></div>
+                <div class="label">mit Empfehlungen</div>
+            </div>
+            
+            <div class="stat-card lead-stat">
+                <h3>✅ Erfolgreiche Referrals</h3>
+                <div class="value"><?php echo number_format($lead_stats['total_successful_referrals'], 0, ',', '.'); ?></div>
+                <div class="label">gesamt empfohlen</div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+    
+    <!-- ALTE REFERRAL STATISTIKEN -->
     <div class="stats-grid">
         <div class="stat-card">
             <h3>👥 Aktive Nutzer</h3>
@@ -263,16 +430,67 @@ $recent_leads = $pdo->query("
         </div>
         
         <div class="stat-card">
-            <h3>📧 Leads</h3>
+            <h3>📧 Leads (alt)</h3>
             <div class="value"><?php echo $stats['total_leads']; ?></div>
             <div class="label"><?php echo $stats['confirmed_leads']; ?> bestätigt</div>
         </div>
     </div>
     
-    <!-- User-Übersicht -->
+    <!-- 🆕 TOP CUSTOMERS MIT LEADS -->
+    <?php if ($table_exists && count($top_customers) > 0): ?>
     <div class="section">
         <div class="section-header">
-            <h2 class="section-title">👥 User mit Empfehlungsaktivität</h2>
+            <h2 class="section-title">🏆 Top Kunden mit Lead Users</h2>
+        </div>
+        
+        <div class="info-box">
+            <strong>ℹ️ Datenschutz:</strong> Diese Übersicht zeigt nur aggregierte Daten pro Kunde. E-Mail-Adressen der Leads sind anonymisiert.
+        </div>
+        
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Kunde</th>
+                        <th>Referral</th>
+                        <th>Gesamt Leads</th>
+                        <th>7 Tage</th>
+                        <th>30 Tage</th>
+                        <th>Empfehlungen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($top_customers as $customer): ?>
+                    <tr>
+                        <td>
+                            <strong><?php echo htmlspecialchars($customer['name']); ?></strong>
+                            <?php if ($customer['company_name']): ?>
+                            <br><small style="color: var(--text-muted);"><?php echo htmlspecialchars($customer['company_name']); ?></small>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <?php if ($customer['referral_enabled']): ?>
+                                <span class="badge badge-success">Aktiv</span>
+                            <?php else: ?>
+                                <span class="badge badge-danger">Inaktiv</span>
+                            <?php endif; ?>
+                        </td>
+                        <td><strong><?php echo number_format($customer['total_leads'], 0, ',', '.'); ?></strong></td>
+                        <td><?php echo number_format($customer['leads_7days'], 0, ',', '.'); ?></td>
+                        <td><?php echo number_format($customer['leads_30days'], 0, ',', '.'); ?></td>
+                        <td><?php echo number_format($customer['total_referrals'], 0, ',', '.'); ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <?php endif; ?>
+    
+    <!-- User-Übersicht (ALTES SYSTEM) -->
+    <div class="section">
+        <div class="section-header">
+            <h2 class="section-title">👥 User mit Empfehlungsaktivität (Legacy)</h2>
         </div>
         
         <div class="table-container">
@@ -322,12 +540,64 @@ $recent_leads = $pdo->query("
     <!-- Aktivitäten-Tabs -->
     <div class="section">
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('clicks')">Letzte Klicks</button>
-            <button class="tab" onclick="switchTab('leads')">Letzte Leads</button>
+            <?php if ($table_exists && count($recent_lead_users) > 0): ?>
+            <button class="tab active" onclick="switchTab('lead-users')">🚀 Lead Users (<?php echo count($recent_lead_users); ?>)</button>
+            <?php endif; ?>
+            <button class="tab <?php echo ($table_exists && count($recent_lead_users) > 0) ? '' : 'active'; ?>" onclick="switchTab('clicks')">Letzte Klicks (Legacy)</button>
+            <button class="tab" onclick="switchTab('leads')">Letzte Leads (Legacy)</button>
         </div>
         
+        <!-- 🆕 Lead Users Tab -->
+        <?php if ($table_exists && count($recent_lead_users) > 0): ?>
+        <div id="tab-lead-users" class="tab-content active">
+            <div class="info-box">
+                <strong>🔒 Datenschutz:</strong> E-Mail-Adressen sind anonymisiert (z.B. "abc***@***.de"). Für Support-Anfragen können Details im Einzelfall eingesehen werden.
+            </div>
+            
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Registrierung</th>
+                            <th>E-Mail (anonymisiert)</th>
+                            <th>Kunde</th>
+                            <th>Referral Code</th>
+                            <th>Empfehlungen</th>
+                            <th>Belohnungen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($recent_lead_users as $lead): ?>
+                        <tr>
+                            <td><?php echo date('d.m.Y H:i', strtotime($lead['created_at'])); ?></td>
+                            <td><code><?php echo htmlspecialchars($lead['email_masked']); ?></code></td>
+                            <td>
+                                <strong><?php echo htmlspecialchars($lead['customer_name']); ?></strong>
+                                <?php if ($lead['company_name']): ?>
+                                <br><small style="color: var(--text-muted);"><?php echo htmlspecialchars($lead['company_name']); ?></small>
+                                <?php endif; ?>
+                            </td>
+                            <td><code><?php echo htmlspecialchars($lead['referral_code']); ?></code></td>
+                            <td>
+                                <span class="badge badge-info"><?php echo $lead['successful_referrals']; ?> / <?php echo $lead['total_referrals']; ?></span>
+                            </td>
+                            <td>
+                                <?php if ($lead['rewards_earned'] > 0): ?>
+                                    <span class="badge badge-success">🎁 <?php echo $lead['rewards_earned']; ?></span>
+                                <?php else: ?>
+                                    <span style="color: var(--text-muted);">-</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <?php endif; ?>
+        
         <!-- Klicks Tab -->
-        <div id="tab-clicks" class="tab-content active">
+        <div id="tab-clicks" class="tab-content <?php echo ($table_exists && count($recent_lead_users) > 0) ? '' : 'active'; ?>">
             <div class="table-container">
                 <table>
                     <thead>
