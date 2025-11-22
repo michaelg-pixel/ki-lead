@@ -3,7 +3,7 @@
  * Migration Executor: Mailgun Consent Type
  * Erweitert acceptance_type ENUM um 'mailgun_consent'
  * 
- * VERBESSERT: Mit besserem Error-Handling
+ * VERBESSERT: Mit korrektem Pfad zur config
  */
 
 // Fehler-Reporting aktivieren für Debugging
@@ -18,8 +18,10 @@ header('Content-Type: application/json');
 ob_start();
 
 try {
-    // Prüfe ob config-Datei existiert
-    $configPath = __DIR__ . '/../../config/database.php';
+    // KORREKTER PFAD: Von database/migrations/browser/ nach config/
+    // browser/ -> migrations/ -> database/ -> ROOT -> config/
+    $configPath = __DIR__ . '/../../../config/database.php';
+    
     if (!file_exists($configPath)) {
         throw new Exception('Datenbankconfig nicht gefunden: ' . $configPath);
     }
