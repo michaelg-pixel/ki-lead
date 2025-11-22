@@ -345,7 +345,7 @@ $isProgramEnabled = $mailgunConsentGiven && $impressumExists;
         
         /* Step Indicator */
         .step-indicator {
-            background: rgba(251, 191, 36, 0.2);
+            background: rgba(251, 191, 36, 0.15);
             border: 2px solid #fbbf24;
             border-radius: 0.75rem;
             padding: 1rem 1.5rem;
@@ -371,7 +371,7 @@ $isProgramEnabled = $mailgunConsentGiven && $impressumExists;
         
         .step-text {
             flex: 1;
-            color: #78350f;
+            color: ##ffffff;
             font-size: 1rem;
             font-weight: 600;
         }
