@@ -1,3 +1,74 @@
+<?php
+// Backend-Logik MUSS VOR HTML stehen!
+if (isset($_GET['action'])) {
+    header('Content-Type: application/json');
+    
+    require_once __DIR__ . '/../../config/database.php';
+    $pdo = getDBConnection();
+    
+    switch ($_GET['action']) {
+        case 'check':
+            try {
+                $pdo->query("SELECT 1");
+                $stmt = $pdo->query("SHOW TABLES LIKE 'reward_emails_sent'");
+                $tableExists = $stmt->rowCount() > 0;
+                
+                echo json_encode([
+                    'database' => true,
+                    'tableExists' => $tableExists
+                ]);
+            } catch (PDOException $e) {
+                echo json_encode(['database' => false, 'error' => $e->getMessage()]);
+            }
+            break;
+            
+        case 'migrate':
+            try {
+                $pdo->exec("
+                    CREATE TABLE IF NOT EXISTS reward_emails_sent (
+                        id INT PRIMARY KEY AUTO_INCREMENT,
+                        lead_id INT NOT NULL,
+                        reward_id INT NOT NULL,
+                        mailgun_id VARCHAR(255) NULL COMMENT 'Mailgun Message-ID',
+                        email_type VARCHAR(50) DEFAULT 'reward_unlocked',
+                        sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        opened_at DATETIME NULL,
+                        clicked_at DATETIME NULL,
+                        failed_at DATETIME NULL,
+                        error_message TEXT NULL,
+                        INDEX idx_lead (lead_id),
+                        INDEX idx_reward (reward_id),
+                        INDEX idx_mailgun_id (mailgun_id),
+                        INDEX idx_email_type (email_type),
+                        INDEX idx_sent_at (sent_at),
+                        UNIQUE KEY unique_reward (lead_id, reward_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ");
+                
+                echo json_encode(['success' => true]);
+            } catch (PDOException $e) {
+                echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            }
+            break;
+            
+        case 'verify':
+            try {
+                $stmt = $pdo->query("DESCRIBE reward_emails_sent");
+                $structure = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                echo json_encode([
+                    'success' => true,
+                    'structure' => $structure
+                ]);
+            } catch (PDOException $e) {
+                echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            }
+            break;
+    }
+    
+    exit;
+}
+?>
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -250,79 +321,3 @@
     </script>
 </body>
 </html>
-
-<?php
-// Backend-Logik
-if (isset($_GET['action'])) {
-    header('Content-Type: application/json');
-    
-    require_once __DIR__ . '/../../config/database.php';
-    $pdo = getDBConnection();
-    
-    switch ($_GET['action']) {
-        case 'check':
-            try {
-                // Datenbankverbindung testen
-                $pdo->query("SELECT 1");
-                
-                // Tabelle prüfen
-                $stmt = $pdo->query("SHOW TABLES LIKE 'reward_emails_sent'");
-                $tableExists = $stmt->rowCount() > 0;
-                
-                echo json_encode([
-                    'database' => true,
-                    'tableExists' => $tableExists
-                ]);
-            } catch (PDOException $e) {
-                echo json_encode(['database' => false, 'error' => $e->getMessage()]);
-            }
-            break;
-            
-        case 'migrate':
-            try {
-                $pdo->exec("
-                    CREATE TABLE IF NOT EXISTS reward_emails_sent (
-                        id INT PRIMARY KEY AUTO_INCREMENT,
-                        lead_id INT NOT NULL,
-                        reward_id INT NOT NULL,
-                        mailgun_id VARCHAR(255) NULL COMMENT 'Mailgun Message-ID für Tracking',
-                        email_type VARCHAR(50) DEFAULT 'reward_unlocked' COMMENT 'reward_unlocked, welcome, verification, reminder',
-                        sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        opened_at DATETIME NULL,
-                        clicked_at DATETIME NULL,
-                        failed_at DATETIME NULL,
-                        error_message TEXT NULL,
-                        
-                        INDEX idx_lead (lead_id),
-                        INDEX idx_reward (reward_id),
-                        INDEX idx_mailgun_id (mailgun_id),
-                        INDEX idx_email_type (email_type),
-                        INDEX idx_sent_at (sent_at),
-                        UNIQUE KEY unique_reward (lead_id, reward_id)
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-                ");
-                
-                echo json_encode(['success' => true]);
-            } catch (PDOException $e) {
-                echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-            }
-            break;
-            
-        case 'verify':
-            try {
-                $stmt = $pdo->query("DESCRIBE reward_emails_sent");
-                $structure = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                
-                echo json_encode([
-                    'success' => true,
-                    'structure' => $structure
-                ]);
-            } catch (PDOException $e) {
-                echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-            }
-            break;
-    }
-    
-    exit;
-}
-?>
