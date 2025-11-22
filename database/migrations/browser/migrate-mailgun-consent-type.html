@@ -113,6 +113,7 @@
             gap: 0.75rem;
             width: 100%;
             justify-content: center;
+            margin-bottom: 1rem;
         }
         
         .button:hover:not(:disabled) {
@@ -123,6 +124,14 @@
         .button:disabled {
             opacity: 0.6;
             cursor: not-allowed;
+        }
+        
+        .button-secondary {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+        }
+        
+        .button-secondary:hover:not(:disabled) {
+            box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.5);
         }
         
         .result {
@@ -144,6 +153,12 @@
             color: #991b1b;
         }
         
+        .result.info {
+            background: #dbeafe;
+            border: 1px solid #3b82f6;
+            color: #1e40af;
+        }
+        
         .result h4 {
             font-size: 1rem;
             margin-bottom: 0.5rem;
@@ -152,9 +167,17 @@
             gap: 0.5rem;
         }
         
-        .result p {
+        .result p, .result pre {
             font-size: 0.875rem;
             line-height: 1.6;
+        }
+        
+        .result pre {
+            background: rgba(0, 0, 0, 0.05);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            margin-top: 0.5rem;
         }
         
         .code-block {
@@ -166,6 +189,22 @@
             font-size: 0.875rem;
             margin: 1rem 0;
             overflow-x: auto;
+        }
+        
+        .check-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .check-item.ok {
+            color: #065f46;
+        }
+        
+        .check-item.error {
+            color: #991b1b;
         }
     </style>
 </head>
@@ -209,9 +248,14 @@ ENUM('registration','update','renewal','mailgun_consent')
 NOT NULL DEFAULT 'registration';
             </div>
             
+            <button class="button button-secondary" onclick="checkEnvironment()">
+                <i class="fas fa-search"></i>
+                1. Umgebung prüfen (empfohlen)
+            </button>
+            
             <button class="button" onclick="runMigration()">
                 <i class="fas fa-play"></i>
-                Migration jetzt ausführen
+                2. Migration jetzt ausführen
             </button>
             
             <div id="result" class="result"></div>
@@ -219,8 +263,90 @@ NOT NULL DEFAULT 'registration';
     </div>
     
     <script>
+        async function checkEnvironment() {
+            const button = document.querySelectorAll('.button')[0];
+            const result = document.getElementById('result');
+            
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Prüfe Umgebung...';
+            
+            result.style.display = 'none';
+            
+            try {
+                const response = await fetch('debug-environment.php');
+                const data = await response.json();
+                
+                result.className = 'result info';
+                result.style.display = 'block';
+                
+                let html = '<h4><i class="fas fa-info-circle"></i> Umgebungs-Check</h4>';
+                
+                if (data.success) {
+                    html += '<p><strong>✅ Alle Checks bestanden!</strong></p>';
+                } else {
+                    html += '<p><strong>⚠️ Es gibt Probleme:</strong></p>';
+                }
+                
+                html += '<div style="margin-top: 1rem;">';
+                
+                for (const [key, check] of Object.entries(data.checks)) {
+                    const icon = check.status === 'OK' ? '✅' : '❌';
+                    const className = check.status === 'OK' ? 'ok' : 'error';
+                    
+                    html += `<div class="check-item ${className}">
+                        ${icon} <strong>${key}:</strong> ${check.status}
+                    </div>`;
+                    
+                    if (check.error) {
+                        html += `<div style="margin-left: 2rem; color: #991b1b; font-size: 0.8rem;">
+                            ${check.error}
+                        </div>`;
+                    }
+                    
+                    if (check.current_enum) {
+                        html += `<div style="margin-left: 2rem; font-size: 0.8rem;">
+                            Aktuell: ${check.current_enum}
+                        </div>`;
+                    }
+                    
+                    if (check.has_mailgun_consent !== undefined) {
+                        if (check.has_mailgun_consent) {
+                            html += `<div style="margin-left: 2rem; color: #065f46; font-size: 0.8rem;">
+                                ✅ mailgun_consent ist bereits vorhanden!
+                            </div>`;
+                        } else {
+                            html += `<div style="margin-left: 2rem; color: #92400e; font-size: 0.8rem;">
+                                ⚠️ mailgun_consent fehlt - Migration erforderlich
+                            </div>`;
+                        }
+                    }
+                }
+                
+                html += '</div>';
+                
+                if (!data.success) {
+                    html += '<p style="margin-top: 1rem;"><strong>Bitte behebe die Fehler bevor du die Migration ausführst.</strong></p>';
+                }
+                
+                result.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Environment Check Error:', error);
+                result.className = 'result error';
+                result.innerHTML = `
+                    <h4><i class="fas fa-times-circle"></i> Fehler beim Umgebungs-Check</h4>
+                    <p>${error.message}</p>
+                    <p><strong>Tipp:</strong> Prüfe ob debug-environment.php existiert.</p>
+                `;
+                result.style.display = 'block';
+            }
+            
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-search"></i> 1. Umgebung prüfen (empfohlen)';
+        }
+        
         async function runMigration() {
-            const button = document.querySelector('.button');
+            const button = document.querySelectorAll('.button')[1];
             const result = document.getElementById('result');
             
             button.disabled = true;
@@ -233,7 +359,22 @@ NOT NULL DEFAULT 'registration';
                     method: 'POST'
                 });
                 
-                const data = await response.json();
+                // Prüfe ob Response leer ist
+                const text = await response.text();
+                console.log('Response Text:', text);
+                
+                if (!text || text.trim() === '') {
+                    throw new Error('Leere Antwort vom Server - möglicherweise PHP-Fehler');
+                }
+                
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    console.error('JSON Parse Error:', e);
+                    console.error('Response was:', text);
+                    throw new Error('Ungültige JSON-Antwort vom Server. Siehe Browser-Konsole für Details.');
+                }
                 
                 if (data.success) {
                     result.className = 'result success';
@@ -241,11 +382,14 @@ NOT NULL DEFAULT 'registration';
                         <h4><i class="fas fa-check-circle"></i> Migration erfolgreich!</h4>
                         <p>${data.message || 'ENUM wurde erfolgreich erweitert.'}</p>
                         ${data.details ? '<p><strong>Details:</strong> ' + data.details + '</p>' : ''}
+                        ${data.new_enum ? '<pre>' + data.new_enum + '</pre>' : ''}
                     `;
                     
-                    setTimeout(() => {
-                        window.location.href = '../customer/dashboard.php?page=empfehlungsprogramm';
-                    }, 3000);
+                    if (!data.already_exists) {
+                        setTimeout(() => {
+                            window.location.href = '../../customer/dashboard.php?page=empfehlungsprogramm';
+                        }, 3000);
+                    }
                 } else {
                     throw new Error(data.error || 'Migration fehlgeschlagen');
                 }
@@ -256,11 +400,12 @@ NOT NULL DEFAULT 'registration';
                 result.innerHTML = `
                     <h4><i class="fas fa-times-circle"></i> Fehler bei der Migration</h4>
                     <p>${error.message}</p>
-                    <p><strong>Tipp:</strong> Prüfe die Datenbankverbindung und Berechtigungen.</p>
+                    <p><strong>Tipp:</strong> Führe zuerst den Umgebungs-Check aus (Button oben).</p>
+                    <p><strong>Weitere Hilfe:</strong> Öffne die Browser-Konsole (F12) für detaillierte Fehler.</p>
                 `;
                 
                 button.disabled = false;
-                button.innerHTML = '<i class="fas fa-redo"></i> Erneut versuchen';
+                button.innerHTML = '<i class="fas fa-redo"></i> 2. Erneut versuchen';
             }
             
             result.style.display = 'block';
