@@ -31,7 +31,19 @@ try {
     $id = $_GET['id'];
     
     $stmt = $pdo->prepare("
-        SELECT * FROM reward_definitions 
+        SELECT 
+            id,
+            freebie_id,
+            reward_title,
+            reward_description,
+            required_referrals,
+            reward_icon,
+            reward_color,
+            reward_delivery_type,
+            email_subject,
+            email_body,
+            reward_download_url
+        FROM reward_definitions 
         WHERE id = ? AND user_id = ?
     ");
     
@@ -49,7 +61,7 @@ try {
     
     echo json_encode([
         'success' => true,
-        'data' => $reward
+        'reward' => $reward  // Changed from 'data' to 'reward'
     ]);
     
 } catch (Exception $e) {
@@ -57,6 +69,6 @@ try {
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'error' => 'Datenbankfehler'
+        'error' => 'Datenbankfehler: ' . $e->getMessage()
     ]);
 }
