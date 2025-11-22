@@ -21,11 +21,13 @@ $results['checks']['php_version'] = [
 ];
 
 // 2. Config-Datei
-$configPath = __DIR__ . '/../../config/database.php';
+// KORREKTER PFAD: Von database/migrations/browser/ nach config/
+$configPath = __DIR__ . '/../../../config/database.php';
 $results['checks']['config_file'] = [
     'status' => file_exists($configPath) ? 'OK' : 'ERROR',
     'path' => $configPath,
-    'exists' => file_exists($configPath)
+    'exists' => file_exists($configPath),
+    'realpath' => realpath($configPath) ?: 'not found'
 ];
 
 if (!file_exists($configPath)) {
