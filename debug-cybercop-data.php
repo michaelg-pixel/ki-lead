@@ -3,15 +3,11 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Datenbankverbindung
-$host = 'localhost';
-$dbname = 'u527827258_app';
-$username = 'u527827258_app';
-$password = '4Y@eQKj93R';
+// Verwende die bestehende config.php
+require_once __DIR__ . '/config.php';
 
 try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo = getDBConnection();
     
     echo "<pre>";
     echo "=== DIAGNOSE FÜR cybercop33@web.de ===\n\n";
@@ -23,6 +19,14 @@ try {
     
     if (!$user) {
         echo "❌ User nicht gefunden!\n";
+        
+        // Suche ähnliche Email-Adressen
+        echo "\n=== ÄHNLICHE USERS ===\n";
+        $stmt = $pdo->query("SELECT id, email FROM users WHERE email LIKE '%cybercop%' OR email LIKE '%33%'");
+        $similar = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($similar as $s) {
+            echo "ID: {$s['id']} | {$s['email']}\n";
+        }
         exit;
     }
     
@@ -108,7 +112,7 @@ try {
     echo "reward_definitions.freebie_id: " . ($col ? "✅ EXISTS" : "❌ MISSING") . "\n\n";
     
     // 5. Zeige alle Freebies im System
-    echo "=== ALLE FREEBIES IM SYSTEM ===\n";
+    echo "=== ALLE FREEBIES IM SYSTEM (Letzte 10) ===\n";
     $stmt = $pdo->query('
         SELECT cf.id, cf.customer_id, cf.headline, u.email
         FROM customer_freebies cf
@@ -117,13 +121,27 @@ try {
         LIMIT 10
     ');
     $all_freebies = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    echo "Letzte 10 Freebies:\n";
     foreach ($all_freebies as $af) {
-        echo "  ID: {$af['id']} | Customer: {$af['customer_id']} ({$af['email']}) | {$af['headline']}\n";
+        echo "ID: {$af['id']} | Customer: {$af['customer_id']} ({$af['email']}) | {$af['headline']}\n";
+    }
+    
+    echo "\n=== ALLE REWARDS IM SYSTEM (Letzte 10) ===\n";
+    $stmt = $pdo->query('
+        SELECT rd.id, rd.user_id, rd.freebie_id, rd.reward_title, u.email
+        FROM reward_definitions rd
+        LEFT JOIN users u ON u.id = rd.user_id
+        ORDER BY rd.id DESC
+        LIMIT 10
+    ');
+    $all_rewards = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($all_rewards as $ar) {
+        echo "ID: {$ar['id']} | User: {$ar['user_id']} ({$ar['email']}) | Freebie: {$ar['freebie_id']} | {$ar['reward_title']}\n";
     }
     
     echo "</pre>";
     
 } catch (PDOException $e) {
     echo "<pre>❌ Datenbankfehler: " . $e->getMessage() . "</pre>";
+} catch (Exception $e) {
+    echo "<pre>❌ Fehler: " . $e->getMessage() . "</pre>";
 }
