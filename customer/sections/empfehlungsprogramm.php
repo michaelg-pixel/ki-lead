@@ -428,6 +428,7 @@ $isProgramEnabled = $mailgunConsentGiven && $impressumExists;
             line-height: 1.6;
             resize: vertical;
             transition: all 0.3s;
+			color: #1f2937;
         }
         
         .form-textarea:focus {
