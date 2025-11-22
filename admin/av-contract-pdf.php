@@ -682,9 +682,10 @@ try {
                     <div class="party-box">
                         <p class="party-title">Auftragsverarbeiter:</p>
                         <p>
-                            KI Leadsystem<br>
-                            app.mehr-infos-jetzt.de<br>
-                            Deutschland
+                            Henry Landmann<br>
+                            c/o Block Services<br>
+                            Stuttgarter Str. 106<br>
+                            70736 Fellbach
                         </p>
                     </div>
                 </div>
