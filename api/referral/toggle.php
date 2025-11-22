@@ -2,24 +2,30 @@
 /**
  * API: Toggle Referral Program
  * Aktiviere/Deaktiviere Empfehlungsprogramm
+ * 
+ * UPDATED: Nutzt sichere Session-Konfiguration
  */
 
 header('Content-Type: application/json');
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 
+// Sichere Session-Konfiguration laden
+require_once __DIR__ . '/../../config/security.php';
 require_once __DIR__ . '/../../config/database.php';
 
-session_start();
+// Starte sichere Session
+startSecureSession();
 
 function logDebug($message) {
     error_log("[Referral Toggle] " . $message);
 }
 
-if (!isset($_SESSION['user_id'])) {
-    logDebug("Unauthorized access attempt");
+// Login-Check
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'customer') {
+    logDebug("Unauthorized access attempt - User ID: " . ($_SESSION['user_id'] ?? 'none') . ", Role: " . ($_SESSION['role'] ?? 'none'));
     http_response_code(401);
-    echo json_encode(['success' => false, 'error' => 'unauthorized', 'message' => 'Nicht angemeldet']);
+    echo json_encode(['success' => false, 'error' => 'unauthorized', 'message' => 'Nicht angemeldet oder keine Berechtigung']);
     exit;
 }
 
@@ -44,8 +50,20 @@ try {
         throw new Exception('Parameter "enabled" fehlt');
     }
     
-    // Prüfe ob User existiert
-    $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ? LIMIT 1");
+    // Prüfe ob User existiert und ob Mailgun-Zustimmung vorhanden ist
+    $stmt = $pdo->prepare("
+        SELECT 
+            u.*,
+            (
+                SELECT COUNT(*) 
+                FROM av_contract_acceptances 
+                WHERE user_id = u.id 
+                AND acceptance_type = 'mailgun_consent'
+            ) as mailgun_consent_given
+        FROM users u
+        WHERE u.id = ?
+        LIMIT 1
+    ");
     $stmt->execute([$userId]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -54,6 +72,11 @@ try {
     }
     
     logDebug("User gefunden: " . $user['email']);
+    
+    // Prüfe Mailgun-Zustimmung nur beim Aktivieren
+    if ($enabled && $user['mailgun_consent_given'] == 0) {
+        throw new Exception('Mailgun-Zustimmung erforderlich. Bitte akzeptiere erst die Nutzungsbedingungen.');
+    }
     
     $refCode = $user['ref_code'];
     
@@ -80,7 +103,7 @@ try {
             $stmt->execute([$userId]);
         }
         
-        // Initialisiere referral_stats - WICHTIG: user_id verwenden!
+        // Initialisiere referral_stats
         try {
             $stmt = $pdo->prepare("
                 INSERT IGNORE INTO referral_stats 
@@ -88,7 +111,7 @@ try {
                 VALUES (?, 0, 0, 0)
             ");
             $stmt->execute([$userId]);
-            logDebug("referral_stats initialisiert (user_id)");
+            logDebug("referral_stats initialisiert");
         } catch (PDOException $e) {
             logDebug("WARNUNG bei referral_stats: " . $e->getMessage());
         }
