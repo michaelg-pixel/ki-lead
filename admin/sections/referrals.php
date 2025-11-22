@@ -811,8 +811,8 @@ $recent_leads = $pdo->query("
     
     <!-- Aktivitäten-Tabs -->
     <div class="section">
-        <!-- FILTER & SUCHE -->
-        <?php if ($table_exists && count($recent_lead_users) > 0): ?>
+        <!-- 🔍 FILTER & SUCHE - IMMER SICHTBAR wenn Tabelle existiert -->
+        <?php if ($table_exists): ?>
         <form method="GET" action="">
             <input type="hidden" name="page" value="referrals">
             <div class="filter-bar">
@@ -855,7 +855,7 @@ $recent_leads = $pdo->query("
         <?php endif; ?>
         
         <div class="tabs">
-            <?php if ($table_exists && count($recent_lead_users) > 0): ?>
+            <?php if ($table_exists): ?>
             <button class="tab active" onclick="switchTab('lead-users')">
                 🚀 Lead Users (<?php echo count($recent_lead_users); ?>)
                 <?php if ($search || $customer_filter || $time_filter): ?>
@@ -863,13 +863,14 @@ $recent_leads = $pdo->query("
                 <?php endif; ?>
             </button>
             <?php endif; ?>
-            <button class="tab <?php echo ($table_exists && count($recent_lead_users) > 0) ? '' : 'active'; ?>" onclick="switchTab('clicks')">Letzte Klicks (Legacy)</button>
+            <button class="tab <?php echo $table_exists ? '' : 'active'; ?>" onclick="switchTab('clicks')">Letzte Klicks (Legacy)</button>
             <button class="tab" onclick="switchTab('leads')">Letzte Leads (Legacy)</button>
         </div>
         
         <!-- LEAD USERS TAB -->
-        <?php if ($table_exists && count($recent_lead_users) > 0): ?>
+        <?php if ($table_exists): ?>
         <div id="tab-lead-users" class="tab-content active">
+            <?php if (count($recent_lead_users) > 0): ?>
             <div class="info-box">
                 <strong>🔒 Datenschutz:</strong> E-Mail-Adressen sind standardmäßig anonymisiert. 
                 Klicke auf "Details" um die vollständige E-Mail für Support-Zwecke anzuzeigen.
@@ -931,11 +932,24 @@ $recent_leads = $pdo->query("
                     </tbody>
                 </table>
             </div>
+            <?php else: ?>
+            <div class="empty-state">
+                <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
+                <p><strong>Keine Leads gefunden</strong></p>
+                <p style="font-size: 14px; margin-top: 8px;">
+                    <?php if ($search || $customer_filter || $time_filter): ?>
+                        Versuche andere Filter oder klicke auf "↻ Reset"
+                    <?php else: ?>
+                        Es wurden noch keine Lead Users registriert
+                    <?php endif; ?>
+                </p>
+            </div>
+            <?php endif; ?>
         </div>
         <?php endif; ?>
         
         <!-- Klicks Tab -->
-        <div id="tab-clicks" class="tab-content <?php echo ($table_exists && count($recent_lead_users) > 0) ? '' : 'active'; ?>">
+        <div id="tab-clicks" class="tab-content <?php echo $table_exists ? '' : 'active'; ?>">
             <div class="table-container">
                 <table>
                     <thead>
