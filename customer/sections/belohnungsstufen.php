@@ -1,7 +1,7 @@
 <?php
 /**
  * Customer Dashboard - Belohnungsstufen verwalten
- * COMPLETE VERSION - Mit Lock-Check, Marketplace-Import und vollständiger Verwaltung
+ * ORIGINAL STRUCTURE - Alle Freebies untereinander mit Empfehlungslinks
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -12,15 +12,10 @@ if (!isset($customer_id)) {
 // SPERRE: Prüfe ob Empfehlungsprogramm aktiviert ist
 require_once __DIR__ . '/belohnungsstufen-lock-check.php';
 
-// Ab hier: Normaler Code für aktivierte Programme
-
-// Freebie-ID aus URL Parameter holen (optional)
-$freebie_id = isset($_GET['freebie_id']) ? (int)$_GET['freebie_id'] : null;
-
 try {
     $pdo = getDBConnection();
     
-    // Freebies des Kunden laden
+    // Freebies des Kunden mit Empfehlungslinks laden
     $stmt_freebies = $pdo->prepare("
         SELECT 
             cf.id,
@@ -28,19 +23,17 @@ try {
             cf.headline as title,
             cf.mockup_image_url,
             cf.freebie_type,
-            COUNT(rd.id) as reward_count
+            cf.created_at
         FROM customer_freebies cf
-        LEFT JOIN reward_definitions rd ON rd.freebie_id = cf.id AND rd.user_id = ?
         WHERE cf.customer_id = ?
-        GROUP BY cf.id
         ORDER BY cf.created_at DESC
     ");
-    $stmt_freebies->execute([$customer_id, $customer_id]);
+    $stmt_freebies->execute([$customer_id]);
     $freebies = $stmt_freebies->fetchAll(PDO::FETCH_ASSOC);
     
-    // Wenn Freebie-ID gesetzt, Belohnungen für dieses Freebie laden
-    $rewards = [];
-    if ($freebie_id) {
+    // Für jedes Freebie die Belohnungen laden
+    $freebie_rewards = [];
+    foreach ($freebies as $freebie) {
         $stmt_rewards = $pdo->prepare("
             SELECT 
                 id,
@@ -58,14 +51,14 @@ try {
             WHERE freebie_id = ? AND user_id = ?
             ORDER BY referrals_required ASC
         ");
-        $stmt_rewards->execute([$freebie_id, $customer_id]);
-        $rewards = $stmt_rewards->fetchAll(PDO::FETCH_ASSOC);
+        $stmt_rewards->execute([$freebie['id'], $customer_id]);
+        $freebie_rewards[$freebie['id']] = $stmt_rewards->fetchAll(PDO::FETCH_ASSOC);
     }
     
 } catch (PDOException $e) {
     error_log("Belohnungsstufen Error: " . $e->getMessage());
     $freebies = [];
-    $rewards = [];
+    $freebie_rewards = [];
 }
 ?>
 
@@ -76,126 +69,119 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        .freebie-selector {
+        * {
+            box-sizing: border-box;
+        }
+        
+        .page-container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        
+        .header-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .header-subtitle {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1rem;
+        }
+        
+        .freebie-container {
             background: linear-gradient(to bottom right, #1f2937, #374151);
             border: 1px solid rgba(102, 126, 234, 0.3);
             border-radius: 1rem;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
         }
         
-        .freebie-grid {
+        .freebie-header {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-        
-        .freebie-card {
-            background: rgba(0, 0, 0, 0.2);
-            border: 2px solid rgba(102, 126, 234, 0.3);
-            border-radius: 0.75rem;
-            padding: 1rem;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-align: center;
-        }
-        
-        .freebie-card:hover {
-            border-color: #667eea;
-            transform: translateY(-2px);
-        }
-        
-        .freebie-card.active {
-            border-color: #10b981;
-            background: rgba(16, 185, 129, 0.1);
+            grid-template-columns: auto 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.2);
         }
         
         .freebie-mockup {
-            width: 80px;
-            height: 80px;
+            width: 120px;
+            height: 120px;
             object-fit: cover;
-            border-radius: 0.5rem;
-            margin: 0 auto 0.75rem;
+            border-radius: 0.75rem;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+        }
+        
+        .freebie-mockup-placeholder {
+            width: 120px;
+            height: 120px;
+            background: rgba(102, 126, 234, 0.2);
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+        }
+        
+        .freebie-info {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 1rem;
         }
         
         .freebie-title {
             color: white;
-            font-size: 0.875rem;
-            font-weight: 600;
+            font-size: 1.5rem;
+            font-weight: 700;
             margin-bottom: 0.5rem;
         }
         
-        .freebie-badge {
-            background: rgba(102, 126, 234, 0.2);
-            color: #667eea;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.25rem;
-            font-size: 0.75rem;
+        .referral-link-section {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 0.5rem;
+            padding: 1rem;
         }
         
-        .rewards-container {
-            display: grid;
-            gap: 1rem;
-        }
-        
-        .reward-card {
-            background: linear-gradient(to bottom right, #1f2937, #374151);
-            border: 1px solid rgba(102, 126, 234, 0.3);
-            border-radius: 1rem;
-            padding: 1.5rem;
-            display: grid;
-            grid-template-columns: auto 1fr auto;
-            gap: 1.5rem;
-            align-items: center;
-        }
-        
-        .reward-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            flex-shrink: 0;
-        }
-        
-        .reward-content {
-            flex: 1;
-        }
-        
-        .reward-title {
-            color: white;
-            font-size: 1.125rem;
-            font-weight: 700;
-            margin-bottom: 0.25rem;
-        }
-        
-        .reward-description {
+        .referral-link-label {
             color: #9ca3af;
             font-size: 0.875rem;
-            margin-bottom: 0.5rem;
-        }
-        
-        .reward-meta {
-            display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
-        
-        .reward-badge {
-            background: rgba(102, 126, 234, 0.2);
-            color: #667eea;
-            padding: 0.25rem 0.75rem;
-            border-radius: 0.5rem;
-            font-size: 0.75rem;
             font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: block;
         }
         
-        .reward-actions {
+        .referral-link-wrapper {
             display: flex;
             gap: 0.5rem;
+        }
+        
+        .referral-link-input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            color: white;
+            font-size: 0.875rem;
+            font-family: 'Courier New', monospace;
         }
         
         .btn {
@@ -208,6 +194,8 @@ try {
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
+            white-space: nowrap;
+            font-size: 0.9375rem;
         }
         
         .btn-primary {
@@ -230,21 +218,122 @@ try {
             color: white;
         }
         
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+        
         .btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.3);
         }
         
+        .rewards-section {
+            margin-top: 1.5rem;
+        }
+        
+        .rewards-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .rewards-title {
+            color: white;
+            font-size: 1.125rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .rewards-list {
+            display: grid;
+            gap: 1rem;
+        }
+        
+        .reward-card {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 1.25rem;
+            align-items: center;
+            transition: all 0.3s;
+        }
+        
+        .reward-card:hover {
+            border-color: rgba(102, 126, 234, 0.5);
+            background: rgba(0, 0, 0, 0.3);
+        }
+        
+        .reward-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+        
+        .reward-content {
+            flex: 1;
+        }
+        
+        .reward-title {
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        
+        .reward-description {
+            color: #9ca3af;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .reward-meta {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        
+        .reward-badge {
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .reward-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
         .empty-state {
             text-align: center;
-            padding: 4rem 2rem;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 1rem;
+            padding: 2rem;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 0.75rem;
+            border: 1px dashed rgba(102, 126, 234, 0.3);
         }
         
         .empty-icon {
-            font-size: 4rem;
+            font-size: 2.5rem;
             color: #374151;
+            margin-bottom: 0.75rem;
+        }
+        
+        .empty-text {
+            color: #9ca3af;
             margin-bottom: 1rem;
         }
         
@@ -277,6 +366,35 @@ try {
             overflow-y: auto;
         }
         
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        
+        .modal-title {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: #9ca3af;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+        
+        .modal-close:hover {
+            color: white;
+        }
+        
         .form-group {
             margin-bottom: 1.5rem;
         }
@@ -286,6 +404,7 @@ try {
             font-weight: 600;
             margin-bottom: 0.5rem;
             display: block;
+            font-size: 0.9375rem;
         }
         
         .form-input, .form-select, .form-textarea {
@@ -320,133 +439,200 @@ try {
             border-radius: 0.5rem;
             border: 2px solid rgba(255, 255, 255, 0.3);
         }
+        
+        .no-freebies {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: linear-gradient(to bottom right, #1f2937, #374151);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 1rem;
+        }
+        
+        .no-freebies-icon {
+            font-size: 4rem;
+            color: #374151;
+            margin-bottom: 1rem;
+        }
+        
+        .no-freebies-title {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .no-freebies-text {
+            color: #9ca3af;
+            margin-bottom: 1.5rem;
+        }
+        
+        @media (max-width: 768px) {
+            .freebie-header {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+            
+            .freebie-mockup,
+            .freebie-mockup-placeholder {
+                margin: 0 auto;
+            }
+            
+            .referral-link-wrapper {
+                flex-direction: column;
+            }
+            
+            .reward-card {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+            
+            .reward-icon {
+                margin: 0 auto;
+            }
+            
+            .reward-actions {
+                justify-content: center;
+            }
+        }
     </style>
 </head>
-<body style="background: linear-gradient(to bottom right, #1f2937, #111827); min-height: 100vh; padding: 1rem;">
-    <div style="max-width: 1280px; margin: 0 auto;">
+<body style="background: linear-gradient(to bottom right, #1f2937, #111827); min-height: 100vh;">
+    <div class="page-container">
         
         <!-- Header -->
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 1rem; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-                <div>
-                    <h1 style="font-size: 2rem; font-weight: 700; color: white; margin-bottom: 0.5rem;">
-                        <i class="fas fa-trophy"></i> Belohnungsstufen
-                    </h1>
-                    <p style="color: rgba(255, 255, 255, 0.9);">
-                        Erstelle automatische Belohnungen für deine Leads
-                    </p>
-                </div>
-                <div style="display: flex; gap: 0.75rem;">
-                    <button class="btn btn-success" id="createBtn" onclick="openRewardModal()" <?php echo !$freebie_id ? 'disabled title="Bitte wähle zuerst ein Freebie"' : ''; ?>>
-                        <i class="fas fa-plus"></i> Neue Belohnung
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Freebie Selector -->
-        <div class="freebie-selector">
-            <h2 style="color: white; font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem;">
-                <i class="fas fa-gift"></i> Freebie auswählen
-            </h2>
-            <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 1rem;">
-                Wähle ein Freebie aus, um Belohnungsstufen zu verwalten
+        <div class="header-section">
+            <h1 class="header-title">
+                <i class="fas fa-trophy"></i> Belohnungsstufen
+            </h1>
+            <p class="header-subtitle">
+                Erstelle automatische Belohnungen für jedes deiner Freebies
             </p>
-            
-            <?php if (empty($freebies)): ?>
-                <div style="text-align: center; padding: 2rem; background: rgba(0, 0, 0, 0.2); border-radius: 0.75rem;">
-                    <p style="color: #9ca3af;">
-                        Du hast noch keine Freebies. <a href="?page=freebies" style="color: #667eea;">Jetzt freischalten</a>
-                    </p>
-                </div>
-            <?php else: ?>
-                <div class="freebie-grid">
-                    <?php foreach ($freebies as $freebie): ?>
-                        <div class="freebie-card <?php echo $freebie['id'] == $freebie_id ? 'active' : ''; ?>" 
-                             onclick="selectFreebie(<?php echo $freebie['id']; ?>)">
-                            <?php if ($freebie['mockup_image_url']): ?>
-                                <img src="<?php echo htmlspecialchars($freebie['mockup_image_url']); ?>" 
-                                     class="freebie-mockup" 
-                                     onerror="this.style.display='none'">
-                            <?php else: ?>
-                                <div class="freebie-mockup" style="background: rgba(102, 126, 234, 0.2); display: flex; align-items: center; justify-content: center;">
-                                    <i class="fas fa-gift" style="font-size: 2rem; color: #667eea;"></i>
-                                </div>
-                            <?php endif; ?>
-                            
-                            <div class="freebie-title"><?php echo htmlspecialchars($freebie['title']); ?></div>
-                            <div class="freebie-badge">
-                                <?php echo $freebie['reward_count']; ?> Belohnungen
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            <?php endif; ?>
         </div>
         
-        <!-- Rewards List -->
-        <?php if ($freebie_id): ?>
-            <div style="background: linear-gradient(to bottom right, #1f2937, #374151); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 1rem; padding: 2rem;">
-                <h2 style="color: white; font-size: 1.25rem; font-weight: 600; margin-bottom: 1.5rem;">
-                    <i class="fas fa-list"></i> Belohnungsstufen
-                </h2>
-                
-                <?php if (empty($rewards)): ?>
-                    <div class="empty-state">
-                        <div class="empty-icon">
-                            <i class="fas fa-trophy"></i>
-                        </div>
-                        <h3 style="color: white; font-size: 1.125rem; margin-bottom: 0.5rem;">
-                            Noch keine Belohnungen
-                        </h3>
-                        <p style="color: #9ca3af; margin-bottom: 1.5rem;">
-                            Erstelle deine erste Belohnungsstufe für dieses Freebie
-                        </p>
-                        <button class="btn btn-primary" onclick="openRewardModal()">
-                            <i class="fas fa-plus"></i> Belohnung erstellen
-                        </button>
-                    </div>
-                <?php else: ?>
-                    <div class="rewards-container">
-                        <?php foreach ($rewards as $reward): ?>
-                            <div class="reward-card">
-                                <div class="reward-icon" style="background: <?php echo htmlspecialchars($reward['reward_color'] ?? '#667eea'); ?>;">
-                                    <?php echo $reward['reward_icon'] ?? '🎁'; ?>
-                                </div>
-                                
-                                <div class="reward-content">
-                                    <div class="reward-title">
-                                        <?php echo htmlspecialchars($reward['reward_title']); ?>
-                                    </div>
-                                    <?php if ($reward['reward_description']): ?>
-                                        <div class="reward-description">
-                                            <?php echo htmlspecialchars($reward['reward_description']); ?>
-                                        </div>
-                                    <?php endif; ?>
-                                    <div class="reward-meta">
-                                        <span class="reward-badge">
-                                            <i class="fas fa-users"></i> <?php echo $reward['referrals_required']; ?> Empfehlungen
-                                        </span>
-                                        <span class="reward-badge">
-                                            <i class="fas fa-<?php echo $reward['delivery_type'] === 'email' ? 'envelope' : 'link'; ?>"></i>
-                                            <?php echo $reward['delivery_type'] === 'email' ? 'E-Mail' : 'Download'; ?>
-                                        </span>
-                                    </div>
-                                </div>
-                                
-                                <div class="reward-actions">
-                                    <button class="btn btn-secondary" onclick="editReward(<?php echo $reward['id']; ?>)">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button class="btn btn-danger" onclick="deleteReward(<?php echo $reward['id']; ?>)">
-                                        <i class="fas fa-trash"></i>
+        <!-- Freebies List -->
+        <?php if (empty($freebies)): ?>
+            <div class="no-freebies">
+                <div class="no-freebies-icon">
+                    <i class="fas fa-gift"></i>
+                </div>
+                <h2 class="no-freebies-title">Noch keine Freebies</h2>
+                <p class="no-freebies-text">
+                    Du benötigst mindestens ein Freebie, um Belohnungsstufen zu erstellen.
+                </p>
+                <a href="?page=freebies" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Jetzt Freebies freischalten
+                </a>
+            </div>
+        <?php else: ?>
+            <?php foreach ($freebies as $freebie): ?>
+                <div class="freebie-container">
+                    <!-- Freebie Header mit Bild und Info -->
+                    <div class="freebie-header">
+                        <?php if ($freebie['mockup_image_url']): ?>
+                            <img src="<?php echo htmlspecialchars($freebie['mockup_image_url']); ?>" 
+                                 class="freebie-mockup" 
+                                 alt="<?php echo htmlspecialchars($freebie['title']); ?>"
+                                 onerror="this.parentElement.innerHTML='<div class=\'freebie-mockup-placeholder\'><i class=\'fas fa-gift\' style=\'font-size: 3rem; color: #667eea;\'></i></div>'">
+                        <?php else: ?>
+                            <div class="freebie-mockup-placeholder">
+                                <i class="fas fa-gift" style="font-size: 3rem; color: #667eea;"></i>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <div class="freebie-info">
+                            <h2 class="freebie-title">
+                                <?php echo htmlspecialchars($freebie['title']); ?>
+                            </h2>
+                            
+                            <!-- Empfehlungslink -->
+                            <div class="referral-link-section">
+                                <label class="referral-link-label">
+                                    <i class="fas fa-link"></i> Empfehlungslink für dieses Freebie
+                                </label>
+                                <div class="referral-link-wrapper">
+                                    <input type="text" 
+                                           class="referral-link-input" 
+                                           value="<?php echo 'https://mehr-infos-jetzt.de/f/?id=' . htmlspecialchars($freebie['unique_id']); ?>" 
+                                           readonly
+                                           id="referralLink_<?php echo $freebie['id']; ?>">
+                                    <button class="btn btn-primary btn-sm" onclick="copyReferralLink(<?php echo $freebie['id']; ?>)">
+                                        <i class="fas fa-copy"></i> Kopieren
                                     </button>
                                 </div>
                             </div>
-                        <?php endforeach; ?>
+                        </div>
                     </div>
-                <?php endif; ?>
-            </div>
+                    
+                    <!-- Belohnungen Section -->
+                    <div class="rewards-section">
+                        <div class="rewards-header">
+                            <h3 class="rewards-title">
+                                <i class="fas fa-trophy"></i> 
+                                Belohnungsstufen
+                                <span style="color: #9ca3af; font-weight: 400; font-size: 0.875rem;">
+                                    (<?php echo count($freebie_rewards[$freebie['id']] ?? []); ?>)
+                                </span>
+                            </h3>
+                            <button class="btn btn-success btn-sm" onclick="openRewardModal(<?php echo $freebie['id']; ?>)">
+                                <i class="fas fa-plus"></i> Neue Belohnung
+                            </button>
+                        </div>
+                        
+                        <?php if (empty($freebie_rewards[$freebie['id']])): ?>
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <i class="fas fa-trophy"></i>
+                                </div>
+                                <p class="empty-text">
+                                    Noch keine Belohnungen für dieses Freebie
+                                </p>
+                                <button class="btn btn-primary btn-sm" onclick="openRewardModal(<?php echo $freebie['id']; ?>)">
+                                    <i class="fas fa-plus"></i> Erste Belohnung erstellen
+                                </button>
+                            </div>
+                        <?php else: ?>
+                            <div class="rewards-list">
+                                <?php foreach ($freebie_rewards[$freebie['id']] as $reward): ?>
+                                    <div class="reward-card">
+                                        <div class="reward-icon" style="background: <?php echo htmlspecialchars($reward['reward_color'] ?? '#667eea'); ?>;">
+                                            <?php echo $reward['reward_icon'] ?? '🎁'; ?>
+                                        </div>
+                                        
+                                        <div class="reward-content">
+                                            <div class="reward-title">
+                                                <?php echo htmlspecialchars($reward['reward_title']); ?>
+                                            </div>
+                                            <?php if ($reward['reward_description']): ?>
+                                                <div class="reward-description">
+                                                    <?php echo htmlspecialchars($reward['reward_description']); ?>
+                                                </div>
+                                            <?php endif; ?>
+                                            <div class="reward-meta">
+                                                <span class="reward-badge">
+                                                    <i class="fas fa-users"></i> <?php echo $reward['referrals_required']; ?> Empfehlungen
+                                                </span>
+                                                <span class="reward-badge">
+                                                    <i class="fas fa-<?php echo $reward['delivery_type'] === 'email' ? 'envelope' : 'link'; ?>"></i>
+                                                    <?php echo $reward['delivery_type'] === 'email' ? 'E-Mail' : 'Download'; ?>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="reward-actions">
+                                            <button class="btn btn-secondary btn-sm" onclick="editReward(<?php echo $reward['id']; ?>)">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-danger btn-sm" onclick="deleteReward(<?php echo $reward['id']; ?>)">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endforeach; ?>
         <?php endif; ?>
         
     </div>
@@ -454,36 +640,37 @@ try {
     <!-- Reward Modal -->
     <div id="rewardModal" class="modal">
         <div class="modal-content">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-                <h2 style="color: white; font-size: 1.5rem; font-weight: 700;">
+            <div class="modal-header">
+                <h2 class="modal-title">
                     <i class="fas fa-trophy"></i> <span id="modalTitle">Neue Belohnung</span>
                 </h2>
-                <button onclick="closeRewardModal()" style="background: none; border: none; color: #9ca3af; font-size: 1.5rem; cursor: pointer;">
+                <button class="modal-close" onclick="closeRewardModal()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             
             <form id="rewardForm" onsubmit="saveReward(event)">
                 <input type="hidden" id="rewardId" value="">
+                <input type="hidden" id="freebieId" value="">
                 
                 <div class="form-group">
                     <label class="form-label">Titel der Belohnung *</label>
-                    <input type="text" id="rewardTitle" class="form-input" required>
+                    <input type="text" id="rewardTitle" class="form-input" required placeholder="z.B. Bronze Level">
                 </div>
                 
                 <div class="form-group">
                     <label class="form-label">Beschreibung</label>
-                    <textarea id="rewardDescription" class="form-textarea"></textarea>
+                    <textarea id="rewardDescription" class="form-textarea" placeholder="Kurze Beschreibung der Belohnung"></textarea>
                 </div>
                 
                 <div class="form-group">
                     <label class="form-label">Benötigte Empfehlungen *</label>
-                    <input type="number" id="referralsRequired" class="form-input" min="1" required>
+                    <input type="number" id="referralsRequired" class="form-input" min="0" required placeholder="z.B. 3">
                 </div>
                 
                 <div class="form-group">
                     <label class="form-label">Icon (Emoji)</label>
-                    <input type="text" id="rewardIcon" class="form-input" placeholder="🎁">
+                    <input type="text" id="rewardIcon" class="form-input" placeholder="🎁" maxlength="2">
                 </div>
                 
                 <div class="form-group">
@@ -505,19 +692,26 @@ try {
                 <div id="emailFields">
                     <div class="form-group">
                         <label class="form-label">E-Mail Betreff</label>
-                        <input type="text" id="emailSubject" class="form-input">
+                        <input type="text" id="emailSubject" class="form-input" placeholder="🎉 Glückwunsch! Du hast eine Belohnung freigeschaltet">
                     </div>
                     
                     <div class="form-group">
                         <label class="form-label">E-Mail Text</label>
-                        <textarea id="emailBody" class="form-textarea"></textarea>
+                        <textarea id="emailBody" class="form-textarea" placeholder="Hallo {{name}},
+
+herzlichen Glückwunsch! Du hast das {{reward_title}} Level erreicht!
+
+Deine Belohnung:
+{{reward_description}}
+
+Vielen Dank für deine Empfehlungen!"></textarea>
                     </div>
                 </div>
                 
                 <div id="downloadFields" style="display: none;">
                     <div class="form-group">
                         <label class="form-label">Download-URL</label>
-                        <input type="url" id="downloadUrl" class="form-input">
+                        <input type="url" id="downloadUrl" class="form-input" placeholder="https://...">
                     </div>
                 </div>
                 
@@ -534,15 +728,19 @@ try {
     </div>
     
     <script>
-        const freebieId = <?php echo $freebie_id ?: 'null'; ?>;
-        
-        function selectFreebie(id) {
-            window.location.href = '?page=belohnungsstufen&freebie_id=' + id;
+        function copyReferralLink(freebieId) {
+            const input = document.getElementById('referralLink_' + freebieId);
+            input.select();
+            document.execCommand('copy');
+            
+            showNotification('✅ Link kopiert!', 'success');
         }
         
-        function openRewardModal(rewardData = null) {
+        function openRewardModal(freebieId, rewardData = null) {
             document.getElementById('rewardModal').classList.add('active');
             document.body.style.overflow = 'hidden';
+            
+            document.getElementById('freebieId').value = freebieId;
             
             if (rewardData) {
                 document.getElementById('modalTitle').textContent = 'Belohnung bearbeiten';
@@ -563,6 +761,7 @@ try {
                 document.getElementById('modalTitle').textContent = 'Neue Belohnung';
                 document.getElementById('rewardForm').reset();
                 document.getElementById('rewardId').value = '';
+                document.getElementById('freebieId').value = freebieId;
                 updateColorPreview();
             }
         }
@@ -590,7 +789,7 @@ try {
             
             const rewardId = document.getElementById('rewardId').value;
             const data = {
-                freebie_id: freebieId,
+                freebie_id: parseInt(document.getElementById('freebieId').value),
                 reward_title: document.getElementById('rewardTitle').value,
                 reward_description: document.getElementById('rewardDescription').value,
                 referrals_required: parseInt(document.getElementById('referralsRequired').value),
@@ -633,7 +832,7 @@ try {
                 const data = await response.json();
                 
                 if (data.success) {
-                    openRewardModal(data.reward);
+                    openRewardModal(data.reward.freebie_id, data.reward);
                 } else {
                     showNotification('❌ Fehler beim Laden', 'error');
                 }
@@ -687,14 +886,15 @@ try {
                 border-radius: 0.5rem;
                 box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
                 z-index: 99999;
-                animation: slideIn 0.3s ease-out;
+                font-weight: 600;
             `;
             notification.textContent = message;
             
             document.body.appendChild(notification);
             
             setTimeout(() => {
-                notification.style.animation = 'slideOut 0.3s ease-out';
+                notification.style.opacity = '0';
+                notification.style.transition = 'opacity 0.3s';
                 setTimeout(() => notification.remove(), 300);
             }, 3000);
         }
@@ -702,6 +902,13 @@ try {
         // Close modal on outside click
         document.getElementById('rewardModal')?.addEventListener('click', function(e) {
             if (e.target === this) {
+                closeRewardModal();
+            }
+        });
+        
+        // ESC key to close modal
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
                 closeRewardModal();
             }
         });
