@@ -160,6 +160,9 @@ try {
 $referralEnabled = $user['referral_enabled'] ?? 0;
 $referralCode = $user['ref_code'] ?? '';
 $baseUrl = 'https://app.mehr-infos-jetzt.de';
+
+// Prüfen ob Programm komplett freigeschaltet ist
+$isProgramEnabled = $mailgunConsentGiven && $impressumExists;
 ?>
 
 <!DOCTYPE html>
@@ -197,11 +200,6 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
             opacity: 0;
             width: 0;
             height: 0;
-        }
-        
-        .toggle-switch input:disabled + .toggle-slider {
-            cursor: pointer;
-            opacity: 0.7;
         }
         
         .toggle-slider {
@@ -269,7 +267,7 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
         }
         
         .mailgun-info-box {
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.95);
             border-radius: 0.75rem;
             padding: 1.5rem;
             margin-bottom: 1.5rem;
@@ -299,6 +297,7 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
         
         .mailgun-info-list strong {
             color: #78350f;
+            font-weight: 700;
         }
         
         .consent-button, .impressum-button {
@@ -671,28 +670,29 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
                         </p>
                     </div>
                     
+                    <?php if ($isProgramEnabled): ?>
                     <div style="display: flex; align-items: center; gap: 0.75rem;">
                         <span style="color: white; font-weight: 600; font-size: 0.875rem;">
                             <?php echo $referralEnabled ? 'Aktiviert' : 'Deaktiviert'; ?>
                         </span>
-                        <label class="toggle-switch" id="toggleContainer" <?php echo (!$mailgunConsentGiven || !$impressumExists) ? 'onclick="handleDisabledToggleClick()"' : ''; ?>>
+                        <label class="toggle-switch">
                             <input type="checkbox" 
                                    id="referralToggle" 
                                    <?php echo $referralEnabled ? 'checked' : ''; ?>
-                                   <?php echo (!$mailgunConsentGiven || !$impressumExists) ? 'disabled' : ''; ?>
                                    onchange="toggleReferralProgram(this.checked)">
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
+                    <?php endif; ?>
                 </div>
                 
-                <?php if (!$mailgunConsentGiven || !$impressumExists): ?>
-                <div style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); border-radius: 0.5rem; padding: 0.75rem; margin-top: 1rem;">
+                <?php if (!$isProgramEnabled): ?>
+                <div style="background: rgba(239, 68, 68, 0.25); border: 1px solid rgba(239, 68, 68, 0.6); border-radius: 0.5rem; padding: 0.75rem; margin-top: 1rem;">
                     <p style="color: white; font-size: 0.875rem; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
                         <i class="fas fa-lock"></i>
                         <strong>Gesperrt:</strong> 
                         <?php if (!$mailgunConsentGiven): ?>
-                            Akzeptiere zuerst die Nutzungsbedingungen.
+                            Akzeptiere zuerst die Nutzungsbedingungen unten.
                         <?php elseif (!$impressumExists): ?>
                             Füge dein Impressum hinzu (gesetzlich erforderlich).
                         <?php endif; ?>
@@ -767,7 +767,7 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
                     </ul>
                     
                     <div style="margin-top: 1rem;">
-                        <a href="/public/avv-mailgun.php" target="_blank" class="avv-link-button">
+                        <a href="/public/avv-mailgun.php?customer_id=<?php echo $customer_id; ?>" target="_blank" class="avv-link-button">
                             <i class="fas fa-file-pdf"></i>
                             AVV-Vertrag ansehen & herunterladen
                         </a>
@@ -779,7 +779,7 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
                         <i class="fas fa-check-circle"></i>
                         Ich verstehe und stimme zu
                     </button>
-                    <p style="color: #78350f; font-size: 0.875rem; margin-top: 1rem;">
+                    <p style="color: #78350f; font-size: 0.875rem; margin-top: 1rem; font-weight: 600;">
                         Mit deiner Zustimmung akzeptierst du die Nutzung von Mailgun und den AVV
                     </p>
                 </div>
@@ -1027,16 +1027,6 @@ Telefon: [Deine Telefonnummer]
     </div>
     
     <script>
-        // Disabled Toggle Click Handler
-        function handleDisabledToggleClick() {
-            <?php if (!$mailgunConsentGiven): ?>
-            openConsentModal();
-            <?php elseif (!$impressumExists): ?>
-            showNotification('⚠️ Bitte füge zuerst dein Impressum hinzu', 'error');
-            document.getElementById('impressumText').focus();
-            <?php endif; ?>
-        }
-        
         // Modal öffnen/schließen
         function openConsentModal() {
             document.getElementById('consentModal').classList.add('active');
@@ -1211,6 +1201,7 @@ Telefon: [Deine Telefonnummer]
                 animation: slideIn 0.3s ease-out;
                 max-width: 90%;
                 font-size: 0.875rem;
+                font-weight: 600;
             `;
             notification.textContent = message;
             
