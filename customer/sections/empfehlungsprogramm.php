@@ -1,12 +1,13 @@
 <?php
 /**
  * Customer Dashboard - Empfehlungsprogramm Section
- * FINAL VERSION: Mailgun-Transparenz + AVV ZUERST
+ * FINAL VERSION: Mailgun-Transparenz + AVV + Impressum
  * 
  * Rechtliche Reihenfolge:
- * 1. Transparenz-Info über Mailgun (EU-Server, Belohnungs-Mails)
+ * 1. Transparenz-Info über Mailgun (EU-Server, Belohnungs-Mails) + AVV-Link
  * 2. Zustimmung zu Mailgun + AVV
- * 3. Erst dann: Empfehlungsprogramm nutzbar
+ * 3. Impressum-Formular (PFLICHT)
+ * 4. Dann: Empfehlungsprogramm nutzbar
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -18,7 +19,6 @@ try {
     $pdo = getDBConnection();
     
     // Benutzer-Details + Mailgun-Zustimmung laden
-    // WICHTIG: Prüfe NUR auf 'mailgun_consent' (separat von registration)
     $stmt = $pdo->prepare("
         SELECT 
             u.referral_enabled,
@@ -43,6 +43,7 @@ try {
     }
     
     $mailgunConsentGiven = $user['mailgun_consent_given'] > 0;
+    $impressumExists = !empty($user['company_imprint_html']);
     
     // EMPFEHLUNGS-SLOTS LADEN
     $stmt_slots = $pdo->prepare("
@@ -148,6 +149,7 @@ try {
         'mailgun_consent_given' => 0
     ];
     $mailgunConsentGiven = false;
+    $impressumExists = false;
     $stats = ['total_leads' => 0, 'referred_leads' => 0, 'total_referrals' => 0, 'successful_referrals' => 0];
     $freebies = [];
     $total_slots = 0;
@@ -198,7 +200,7 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
         }
         
         .toggle-switch input:disabled + .toggle-slider {
-            cursor: pointer; /* Macht es klickbar auch wenn disabled */
+            cursor: pointer;
             opacity: 0.7;
         }
         
@@ -299,7 +301,7 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
             color: #78350f;
         }
         
-        .consent-button {
+        .consent-button, .impressum-button {
             background: linear-gradient(135deg, #10b981, #059669);
             color: white;
             padding: 1rem 2rem;
@@ -315,9 +317,31 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
             box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);
         }
         
-        .consent-button:hover {
+        .consent-button:hover, .impressum-button:hover {
             transform: translateY(-2px);
             box-shadow: 0 15px 25px -5px rgba(16, 185, 129, 0.4);
+        }
+        
+        .avv-link-button {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+        }
+        
+        .avv-link-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.4);
         }
         
         /* Step Indicator */
@@ -351,6 +375,66 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
             color: #78350f;
             font-size: 1rem;
             font-weight: 600;
+        }
+        
+        /* Impressum Section */
+        .impressum-section {
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+            border: 3px solid #6d28d9;
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.3);
+        }
+        
+        .impressum-section h3 {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .impressum-form-box {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+        }
+        
+        .form-label {
+            color: #1f2937;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        
+        .form-help {
+            color: #6b7280;
+            font-size: 0.8125rem;
+            display: block;
+            margin-bottom: 0.75rem;
+        }
+        
+        .form-textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 0.5rem;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.9375rem;
+            line-height: 1.6;
+            resize: vertical;
+            transition: all 0.3s;
+        }
+        
+        .form-textarea:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
         }
         
         /* Modal */
@@ -544,11 +628,11 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
         }
         
         @media (max-width: 768px) {
-            .mailgun-banner {
+            .mailgun-banner, .impressum-section {
                 padding: 1.5rem;
             }
             
-            .mailgun-banner h3 {
+            .mailgun-banner h3, .impressum-section h3 {
                 font-size: 1.25rem;
                 flex-direction: column;
                 text-align: center;
@@ -559,7 +643,7 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
                 max-height: calc(100vh - 2rem);
             }
             
-            .consent-button {
+            .consent-button, .impressum-button {
                 width: 100%;
                 justify-content: center;
             }
@@ -591,22 +675,27 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
                         <span style="color: white; font-weight: 600; font-size: 0.875rem;">
                             <?php echo $referralEnabled ? 'Aktiviert' : 'Deaktiviert'; ?>
                         </span>
-                        <label class="toggle-switch" id="toggleContainer" <?php echo !$mailgunConsentGiven ? 'onclick="handleDisabledToggleClick()"' : ''; ?>>
+                        <label class="toggle-switch" id="toggleContainer" <?php echo (!$mailgunConsentGiven || !$impressumExists) ? 'onclick="handleDisabledToggleClick()"' : ''; ?>>
                             <input type="checkbox" 
                                    id="referralToggle" 
                                    <?php echo $referralEnabled ? 'checked' : ''; ?>
-                                   <?php echo !$mailgunConsentGiven ? 'disabled' : ''; ?>
+                                   <?php echo (!$mailgunConsentGiven || !$impressumExists) ? 'disabled' : ''; ?>
                                    onchange="toggleReferralProgram(this.checked)">
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
                 </div>
                 
-                <?php if (!$mailgunConsentGiven): ?>
+                <?php if (!$mailgunConsentGiven || !$impressumExists): ?>
                 <div style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); border-radius: 0.5rem; padding: 0.75rem; margin-top: 1rem;">
                     <p style="color: white; font-size: 0.875rem; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
                         <i class="fas fa-lock"></i>
-                        <strong>Gesperrt:</strong> Um das Empfehlungsprogramm zu nutzen, akzeptiere bitte zuerst die Nutzungsbedingungen unten.
+                        <strong>Gesperrt:</strong> 
+                        <?php if (!$mailgunConsentGiven): ?>
+                            Akzeptiere zuerst die Nutzungsbedingungen.
+                        <?php elseif (!$impressumExists): ?>
+                            Füge dein Impressum hinzu (gesetzlich erforderlich).
+                        <?php endif; ?>
                     </p>
                 </div>
                 <?php endif; ?>
@@ -615,11 +704,11 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
         
         <?php if (!$mailgunConsentGiven): ?>
             
-            <!-- STEP INDICATOR -->
+            <!-- STEP 1: Transparenz & AVV -->
             <div class="step-indicator animate-fade-in-up" style="opacity: 0; animation-delay: 0.05s;">
                 <div class="step-number animate-pulse">1</div>
                 <div class="step-text">
-                    Bitte lies die Informationen unten und klicke dann auf "Ich verstehe und stimme zu"
+                    Schritt 1: Bitte lies die Informationen und stimme den Bedingungen zu
                 </div>
             </div>
             
@@ -676,6 +765,13 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
                         <li><strong>Unsere Rolle:</strong> Wir verarbeiten die Daten nur nach deiner Weisung (E-Mail-Versand)</li>
                         <li><strong>Sicherheit:</strong> Technische und organisatorische Maßnahmen gemäß DSGVO</li>
                     </ul>
+                    
+                    <div style="margin-top: 1rem;">
+                        <a href="/public/avv-mailgun.php" target="_blank" class="avv-link-button">
+                            <i class="fas fa-file-pdf"></i>
+                            AVV-Vertrag ansehen & herunterladen
+                        </a>
+                    </div>
                 </div>
                 
                 <div style="text-align: center; margin-top: 2rem;">
@@ -686,6 +782,82 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
                     <p style="color: #78350f; font-size: 0.875rem; margin-top: 1rem;">
                         Mit deiner Zustimmung akzeptierst du die Nutzung von Mailgun und den AVV
                     </p>
+                </div>
+            </div>
+            
+        <?php elseif (!$impressumExists): ?>
+            
+            <!-- STEP 2: Impressum -->
+            <div class="step-indicator animate-fade-in-up" style="opacity: 0; animation-delay: 0.05s;">
+                <div class="step-number animate-pulse">2</div>
+                <div class="step-text">
+                    Schritt 2: Füge dein Impressum hinzu (gesetzlich erforderlich für E-Mails)
+                </div>
+            </div>
+            
+            <!-- ===== IMPRESSUM SECTION ===== -->
+            <div class="impressum-section animate-fade-in-up" style="opacity: 0; animation-delay: 0.1s;">
+                <div style="display: flex; gap: 1.5rem; margin-bottom: 1.5rem; align-items: center; flex-wrap: wrap;">
+                    <div class="mailgun-banner-icon" style="background: rgba(255, 255, 255, 0.2);">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                    <div style="flex: 1; min-width: 200px;">
+                        <h3 style="margin: 0; color: white;">
+                            Dein Impressum
+                        </h3>
+                        <p style="color: rgba(255, 255, 255, 0.9); font-size: 0.9375rem; margin: 0;">
+                            Wird automatisch in alle Belohnungs-E-Mails eingefügt
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="impressum-form-box">
+                    <label class="form-label">
+                        <i class="fas fa-building"></i> Impressumsdaten
+                    </label>
+                    <span class="form-help">
+                        Gemäß DSGVO muss dein Impressum in jeder E-Mail enthalten sein. 
+                        Füge hier deine vollständigen Impressumsdaten ein (Name, Anschrift, Kontakt).
+                    </span>
+                    
+                    <textarea id="impressumText" class="form-textarea" placeholder="Beispiel:
+
+<?php echo htmlspecialchars($user['company_name']); ?>
+
+Verantwortlich: [Dein Name]
+[Deine Straße und Hausnummer]
+[PLZ] [Stadt]
+[Land]
+
+E-Mail: <?php echo htmlspecialchars($user['company_email']); ?>
+Telefon: [Deine Telefonnummer]
+
+[Optional: Handelsregister, Umsatzsteuer-ID, etc.]"></textarea>
+                    
+                    <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+                        <button class="impressum-button" onclick="saveImpressum()">
+                            <i class="fas fa-save"></i>
+                            Impressum speichern
+                        </button>
+                    </div>
+                </div>
+                
+                <div style="background: rgba(255, 255, 255, 0.95); border-radius: 0.75rem; padding: 1.25rem; margin-top: 1.5rem;">
+                    <div style="display: flex; align-items: start; gap: 1rem;">
+                        <div style="color: #3b82f6; font-size: 1.5rem; flex-shrink: 0;">
+                            <i class="fas fa-lightbulb"></i>
+                        </div>
+                        <div>
+                            <div style="color: #1f2937; font-weight: 600; margin-bottom: 0.5rem;">
+                                💡 Tipp: Impressum-Generator nutzen
+                            </div>
+                            <div style="color: #4b5563; font-size: 0.875rem; line-height: 1.6;">
+                                Falls du noch kein Impressum hast, kannst du kostenlose Impressum-Generatoren wie 
+                                <strong>eRecht24</strong> oder <strong>Impressum-Generator.de</strong> nutzen. 
+                                Kopiere das generierte Impressum einfach in das Feld oben.
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -857,8 +1029,12 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
     <script>
         // Disabled Toggle Click Handler
         function handleDisabledToggleClick() {
-            // Modal direkt öffnen
+            <?php if (!$mailgunConsentGiven): ?>
             openConsentModal();
+            <?php elseif (!$impressumExists): ?>
+            showNotification('⚠️ Bitte füge zuerst dein Impressum hinzu', 'error');
+            document.getElementById('impressumText').focus();
+            <?php endif; ?>
         }
         
         // Modal öffnen/schließen
@@ -929,6 +1105,43 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
             }
         }
         
+        // Impressum speichern
+        async function saveImpressum() {
+            const impressumText = document.getElementById('impressumText').value.trim();
+            
+            if (!impressumText) {
+                showNotification('⚠️ Bitte füge deine Impressumsdaten ein', 'error');
+                return;
+            }
+            
+            if (impressumText.length < 50) {
+                showNotification('⚠️ Das Impressum sollte mindestens 50 Zeichen enthalten', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/mailgun/save-impressum.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        impressum_html: impressumText
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('✅ Impressum gespeichert! Seite wird neu geladen...', 'success');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showNotification('❌ Fehler: ' + (result.error || 'Unbekannter Fehler'), 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('❌ Verbindungsfehler beim Speichern', 'error');
+            }
+        }
+        
         // Toggle Programm
         function toggleReferralProgram(enabled) {
             const toggle = document.getElementById('referralToggle');
@@ -948,14 +1161,12 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
                     setTimeout(() => location.reload(), 1500);
                 } else {
                     showNotification('❌ Fehler: ' + (data.message || 'Unbekannter Fehler'), 'error');
-                    // Checkbox zurücksetzen bei Fehler
                     toggle.checked = !enabled;
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
                 showNotification('❌ Verbindungsfehler', 'error');
-                // Checkbox zurücksetzen bei Fehler
                 toggle.checked = !enabled;
             });
         }
