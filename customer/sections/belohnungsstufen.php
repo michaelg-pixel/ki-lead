@@ -1,7 +1,7 @@
 <?php
 /**
  * Customer Dashboard - Belohnungsstufen verwalten
- * ORIGINAL STRUCTURE - Alle Freebies untereinander mit Empfehlungslinks
+ * FIXED VERSION - Korrigierte Spaltennamen
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -31,7 +31,7 @@ try {
     $stmt_freebies->execute([$customer_id]);
     $freebies = $stmt_freebies->fetchAll(PDO::FETCH_ASSOC);
     
-    // Für jedes Freebie die Belohnungen laden
+    // Für jedes Freebie die Belohnungen laden (mit korrekten Spaltennamen!)
     $freebie_rewards = [];
     foreach ($freebies as $freebie) {
         $stmt_rewards = $pdo->prepare("
@@ -41,15 +41,15 @@ try {
                 reward_description,
                 reward_icon,
                 reward_color,
-                referrals_required,
-                delivery_type,
+                required_referrals,
+                reward_delivery_type,
                 email_subject,
                 email_body,
-                download_url,
+                reward_download_url,
                 created_at
             FROM reward_definitions
             WHERE freebie_id = ? AND user_id = ?
-            ORDER BY referrals_required ASC
+            ORDER BY required_referrals ASC
         ");
         $stmt_rewards->execute([$freebie['id'], $customer_id]);
         $freebie_rewards[$freebie['id']] = $stmt_rewards->fetchAll(PDO::FETCH_ASSOC);
@@ -609,11 +609,11 @@ try {
                                             <?php endif; ?>
                                             <div class="reward-meta">
                                                 <span class="reward-badge">
-                                                    <i class="fas fa-users"></i> <?php echo $reward['referrals_required']; ?> Empfehlungen
+                                                    <i class="fas fa-users"></i> <?php echo $reward['required_referrals']; ?> Empfehlungen
                                                 </span>
                                                 <span class="reward-badge">
-                                                    <i class="fas fa-<?php echo $reward['delivery_type'] === 'email' ? 'envelope' : 'link'; ?>"></i>
-                                                    <?php echo $reward['delivery_type'] === 'email' ? 'E-Mail' : 'Download'; ?>
+                                                    <i class="fas fa-<?php echo $reward['reward_delivery_type'] === 'email' ? 'envelope' : 'link'; ?>"></i>
+                                                    <?php echo $reward['reward_delivery_type'] === 'email' ? 'E-Mail' : ucfirst($reward['reward_delivery_type']); ?>
                                                 </span>
                                             </div>
                                         </div>
@@ -665,7 +665,7 @@ try {
                 
                 <div class="form-group">
                     <label class="form-label">Benötigte Empfehlungen *</label>
-                    <input type="number" id="referralsRequired" class="form-input" min="0" required placeholder="z.B. 3">
+                    <input type="number" id="requiredReferrals" class="form-input" min="0" required placeholder="z.B. 3">
                 </div>
                 
                 <div class="form-group">
@@ -686,6 +686,7 @@ try {
                     <select id="deliveryType" class="form-select" onchange="toggleDeliveryFields()">
                         <option value="email">E-Mail</option>
                         <option value="download">Download-Link</option>
+                        <option value="manual">Manuell</option>
                     </select>
                 </div>
                 
@@ -747,13 +748,13 @@ Vielen Dank für deine Empfehlungen!"></textarea>
                 document.getElementById('rewardId').value = rewardData.id;
                 document.getElementById('rewardTitle').value = rewardData.reward_title;
                 document.getElementById('rewardDescription').value = rewardData.reward_description || '';
-                document.getElementById('referralsRequired').value = rewardData.referrals_required;
+                document.getElementById('requiredReferrals').value = rewardData.required_referrals;
                 document.getElementById('rewardIcon').value = rewardData.reward_icon || '';
                 document.getElementById('rewardColor').value = rewardData.reward_color || '#667eea';
-                document.getElementById('deliveryType').value = rewardData.delivery_type;
+                document.getElementById('deliveryType').value = rewardData.reward_delivery_type;
                 document.getElementById('emailSubject').value = rewardData.email_subject || '';
                 document.getElementById('emailBody').value = rewardData.email_body || '';
-                document.getElementById('downloadUrl').value = rewardData.download_url || '';
+                document.getElementById('downloadUrl').value = rewardData.reward_download_url || '';
                 
                 updateColorPreview();
                 toggleDeliveryFields();
@@ -792,13 +793,13 @@ Vielen Dank für deine Empfehlungen!"></textarea>
                 freebie_id: parseInt(document.getElementById('freebieId').value),
                 reward_title: document.getElementById('rewardTitle').value,
                 reward_description: document.getElementById('rewardDescription').value,
-                referrals_required: parseInt(document.getElementById('referralsRequired').value),
+                required_referrals: parseInt(document.getElementById('requiredReferrals').value),
                 reward_icon: document.getElementById('rewardIcon').value,
                 reward_color: document.getElementById('rewardColor').value,
-                delivery_type: document.getElementById('deliveryType').value,
+                reward_delivery_type: document.getElementById('deliveryType').value,
                 email_subject: document.getElementById('emailSubject').value,
                 email_body: document.getElementById('emailBody').value,
-                download_url: document.getElementById('downloadUrl').value
+                reward_download_url: document.getElementById('downloadUrl').value
             };
             
             if (rewardId) {
