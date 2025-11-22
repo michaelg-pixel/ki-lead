@@ -1,10 +1,8 @@
-Deployment Trigger: Vendor Template APIs gefixxt - 2025-11-14 10:30:00
-
-KRITISCHE FIXES:
-- create.php: Korrekte Kategorien-Validierung (leadmagnet, video_course, etc.)
-- create.php: Korrekte Delivery-Type-Validierung (manual, download, email, redirect)
-- update.php: FEHLENDE PDO CONNECTION HINZUGEFÜGT (war der Hauptfehler!)
-- update.php: Vendor-Berechtigung prüfen hinzugefügt
-- Beide APIs: Besseres Error-Handling und Logging
-
-Diese Fixes sollten das "Fehler beim Speichern" Problem beheben.
+Deployment triggered at: 2025-11-22 13:25:00
+Reason: Mailgun Integration complete - deploying all files
+Files deployed:
+- includes/MailgunRewardHelper.php
+- database/migrations/create_reward_emails_sent.php
+- database/migrations/update_reward_emails_sent.php
+- database/migrations/browser/migrate_reward_emails_sent.php
+- lead_register.php (updated with Mailgun integration)
