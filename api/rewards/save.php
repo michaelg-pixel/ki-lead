@@ -2,14 +2,6 @@
 /**
  * API: Belohnungsstufe erstellen/aktualisieren
  * POST /api/rewards/save.php
- * 
- * Body: {
- *   "freebie_id": 123,  // Optional: customer_freebie_id
- *   "tier_level": 1,
- *   "tier_name": "Bronze",
- *   "required_referrals": 3,
- *   ...
- * }
  */
 
 header('Content-Type: application/json');
@@ -27,9 +19,12 @@ if (!isset($_SESSION['user_id'])) {
 // Input validieren
 $input = json_decode(file_get_contents('php://input'), true);
 
-$required = ['tier_level', 'tier_name', 'required_referrals', 'reward_type', 'reward_title'];
+// Debug logging
+error_log("Reward Save Input: " . print_r($input, true));
+
+$required = ['freebie_id', 'reward_title', 'required_referrals'];
 foreach ($required as $field) {
-    if (!isset($input[$field]) || empty($input[$field])) {
+    if (!isset($input[$field]) || $input[$field] === '') {
         http_response_code(400);
         echo json_encode([
             'success' => false,
@@ -42,128 +37,108 @@ foreach ($required as $field) {
 try {
     $pdo = getDBConnection();
     $user_id = $_SESSION['user_id'];
-    $id = $input['id'] ?? null;
-    $freebie_id = isset($input['freebie_id']) && $input['freebie_id'] > 0 ? (int)$input['freebie_id'] : null;
+    $reward_id = $input['reward_id'] ?? null;
+    $freebie_id = (int)$input['freebie_id'];
     
     // Validierung
-    if ($input['tier_level'] < 1 || $input['tier_level'] > 50) {
-        throw new Exception('Tier-Level muss zwischen 1 und 50 liegen');
+    if ($input['required_referrals'] < 0) {
+        throw new Exception('Anzahl Empfehlungen muss mindestens 0 sein');
     }
-    
-    if ($input['required_referrals'] < 1) {
-        throw new Exception('Mindestens 1 Empfehlung erforderlich');
-    }
-    
-    // Boolean-Werte konvertieren
-    $is_active = isset($input['is_active']) && $input['is_active'] ? 1 : 0;
-    $is_featured = isset($input['is_featured']) && $input['is_featured'] ? 1 : 0;
-    $auto_deliver = isset($input['auto_deliver']) && $input['auto_deliver'] ? 1 : 0;
     
     // Falls Freebie-ID angegeben, prüfen ob User Zugriff hat
-    // WICHTIG: freebie_id ist hier die customer_freebie_id aus der customer_freebies Tabelle
-    if ($freebie_id) {
-        $stmt = $pdo->prepare("
-            SELECT cf.id
-            FROM customer_freebies cf
-            WHERE cf.id = ?
-            AND cf.customer_id = ?
-        ");
-        $stmt->execute([$freebie_id, $user_id]);
-        if (!$stmt->fetch()) {
-            throw new Exception('Kein Zugriff auf dieses Freebie');
-        }
+    $stmt = $pdo->prepare("
+        SELECT cf.id
+        FROM customer_freebies cf
+        WHERE cf.id = ?
+        AND cf.customer_id = ?
+    ");
+    $stmt->execute([$freebie_id, $user_id]);
+    if (!$stmt->fetch()) {
+        throw new Exception('Kein Zugriff auf dieses Freebie');
     }
     
-    if ($id) {
+    // Delivery Type ermitteln
+    $delivery_type = $input['reward_delivery_type'] ?? 'manual';
+    
+    if ($reward_id) {
         // UPDATE
         $stmt = $pdo->prepare("
             UPDATE reward_definitions SET
                 freebie_id = ?,
-                tier_level = ?,
-                tier_name = ?,
-                tier_description = ?,
-                required_referrals = ?,
-                reward_type = ?,
                 reward_title = ?,
                 reward_description = ?,
-                reward_value = ?,
-                reward_download_url = ?,
-                reward_access_code = ?,
-                reward_instructions = ?,
+                required_referrals = ?,
                 reward_icon = ?,
                 reward_color = ?,
-                is_active = ?,
-                is_featured = ?,
-                auto_deliver = ?,
-                notification_subject = ?,
-                notification_body = ?,
-                sort_order = ?,
+                reward_delivery_type = ?,
+                email_subject = ?,
+                email_body = ?,
+                reward_download_url = ?,
                 updated_at = NOW()
             WHERE id = ? AND user_id = ?
         ");
         
         $result = $stmt->execute([
             $freebie_id,
-            $input['tier_level'],
-            $input['tier_name'],
-            $input['tier_description'] ?? null,
-            $input['required_referrals'],
-            $input['reward_type'],
             $input['reward_title'],
-            $input['reward_description'] ?? null,
-            $input['reward_value'] ?? null,
-            $input['reward_download_url'] ?? null,
-            $input['reward_access_code'] ?? null,
-            $input['reward_instructions'] ?? null,
-            $input['reward_icon'] ?? 'fa-gift',
+            $input['reward_description'] ?? '',
+            $input['required_referrals'],
+            $input['reward_icon'] ?? '🎁',
             $input['reward_color'] ?? '#667eea',
-            $is_active,
-            $is_featured,
-            $auto_deliver,
-            $input['notification_subject'] ?? null,
-            $input['notification_body'] ?? null,
-            $input['sort_order'] ?? 0,
-            $id,
+            $delivery_type,
+            $input['email_subject'] ?? '',
+            $input['email_body'] ?? '',
+            $input['reward_download_url'] ?? '',
+            $reward_id,
             $user_id
         ]);
         
+        if (!$result || $stmt->rowCount() === 0) {
+            throw new Exception('Belohnung nicht gefunden oder keine Änderung');
+        }
+        
         $message = 'Belohnungsstufe aktualisiert';
+        $id = $reward_id;
         
     } else {
-        // INSERT
+        // INSERT - Tier Level automatisch ermitteln
+        $stmt = $pdo->prepare("
+            SELECT COALESCE(MAX(tier_level), 0) + 1 as next_level
+            FROM reward_definitions
+            WHERE user_id = ? AND freebie_id = ?
+        ");
+        $stmt->execute([$user_id, $freebie_id]);
+        $next_level = $stmt->fetch(PDO::FETCH_ASSOC)['next_level'];
+        
         $stmt = $pdo->prepare("
             INSERT INTO reward_definitions (
-                user_id, freebie_id, tier_level, tier_name, tier_description,
-                required_referrals, reward_type, reward_title, reward_description,
-                reward_value, reward_download_url, reward_access_code,
-                reward_instructions, reward_icon, reward_color,
-                is_active, is_featured, auto_deliver,
-                notification_subject, notification_body, sort_order
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                user_id, freebie_id, tier_level, tier_name,
+                reward_title, reward_description,
+                required_referrals, reward_type,
+                reward_icon, reward_color,
+                reward_delivery_type,
+                email_subject, email_body,
+                reward_download_url,
+                is_active, auto_deliver,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, NOW(), NOW())
         ");
         
         $stmt->execute([
             $user_id,
             $freebie_id,
-            $input['tier_level'],
-            $input['tier_name'],
-            $input['tier_description'] ?? null,
-            $input['required_referrals'],
-            $input['reward_type'],
+            $next_level,
+            $input['reward_title'], // tier_name = reward_title
             $input['reward_title'],
-            $input['reward_description'] ?? null,
-            $input['reward_value'] ?? null,
-            $input['reward_download_url'] ?? null,
-            $input['reward_access_code'] ?? null,
-            $input['reward_instructions'] ?? null,
-            $input['reward_icon'] ?? 'fa-gift',
+            $input['reward_description'] ?? '',
+            $input['required_referrals'],
+            'digital', // reward_type default
+            $input['reward_icon'] ?? '🎁',
             $input['reward_color'] ?? '#667eea',
-            $is_active,
-            $is_featured,
-            $auto_deliver,
-            $input['notification_subject'] ?? null,
-            $input['notification_body'] ?? null,
-            $input['sort_order'] ?? 0
+            $delivery_type,
+            $input['email_subject'] ?? '',
+            $input['email_body'] ?? '',
+            $input['reward_download_url'] ?? ''
         ]);
         
         $id = $pdo->lastInsertId();
@@ -173,29 +148,16 @@ try {
     echo json_encode([
         'success' => true,
         'message' => $message,
-        'data' => [
-            'id' => $id,
-            'freebie_id' => $freebie_id
-        ]
+        'reward_id' => $id
     ]);
     
 } catch (PDOException $e) {
     error_log("Reward Save Error: " . $e->getMessage());
-    
-    // Duplicate key error
-    if ($e->getCode() == 23000) {
-        http_response_code(400);
-        echo json_encode([
-            'success' => false,
-            'error' => 'Diese Tier-Level existiert bereits für diesen User'
-        ]);
-    } else {
-        http_response_code(500);
-        echo json_encode([
-            'success' => false,
-            'error' => 'Datenbankfehler: ' . $e->getMessage()
-        ]);
-    }
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Datenbankfehler: ' . $e->getMessage()
+    ]);
 } catch (Exception $e) {
     http_response_code(400);
     echo json_encode([
