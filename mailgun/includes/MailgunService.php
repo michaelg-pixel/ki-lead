@@ -10,9 +10,10 @@ class MailgunService {
     private $domain;
     
     public function __construct() {
-        $configPath = __DIR__ . '/../config/mailgun.php';
+        // Korrigierter Pfad: von mailgun/includes/ nach config/
+        $configPath = __DIR__ . '/../../config/mailgun.php';
         if (!file_exists($configPath)) {
-            $configPath = __DIR__ . '/mailgun-config.php';
+            throw new Exception("Mailgun Config nicht gefunden: {$configPath}");
         }
         $this->config = require $configPath;
         $this->apiKey = $this->config['api_key'];
