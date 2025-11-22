@@ -1,8 +1,39 @@
 <?php
 /**
  * Auftragsverarbeitungsvertrag (AVV) - Mailgun E-Mail-Versand
+ * PERSONALISIERT mit automatischen Kundendaten
  * Ansicht und Download als PDF
  */
+
+// Kundendaten laden wenn customer_id übergeben wird
+$customerData = null;
+if (isset($_GET['customer_id'])) {
+    require_once __DIR__ . '/../config/database.php';
+    
+    try {
+        $pdo = getDBConnection();
+        $stmt = $pdo->prepare("
+            SELECT 
+                company_name,
+                company_email,
+                first_name,
+                last_name,
+                street,
+                postal_code,
+                city,
+                country,
+                phone,
+                tax_id,
+                vat_id
+            FROM users 
+            WHERE id = ?
+        ");
+        $stmt->execute([(int)$_GET['customer_id']]);
+        $customerData = $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        error_log("AVV Customer Load Error: " . $e->getMessage());
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -69,6 +100,12 @@
             color: #667eea;
             display: block;
             margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+        
+        .party-box-content {
+            color: #1f2937;
+            line-height: 1.6;
         }
         
         table {
@@ -107,9 +144,16 @@
             box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2);
         }
         
+        .highlight {
+            background: #fef3c7;
+            padding: 0.125rem 0.25rem;
+            border-radius: 0.25rem;
+        }
+        
         @media print {
             body {
                 background: white;
+                padding: 0;
             }
             .download-btn {
                 display: none;
@@ -132,16 +176,59 @@
         
         <div class="party-box">
             <strong>Auftraggeber (Verantwortlicher):</strong>
-            Sie als Kunde von mehr-infos-jetzt.de
+            <div class="party-box-content">
+                <?php if ($customerData): ?>
+                    <?php if (!empty($customerData['company_name'])): ?>
+                        <strong><?php echo htmlspecialchars($customerData['company_name']); ?></strong><br>
+                    <?php endif; ?>
+                    
+                    <?php if (!empty($customerData['first_name']) || !empty($customerData['last_name'])): ?>
+                        Vertreten durch: <?php echo htmlspecialchars(trim($customerData['first_name'] . ' ' . $customerData['last_name'])); ?><br>
+                    <?php endif; ?>
+                    
+                    <?php if (!empty($customerData['street'])): ?>
+                        <?php echo htmlspecialchars($customerData['street']); ?><br>
+                    <?php endif; ?>
+                    
+                    <?php if (!empty($customerData['postal_code']) || !empty($customerData['city'])): ?>
+                        <?php echo htmlspecialchars($customerData['postal_code'] . ' ' . $customerData['city']); ?><br>
+                    <?php endif; ?>
+                    
+                    <?php if (!empty($customerData['country'])): ?>
+                        <?php echo htmlspecialchars($customerData['country']); ?><br>
+                    <?php endif; ?>
+                    
+                    <?php if (!empty($customerData['company_email'])): ?>
+                        <br>E-Mail: <?php echo htmlspecialchars($customerData['company_email']); ?><br>
+                    <?php endif; ?>
+                    
+                    <?php if (!empty($customerData['phone'])): ?>
+                        Telefon: <?php echo htmlspecialchars($customerData['phone']); ?><br>
+                    <?php endif; ?>
+                    
+                    <?php if (!empty($customerData['vat_id'])): ?>
+                        <br>USt-IdNr.: <?php echo htmlspecialchars($customerData['vat_id']); ?><br>
+                    <?php endif; ?>
+                    
+                    <?php if (!empty($customerData['tax_id'])): ?>
+                        Steuernummer: <?php echo htmlspecialchars($customerData['tax_id']); ?><br>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <span class="highlight">Sie als Kunde von mehr-infos-jetzt.de</span><br>
+                    <em style="color: #6b7280; font-size: 0.875rem;">Ihre persönlichen Daten werden nach der Registrierung automatisch hier eingefügt.</em>
+                <?php endif; ?>
+            </div>
         </div>
         
         <div class="party-box">
             <strong>Auftragsverarbeiter:</strong>
-            Henry Landmann<br>
-            c/o Block Services<br>
-            Stuttgarter Str. 106<br>
-            70736 Fellbach<br>
-            Deutschland
+            <div class="party-box-content">
+                Henry Landmann<br>
+                c/o Block Services<br>
+                Stuttgarter Str. 106<br>
+                70736 Fellbach<br>
+                Deutschland
+            </div>
         </div>
         
         <h2>§ 2 Art und Zweck der Verarbeitung</h2>
@@ -266,7 +353,7 @@
         
         <div style="margin-top: 3rem; padding-top: 2rem; border-top: 2px solid #e5e7eb;">
             <p><strong>Version:</strong> Mailgun_AVV_2025_v1</p>
-            <p><strong>Stand:</strong> Januar 2025</p>
+            <p><strong>Stand:</strong> <?php echo date('d.m.Y'); ?></p>
             <p><strong>Rechtsgrundlage:</strong> Art. 28 DSGVO</p>
         </div>
         
@@ -275,8 +362,8 @@
         </a>
         
         <p style="color: #6b7280; font-size: 0.875rem; margin-top: 2rem;">
-            <strong>Hinweis:</strong> Verwenden Sie die Druckfunktion Ihres Browsers, um diesen Vertrag als PDF zu speichern. 
-            Alternativ können Sie die Seite auch als PDF exportieren.
+            <strong>Hinweis:</strong> Verwenden Sie die Druckfunktion Ihres Browsers (Strg+P / Cmd+P), um diesen Vertrag als PDF zu speichern. 
+            Wählen Sie dort "Als PDF speichern" als Drucker aus.
         </p>
     </div>
 </body>
