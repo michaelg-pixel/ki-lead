@@ -5,21 +5,11 @@
  * ✨ Features: Suche, Export, Detailansicht, Zeitfilter
  */
 
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    header('Location: /public/login.php');
-    exit;
-}
-
-require_once __DIR__ . '/../../config/database.php';
-$pdo = getDBConnection();
-
-// Filter-Parameter
-$search = $_GET['search'] ?? '';
-$time_filter = $_GET['time_filter'] ?? '30'; // 1, 7, 30 (Tage)
-$customer_filter = $_GET['customer'] ?? '';
-
-// Export-Handler
-if (isset($_GET['export']) && !empty($_GET['customer'])) {
+// WICHTIG: Export-Handler GANZ OBEN - vor jeglichem Output!
+if (isset($_GET['export']) && isset($_GET['customer']) && !empty($_GET['customer'])) {
+    require_once __DIR__ . '/../../config/database.php';
+    $pdo = getDBConnection();
+    
     $customer_id = (int)$_GET['customer'];
     
     // Customer-Daten holen
@@ -87,8 +77,22 @@ if (isset($_GET['export']) && !empty($_GET['customer'])) {
     }
     
     fclose($output);
+    exit; // WICHTIG: Sofort beenden
+}
+
+// Ab hier normale Seiten-Logik
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+    header('Location: /public/login.php');
     exit;
 }
+
+require_once __DIR__ . '/../../config/database.php';
+$pdo = getDBConnection();
+
+// Filter-Parameter
+$search = $_GET['search'] ?? '';
+$time_filter = $_GET['time_filter'] ?? '30'; // 1, 7, 30 (Tage)
+$customer_filter = $_GET['customer'] ?? '';
 
 // Statistiken abrufen
 $stats = [];
