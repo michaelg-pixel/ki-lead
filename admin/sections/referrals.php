@@ -3,84 +3,9 @@
  * Admin Dashboard Section: Empfehlungsprogramm-Übersicht
  * Zeigt alle Referral-Aktivitäten aller Kunden + Lead Users
  * ✨ Features: Suche, Export, Detailansicht, Zeitfilter
+ * ⚠️ Export-Handler ist in admin/dashboard.php (ganz oben)
  */
 
-// WICHTIG: Export-Handler GANZ OBEN - vor jeglichem Output!
-if (isset($_GET['export']) && isset($_GET['customer']) && !empty($_GET['customer'])) {
-    require_once __DIR__ . '/../../config/database.php';
-    $pdo = getDBConnection();
-    
-    $customer_id = (int)$_GET['customer'];
-    
-    // Customer-Daten holen
-    $stmt = $pdo->prepare("SELECT name, company_name FROM users WHERE id = ?");
-    $stmt->execute([$customer_id]);
-    $customer = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    // Lead Users für diesen Customer
-    $stmt = $pdo->prepare("
-        SELECT 
-            lu.id,
-            lu.email,
-            lu.name,
-            lu.referral_code,
-            lu.successful_referrals,
-            lu.total_referrals,
-            lu.rewards_earned,
-            lu.status,
-            lu.created_at,
-            (SELECT COUNT(*) FROM lead_users WHERE referrer_id = lu.id) as referred_count
-        FROM lead_users lu
-        WHERE lu.user_id = ?
-        ORDER BY lu.created_at DESC
-    ");
-    $stmt->execute([$customer_id]);
-    $leads = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // CSV generieren
-    header('Content-Type: text/csv; charset=utf-8');
-    header('Content-Disposition: attachment; filename="leads_customer_' . $customer_id . '_' . date('Y-m-d') . '.csv"');
-    
-    $output = fopen('php://output', 'w');
-    
-    // BOM für Excel UTF-8
-    fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
-    
-    // Header
-    fputcsv($output, [
-        'ID',
-        'E-Mail',
-        'Name',
-        'Referral Code',
-        'Erfolgreiche Empfehlungen',
-        'Gesamt Empfehlungen',
-        'Belohnungen',
-        'Hat empfohlen',
-        'Status',
-        'Registriert am'
-    ], ';');
-    
-    // Daten
-    foreach ($leads as $lead) {
-        fputcsv($output, [
-            $lead['id'],
-            $lead['email'],
-            $lead['name'] ?? 'Lead',
-            $lead['referral_code'],
-            $lead['successful_referrals'],
-            $lead['total_referrals'],
-            $lead['rewards_earned'],
-            $lead['referred_count'],
-            $lead['status'],
-            date('d.m.Y H:i', strtotime($lead['created_at']))
-        ], ';');
-    }
-    
-    fclose($output);
-    exit; // WICHTIG: Sofort beenden
-}
-
-// Ab hier normale Seiten-Logik
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header('Location: /public/login.php');
     exit;
