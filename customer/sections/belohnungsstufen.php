@@ -1,7 +1,7 @@
 <?php
 /**
  * Customer Dashboard - Belohnungsstufen verwalten
- * FIXED VERSION - Korrigierte Spaltennamen
+ * EXTENDED VERSION - Alle Felder + Icon-Auswahl
  */
 
 // Sicherstellen, dass Session aktiv ist
@@ -31,14 +31,17 @@ try {
     $stmt_freebies->execute([$customer_id]);
     $freebies = $stmt_freebies->fetchAll(PDO::FETCH_ASSOC);
     
-    // Für jedes Freebie die Belohnungen laden (mit korrekten Spaltennamen!)
+    // Für jedes Freebie die Belohnungen laden
     $freebie_rewards = [];
     foreach ($freebies as $freebie) {
         $stmt_rewards = $pdo->prepare("
             SELECT 
                 id,
+                tier_name,
                 reward_title,
                 reward_description,
+                reward_type,
+                reward_value,
                 reward_icon,
                 reward_color,
                 required_referrals,
@@ -60,6 +63,9 @@ try {
     $freebies = [];
     $freebie_rewards = [];
 }
+
+// Empfehlungslink-Basis
+$referral_base_url = 'https://app.mehr-infos-jetzt.de/freebie/index.php?id=';
 ?>
 
 <!DOCTYPE html>
@@ -359,7 +365,7 @@ try {
         .modal-content {
             background: linear-gradient(to bottom right, #1f2937, #374151);
             border-radius: 1rem;
-            max-width: 600px;
+            max-width: 700px;
             width: 100%;
             padding: 2rem;
             max-height: 90vh;
@@ -407,6 +413,13 @@ try {
             font-size: 0.9375rem;
         }
         
+        .form-help {
+            color: #9ca3af;
+            font-size: 0.8125rem;
+            display: block;
+            margin-top: 0.25rem;
+        }
+        
         .form-input, .form-select, .form-textarea {
             width: 100%;
             padding: 0.75rem;
@@ -440,6 +453,37 @@ try {
             border: 2px solid rgba(255, 255, 255, 0.3);
         }
         
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        
+        .icon-option {
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 1.25rem;
+            transition: all 0.3s;
+        }
+        
+        .icon-option:hover {
+            border-color: #667eea;
+            transform: scale(1.1);
+        }
+        
+        .icon-option.selected {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.2);
+        }
+        
         .no-freebies {
             text-align: center;
             padding: 4rem 2rem;
@@ -464,6 +508,12 @@ try {
         .no-freebies-text {
             color: #9ca3af;
             margin-bottom: 1.5rem;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
         }
         
         @media (max-width: 768px) {
@@ -492,6 +542,14 @@ try {
             
             .reward-actions {
                 justify-content: center;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .icon-grid {
+                grid-template-columns: repeat(6, 1fr);
             }
         }
     </style>
@@ -552,7 +610,7 @@ try {
                                 <div class="referral-link-wrapper">
                                     <input type="text" 
                                            class="referral-link-input" 
-                                           value="<?php echo 'https://mehr-infos-jetzt.de/f/?id=' . htmlspecialchars($freebie['unique_id']); ?>" 
+                                           value="<?php echo $referral_base_url . htmlspecialchars($freebie['unique_id']); ?>" 
                                            readonly
                                            id="referralLink_<?php echo $freebie['id']; ?>">
                                     <button class="btn btn-primary btn-sm" onclick="copyReferralLink(<?php echo $freebie['id']; ?>)">
@@ -595,12 +653,17 @@ try {
                                 <?php foreach ($freebie_rewards[$freebie['id']] as $reward): ?>
                                     <div class="reward-card">
                                         <div class="reward-icon" style="background: <?php echo htmlspecialchars($reward['reward_color'] ?? '#667eea'); ?>;">
-                                            <?php echo $reward['reward_icon'] ?? '🎁'; ?>
+                                            <i class="<?php echo htmlspecialchars($reward['reward_icon'] ?? 'fas fa-gift'); ?>"></i>
                                         </div>
                                         
                                         <div class="reward-content">
                                             <div class="reward-title">
                                                 <?php echo htmlspecialchars($reward['reward_title']); ?>
+                                                <?php if ($reward['tier_name']): ?>
+                                                    <span style="color: #9ca3af; font-weight: 400; font-size: 0.875rem;">
+                                                        (<?php echo htmlspecialchars($reward['tier_name']); ?>)
+                                                    </span>
+                                                <?php endif; ?>
                                             </div>
                                             <?php if ($reward['reward_description']): ?>
                                                 <div class="reward-description">
@@ -611,10 +674,16 @@ try {
                                                 <span class="reward-badge">
                                                     <i class="fas fa-users"></i> <?php echo $reward['required_referrals']; ?> Empfehlungen
                                                 </span>
-                                                <span class="reward-badge">
-                                                    <i class="fas fa-<?php echo $reward['reward_delivery_type'] === 'email' ? 'envelope' : 'link'; ?>"></i>
-                                                    <?php echo $reward['reward_delivery_type'] === 'email' ? 'E-Mail' : ucfirst($reward['reward_delivery_type']); ?>
-                                                </span>
+                                                <?php if ($reward['reward_type']): ?>
+                                                    <span class="reward-badge">
+                                                        <?php echo ucfirst($reward['reward_type']); ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                                <?php if ($reward['reward_value']): ?>
+                                                    <span class="reward-badge">
+                                                        <i class="fas fa-tag"></i> <?php echo htmlspecialchars($reward['reward_value']); ?>
+                                                    </span>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
                                         
@@ -652,25 +721,108 @@ try {
             <form id="rewardForm" onsubmit="saveReward(event)">
                 <input type="hidden" id="rewardId" value="">
                 <input type="hidden" id="freebieId" value="">
+                <input type="hidden" id="rewardIcon" value="fas fa-gift">
                 
                 <div class="form-group">
                     <label class="form-label">Titel der Belohnung *</label>
-                    <input type="text" id="rewardTitle" class="form-input" required placeholder="z.B. Bronze Level">
+                    <input type="text" id="rewardTitle" class="form-input" required placeholder="z.B. Bronze Level Belohnung">
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Beschreibung</label>
-                    <textarea id="rewardDescription" class="form-textarea" placeholder="Kurze Beschreibung der Belohnung"></textarea>
+                    <label class="form-label">Beschreibung der Belohnung</label>
+                    <textarea id="rewardDescription" class="form-textarea" placeholder="Was erhält der Lead als Belohnung?"></textarea>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Stufen-Name</label>
+                        <input type="text" id="tierName" class="form-input" placeholder="z.B. Bronze, Silber, Gold">
+                        <span class="form-help">Optional: Name der Belohnungsstufe</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Benötigte Empfehlungen *</label>
+                        <input type="number" id="requiredReferrals" class="form-input" min="0" required placeholder="z.B. 3">
+                    </div>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Benötigte Empfehlungen *</label>
-                    <input type="number" id="requiredReferrals" class="form-input" min="0" required placeholder="z.B. 3">
+                    <label class="form-label">Stufen-Beschreibung</label>
+                    <textarea id="tierDescription" class="form-textarea" placeholder="Zusätzliche Beschreibung der Stufe" style="min-height: 80px;"></textarea>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Belohnungstyp *</label>
+                        <select id="rewardType" class="form-select" required>
+                            <option value="digital">Digital</option>
+                            <option value="course">Videokurs</option>
+                            <option value="ebook">E-Book</option>
+                            <option value="pdf">PDF</option>
+                            <option value="consultation">Beratungstermin</option>
+                            <option value="freebie">Freebie</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Wert/Preis</label>
+                        <input type="text" id="rewardValue" class="form-input" placeholder="z.B. 47€, 97€">
+                        <span class="form-help">Optional: Wert der Belohnung</span>
+                    </div>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Icon (Emoji)</label>
-                    <input type="text" id="rewardIcon" class="form-input" placeholder="🎁" maxlength="2">
+                    <label class="form-label">Icon auswählen</label>
+                    <div class="icon-grid">
+                        <div class="icon-option selected" onclick="selectIcon(this, 'fas fa-gift')">
+                            <i class="fas fa-gift"></i>
+                        </div>
+                        <div class="icon-option" onclick="selectIcon(this, 'fas fa-trophy')">
+                            <i class="fas fa-trophy"></i>
+                        </div>
+                        <div class="icon-option" onclick="selectIcon(this, 'fas fa-star')">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="icon-option" onclick="selectIcon(this, 'fas fa-medal')">
+                            <i class="fas fa-medal"></i>
+                        </div>
+                        <div class="icon-option" onclick="selectIcon(this, 'fas fa-crown')">
+                            <i class="fas fa-crown"></i>
+                        </div>
+                        <div class="icon-option" onclick="selectIcon(this, 'fas fa-award')">
+                            <i class="fas fa-award"></i>
+                        </div>
+                        <div class="icon-option" onclick="selectIcon(this, 'fas fa-gem')">
+                            <i class="fas fa-gem"></i>
+                        </div>
+                        <div class="icon-option" onclick="selectIcon(this, 'fas fa-certificate')">
+                            <i class="fas fa-certificate"></i>
+                        </div>
+                        <div class="icon-option" onclick="selectIcon(this, 'fas fa-book')">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <div class="icon-option" onclick="selectIcon(this, 'fas fa-graduation-cap')">
+                            <i class="fas fa-graduation-cap"></i>
+                        </div>
+                        <div class="icon-option" onclick="selectIcon(this, 'fas fa-video')">
+                            <i class="fas fa-video"></i>
+                        </div>
+                        <div class="icon-option" onclick="selectIcon(this, 'fas fa-file-pdf')">
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                        <div class="icon-option" onclick="selectIcon(this, 'fas fa-rocket')">
+                            <i class="fas fa-rocket"></i>
+                        </div>
+                        <div class="icon-option" onclick="selectIcon(this, 'fas fa-heart')">
+                            <i class="fas fa-heart"></i>
+                        </div>
+                        <div class="icon-option" onclick="selectIcon(this, 'fas fa-fire')">
+                            <i class="fas fa-fire"></i>
+                        </div>
+                        <div class="icon-option" onclick="selectIcon(this, 'fas fa-bolt')">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -684,13 +836,13 @@ try {
                 <div class="form-group">
                     <label class="form-label">Auslieferung *</label>
                     <select id="deliveryType" class="form-select" onchange="toggleDeliveryFields()">
+                        <option value="manual">Manuell</option>
                         <option value="email">E-Mail</option>
                         <option value="download">Download-Link</option>
-                        <option value="manual">Manuell</option>
                     </select>
                 </div>
                 
-                <div id="emailFields">
+                <div id="emailFields" style="display: none;">
                     <div class="form-group">
                         <label class="form-label">E-Mail Betreff</label>
                         <input type="text" id="emailSubject" class="form-input" placeholder="🎉 Glückwunsch! Du hast eine Belohnung freigeschaltet">
@@ -737,6 +889,15 @@ Vielen Dank für deine Empfehlungen!"></textarea>
             showNotification('✅ Link kopiert!', 'success');
         }
         
+        function selectIcon(element, iconClass) {
+            // Entferne selected von allen
+            document.querySelectorAll('.icon-option').forEach(el => el.classList.remove('selected'));
+            // Füge selected zum geklickten hinzu
+            element.classList.add('selected');
+            // Speichere Icon
+            document.getElementById('rewardIcon').value = iconClass;
+        }
+        
         function openRewardModal(freebieId, rewardData = null) {
             document.getElementById('rewardModal').classList.add('active');
             document.body.style.overflow = 'hidden';
@@ -748,13 +909,28 @@ Vielen Dank für deine Empfehlungen!"></textarea>
                 document.getElementById('rewardId').value = rewardData.id;
                 document.getElementById('rewardTitle').value = rewardData.reward_title;
                 document.getElementById('rewardDescription').value = rewardData.reward_description || '';
+                document.getElementById('tierName').value = rewardData.tier_name || '';
+                document.getElementById('tierDescription').value = rewardData.tier_description || '';
                 document.getElementById('requiredReferrals').value = rewardData.required_referrals;
-                document.getElementById('rewardIcon').value = rewardData.reward_icon || '';
+                document.getElementById('rewardType').value = rewardData.reward_type || 'digital';
+                document.getElementById('rewardValue').value = rewardData.reward_value || '';
+                document.getElementById('rewardIcon').value = rewardData.reward_icon || 'fas fa-gift';
                 document.getElementById('rewardColor').value = rewardData.reward_color || '#667eea';
                 document.getElementById('deliveryType').value = rewardData.reward_delivery_type;
                 document.getElementById('emailSubject').value = rewardData.email_subject || '';
                 document.getElementById('emailBody').value = rewardData.email_body || '';
                 document.getElementById('downloadUrl').value = rewardData.reward_download_url || '';
+                
+                // Setze selected Icon
+                const iconClass = rewardData.reward_icon || 'fas fa-gift';
+                document.querySelectorAll('.icon-option').forEach(el => {
+                    const icon = el.querySelector('i');
+                    if (icon && icon.className === iconClass) {
+                        el.classList.add('selected');
+                    } else {
+                        el.classList.remove('selected');
+                    }
+                });
                 
                 updateColorPreview();
                 toggleDeliveryFields();
@@ -763,6 +939,17 @@ Vielen Dank für deine Empfehlungen!"></textarea>
                 document.getElementById('rewardForm').reset();
                 document.getElementById('rewardId').value = '';
                 document.getElementById('freebieId').value = freebieId;
+                document.getElementById('rewardIcon').value = 'fas fa-gift';
+                
+                // Setze ersten Icon als selected
+                document.querySelectorAll('.icon-option').forEach((el, index) => {
+                    if (index === 0) {
+                        el.classList.add('selected');
+                    } else {
+                        el.classList.remove('selected');
+                    }
+                });
+                
                 updateColorPreview();
             }
         }
@@ -793,7 +980,11 @@ Vielen Dank für deine Empfehlungen!"></textarea>
                 freebie_id: parseInt(document.getElementById('freebieId').value),
                 reward_title: document.getElementById('rewardTitle').value,
                 reward_description: document.getElementById('rewardDescription').value,
+                tier_name: document.getElementById('tierName').value,
+                tier_description: document.getElementById('tierDescription').value,
                 required_referrals: parseInt(document.getElementById('requiredReferrals').value),
+                reward_type: document.getElementById('rewardType').value,
+                reward_value: document.getElementById('rewardValue').value,
                 reward_icon: document.getElementById('rewardIcon').value,
                 reward_color: document.getElementById('rewardColor').value,
                 reward_delivery_type: document.getElementById('deliveryType').value,
