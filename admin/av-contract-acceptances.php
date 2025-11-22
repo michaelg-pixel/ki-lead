@@ -4,6 +4,8 @@
  * 
  * Zeigt alle AV-Vertrags-Zustimmungen für Audit und rechtliche Nachweispflicht
  * DSGVO-konform gem. Art. 28 DSGVO
+ * 
+ * ERWEITERT: Inkl. Mailgun-Zustimmungen
  */
 
 // Sichere Session-Konfiguration laden
@@ -300,6 +302,11 @@ try {
             color: #065f46;
         }
         
+        .badge-mailgun_consent {
+            background: #fce7f3;
+            color: #9f1239;
+        }
+        
         .ip-address {
             font-family: 'Courier New', monospace;
             background: #f3f4f6;
@@ -374,7 +381,7 @@ try {
         
         <div class="header">
             <h1>🔒 AV-Vertrags-Zustimmungen</h1>
-            <p>DSGVO-konforme Nachweispflicht gem. Art. 28 DSGVO</p>
+            <p>DSGVO-konforme Nachweispflicht gem. Art. 28 DSGVO | Inkl. Mailgun-Zustimmungen</p>
         </div>
         
         <div class="stats">
@@ -383,7 +390,8 @@ try {
             $type_labels = [
                 'registration' => 'Registrierungen',
                 'update' => 'Aktualisierungen',
-                'renewal' => 'Erneuerungen'
+                'renewal' => 'Erneuerungen',
+                'mailgun_consent' => 'Mailgun + AVV'
             ];
             
             foreach ($stats as $stat): 
@@ -413,6 +421,7 @@ try {
                             <option value="registration" <?= $filter_type === 'registration' ? 'selected' : '' ?>>Registrierung</option>
                             <option value="update" <?= $filter_type === 'update' ? 'selected' : '' ?>>Aktualisierung</option>
                             <option value="renewal" <?= $filter_type === 'renewal' ? 'selected' : '' ?>>Erneuerung</option>
+                            <option value="mailgun_consent" <?= $filter_type === 'mailgun_consent' ? 'selected' : '' ?>>Mailgun + AVV</option>
                         </select>
                     </div>
                     
@@ -447,7 +456,9 @@ try {
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($acceptances as $acceptance): ?>
+                    <?php foreach ($acceptances as $acceptance): 
+                        $type_display = $type_labels[$acceptance['acceptance_type']] ?? ucfirst($acceptance['acceptance_type']);
+                    ?>
                     <tr>
                         <td>#<?= $acceptance['id'] ?></td>
                         <td>
@@ -463,7 +474,7 @@ try {
                         </td>
                         <td>
                             <span class="badge badge-<?= $acceptance['acceptance_type'] ?>">
-                                <?= ucfirst($acceptance['acceptance_type']) ?>
+                                <?= $type_display ?>
                             </span>
                         </td>
                         <td><?= htmlspecialchars($acceptance['av_contract_version']) ?></td>
