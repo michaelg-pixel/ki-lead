@@ -18,6 +18,7 @@ try {
     $pdo = getDBConnection();
     
     // Benutzer-Details + Mailgun-Zustimmung laden
+    // WICHTIG: Prüfe auf 'registration' ODER 'mailgun_consent'
     $stmt = $pdo->prepare("
         SELECT 
             u.referral_enabled,
@@ -29,7 +30,7 @@ try {
                 SELECT COUNT(*) 
                 FROM av_contract_acceptances 
                 WHERE user_id = u.id 
-                AND acceptance_type = 'mailgun_consent'
+                AND acceptance_type IN ('registration', 'mailgun_consent')
             ) as mailgun_consent_given
         FROM users u
         WHERE u.id = ?
