@@ -19,9 +19,6 @@ if (!isset($_SESSION['user_id'])) {
 // Input validieren
 $input = json_decode(file_get_contents('php://input'), true);
 
-// Debug logging
-error_log("Reward Save Input: " . print_r($input, true));
-
 $required = ['freebie_id', 'reward_title', 'required_referrals'];
 foreach ($required as $field) {
     if (!isset($input[$field]) || $input[$field] === '') {
@@ -59,86 +56,96 @@ try {
     
     // Delivery Type ermitteln
     $delivery_type = $input['reward_delivery_type'] ?? 'manual';
+    $reward_type = $input['reward_type'] ?? 'digital';
     
     if ($reward_id) {
-        // UPDATE
+        // UPDATE - tier_level nicht ändern
         $stmt = $pdo->prepare("
             UPDATE reward_definitions SET
                 freebie_id = ?,
+                tier_name = ?,
+                tier_description = ?,
+                required_referrals = ?,
+                reward_type = ?,
                 reward_title = ?,
                 reward_description = ?,
-                required_referrals = ?,
+                reward_value = ?,
+                reward_delivery_type = ?,
+                reward_download_url = ?,
                 reward_icon = ?,
                 reward_color = ?,
-                reward_delivery_type = ?,
                 email_subject = ?,
                 email_body = ?,
-                reward_download_url = ?,
                 updated_at = NOW()
             WHERE id = ? AND user_id = ?
         ");
         
         $result = $stmt->execute([
             $freebie_id,
+            $input['tier_name'] ?? $input['reward_title'],
+            $input['tier_description'] ?? '',
+            $input['required_referrals'],
+            $reward_type,
             $input['reward_title'],
             $input['reward_description'] ?? '',
-            $input['required_referrals'],
+            $input['reward_value'] ?? '',
+            $delivery_type,
+            $input['reward_download_url'] ?? '',
             $input['reward_icon'] ?? '🎁',
             $input['reward_color'] ?? '#667eea',
-            $delivery_type,
             $input['email_subject'] ?? '',
             $input['email_body'] ?? '',
-            $input['reward_download_url'] ?? '',
             $reward_id,
             $user_id
         ]);
         
-        if (!$result || $stmt->rowCount() === 0) {
-            throw new Exception('Belohnung nicht gefunden oder keine Änderung');
+        if (!$result) {
+            throw new Exception('Fehler beim Aktualisieren');
         }
         
         $message = 'Belohnungsstufe aktualisiert';
         $id = $reward_id;
         
     } else {
-        // INSERT - Tier Level automatisch ermitteln
+        // INSERT - Finde nächstes freies tier_level für diesen User (NICHT pro Freebie!)
         $stmt = $pdo->prepare("
             SELECT COALESCE(MAX(tier_level), 0) + 1 as next_level
             FROM reward_definitions
-            WHERE user_id = ? AND freebie_id = ?
+            WHERE user_id = ?
         ");
-        $stmt->execute([$user_id, $freebie_id]);
+        $stmt->execute([$user_id]);
         $next_level = $stmt->fetch(PDO::FETCH_ASSOC)['next_level'];
         
         $stmt = $pdo->prepare("
             INSERT INTO reward_definitions (
-                user_id, freebie_id, tier_level, tier_name,
-                reward_title, reward_description,
+                user_id, freebie_id, tier_level, tier_name, tier_description,
                 required_referrals, reward_type,
+                reward_title, reward_description, reward_value,
+                reward_delivery_type, reward_download_url,
                 reward_icon, reward_color,
-                reward_delivery_type,
                 email_subject, email_body,
-                reward_download_url,
                 is_active, auto_deliver,
                 created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, NOW(), NOW())
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, NOW(), NOW())
         ");
         
         $stmt->execute([
             $user_id,
             $freebie_id,
             $next_level,
-            $input['reward_title'], // tier_name = reward_title
+            $input['tier_name'] ?? $input['reward_title'],
+            $input['tier_description'] ?? '',
+            $input['required_referrals'],
+            $reward_type,
             $input['reward_title'],
             $input['reward_description'] ?? '',
-            $input['required_referrals'],
-            'digital', // reward_type default
+            $input['reward_value'] ?? '',
+            $delivery_type,
+            $input['reward_download_url'] ?? '',
             $input['reward_icon'] ?? '🎁',
             $input['reward_color'] ?? '#667eea',
-            $delivery_type,
             $input['email_subject'] ?? '',
-            $input['email_body'] ?? '',
-            $input['reward_download_url'] ?? ''
+            $input['email_body'] ?? ''
         ]);
         
         $id = $pdo->lastInsertId();
