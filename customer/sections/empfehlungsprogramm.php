@@ -187,6 +187,11 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
             height: 0;
         }
         
+        .toggle-switch input:disabled + .toggle-slider {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        
         .toggle-slider {
             position: absolute;
             cursor: pointer;
@@ -197,11 +202,6 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
             background: #374151;
             border-radius: 30px;
             transition: 0.3s;
-        }
-        
-        .toggle-slider.disabled {
-            cursor: not-allowed;
-            opacity: 0.5;
         }
         
         .toggle-slider:before {
@@ -550,7 +550,7 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
                                    <?php echo $referralEnabled ? 'checked' : ''; ?>
                                    <?php echo !$mailgunConsentGiven ? 'disabled' : ''; ?>
                                    onchange="toggleReferralProgram(this.checked)">
-                            <span class="toggle-slider <?php echo !$mailgunConsentGiven ? 'disabled' : ''; ?>"></span>
+                            <span class="toggle-slider"></span>
                         </label>
                     </div>
                 </div>
@@ -870,6 +870,8 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
         
         // Toggle Programm
         function toggleReferralProgram(enabled) {
+            const toggle = document.getElementById('referralToggle');
+            
             fetch('/api/referral/toggle.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -885,13 +887,15 @@ $baseUrl = 'https://app.mehr-infos-jetzt.de';
                     setTimeout(() => location.reload(), 1500);
                 } else {
                     showNotification('❌ Fehler: ' + (data.message || 'Unbekannter Fehler'), 'error');
-                    document.getElementById('referralToggle').checked = !enabled;
+                    // Checkbox zurücksetzen bei Fehler
+                    toggle.checked = !enabled;
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
                 showNotification('❌ Verbindungsfehler', 'error');
-                document.getElementById('referralToggle').checked = !enabled;
+                // Checkbox zurücksetzen bei Fehler
+                toggle.checked = !enabled;
             });
         }
         
