@@ -19,7 +19,10 @@ if (!isset($_SESSION['user_id'])) {
 // Input validieren
 $input = json_decode(file_get_contents('php://input'), true);
 
-if (!isset($input['id'])) {
+// Akzeptiere sowohl 'id' als auch 'reward_id'
+$id = $input['reward_id'] ?? $input['id'] ?? null;
+
+if (!$id) {
     http_response_code(400);
     echo json_encode([
         'success' => false,
@@ -31,9 +34,8 @@ if (!isset($input['id'])) {
 try {
     $pdo = getDBConnection();
     $user_id = $_SESSION['user_id'];
-    $id = $input['id'];
     
-    // Prüfen ob Belohnung bereits vergeben wurde
+    // Prüfen ob Belohnung bereits vergeben wurde (optional)
     $stmt = $pdo->prepare("
         SELECT COUNT(*) FROM referral_claimed_rewards 
         WHERE reward_id = ?
@@ -45,7 +47,7 @@ try {
         // Nur deaktivieren, nicht löschen
         $stmt = $pdo->prepare("
             UPDATE reward_definitions 
-            SET is_active = FALSE, updated_at = NOW()
+            SET is_active = 0, updated_at = NOW()
             WHERE id = ? AND user_id = ?
         ");
         $stmt->execute([$id, $user_id]);
@@ -72,7 +74,7 @@ try {
             http_response_code(404);
             echo json_encode([
                 'success' => false,
-                'error' => 'Belohnungsstufe nicht gefunden'
+                'error' => 'Belohnungsstufe nicht gefunden oder kein Zugriff'
             ]);
         }
     }
@@ -82,6 +84,6 @@ try {
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'error' => 'Datenbankfehler'
+        'error' => 'Datenbankfehler: ' . $e->getMessage()
     ]);
 }
