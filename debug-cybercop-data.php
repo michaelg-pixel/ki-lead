@@ -13,7 +13,7 @@ try {
     echo "=== DIAGNOSE FÜR cybercop33@web.de ===\n\n";
     
     // 1. User-ID finden
-    $stmt = $pdo->prepare('SELECT id, email, username FROM users WHERE email = ?');
+    $stmt = $pdo->prepare('SELECT id, email FROM users WHERE email = ?');
     $stmt->execute(['cybercop33@web.de']);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -32,8 +32,7 @@ try {
     
     echo "=== USER ===\n";
     echo "ID: {$user['id']}\n";
-    echo "Email: {$user['email']}\n";
-    echo "Username: {$user['username']}\n\n";
+    echo "Email: {$user['email']}\n\n";
     
     $user_id = $user['id'];
     
@@ -141,7 +140,9 @@ try {
     echo "</pre>";
     
 } catch (PDOException $e) {
-    echo "<pre>❌ Datenbankfehler: " . $e->getMessage() . "</pre>";
+    echo "<pre>❌ Datenbankfehler: " . $e->getMessage() . "\n";
+    echo "Zeile: " . $e->getLine() . "\n";
+    echo "Datei: " . $e->getFile() . "</pre>";
 } catch (Exception $e) {
     echo "<pre>❌ Fehler: " . $e->getMessage() . "</pre>";
 }
