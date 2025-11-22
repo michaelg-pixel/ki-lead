@@ -3,7 +3,7 @@
  * API: Toggle Referral Program
  * Aktiviere/Deaktiviere Empfehlungsprogramm
  * 
- * UPDATED: Nutzt sichere Session-Konfiguration
+ * UPDATED: Nutzt sichere Session-Konfiguration + prüft registration ODER mailgun_consent
  */
 
 header('Content-Type: application/json');
@@ -50,7 +50,8 @@ try {
         throw new Exception('Parameter "enabled" fehlt');
     }
     
-    // Prüfe ob User existiert und ob Mailgun-Zustimmung vorhanden ist
+    // Prüfe ob User existiert und ob AVV-Zustimmung vorhanden ist
+    // WICHTIG: Prüfe auf 'registration' ODER 'mailgun_consent'
     $stmt = $pdo->prepare("
         SELECT 
             u.*,
@@ -58,8 +59,8 @@ try {
                 SELECT COUNT(*) 
                 FROM av_contract_acceptances 
                 WHERE user_id = u.id 
-                AND acceptance_type = 'mailgun_consent'
-            ) as mailgun_consent_given
+                AND acceptance_type IN ('registration', 'mailgun_consent')
+            ) as av_consent_given
         FROM users u
         WHERE u.id = ?
         LIMIT 1
@@ -71,11 +72,12 @@ try {
         throw new Exception("User mit ID $userId nicht gefunden");
     }
     
-    logDebug("User gefunden: " . $user['email']);
+    logDebug("User gefunden: " . $user['email'] . " - AVV Consent: " . $user['av_consent_given']);
     
-    // Prüfe Mailgun-Zustimmung nur beim Aktivieren
-    if ($enabled && $user['mailgun_consent_given'] == 0) {
-        throw new Exception('Mailgun-Zustimmung erforderlich. Bitte akzeptiere erst die Nutzungsbedingungen.');
+    // Prüfe AVV-Zustimmung nur beim Aktivieren
+    if ($enabled && $user['av_consent_given'] == 0) {
+        logDebug("AVV-Zustimmung fehlt für User " . $userId);
+        throw new Exception('AVV-Zustimmung erforderlich. Bitte akzeptiere erst die Nutzungsbedingungen auf der Empfehlungsprogramm-Seite.');
     }
     
     $refCode = $user['ref_code'];
