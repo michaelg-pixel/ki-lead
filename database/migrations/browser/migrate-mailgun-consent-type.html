@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migration: Mailgun Consent Type</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            max-width: 800px;
+            width: 100%;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+        }
+        
+        .header h1 {
+            font-size: 1.75rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .header p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.9375rem;
+        }
+        
+        .content {
+            padding: 2rem;
+        }
+        
+        .info-box {
+            background: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            border-radius: 0.5rem;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .info-box h3 {
+            color: #1e40af;
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .info-box p {
+            color: #1e3a8a;
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+        
+        .warning-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            border-radius: 0.5rem;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .warning-box h3 {
+            color: #92400e;
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .warning-box ul {
+            color: #78350f;
+            font-size: 0.875rem;
+            line-height: 1.8;
+            margin-left: 1.5rem;
+        }
+        
+        .button {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.5);
+        }
+        
+        .button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .result {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            display: none;
+        }
+        
+        .result.success {
+            background: #d1fae5;
+            border: 1px solid #10b981;
+            color: #065f46;
+        }
+        
+        .result.error {
+            background: #fee2e2;
+            border: 1px solid #ef4444;
+            color: #991b1b;
+        }
+        
+        .result h4 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .result p {
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+        
+        .code-block {
+            background: #1f2937;
+            color: #10b981;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            margin: 1rem 0;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <i class="fas fa-database"></i>
+                Mailgun Consent Type Migration
+            </h1>
+            <p>Erweitere acceptance_type ENUM um 'mailgun_consent'</p>
+        </div>
+        
+        <div class="content">
+            <div class="info-box">
+                <h3><i class="fas fa-info-circle"></i> Was macht diese Migration?</h3>
+                <p>
+                    Diese Migration erweitert das ENUM-Feld <strong>acceptance_type</strong> in der Tabelle 
+                    <strong>av_contract_acceptances</strong> um den neuen Wert <strong>'mailgun_consent'</strong>.
+                    Dies ermöglicht das separate Tracking der Mailgun-Zustimmung im Empfehlungsprogramm.
+                </p>
+            </div>
+            
+            <div class="warning-box">
+                <h3>
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Wichtige Hinweise
+                </h3>
+                <ul>
+                    <li>Diese Migration ist <strong>non-destructive</strong> - keine Daten gehen verloren</li>
+                    <li>Das ENUM wird von 3 auf 4 Werte erweitert</li>
+                    <li>Bestehende Einträge bleiben unverändert</li>
+                    <li>Neue Werte: registration, update, renewal, <strong>mailgun_consent</strong></li>
+                </ul>
+            </div>
+            
+            <div class="code-block">
+ALTER TABLE `av_contract_acceptances` 
+MODIFY COLUMN `acceptance_type` 
+ENUM('registration','update','renewal','mailgun_consent') 
+NOT NULL DEFAULT 'registration';
+            </div>
+            
+            <button class="button" onclick="runMigration()">
+                <i class="fas fa-play"></i>
+                Migration jetzt ausführen
+            </button>
+            
+            <div id="result" class="result"></div>
+        </div>
+    </div>
+    
+    <script>
+        async function runMigration() {
+            const button = document.querySelector('.button');
+            const result = document.getElementById('result');
+            
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Migration wird ausgeführt...';
+            
+            result.style.display = 'none';
+            
+            try {
+                const response = await fetch('execute-mailgun-consent-migration.php', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    result.className = 'result success';
+                    result.innerHTML = `
+                        <h4><i class="fas fa-check-circle"></i> Migration erfolgreich!</h4>
+                        <p>${data.message || 'ENUM wurde erfolgreich erweitert.'}</p>
+                        ${data.details ? '<p><strong>Details:</strong> ' + data.details + '</p>' : ''}
+                    `;
+                    
+                    setTimeout(() => {
+                        window.location.href = '../customer/dashboard.php?page=empfehlungsprogramm';
+                    }, 3000);
+                } else {
+                    throw new Error(data.error || 'Migration fehlgeschlagen');
+                }
+                
+            } catch (error) {
+                console.error('Migration Error:', error);
+                result.className = 'result error';
+                result.innerHTML = `
+                    <h4><i class="fas fa-times-circle"></i> Fehler bei der Migration</h4>
+                    <p>${error.message}</p>
+                    <p><strong>Tipp:</strong> Prüfe die Datenbankverbindung und Berechtigungen.</p>
+                `;
+                
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-redo"></i> Erneut versuchen';
+            }
+            
+            result.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
