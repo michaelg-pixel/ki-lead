@@ -401,7 +401,7 @@ if (isset($_GET['customer_id'])) {
                         Steuernummer: <?php echo htmlspecialchars($customerData['tax_id']); ?><br>
                     <?php endif; ?>
                 <?php else: ?>
-                    <span class="highlight">Sie als Kunde vom KI Leadsystem</span><br>
+                    <span class="highlight">Sie als Kunde vom Optin Pilot</span><br>
                     <em style="color: #6b7280; font-size: 0.875rem;">Ihre persönlichen Daten werden nach der Registrierung automatisch hier eingefügt.</em>
                 <?php endif; ?>
             </div>
