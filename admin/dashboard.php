@@ -363,6 +363,7 @@ $page = $_GET['page'] ?? 'overview';
                                     </div>
                                 </a>
                                 
+                                <?php /* AUSGEBLENDET: Migration durchführen Box - kann bei Bedarf wieder aktiviert werden
                                 <a href="/migrations/migrate-av-contract.html" style="text-decoration: none; color: inherit;">
                                     <div style="background: #f9fafb; border: 2px solid #e5e7eb; padding: 20px; border-radius: 12px; transition: all 0.2s;">
                                         <div style="font-size: 32px; margin-bottom: 12px;">⚙️</div>
@@ -373,6 +374,7 @@ $page = $_GET['page'] ?? 'overview';
                                         </div>
                                     </div>
                                 </a>
+                                */ ?>
                             </div>
                         </div>
                     </div>
